@@ -1,0 +1,8 @@
+# Reproducibility scripts require:
+duckdb>=1.0
+# md_to_pdf.py (optional, renders papers to PDF) also needs:
+markdown
+# a few build/provenance scripts additionally use:
+pandas
+numpy
+httpx
