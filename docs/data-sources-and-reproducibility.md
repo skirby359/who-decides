@@ -27,7 +27,7 @@ We therefore publish **citations + code, not data** — which is also the only l
 voter files (see *Use restrictions*).
 
 **Code:** all loaders, the matcher, and the `scripts/diag_*.py` analysis scripts that produce every
-figure in these papers are in the public repository (`github.com/skirby359/wa-political-analyzer`).
+figure in these papers are in the public repository (`github.com/skirby359/who-decides`).
 Each paper names the exact script under its figures (e.g. `scripts/diag_safe_seat_states.py`,
 `scripts/diag_wa_individual_findings.py`, `scripts/diag_cross_state_money_matrix.py`).
 
