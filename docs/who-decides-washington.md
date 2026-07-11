@@ -686,34 +686,40 @@ A finer precinct-level ecological analysis is the natural sequel, and the next p
 runs it; an individual-level administrative test is not available from public cast-vote
 records, because ballot secrecy prevents linking contest choices to voter age.
 
-**The precinct-level cut, net of urbanicity.** The county correlation's weakness is that
-it cannot separate age from the rural/urban gradient — older counties are rural — so the
-+0.6 conflates the two, as the county cut itself flagged. Running the same measure across
-the ~4,900 precincts with both a 2024 presidential count and apportioned ACS demographics
-(`scripts/diag_wa_rolloff_precinct.py`) separates them. Precinct roll-off on Supreme Court
-Pos. 2 — here measured against the presidential vote rather than total ballots — averages
-16.4% (16.5% ballot-weighted), close to the 16.3% statewide same-denominator figure (the
-17.2% in the table above is against total ballots). The raw sign holds but the strength
-does not. Measured on the precinct's own 2024 electorate — the *same* predictor as the
-county's +0.6 — the association falls to Pearson r ≈ +0.09, under a sixth of the county
-value, once finer geography strips out the aggregation that inflated it. On the
-resident population it is r ≈ +0.26 on the ACS 65+ share (+0.28 on median age), still
-modest and still positive. The payoff of the finer geography is that these units can carry
-controls: residualizing roll-off and the ACS 65+ share on precinct income, education,
-median home value, renter share, and (log) population — a rough proxy for the urban/rural
-and SES gradient — cuts the association to a partial r ≈ +0.11 for the contested court
-race and +0.02 for Superintendent of Public Instruction. The strong county figure thus
-survives *neither* disaggregation *nor* control; what remains is small and, where nonzero,
-still runs *against* the objection — older places skip the contest slightly more, not less.
-The result is firmer than the county version but unchanged in direction: the data give no
-support to the fear that the young voters consolidation would add are the ones who would
-skip the local contest. The caveats compound rather than lift — the cut is still ecological
-and cannot speak to individuals; the urbanicity proxy is imperfect (precinct populations
-are drawn to be roughly equal, so a precinct-area density measure from the geometry files
-would sharpen it); and a statewide judicial race is a loose analog for hyperlocal contests
-— but every refinement has pushed the same way. (Because it apportions ACS block groups to
-precincts and uses the VRDB precinct crosswalk, this cut relies on build inputs beyond the
-public certified returns; see the script header.)
+**A closer look, precinct by precinct.** The county number has one real weakness: in
+Washington the older counties are also the rural ones, so a county-level correlation can't
+tell whether roll-off follows *age* or just *rural*. The +0.6 blends the two — the earlier
+county cut said as much. Precincts let us separate them. Across the ~4,900 precincts that
+have both a 2024 presidential vote and Census demographics
+(`scripts/diag_wa_rolloff_precinct.py`), roll-off in the Supreme Court Pos. 2 race averages
+16.4% — in line with the roughly 17% we see statewide once both are measured the same way,
+a good check that the precinct data holds together. The county cut's *direction* survives;
+its *strength* does not. On the same yardstick the county used — the share of a precinct's
+2024 voters who are 65 or older — the correlation falls from +0.6 to about +0.09, under a
+sixth as strong, because moving from 39 counties down to thousands of precincts strips out
+the lumping-together that had exaggerated it. (Measured against a precinct's older
+*residents* instead of its older *voters*, it's about +0.26 — still small, still pointing
+the same way.)
+
+The real value of working at the precinct level is that we can finally account for how
+urban and how well-off a place is. Put the age figures next to each precinct's income,
+education, home values, share of renters, and size — a stand-in for the urban-versus-rural
+and rich-versus-poor divide — and ask what age still explains on its own, and almost
+nothing is left: about +0.11 in the contested court race and +0.02 for Superintendent. So
+the big county number doesn't hold up either way — not when we look closer, and not when we
+account for the urban/rural split — and the little that remains still points the *opposite*
+way from the worry: if anything, older precincts skip the race slightly *more*, not less.
+The takeaway is the same as the county version, just on firmer ground: nothing here
+supports the fear that the young voters consolidation would bring in are the ones who'd skip
+the local race. The usual cautions still apply, and they stack up rather than fade: this is
+a neighborhood-level pattern, not proof about individuals — ballots are anonymous, so
+roll-off by a voter's own age can never be measured directly; the urban/rural stand-in is
+rough, since precincts are drawn to hold about the same number of people and a real density
+measure from the map files would do better; and a statewide court race is only a loose match
+for a city-council or school-board contest. But every time we've sharpened the test, it has
+come out the same way. (This precinct cut leans on two tables the pipeline builds — Census
+figures mapped onto precincts, and a voter-file-to-precinct crosswalk — so it needs more
+than the raw public results; see the script header.)
 
 ---
 
