@@ -682,9 +682,38 @@ evidence: it is ecological, confounded with the rural/urban gradient (older coun
 are rural, with thinner coverage of statewide judicial races), and measured on a
 *statewide* judicial race that is an imperfect analog for hyperlocal contests. It
 points away from young-concentrated roll-off but cannot establish individual behavior.
-A finer precinct- or district-level ecological analysis is the natural sequel; an
-individual-level administrative test is not available from public cast-vote records,
-because ballot secrecy prevents linking contest choices to voter age.
+A finer precinct-level ecological analysis is the natural sequel, and the next paragraph
+runs it; an individual-level administrative test is not available from public cast-vote
+records, because ballot secrecy prevents linking contest choices to voter age.
+
+**The precinct-level cut, net of urbanicity.** The county correlation's weakness is that
+it cannot separate age from the rural/urban gradient — older counties are rural — so the
++0.6 conflates the two, as the county cut itself flagged. Running the same measure across
+the ~4,900 precincts with both a 2024 presidential count and apportioned ACS demographics
+(`scripts/diag_wa_rolloff_precinct.py`) separates them. Precinct roll-off on Supreme Court
+Pos. 2 — here measured against the presidential vote rather than total ballots — averages
+16.4% (16.5% ballot-weighted), close to the 16.3% statewide same-denominator figure (the
+17.2% in the table above is against total ballots). The raw sign holds but the strength
+does not. Measured on the precinct's own 2024 electorate — the *same* predictor as the
+county's +0.6 — the association falls to Pearson r ≈ +0.09, under a sixth of the county
+value, once finer geography strips out the aggregation that inflated it. On the
+resident population it is r ≈ +0.26 on the ACS 65+ share (+0.28 on median age), still
+modest and still positive. The payoff of the finer geography is that these units can carry
+controls: residualizing roll-off and the ACS 65+ share on precinct income, education,
+median home value, renter share, and (log) population — a rough proxy for the urban/rural
+and SES gradient — cuts the association to a partial r ≈ +0.11 for the contested court
+race and +0.02 for Superintendent of Public Instruction. The strong county figure thus
+survives *neither* disaggregation *nor* control; what remains is small and, where nonzero,
+still runs *against* the objection — older places skip the contest slightly more, not less.
+The result is firmer than the county version but unchanged in direction: the data give no
+support to the fear that the young voters consolidation would add are the ones who would
+skip the local contest. The caveats compound rather than lift — the cut is still ecological
+and cannot speak to individuals; the urbanicity proxy is imperfect (precinct populations
+are drawn to be roughly equal, so a precinct-area density measure from the geometry files
+would sharpen it); and a statewide judicial race is a loose analog for hyperlocal contests
+— but every refinement has pushed the same way. (Because it apportions ACS block groups to
+precincts and uses the VRDB precinct crosswalk, this cut relies on build inputs beyond the
+public certified returns; see the script header.)
 
 ---
 
@@ -710,7 +739,8 @@ friction.
 **Reproduction.** `scripts/verify_who_decides_wa.py` re-derives every count in the
 tables above from scratch (sections #1–#29, incl. the county breakdown, habitual-core
 overlap, snapshot cross-validation, gender, and representativeness index); the roll-off
-appendix and its ecological age correlation are in `scripts/diag_wa_rolloff_2024.py`;
+appendix and its ecological age correlation are in `scripts/diag_wa_rolloff_2024.py`, with
+the finer precinct-level, urbanicity-controlled cut in `scripts/diag_wa_rolloff_precinct.py`;
 `scripts/diag_wa_individual_findings.py` and `scripts/diag_turnout_decomposition.py`
 produce the underlying figures; and `scripts/acs_wa_adult_age.py` reproduces the
 adult-resident and CVAP rows from the Census API.
