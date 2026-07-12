@@ -13,7 +13,9 @@ Two tiers.
   `diag_wa_offcycle_dropoff_demographics.py` (Appendix G race/income drop-off), both needing
   the ETL-built `precinct_demographics` + `vrdb_precinct_crosswalk`; and
   `diag_loser_side_money.py` (cross-state Section J longshot money), needing the stored
-  `forecast_predictions` + the committee→party backfill. Standalone additions:
+  `forecast_predictions` + the committee→party backfill; and `diag_efficiency_gap.py`
+  (safe-seat partisan-asymmetry check), needing the ETL-built `precinct_district_map`.
+  Standalone additions:
   `diag_safe_seat_party_ratio.py` (safe-seat split vs presidential party ratio; imports the
   safe-seat classifier + public precinct results) and `diag_sector_coverage.py` (Section H
   classifier-coverage audit; reads public FEC inflow). Coarser siblings that reproduce from

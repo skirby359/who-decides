@@ -65,9 +65,14 @@ D-vs-R by ≥10 points.
   widening gap is a packing signature — the minority party's voters concentrated into a
   few districts, so it wins a smaller share of safe *seats* than of the statewide *vote*.
   Whether that reflects deliberate line-drawing or the minority's own geographic
-  clustering is exactly what this cut cannot say — a packing signature is consistent with
-  both, and separating them needs a partisan-symmetry or map-simulation test (a separate
-  question from this paper's).
+  clustering is exactly what this cut cannot say. A first partisan-symmetry check does
+  argue against an *extreme* gerrymander, though: the efficiency gap on the presidential
+  vote by district (`scripts/diag_efficiency_gap.py`) is small in WA (~2–3%, near-symmetric)
+  and, while modestly larger in the lopsided states (Idaho ~3%, Texas ~6% on one measure —
+  all from the minority party's urban packing), stays at or under the ~8% level the
+  literature flags as a concern, so no state's map is an efficiency-gap outlier. Pinning
+  down *intent* rather than asymmetry would still take a full map-simulation (ensemble)
+  test — a separate question from this paper's.
 - **The model that the cross-state work relies on is validated here.** This project's
   forecast independently bands **53 of 59** WA districts as ≥10-pt safe (**90%**) for
   2026 — within a few points of the **85%** measured on actual 2024 results. The
