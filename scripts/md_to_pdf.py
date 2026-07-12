@@ -96,9 +96,16 @@ def main(argv: list[str]) -> None:
     )
     out_html.write_text(HTML_TEMPLATE.format(css=CSS, body=body), encoding="utf-8")
 
+    # running footer: short title (first H1, else file stem) on the left, page N / M right
+    title = next((ln[2:].strip() for ln in text.splitlines() if ln.startswith("# ")), src.stem)
+
     wk = find_wkhtmltopdf()
     subprocess.run(
         [wk, "--enable-local-file-access", "--encoding", "utf-8",
+         "--margin-top", "16mm", "--margin-bottom", "16mm",
+         "--margin-left", "16mm", "--margin-right", "16mm",
+         "--footer-font-size", "8", "--footer-spacing", "4",
+         "--footer-left", title, "--footer-right", "[page] / [topage]",
          str(out_html), str(out_pdf)],
         check=True,
     )
