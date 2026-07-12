@@ -22,23 +22,42 @@ OUT = "reports/sector_competitiveness.json"
 
 # Keyword -> sector. Order matters (first match wins via the CASE below).
 SECTORS = {
+    # NOTE: finance is matched BEFORE tech, so finance-side names that contain a tech
+    # keyword (e.g. "RENAISSANCE TECHNOLOGIES") are correctly caught here first.
     "finance": ["GOLDMAN", "BLACKSTONE", "BLACKROCK", "MORGAN STANLEY", "JPMORGAN", "JP MORGAN",
                 "CITADEL", "JANE STREET", "POINT72", "BRIDGEWATER", " KKR", "CARLYLE", "APOLLO",
                 "BAIN CAPITAL", "HEDGE", "PRIVATE EQUITY", "CAPITAL MANAGEMENT", "CAPITAL PARTNERS",
                 "INVESTMENT", "SECURITIES", "BANK", "WELLS FARGO", "CITIGROUP", "CITIBANK",
                 "CREDIT SUISSE", "UBS", "DEUTSCHE", "BARCLAYS", "FIDELITY", "VANGUARD", "SOROS FUND",
-                "JEFFERIES", "LAZARD", "EVERCORE", "CASH ", "FINANCIAL", "ASSET MANAGEMENT", "VENTURE"],
+                "JEFFERIES", "LAZARD", "EVERCORE", "CASH ", "FINANCIAL", "ASSET MANAGEMENT", "VENTURE",
+                # named hedge funds / asset managers / VC surfaced as unclassified blind spots
+                "LONE PINE", "BAUPOST", "SESSA CAPITAL", "TWO SIGMA", "MILLENNIUM MANAGEMENT",
+                "ELLIOTT MANAGEMENT", "TIGER GLOBAL", "COATUE", "VIKING GLOBAL", "D.E. SHAW",
+                "DE SHAW", "RENAISSANCE TECHNOLOGIES", "SUSQUEHANNA", "PIMCO", "T. ROWE", "T ROWE",
+                "STATE STREET", "PAULSON", "ANDREESSEN", "SEQUOIA CAPITAL", "GREYLOCK",
+                "KLEINER PERKINS", "GENERAL ATLANTIC", "SILVER LAKE", "WARBURG PINCUS"],
     "tech": ["MICROSOFT", "AMAZON", "GOOGLE", "ALPHABET", "META PLATFORMS", "FACEBOOK", "APPLE INC",
              "APPLE COMPUTER", "ORACLE", "SALESFORCE", "NVIDIA", "INTEL", "ADOBE", "NETFLIX",
              "SOFTWARE", "TECHNOLOGIES", "TECHNOLOGY", "DATA", "AMAZON WEB", "AWS", "TESLA",
              "SEMICONDUCTOR", "CISCO", "IBM", "DELL", "HEWLETT", "QUALCOMM", "UBER", "AIRBNB",
-             "STRIPE", "PALANTIR", "ZILLOW", "EXPEDIA", "ZUMIEZ"],
+             "STRIPE", "PALANTIR", "ZILLOW", "EXPEDIA", "ZUMIEZ",
+             # AI / newer tech surfaced as unclassified blind spots
+             "ANTHROPIC", "OPENAI", "DATABRICKS", "SNOWFLAKE", "COINBASE", "DOORDASH",
+             "INSTACART", "DROPBOX", "PINTEREST", "SNAP INC", "SPACEX"],
     "energy": ["EXXON", "CHEVRON", "VALERO", "CONOCO", "PHILLIPS 66", "MARATHON", "OCCIDENTAL",
                "HALLIBURTON", "SCHLUMBERGER", "BAKER HUGHES", "PETROLEUM", "OIL", "GAS COMPANY",
                "NATURAL GAS", "ENERGY", "PIPELINE", "DRILLING", "REFINING", "KOCH", "DEVON",
                "PIONEER NATURAL", "ENTERPRISE PRODUCTS", "KINDER MORGAN", "COAL", "EXPLORATION"],
     "law": ["LAW FIRM", "LAW OFFICE", "LLP", "ATTORNEY", "LAW GROUP", "& ASSOCIATES",
-            "LEGAL", "COUNSEL", " LAW", "LAW,"],
+            "LEGAL", "COUNSEL", " LAW", "LAW,",
+            # named BigLaw firms surfaced as unclassified blind spots
+            "PAUL WEISS", "AKIN GUMP", "SKADDEN", "KIRKLAND & ELLIS", "KIRKLAND AND ELLIS",
+            "LATHAM & WATKINS", "SULLIVAN & CROMWELL", "DAVIS POLK", "SIMPSON THACHER",
+            "WACHTELL", "CRAVATH", "GIBSON DUNN", "SIDLEY", "JONES DAY", "WILMERHALE",
+            "WILMER CUTLER", "HOGAN LOVELLS", "ARNOLD & PORTER", "COVINGTON & BURLING",
+            "DEBEVOISE", "WEIL GOTSHAL", "ROPES & GRAY", "MORGAN LEWIS", "PERKINS COIE",
+            "K&L GATES", "MAYER BROWN", "WILLKIE FARR", "FRIED FRANK", "CLEARY GOTTLIEB",
+            "QUINN EMANUEL", "GREENBERG TRAURIG", "DLA PIPER", "HOLLAND & KNIGHT"],
     "healthcare": ["HOSPITAL", "MEDICAL", "HEALTH", "PHARMA", "CLINIC", "PHYSICIAN", "PFIZER",
                    "MERCK", "KAISER", "UNITEDHEALTH", "BIOTECH", "GENENTECH", "AMGEN"],
     "realestate": ["REAL ESTATE", "REALTY", "REALTOR", "PROPERTIES", "DEVELOPMENT GROUP",

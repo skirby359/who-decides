@@ -409,32 +409,38 @@ Likely10–20 / Solid≥20). "Competitive share" = (Tossup+Lean) ÷ sector total
 | Sector | $ (House, 3 states) | Competitive share | Out-of-state share |
 |---|--:|--:|--:|
 | Real estate | $8.0M | **22.0%** | 32.2% |
-| **Finance / Wall St** | $16.6M | **21.0%** | 42.4% |
-| Law | $14.5M | 19.5% | 33.1% |
+| **Finance / Wall St** | $18.4M | **21.7%** | 44.4% |
+| Law | $17.6M | 20.1% | 33.1% |
 | Healthcare | $8.4M | 16.1% | 35.7% |
-| **Tech** | $6.5M | **14.3%** | 46.2% |
 | **Energy** | $3.5M | **14.3%** | 26.0% |
+| **Tech** | $7.1M | **11.7%** | 51.8% |
 | *[all sectors baseline]* | $485M | *18.5%* | *~43%* |
 
+<sub>Sector keyword map extended after a coverage audit (`scripts/diag_sector_coverage.py`)
+surfaced major law firms, hedge funds, and tech names as unclassified; the additions lifted
+classified dollars from ~14% to ~15% and left the pattern below intact.</sub>
+
 - **Defensible claim.** The hypothesis is **partially borne out, with a twist.** Finance money
-  does tilt toward competition (**21.0%** of its dollars to Tossup/Lean vs an 18.5% baseline),
-  and **tech and energy are the least competition-seeking of any sector (14.3% each)** — they
-  do disproportionately fund safe seats. But the cleanest contrast is in *travel*, not band:
-  **energy money is strikingly local** (only **26%** out-of-state vs ~43% baseline) — it funds
-  its own state's (Texas) incumbents — while **tech money travels far (46% out-of-state) yet
-  lands in safe seats** (national safe-D House members). Finance both travels (42%) and tilts
-  competitive. So: Wall Street chases the marginal race somewhat; tech funds safe co-partisans
-  at a distance; energy funds the home-state incumbent.
+  does tilt toward competition (**21.7%** of its dollars to Tossup/Lean vs an 18.5% baseline),
+  and **tech is now the single least competition-seeking sector (11.7%)**, with energy next at
+  14.3% — both disproportionately fund safe seats. But the cleanest contrast is in *travel*, not
+  band: **energy money is strikingly local** (only **26%** out-of-state vs ~43% baseline) — it
+  funds its own state's (Texas) incumbents — while **tech money travels the farthest (52%
+  out-of-state) yet lands in safe seats** (national safe-D House members). Finance both travels
+  (44%) and tilts competitive. So: Wall Street chases the marginal race somewhat; tech funds
+  safe co-partisans at a distance; energy funds the home-state incumbent.
 - **Strongest objection.** The effect is **modest and partly mechanical.** The competitive-share
-  spread is only ~8 points (real-estate 22% to tech/energy 14%), and tech (WA) and energy (TX)
+  spread is only ~10 points (real-estate 22% to tech 12%), and tech (WA) and energy (TX)
   are concentrated in their home states, whose *own* House seats happen to be safe (Solid-D
   Seattle, Solid-R Texas) — so "tech/energy fund safe seats" is in part just "their in-state
   seats are safe," not a strategic preference for safety.
-- **Caveat.** Classified sectors are a **thin slice — only ~14% of inflow dollars**; "retired /
-  not-employed / blank" is 46.8% and "unclassified" 39.7%, and tech ($6.5M) and energy ($3.5M)
-  volumes in these three states' House races are small enough to be noisy. Employer strings are
-  self-reported free text; the keyword map is indicative, not audited. House-only (Senate
-  competitiveness isn't model-forecast).
+- **Caveat.** Even after extending the keyword map with the biggest missing law firms, hedge
+  funds, and tech names, classified sectors are still a **thin slice — only ~15% of inflow
+  dollars**; "retired / not-employed / blank" is 46.8% and "unclassified" ~39%, and tech
+  ($7.1M) and energy ($3.5M) volumes in these three states' House races are small enough to be
+  noisy. Employer strings are self-reported free text; the keyword map is indicative, not
+  audited (`scripts/diag_sector_coverage.py`). House-only (Senate competitiveness isn't
+  model-forecast).
 
 ### I. Inflow concentration trend + donor retention — is the candidate-money base democratizing?
 
@@ -474,6 +480,23 @@ the **outflow**; this measures it on the **inflow**, and adds repeat-vs-one-time
   retention reflects early givers skewing toward committed repeat donors before the late
   small-dollar surge). Capped candidate giving ≠ the whole money system — the uncapped layer
   (Section A) is where concentration concentrates.
+
+### J. Which side of a safe seat gets the money? (longshot vs favored)
+
+*New cut in `scripts/diag_loser_side_money.py`; NY + WA U.S. House inflow 2022–2026,
+recipient party from the committee→party map, favored party from the forecast margin.
+TX omitted — its committee→party map isn't built.*
+
+A safe seat for one party is a longshot for the other, so we can ask which side the money
+actually reaches. Almost all of it goes to the favored side, and the safer the seat, the
+more lopsided the split. In New York the longshot party's share of House inflow falls from
+74% in the lone tossup to 27% in Likely seats to just **5.5%** in Solid (≥20-point) seats;
+Washington runs the same way (24.6% Likely → **4.8%** Solid). Put plainly: in a truly safe
+district the disadvantaged party's candidate raises about a nickel on the dollar and the
+favored side takes the rest. (Caveats: this is money entering the race, House only;
+leadership PACs tied to safe incumbents can pad the favored side; and "favored" is only
+meaningful once a seat is actually safe — in a real tossup the challenger can out-raise
+the nominal favorite, which is why the tossup row looks inverted.)
 
 ---
 

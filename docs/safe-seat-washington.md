@@ -52,6 +52,22 @@ D-vs-R by ≥10 points.
 - **It is not a one-party artifact.** Among 2024's safe seats, **69 lean Democratic
   and 44 lean Republican** — safe seats are a bipartisan feature of the map, the
   expected product of a geographically sorted electorate, not a gerrymander story.
+- **But the *ratio* doesn't quite match the vote.** "Not one-party" is a claim about
+  *direction*. Whether safe seats split the way the *statewide vote* does is a separate
+  question, and they don't quite. Measured against each state's 2024 presidential
+  two-party vote (`scripts/diag_safe_seat_party_ratio.py`, lower chamber for cross-state
+  comparability), safe seats over-represent whichever party runs the state, and the gap
+  widens the more lopsided the state gets: WA's House safe seats are 62.1% Democratic
+  against a 59.5% Democratic presidential vote (+2.6 points — and the 69–44 all-seats
+  split above is +1.6), essentially a match, which is what geographic sorting rather than
+  distortion looks like. But Texas safe seats are 63.8% Republican against 56.9%
+  presidential (+6.9), and Idaho's are 87.7% Republican against 68.8% (+18.9). That
+  widening gap is a packing signature — the minority party's voters concentrated into a
+  few districts, so it wins a smaller share of safe *seats* than of the statewide *vote*.
+  Whether that reflects deliberate line-drawing or the minority's own geographic
+  clustering is exactly what this cut cannot say — a packing signature is consistent with
+  both, and separating them needs a partisan-symmetry or map-simulation test (a separate
+  question from this paper's).
 - **The model that the cross-state work relies on is validated here.** This project's
   forecast independently bands **53 of 59** WA districts as ≥10-pt safe (**90%**) for
   2026 — within a few points of the **85%** measured on actual 2024 results. The

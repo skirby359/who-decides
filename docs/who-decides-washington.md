@@ -715,6 +715,40 @@ come out the same way. (This precinct cut leans on two tables the pipeline build
 figures mapped onto precincts, and a voter-file-to-precinct crosswalk — so it needs more
 than the raw public results; see the script header.)
 
+## Appendix G — Off-cycle drop-off by precinct race, income, and education (ecological)
+
+The body of this paper measures age because the voter file carries each voter's birth
+year. It carries no race, income, or education — Washington doesn't publish them — so
+those can only be looked at *ecologically*, through the Census make-up of a voter's
+precinct, with the same ceiling as Appendix F: a precinct-level pattern is not proof
+about individuals.
+
+With that caveat, the question is whether the precincts that drop off most between a
+presidential and an off-year are also the more nonwhite, lower-income, or less-college
+ones — a representation gap beyond age. Using off-cycle *retention* — the share of a
+precinct's 2024 presidential voters who came back for the 2025 off-year
+(`scripts/diag_wa_offcycle_dropoff_demographics.py`, ~4,700 precincts) — the raw picture
+is what you'd expect: whiter, more-college, older precincts hold onto more of their voters
+off-cycle (Pearson r ≈ +0.25 on % white, +0.18 on % college, +0.27 on the 65+ share),
+more-Hispanic precincts hold onto fewer (−0.20), and income is nearly flat (−0.08).
+
+The sharper question is whether any of that survives the age story, since older precincts
+are also whiter. Holding the precinct's 65+ share constant, **education stays the
+strongest** — more-college precincts retain more voters off-cycle regardless of age
+(partial r ≈ +0.20) — while race attenuates but doesn't vanish (+0.10 on % white, −0.12 on
+% Hispanic) and income stays near zero. So there's a modest representation gap on
+education, and more weakly race, on top of the age gap the paper documents: the off-cycle
+electorate isn't only older, it's also somewhat more educated and whiter than the
+presidential one, even comparing precincts of similar age.
+
+Every caveat from Appendix F applies and then some. This describes precincts, not people;
+it cannot show that any individual nonwhite or less-educated voter is likelier to skip an
+off-year. Retention is measured off the current voter file (survivorship applies), the
+precinct demographics are apportioned ACS estimates, and race in particular is
+unmeasurable at the individual level in Washington at any geography, because the voter
+file has no race field. It points to a gap worth a dedicated, better-controlled study —
+not a settled finding.
+
 ---
 
 ## End note — data, reproduction, and series
