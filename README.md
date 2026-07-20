@@ -1,6 +1,6 @@
 # who-decides
 
-Open-source code and papers behind **“Who Decides Washington?”** and its companion
+Open-source code and papers behind **“Who Decides Washington State?”** and its companion
 studies of who returns the ballot — the age (and, where the state publishes party of
 record, partisan) composition of American electorates across the presidential →
 midterm → off-year salience gradient.
@@ -44,7 +44,7 @@ Run any of the six verifiers; each maps to one paper:
 
 | Script | Paper |
 |---|---|
-| `verify_who_decides_wa.py` | Who Decides Washington? |
+| `verify_who_decides_wa.py` | Who Decides Washington State? |
 | `verify_who_decides_ny.py` | Who Decides New York? |
 | `verify_who_decides_id.py` | Who Decides Idaho? |
 | `verify_safe_seat.py` | Safe-Seat Washington |

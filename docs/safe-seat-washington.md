@@ -2,7 +2,7 @@
 
 ### How often is a Washingtonian's legislative or congressional general election an actual contest? (Observed, 2016–2024)
 
-*Companion to ["Who Decides Washington?"](who-decides-washington.md) and the
+*Companion to ["Who Decides Washington State?"](who-decides-washington.md) and the
 [electoral-health white paper](electoral-health-whitepaper.md) (Finding 2). Where
 the lead paper showed *who* turns out, this one asks whether their vote in the
 general is a real choice. Figures from `scripts/diag_safe_seat_wa.py`, computed

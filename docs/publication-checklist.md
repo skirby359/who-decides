@@ -7,7 +7,7 @@ posting under an author's name** — this file makes that fast, it does not
 substitute for it.*
 
 Lead paper: [`who-decides-washington.md`](who-decides-washington.md)
-("Who Decides Washington? The gray off-year electorate"). Companion:
+("Who Decides Washington State? The gray off-year electorate"). Companion:
 [`safe-seat-washington.md`](safe-seat-washington.md).
 
 ---
@@ -53,7 +53,7 @@ python scripts/diag_safe_seat_states.py            # four-state observed legisla
 python scripts/diag_tx_safe_seat_backfill.py       # TX completion (r206 backfill)
 ```
 
-**"Who Decides Washington?" — claims to confirm against `diag_wa_individual_findings.py`:**
+**"Who Decides Washington State?" — claims to confirm against `diag_wa_individual_findings.py`:**
 
 | # | Claim in paper | Expected | Source |
 |---|---|---|---|

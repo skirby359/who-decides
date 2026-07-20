@@ -373,7 +373,7 @@ signal. Accuracy-weighted failure signal across all findings = **22/100**.*
 
 ## Appendix B — Suggested publication sequence (status as of 2026-06-28)
 
-1. **Lead paper:** "Who Decides Washington?" (Finding 1) — **DRAFTED**
+1. **Lead paper:** "Who Decides Washington State?" (Finding 1) — **DRAFTED**
    ([`who-decides-washington.md`](who-decides-washington.md)).
 2. **Companion:** "Safe-Seat Washington / the Four-State Map" (Finding 2) — **DRAFTED**
    ([`safe-seat-washington.md`](safe-seat-washington.md)); observed margins, complete

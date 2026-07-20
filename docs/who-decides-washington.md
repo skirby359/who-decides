@@ -1,4 +1,4 @@
-# Who Decides Washington?
+# Who Decides Washington State?
 
 ### Who Returns the Ballot? Age Composition in Washington's Odd-Year Electorate, 2021–2025
 
@@ -752,7 +752,7 @@ strongest** as more-college precincts retain more voters off-cycle regardless of
 (partial r ≈ +0.20) while race attenuates but does not vanish (+0.10 on % white, −0.12 on
 % Hispanic) and income stays near zero. These are ecological patterns about places, not
 individual-level estimates about voters. They point to a representation gap worth
-studying more directly, not to a settled race- or education-level voter finding.
+studying more directly, not to a settled race or education-level voter finding.
 
 Every caveat from Appendix F applies and then some. This describes precincts, not people;
 it cannot show that any individual nonwhite or less-educated voter is likelier to skip an
