@@ -4,9 +4,11 @@
 
 **Stephen Kirby** · Tikor Consulting · July 2026
 
-*AI-assisted analysis; every figure is independently reproducible from public records
-via the cited open-source scripts (e.g. `scripts/verify_who_decides_wa.py`), all public
-at <https://github.com/skirby359/who-decides>. Contact: kirby@tikorconsulting.com.*
+*AI-assisted drafting and analysis review. All figures are reproducible from
+public-record data available through lawful request and from the open-source scripts
+cited below, including `scripts/verify_who_decides_wa.py`. The paper source, code, and
+data-acquisition recipe are public at <https://github.com/skirby359/who-decides>; the
+underlying voter file is not redistributed. Contact: kirby@tikorconsulting.com.*
 
 ## Abstract
 
@@ -18,11 +20,10 @@ birth, it measures the age make-up of every November general electorate from 202
 through 2025. The central finding is descriptive: Washington's odd-year electorate is
 markedly older than its presidential one. Voters 65 and older were 36.7%, 40.2%, and
 40.3% of the 2021, 2023, and 2025 odd-year electorates, against 28.5% in 2024; voters
-18–29 fell from 14.2% in 2024 to about 7.6% off-cycle. The result holds up under a full
-set of checks: it matches certified ballot counts; it survives a formal worst-case bound
-for voters missing from the current-roll reconstruction (cross-checked against a second,
-closer-in-time roll snapshot); and it holds under alternative birth-year assumptions,
-across all 39 counties, and with any single off-year dropped. The off-year electorate is
+18–29 fell from 14.2% in 2024 to about 7.6% off-cycle. The result survives
+voter-file coverage validation against certified ballot counts, formal bounds for
+current-roll survivorship, a closer-in-time roll cross-check, alternative birth-year
+assumptions, county-level checks, and exclusion of any single off-year. The off-year electorate is
 also older than the registered roll and the citizen voting-age population. Individual
 records show it is largely the presidential electorate's *habitual core* (92–97% of
 off-year voters also vote in presidential years), while the peripheral voters who drop
@@ -30,7 +31,7 @@ off off-cycle skew young. The paper measures ballot return, not votes cast in sp
 down-ballot contests, and does not estimate partisan or policy consequences. Its
 contribution is a validated, individual-record measurement of age composition across the
 presidential–midterm–off-year salience gradient, in a universal vote-by-mail state where
-the formal cost of voting is comparatively low.
+the formal administrative cost of voting is comparatively low.
 
 **Keywords:** election timing; voter turnout; local elections; age representation;
 voter files; Washington; vote by mail; off-cycle elections.
@@ -45,7 +46,7 @@ election you look at. Washington fills many of its most local offices such as ci
 school boards, port and fire commissions, and many county and judicial seats in
 **odd-year, off-cycle Novembers** (RCW 29A.04.321 limits the odd-year statewide general
 election chiefly to city, town, and district offices, certain county positions, and
-state measures), when only about **38%** of registered voters send back a ballot. This
+state measures), when only about **38%** of registered voters return a ballot. This
 paper looks at who that 38% is, voter by voter.
 
 The short answer: **the odd-year electorate we can observe is markedly older than the
@@ -484,8 +485,8 @@ a measurement of its size.
   April 8, 2026). By statute the public file is limited to each voter's name, address,
   political jurisdiction, gender, **year of birth**, voting record, registration date,
   and registration number, and **no other information from voter-registration records
-  is available for public inspection or copying** (RCW 29A.08.710) and is the statutory basis
-  for year-of-birth. Its use is restricted to elections and political
+  is available for public inspection or copying** (RCW 29A.08.710). This is the statutory
+  basis for using year of birth rather than full date of birth. Its use is restricted to elections and political
   purposes and **may not be used for commercial purposes** (RCW 29A.08.720); the file is
   **not redistributable**, with penalties at RCW 29A.08.740. Full provenance and access
   date: [Data Sources & Reproducibility](data-sources-and-reproducibility.md).
@@ -712,9 +713,9 @@ and rich-versus-poor divide, and ask what age still explains on its own. Under t
 almost nothing is left, with a correlation of only about +0.11 in the contested court race and +0.02 for Superintendent. So
 the big county number does not hold up either way and the little that remains still points the *opposite*
 way from the worry: if anything, older precincts skip the race slightly *more*, not less.
-The takeaway is the same as the county version, just on firmer ground: nothing here
-supports the fear that the young voters consolidation would bring in are the ones who would skip
-a local race. The usual cautions still apply, and they stack up rather than fade: this is
+The takeaway is the same as the county version, just on firmer ground: nothing in these
+ecological checks supports the fear that the young voters consolidation would bring in
+are the ones who would skip a local race. The usual cautions still apply, and they stack up rather than fade: this is
 a neighborhood-level pattern, so
 roll-off by a voter's own age can never be measured directly; the urban/rural stand-in is
 rough, since precincts are drawn to hold about the same number of people and a real density
@@ -725,7 +726,8 @@ figures mapped onto precincts, and a voter-file-to-precinct crosswalk; see the s
 
 ## Appendix G — Off-cycle drop-off by precinct race, income, and education (ecological)
 
-The body of this paper measures age because the voter file carries each voter's birth
+Appendix G is exploratory and is not used to carry the paper's main finding. The body
+of this paper measures age because the voter file carries each voter's birth
 year. It carries no race, income, or education (Washington does not publish them), so
 those can only be looked at *ecologically*, through the Census make-up of a voter's
 precinct, with the same ceiling as Appendix F: a precinct-level pattern is not proof
@@ -744,10 +746,9 @@ The sharper question is whether any of that survives the age story, since older 
 are also whiter. Holding the precinct's 65+ share constant, **education stays the
 strongest** as more-college precincts retain more voters off-cycle regardless of age
 (partial r ≈ +0.20) while race attenuates but does not vanish (+0.10 on % white, −0.12 on
-% Hispanic) and income stays near zero. So there is a modest representation gap on
-education, and more weakly race, on top of the age gap the paper documents: the off-cycle
-electorate is not only older; it is also somewhat more educated and whiter than the
-presidential one, even comparing precincts of similar age.
+% Hispanic) and income stays near zero. These are ecological patterns about places, not
+individual-level estimates about voters. They point to a representation gap worth
+studying more directly, not to a settled race- or education-level voter finding.
 
 Every caveat from Appendix F applies and then some. This describes precincts, not people;
 it cannot show that any individual nonwhite or less-educated voter is likelier to skip an
@@ -799,11 +800,15 @@ general, so that retention cell is an empty-denominator artifact, and 19-year-ol
 
 Four features of the full curve matter for reading the body of the paper.
 
-**First, the gradient is a smooth, monotone life-cycle ramp, not a set of cohort
-steps.** Retention climbs from 23.0% at age 20 to a peak of 72.0% at age 79, rising at
-roughly one to one and a half points per year of age through the entire working-age
-range. There are no jumps, plateaus, or reversals anywhere in the middle of the curve,
-and no birth-year cohort stands out from its neighbors.
+**First, the gradient is a smooth age ramp, not a set of cohort steps.** Retention
+rises steadily from 23.0% at age 20 to a peak of 72.0% at age 79, at roughly one to one
+and a half points per year of age, with no visible breakpoint at the conventional
+cohort boundaries used in the body of the paper and no birth-year cohort standing out
+from its neighbors. That pattern shows that the main result is not manufactured by the
+choice of age bands. It is also consistent with a life-cycle interpretation, but it
+does not prove one: a durable high-turnout cohort currently concentrated in older ages
+could produce a similar cross-section, and separating age from cohort requires a
+longer panel.
 
 **Second, there is no discontinuity at 65.** If the senior tilt reflected something
 categorical about retirement (time freed for civic life, or a benefits-driven interest
@@ -826,12 +831,10 @@ reports; no alternative bracket scheme could reverse it. It also means data-driv
 clustering (for example, k-means on the age axis) would not recover natural behavioral
 cohorts: with no internal breakpoints, such methods would split the curve at densities
 of the *roll* (the largest birth cohorts), not at changes in behavior. The single-year
-curve is also the cleanest evidence in this paper for reading the senior tilt as a
-**life-cycle** phenomenon rather than a fixed generational trait, subject to the same
-five-cycle limit noted in the body (a durable high-turnout generation currently in its
-60s and 70s would produce a similar cross-section; separating the two needs a longer
-panel). The habit-formation literature (Highton & Plutzer 2002, in Appendix D) points
-the same way.
+curve is also the most suggestive evidence in this paper for a **life-cycle**
+interpretation of the senior tilt, subject to the age-cohort-period limit stated
+above and in the body's limits section. The habit-formation literature (Highton &
+Plutzer 2002, in Appendix D) points the same way.
 
 ---
 
@@ -845,7 +848,7 @@ the certified statewide totals published by the WA Secretary of State
 Community Survey 2020–2024 5-year, table B01001 (Washington, FIPS 53).
 
 **Institutional context.** Washington is an unusually informative case because the
-formal cost of voting is lower than in many states: registered voters are mailed a
+formal administrative cost of voting is lower than in many states: registered voters are mailed a
 ballot, which they can return by mail without postage or drop in a box; eligible voters
 can register or update their registration in person up to 8 p.m. on Election Day; and
 registration is automatic through qualifying agency transactions (WA Secretary of State).
@@ -858,7 +861,8 @@ tables above from scratch (sections #1–#30, incl. the county breakdown, habitu
 overlap, snapshot cross-validation, gender, representativeness index, and the
 single-year-of-age curve of Appendix H, computed by `scripts/diag_wa_age_curve.py`); the roll-off
 appendix and its ecological age correlation are in `scripts/diag_wa_rolloff_2024.py`, with
-the finer precinct-level, urbanicity-controlled cut in `scripts/diag_wa_rolloff_precinct.py`;
+the finer precinct-level, SES- and urban-proxy-adjusted cut in
+`scripts/diag_wa_rolloff_precinct.py`;
 `scripts/diag_wa_individual_findings.py` and `scripts/diag_turnout_decomposition.py`
 produce the underlying figures; and `scripts/acs_wa_adult_age.py` reproduces the
 adult-resident and CVAP rows from the Census API. All scripts, the paper source, and

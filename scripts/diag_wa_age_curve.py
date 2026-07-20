@@ -13,11 +13,13 @@ from the WA voter file (data/wa_vrdb.duckdb: voters + voting_history),
 
 Age = 2025 - birth year (the paper's convention; the file carries year of
 birth only). The finding the appendix reports: the gradient is a smooth,
-monotone life-cycle ramp — retention climbs from ~23% at age 20 to a ~71%
-plateau at ages 74-82 with NO discontinuity at 65, a first-election bump at
-18-20 followed by the classic early-20s trough, and a decline from ~84 —
-so no banding choice manufactures or hides the composition result, and no
-data-driven clustering would find natural cohort breakpoints.
+monotone age ramp — retention climbs from ~23% at age 20 to a ~71% plateau
+at ages 74-82 with NO discontinuity at 65, a first-election bump at 18-20
+followed by the classic early-20s trough, and a decline from ~84 — so no
+banding choice manufactures or hides the composition result, and no
+data-driven clustering would find natural cohort breakpoints. Consistent
+with (though not proof of) a life-cycle interpretation; age, cohort, and
+period effects are not separable in a five-cycle panel.
 
 Standalone: duckdb + stdlib. Run from the repo root with data/ populated.
 Writes reports/wa_age_curve.json. Verified by verify_who_decides_wa.py #30.
