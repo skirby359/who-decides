@@ -679,11 +679,17 @@ of legislative dollars.*
 
 | | WA (PDC) | NY (BOE) | TX (TEC) | ID (Sunshine) |
 |---|---:|---:|---:|---:|
-| Rows / $ | 1,559 / $151M | 20,349 / $1.73B | 19,416 / $5.17B | 2,067 / $55M |
-| Cycles | 2018–2026 | 2014–2026 | 2014–2026 | 2020–2025 |
-| Universe | legislative + curated locals **only** | full filer universe | full filer universe | full filer universe |
-| Office labels | native | native (partial) | native (partial) | none → roster join |
-| Party labels | native | native | mostly Unknown → roster join | none → roster join |
+| Rows / $ | 16,604 / $1.52B | 20,349 / $1.73B | 19,416 / $5.17B | 2,067 / $55M |
+| Cycles | 2014–2026 | 2014–2026 | 2014–2026 | 2020–2025 |
+| Universe | full filer universe | full filer universe | full filer universe | full filer universe |
+| Office labels | native (legislative rows) | native (partial) | native (partial) | none → roster join |
+| Party labels | native (legislative rows) | native | mostly Unknown → roster join | none → roster join |
+
+*(WA was originally legislative-candidates-only; the full filer universe — statewide execs,
+party/caucus committees, PACs, ballot committees — was bulk-loaded 2026-07-19 from the PDC
+Campaign Finance Summary via `load-pdc-filer-universe`: one CSV export request, 43K
+filer-years, ~13 seconds. The legislative rows keep their richer office/party/individual-PAC
+detail; K1–K4 are computed on those rows and are unchanged by the expansion.)*
 
 **K1 — The price of a house seat varies 26× across the four states.** Per-seat-per-cycle
 candidate receipts (2022+2024): **TX $978K ≫ WA $253K > NY $138K > ID $37K**. Median
@@ -706,12 +712,17 @@ Only in the red states.** Per-district house-candidate $ by forecast band, with 
 
 - **Defensible claim.** TX and ID look federal-like (competitive seats draw ~1.7–2.5× the
   candidate money of safe ones), but **WA is nearly flat (1.12×) and NY inverts (0.85× —
-  safe Assembly seats out-raise the battlegrounds per district).** The likely mechanism is
-  visible in K5: in NY the battleground money runs through the **party campaign committees**
+  safe Assembly seats out-raise the battlegrounds per district).** The mechanism is visible
+  in K5: in NY the battleground money runs through the **party campaign committees**
   (DACC/DSCC/NYSSRCC/RACC are 4 of NY's top-10 filers, $33–43M each) rather than through
   candidate committees, and safe-seat incumbents (leadership, chairs) raise heavily anyway;
   the candidate-committee lens undercounts exactly the competitive spending NY routes
-  around it.
+  around it. WA sits between the poles: its eight **caucus committees** (HDCC/HROC, the
+  Senate Truman/Kennedy funds, Leadership Council/WA WINS, WSDC/SRCC) raised **$36.2M in
+  2022+2024 — about half the $72.9M all legislative candidates raised combined** — a real
+  routing-around-candidates layer, milder than New York's, which (together with WA's
+  contribution caps compressing what any single hot race can absorb directly) is consistent
+  with its flat candidate-level premium.
 - **Strongest objection.** The forecast bands are 2026 labels applied to 2022+2024 money
   (bands are stable, but not identical, across cycles); WA's Lean band holds a single
   district; and NY's office classification is partial — if BOE office-coding is biased
@@ -734,7 +745,7 @@ small-donor era documented in Sections A–I is a *federal* phenomenon — state
 campaigns are still funded chiefly by organized money. (TEC's split is
 individual-vs-entity by construction; "PAC" there means all non-individual money.)
 
-**K5 — The panorama: what the full filer universe shows (NY/TX/ID; WA can't).**
+**K5 — The panorama: what the full filer universe shows (all four states).**
 - **TX:** Texans for Greg Abbott has raised **$424.5M across 6 cycles** — 1.4× the entire
   TX House candidate universe over 2022+2024 combined. ActBlue Texas ($168.6M) and Dan
   Patrick ($106.9M) follow; Texans for Lawsuit Reform ($105.5M) is the biggest
@@ -747,9 +758,15 @@ individual-vs-entity by construction; "PAC" there means all non-individual money
   and orgs hold 2/3 of ID state money. Consistent with Section F5's picture of a small
   retail donor base: even Idaho's biggest money fights are initiative fights, not
   candidate fights.
-- **WA (caveat):** the PDC load covers legislative + curated local candidates only — no
-  statewide execs, party committees, or PACs — so WA appears in K1–K4 but has no panorama
-  row. Loading the full PDC filer universe is the natural follow-on.
+- **WA:** the top filer is a **union PAC** — SEIU's Political Education and Action Fund
+  ($39.2M across 12 years) — followed by New Direction PAC ($32.2M) and two
+  nine-figure-fight ballot committees (No on 1631, the oil-industry carbon-fee opposition,
+  $31.6M in a single year; Yes! To Affordable Groceries, $22.4M). No candidate cracks the
+  top ten: WA's biggest single candidate haul ever is Bob Ferguson's ~$19M 2024
+  governor run, roughly half of SEIU's cumulative total. Committees hold **69% of all WA
+  state money** ($1.05B of $1.52B) — the same ~2/3 org share as TX and ID. The caucus
+  committees sit just below the mega-PACs (HDCC $19.2M and the Truman Fund $18.7M across
+  12 years) — the "half the candidate layer" routing channel quantified in K2.
 
 ---
 
@@ -843,5 +860,9 @@ Tests A–I are run. Status:
    premium holds only in TX/ID (WA flat, NY inverted — party committees route around candidate
    committees); statehouse money is PAC-funded (~31–38% individual) vs Congress's ~65%
    individual; TX/ID's biggest state-money filers are a governor's committee ($424.5M) and a
-   ballot-measure committee respectively. Follow-on: load the full WA PDC filer universe
-   (party cmtes/PACs) so WA gets a J5 panorama row.
+   ballot-measure committee respectively. **Follow-on completed same day:** the full WA PDC
+   filer universe (statewide execs, party/caucus cmtes, PACs, ballot cmtes) bulk-loaded via
+   the new `load-pdc-filer-universe` CLI (one Socrata CSV export request — 43K filer-years,
+   ~13s; WA 1,559→16,604 rows / $1.52B), giving WA its K5 panorama row (top filer = SEIU's
+   PAC; committees hold 69% of WA state money) and quantifying the caucus-committee routing
+   layer ($36.2M ≈ half the candidate layer, 2022+2024).

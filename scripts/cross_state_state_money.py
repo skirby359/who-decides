@@ -35,7 +35,8 @@ STATES = region_states()
 # party comes native from the disclosure feed, and what the filer universe is.
 SPEC = {
     "WA": dict(prefix="PDC:", house_fc="ld", native_party=True,
-               universe="legislative + curated local candidates only (no statewide execs, no PACs/party cmtes)"),
+               universe="full filer universe (candidates + party/caucus cmtes + PACs + ballot cmtes; "
+                        "office/party detail on the legislative rows only)"),
     "NY": dict(prefix="NY:", house_fc="ad", native_party=True,
                universe="full filer universe (candidates + party cmtes + PACs)"),
     "TX": dict(prefix="TX:", house_fc="hd", native_party=False,
@@ -269,10 +270,19 @@ def analyze(st: str, path: str) -> dict:
             "GROUP BY 1 ORDER BY 2 DESC LIMIT 10"
         ).fetchall()
     ]
-    # Person-vs-org split is only derivable where filer names follow the
-    # "LAST, FIRST" convention (TEC/Sunshine). WA is candidates-only by
-    # construction; NY filers are ALL committee names (incl. candidate cmtes).
-    if st in ("TX", "ID"):
+    # Person-vs-org split: WA carries an explicit recipient_type (candidate vs
+    # committee, from the filer-universe load); TX/ID derive it from the
+    # "LAST, FIRST" filer-name convention. NY filers are ALL committee names
+    # (incl. candidate cmtes), so no split is derivable there.
+    if st == "WA":
+        j5 = c.execute(
+            "SELECT recipient_type='candidate', COUNT(*), ROUND(SUM(total_receipts)/1e6, 1) "
+            f"FROM candidate_finance WHERE fec_candidate_id LIKE '{pfx}%' "
+            "AND election_cycle <= 2025 GROUP BY 1"
+        ).fetchall()
+        res["person_vs_org"] = {
+            ("person" if k else "org"): dict(n=n, total_m=m) for k, n, m in j5}
+    elif st in ("TX", "ID"):
         j5 = c.execute(
             f"WITH {cte} SELECT is_person, COUNT(*), ROUND(SUM(total_receipts)/1e6, 1) "
             "FROM fin WHERE election_cycle <= 2025 GROUP BY 1"
