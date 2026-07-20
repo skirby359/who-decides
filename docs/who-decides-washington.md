@@ -82,8 +82,9 @@ slice, losing them would not matter; if they skew young, the finding would be ov
 Both are testable, and the answers favor the finding.
 
 **Coverage is high, and the worst case is bounded directly.** We benchmark the
-reconstruction against certified WA Secretary of State ballot counts
-(`results.vote.wa.gov`). "In file" counts distinct voters in the cumulative vote-history
+reconstruction against certified WA Secretary of State ballot counts, from the
+per-election turnout pages (`results.vote.wa.gov/results/<yyyymmdd>/turnout.html`;
+e.g., November 2021: 1,896,481 ballots counted, 39.38% turnout). "In file" counts distinct voters in the cumulative vote-history
 table for an election; "Analyzable" also requires a match to the April 2026 roll with a
 year of birth. Analyzable coverage runs from **90.8% in 2021 to 99.6% in 2025**,
 improving sharply over time. The weakest year is the 2021 off-year, which is exactly why
@@ -293,7 +294,9 @@ clustering.
 result (65+ share 36.7 / 40.2 / 40.3%) despite *different* statewide ballot content: 2021
 and 2023 carried only the state's non-binding tax "advisory votes," and
 2025's only statewide item was a single fiscal constitutional amendment (SJR 8201, on
-investing the WA Cares trust fund). None is a high-salience, mobilizing contest, and the fact that the
+investing the WA Cares trust fund; approved per the WA Secretary of State's certified
+November 4, 2025 results, `results.vote.wa.gov`, where it was the only statewide
+contest). None is a high-salience, mobilizing contest, and the fact that the
 65+ share barely moves across all three is direct evidence that none of them drives the
 composition. Dropping any one off-year leaves the conclusion intact.
 
@@ -482,7 +485,7 @@ a measurement of its size.
 - **What was obtained.** Washington's standard statewide **VRDB extract**, the single
   public extract the Secretary of State publishes (registrants plus cumulative vote
   history), regenerated monthly. This study uses the **April 2026 extract** (requested
-  April 8, 2026). By statute the public file is limited to each voter's name, address,
+  April 8, 2026). By statute, the public file is limited to each voter's name, address,
   political jurisdiction, gender, **year of birth**, voting record, registration date,
   and registration number, and **no other information from voter-registration records
   is available for public inspection or copying** (RCW 29A.08.710). This is the statutory
@@ -551,11 +554,11 @@ paper shows the age-composition result is not an artifact of current-roll surviv
 - **Turnout composition by salience (surge-and-decline).** Campbell, "Surge and
   Decline: A Study of Electoral Change," *Public Opinion Quarterly* 24(3) (1960):
   397–418. Wolfinger & Rosenstone, *Who Votes?* (Yale, 1980); Leighley & Nagler, *Who
-  Votes Now?* (Princeton, 2013); age is among the most durable turnout predictors. Highton &
-  Plutzer, "Becoming a Habitual Voter: Inertia, Resources, and Growth in Young
-  Adulthood," *American Political Science Review* 96(1) (2002): 41–56; turnout is a
-  habit that develops over the life cycle, the frame Appendix H's single-year-of-age
-  curve supports.
+  Votes Now?* (Princeton, 2013); age is among the most durable turnout predictors. Plutzer,
+  "Becoming a Habitual Voter: Inertia, Resources, and Growth in Young Adulthood,"
+  *American Political Science Review* 96(1) (2002): 41–56; turnout is a habit that
+  develops over the life cycle, the frame Appendix H's single-year-of-age curve is
+  consistent with.
 - **Off-cycle election timing, composition, and representation.** Anzia, *Timing and
   Turnout: How Off-Cycle Elections Favor Organized Groups* (Univ. of Chicago Press,
   2014); Hajnal & Trounstine, "Where Turnout Matters," *Journal of Politics* 67(2)
@@ -573,7 +576,8 @@ paper shows the age-composition result is not an artifact of current-roll surviv
   turnout/diversity gains but null downstream policy effects.
 - **Down-ballot roll-off.** Wattenberg, McAllister & Salvanto, "How Voting Is Like
   Taking an SAT Test: An Analysis of American Voter Rolloff," *American Politics
-  Quarterly* 28(2) (2000): 234–250; roll-off is substantially information-driven.
+  Quarterly* 28(2) (2000): 234–250, doi:10.1177/1532673X00028002005; roll-off is
+  substantially information-driven.
 - **Voter-file / individual-level method.** Ansolabehere & Hersh, "Validation: What
   Big Data Reveal About Survey Misreporting and the Real Electorate," *Political
   Analysis* 20(4) (2012): 437–459; Hersh, *Hacking the Electorate* (Cambridge, 2015).
@@ -833,8 +837,8 @@ cohorts: with no internal breakpoints, such methods would split the curve at den
 of the *roll* (the largest birth cohorts), not at changes in behavior. The single-year
 curve is also the most suggestive evidence in this paper for a **life-cycle**
 interpretation of the senior tilt, subject to the age-cohort-period limit stated
-above and in the body's limits section. The habit-formation literature (Highton &
-Plutzer 2002, in Appendix D) points the same way.
+above and in the body's limits section. The habit-formation literature (Plutzer
+2002, in Appendix D) points the same way.
 
 ---
 
@@ -844,8 +848,11 @@ Plutzer 2002, in Appendix D) points the same way.
 the 5.51M-voter roll joined to 27.1M individual vote records and each voter's year of
 birth (`data/wa_vrdb.duckdb`); access terms in Appendix B. Official ballot counts are
 the certified statewide totals published by the WA Secretary of State
-(`results.vote.wa.gov`). Adult-resident age composition is the U.S. Census American
-Community Survey 2020–2024 5-year, table B01001 (Washington, FIPS 53).
+(`results.vote.wa.gov`, per-election `turnout.html` pages). Adult-resident and
+citizen-voting-age composition are the U.S. Census American Community Survey 2020–2024
+5-year, tables B01001 (sex by age) and B29001 (citizen voting-age population by age),
+Washington (FIPS 53), retrieved through the Census API and reproduced by
+`scripts/acs_wa_adult_age.py`.
 
 **Institutional context.** Washington is an unusually informative case because the
 formal administrative cost of voting is lower than in many states: registered voters are mailed a
