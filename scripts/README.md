@@ -19,7 +19,8 @@ Two tiers.
   `diag_safe_seat_party_ratio.py` (safe-seat split vs presidential party ratio; imports the
   safe-seat classifier + public precinct results) and `diag_sector_coverage.py` (Section H
   classifier-coverage audit; reads public FEC inflow). Coarser siblings that reproduce from
-  public data alone: `diag_wa_rolloff_2024.py` (county roll-off) + the `diag_safe_seat_*`
+  public data alone: `diag_wa_rolloff_2024.py` (county roll-off), `diag_wa_age_curve.py`
+  (Appendix H single-year-of-age turnout/retention curve), + the `diag_safe_seat_*`
   observed-competitiveness scripts.
 - `cross_state_common.py` — shared helper the cross-state scripts import: enumerates the
   analysis region by globbing `data/*_statewide.duckdb` (override `CROSS_STATE_REGION`),

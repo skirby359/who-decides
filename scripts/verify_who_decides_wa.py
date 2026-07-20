@@ -374,6 +374,47 @@ def representativeness(con):
         print(f"  {date} {kind:12} dissimilarity index {diss:.1f}")
 
 
+def age_curve(con):
+    """#30: Appendix H single-year-of-age curve — anchor retention values plus
+    the two structural claims (monotone ramp through the working ages; no
+    discontinuity at 65). Retention = P(voted Nov 2025 | voted Nov 2024)."""
+    print("\n[#30] SINGLE-YEAR-OF-AGE CURVE (Appendix H) — off-year retention")
+    rows = con.execute(f"""
+        WITH v24 AS (SELECT DISTINCT state_voter_id FROM voting_history
+                     WHERE election_date = DATE '{PRES}'),
+             v25 AS (SELECT DISTINCT state_voter_id FROM voting_history
+                     WHERE election_date = DATE '{OFF}')
+        SELECT 2025 - YEAR(v.birthdate) AS age,
+               SUM(CASE WHEN a.state_voter_id IS NOT NULL THEN 1 ELSE 0 END) n24,
+               SUM(CASE WHEN a.state_voter_id IS NOT NULL
+                         AND b.state_voter_id IS NOT NULL THEN 1 ELSE 0 END) n_both
+        FROM voters v
+        LEFT JOIN v24 a ON a.state_voter_id = v.state_voter_id
+        LEFT JOIN v25 b ON b.state_voter_id = v.state_voter_id
+        WHERE v.birthdate IS NOT NULL AND 2025 - YEAR(v.birthdate) BETWEEN 20 AND 95
+        GROUP BY 1 ORDER BY 1
+    """).fetchall()
+    ret = {age: nb / n24 * 100 for age, n24, nb in rows if n24}
+    anchors = [20, 40, 64, 66, 78, 90]
+    print("  retention anchors: " +
+          "  ".join(f"age {a}: {ret[a]:.1f}%" for a in anchors) +
+          "   (paper: 23.0 / 41.6 / 57.5 / 60.5 / 71.6 / 64.6)")
+    # Structural claim 1: monotone ramp age 22 -> 78 (3-year smoothing, small tolerance).
+    sm = {a: (ret[a - 1] + ret[a] + ret[a + 1]) / 3 for a in range(21, 79)}
+    dips = [a for a in range(22, 77) if sm[a + 1] < sm[a] - 0.3]
+    print(f"  monotone ramp 22->78 (3yr-smoothed, 0.3pt tol): "
+          f"{'HOLDS' if not dips else f'VIOLATED at {dips}'}")
+    # Structural claim 2: no retirement discontinuity at 65 — the 64->66 step is
+    # no larger per year than the surrounding ramp (60->64).
+    step_65 = (ret[66] - ret[64]) / 2
+    ramp = (ret[64] - ret[60]) / 4
+    print(f"  65-discontinuity check: per-year step 64->66 {step_65:.2f}pt vs "
+          f"ramp 60->64 {ramp:.2f}pt/yr => {'no jump' if step_65 <= ramp + 0.5 else 'JUMP'}")
+    print(f"  peak retention: age {max(ret, key=ret.get)} at {max(ret.values()):.1f}% "
+          f"(paper: age 79, 72.0%); age 90: {ret[90]:.1f}% (decline from ~84)")
+    print("  derived (paper: Appendix H)")
+
+
 def main():
     con = duckdb.connect(VRDB, read_only=True)
 
@@ -421,6 +462,7 @@ def main():
     snapshot_crossval(con)
     gender_share(con)
     representativeness(con)
+    age_curve(con)
 
     # ---- Das-Gupta symmetric two-factor decomposition (behavior vs rolls) ----
     P = cohort_table(con, PRES)
