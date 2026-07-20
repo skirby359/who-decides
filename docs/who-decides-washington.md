@@ -5,8 +5,8 @@
 **Stephen Kirby** · Tikor Consulting · July 2026
 
 *AI-assisted analysis; every figure is independently reproducible from public records
-via the cited open-source scripts (e.g. `scripts/verify_who_decides_wa.py`). Contact:
-kirby@tikorconsulting.com.*
+via the cited open-source scripts (e.g. `scripts/verify_who_decides_wa.py`), all public
+at <https://github.com/skirby359/who-decides>. Contact: kirby@tikorconsulting.com.*
 
 ## Abstract
 
@@ -250,9 +250,10 @@ composition finding; they don't carry it:
 
 **These are not official turnout rates.** The denominator is the age-eligible **April
 2026 roll**, not the roll as it stood on each election day, so a later (larger) roll
-mechanically pulls them down — the "All" column (e.g., 75.0% in 2024) sits below
+mechanically pulls them down — the "All" column (e.g., 75.0% in 2024) generally sits below
 Washington's official general-election turnout (39.38% 2021, 63.82% 2022, 36.41% 2023,
-78.95% 2024, 39.24% 2025). Read the table as a current-roll *reconstruction* of
+78.95% 2024, 39.24% 2025); the exception is 2021, where the reconstruction lands at about
+the official 39.38%. Read the table as a current-roll *reconstruction* of
 within-cohort participation. It also rests on a single presidential (2024) and single
 midterm (2022) cycle.
 
@@ -526,7 +527,8 @@ a measurement of its size.
   tables above from scratch (validation, survivorship, bounding, finer cohorts,
   imputation, geography, decomposition, habitual-core overlap, snapshot cross-validation,
   gender, representativeness index), independently of the analysis code; the ecological
-  roll-off correlation is in `scripts/diag_wa_rolloff_2024.py`.
+  roll-off correlation is in `scripts/diag_wa_rolloff_2024.py`, and the precinct-level
+  SES-controlled sequel (Appendix F) in `scripts/diag_wa_rolloff_precinct.py`.
 
 ## Appendix D — Related work
 
@@ -670,7 +672,7 @@ to skip a local contest. Cast-vote records cannot answer this directly — ballo
 anonymous and carry no voter age, so the roll-off *age profile* is unmeasurable at the
 individual level under secret-ballot rules, and an ecological cut is the ceiling.
 Across the 39 counties, roll-off on that contest is if anything *higher* where the
-electorate is older (Pearson r ≈ +0.6, **uncorrected for urbanicity**) — that is, the
+electorate is older (Pearson r = **+0.57**, ≈+0.6, **uncorrected for urbanicity**) — that is, the
 county pattern does not show younger places skipping the contest more. This is weak
 evidence: it is ecological, confounded with the rural/urban gradient (older counties
 are rural, with thinner coverage of statewide judicial races), and measured on a
@@ -776,7 +778,8 @@ appendix and its ecological age correlation are in `scripts/diag_wa_rolloff_2024
 the finer precinct-level, urbanicity-controlled cut in `scripts/diag_wa_rolloff_precinct.py`;
 `scripts/diag_wa_individual_findings.py` and `scripts/diag_turnout_decomposition.py`
 produce the underlying figures; and `scripts/acs_wa_adult_age.py` reproduces the
-adult-resident and CVAP rows from the Census API.
+adult-resident and CVAP rows from the Census API. All scripts, the paper source, and
+the data-acquisition recipe are public at <https://github.com/skirby359/who-decides>.
 
 **Series.** Lead paper of the electoral-health series (with
 [`electoral-health-whitepaper.md`](electoral-health-whitepaper.md) and

@@ -50,8 +50,9 @@ share swells (28% → 31% → 42%). Median age rises 53 → 61.
 2024 to the 2025 off-year (`diag_ny_electorate_extras.py`, detailed in
 [`ny-electorate-extras.md`](ny-electorate-extras.md) §3) attributes it almost
 entirely to differential **turnout** (rate effect), not to the registration age
-structure (composition effect) — by ~5–6× for every party, and most strongly for
-Republicans (+10.2 pt rise, +8.7 of it behavioral). The gray off-year electorate
+structure (composition effect) — the rate effect outweighs composition by roughly
+**3.6× (Democrats) to 12.5× (unaffiliated)**, and is largest in level terms for
+Republicans (+10.2 pt 65+ rise, +8.7 of it behavioral). The gray off-year electorate
 is a salience/turnout problem fixable by on-cycle timing, not a registration
 artifact.
 
@@ -95,7 +96,7 @@ Party shares of the actual electorate vs the registration baseline:
 | 2018 GENERAL (midterm) | 52.8% | 26.0% | 16.6% | 4.7% | +26.8 |
 | 2025 GENERAL (odd-year/local) | 56.4% | 23.2% | 16.7% | 3.7% | +33.2 |
 | 2023 GENERAL (odd-year/local) | 47.6% | 32.0% | 15.7% | 4.7% | +15.6 |
-| **REGISTRATION baseline (roll)** | 47.8% | 22.3% | 25.5% | 0.5% | +25.5 |
+| **REGISTRATION baseline (roll)** | 47.8% | 22.3% | 25.5% | 4.4% | +25.5 |
 
 Two robust composition facts: (1) **the unaffiliated drop out** — NOPARTY is
 25.5% of the roll but only 16–22% of voters, and falls further in off-years; (2)
@@ -149,7 +150,9 @@ measurable party-asymmetric age structure, while youth mobilization remains the
 lever that can override it. It moves the WA finding from "weak-against-null"
 (older, party unknown) toward a concrete, falsifiable party-resolved claim.
 
-**Open follow-ons:** (1) join to NY FEC contributions (donor-class × party,
-needs the NY matcher); (2) closed-primary participation by enrollment; (3)
-resolve the NOPARTY bloc's behavior/age/geography; (4) district-level
-registration vs the safe-seat map.
+**Follow-ons:** (1) NY FEC donor-class × party — **done**
+([`ny-donor-class-by-party.md`](ny-donor-class-by-party.md)); (2) closed-primary
+participation by enrollment — **done** (§E above); (4) district-level registration vs
+the safe-seat map — **done** ([`ny-electorate-extras.md`](ny-electorate-extras.md) §5).
+(3) The NOPARTY bloc's behavior/age/geography remains partly open (largely addressed in
+[`ny-electorate-extras.md`](ny-electorate-extras.md) §1).

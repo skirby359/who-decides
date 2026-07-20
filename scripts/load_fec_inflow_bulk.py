@@ -15,8 +15,8 @@ per-state DBs, so it won't lock-conflict with a running API load).
 Per-cycle idempotent: skips cycles already loaded — safe to re-run/resume.
 """
 import csv
-import glob
 import io
+import shutil
 import os
 import zipfile
 
@@ -25,7 +25,13 @@ import httpx
 
 TMP = "data/_fec_bulk"
 CYCLES = [2018, 2020, 2022, 2024, 2026]
-TARGET = {"WA", "NY", "TX"}
+# Recipient states to load. Default WA/NY/TX (the original cross-state set);
+# override via FEC_INFLOW_STATES (comma-separated) to add a state WITHOUT
+# re-loading the others — e.g. FEC_INFLOW_STATES=ID for the Idaho add. The
+# recipient map is scoped to TARGET, so the INSERT only adds TARGET rows and
+# never duplicates states already in the DB.
+TARGET = {s.strip().upper() for s in
+          (os.environ.get("FEC_INFLOW_STATES") or "WA,NY,TX").split(",") if s.strip()}
 INFLOW_DB = "data/fec_inflow.duckdb"
 RECIP_CSV = f"{TMP}/recipient_committees.csv"
 TX_TYPES = ["15", "15E", "15J", "15T", "15Z"]
@@ -58,8 +64,15 @@ def build_recipient_map() -> int:
                     p = raw.rstrip().split("|")
                     if len(p) >= 7 and p[5] in ("H", "S") and p[4] in TARGET:
                         cand[p[0]] = (p[4], p[5], p[6])
+    # Committee master (cm.txt): committee -> connected candidate (field 14).
+    # Download per cycle like cn above — earlier versions assumed the cm zips
+    # were already staged in TMP, which silently yields 0 recipients on a fresh
+    # run (e.g. adding a new state after the temp dir was cleaned).
     rows = []
-    for z in sorted(glob.glob(f"{TMP}/cm*.zip")):
+    for cy in CYCLES:
+        z = f"{TMP}/cm{cy}.zip"
+        if not os.path.exists(z):
+            _download(f"https://www.fec.gov/files/bulk-downloads/{cy}/cm{cy % 100:02d}.zip", z)
         with zipfile.ZipFile(z) as zf:
             nm = "cm.txt" if "cm.txt" in zf.namelist() else zf.namelist()[0]
             with zf.open(nm) as fh:
@@ -80,7 +93,7 @@ def build_recipient_map() -> int:
 
 def main():
     nrec = build_recipient_map()
-    print(f"recipient committees (NY/TX House+Senate): {nrec:,}\n", flush=True)
+    print(f"recipient committees ({'/'.join(sorted(TARGET))} House+Senate): {nrec:,}\n", flush=True)
 
     conn = duckdb.connect(INFLOW_DB)
     conn.execute("""
@@ -90,7 +103,13 @@ def main():
             contributor_zip VARCHAR, contributor_employer VARCHAR, contributor_occupation VARCHAR,
             contribution_amount DECIMAL(12,2), contribution_date DATE, election_cycle INTEGER)
     """)
-    done = {r[0] for r in conn.execute("SELECT DISTINCT election_cycle FROM inflow_contributions").fetchall()}
+    # State-aware skip: only skip a cycle already loaded FOR THE TARGET states,
+    # so adding a new state (e.g. ID) loads all its cycles instead of the
+    # global check skipping every cycle already present for WA/NY/TX.
+    _ph = ", ".join("?" for _ in TARGET)
+    done = {r[0] for r in conn.execute(
+        f"SELECT DISTINCT election_cycle FROM inflow_contributions "
+        f"WHERE recipient_state IN ({_ph})", list(TARGET)).fetchall()}
     coldefs = ", ".join(f"'{c}': 'VARCHAR'" for c in COLS)
     txin = ", ".join(f"'{t}'" for t in TX_TYPES)
 
@@ -106,8 +125,11 @@ def main():
                 _download(f"https://www.fec.gov/files/bulk-downloads/{cy}/indiv{yy:02d}.zip", zip_path)
             with zipfile.ZipFile(zip_path) as zf:
                 inner = "itcont.txt" if "itcont.txt" in zf.namelist() else zf.namelist()[0]
+                # Stream the decompressed file to disk in chunks. Reading it
+                # whole via src.read() pulls the entire ~5GB+ file into RAM and
+                # OOMs (MemoryError), especially under any concurrent load.
                 with zf.open(inner) as src, open(txt_path, "wb") as dst:
-                    dst.write(src.read())
+                    shutil.copyfileobj(src, dst, 1 << 20)
         print(f"cycle {cy}: filtering -> inflow ...", flush=True)
         conn.execute(f"""
             INSERT INTO inflow_contributions

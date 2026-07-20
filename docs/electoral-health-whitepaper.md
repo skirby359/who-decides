@@ -103,7 +103,7 @@ concrete analysis to run.
   **~37–40%** of off-year ballots (2021/2023/2025) vs **28.5%** in 2024, while
   18–29 were **7–8%** off-year vs **14.2%** presidential — a **~5:1** senior-to-youth
   ratio off-year vs ~2:1 presidential. Individually, 18–29 turnout collapses
-  **57.9% → 17.6%** (presidential → off-year) while 65+ falls only 88.7% → 61.1%.
+  **58.4% → 15.8%** (presidential → off-year) while 65+ falls only 88.3% → 61.3%.
 - **Strongest objection.** This is *voluntary* differential participation, not
   disenfranchisement. WA has all-mail, postage-paid, automatic/same-day
   registration — the gray electorate reflects who *chose* to vote, and the gap is
@@ -200,11 +200,11 @@ concrete analysis to run.
 *Insight 42 · failure-contribution 22 · null: weak-against · V-Dem: egalitarian, participatory · trajectory: indeterminate*
 
 - **Defensible claim.** At the person level, donors are a narrow slice that does not
-  mirror the electorate: **~3.5–6% of voters**, skewed old (Silent 1.93×, Boomer
+  mirror the electorate: **~3.5–6% of voters**, skewed old (Silent 1.87×, Boomer
   1.63× over-represented; Gen Z 0.18×, Millennial 0.60× under-represented),
   overwhelmingly super-voters, geographically concentrated (**~61% of WA donor
   dollars from two Seattle-metro ZIP3s**), and internally top-heavy (top 1% of
-  matched donors supply **48.8%** of matched dollars, top 10% supply **80.7%**).
+  matched donors supply **47.7%** of matched dollars, top 10% supply **80.0%**).
   RETIRED ($221.7M, 21.3%) and NOT EMPLOYED ($147.4M, 14.1%) are the two largest
   occupation blocs. The voter↔donor join makes this *person-level*, not ecological —
   the genuine value-add over the standard FEC-aggregate literature.
@@ -284,16 +284,18 @@ They are reported as limits — and they map the data we would need to say more.
 
 - **Elections financed by non-constituents (insight 31) — NO LONGER BLOCKED; the
   test ran.** This was reported as un-runnable because only donor-residence *outflow*
-  was loaded and NY/TX contributions were absent. Both are now fixed: NY+TX FEC
-  contributions were loaded, and a **recipient-anchored inflow** dataset (5.48M gifts /
-  $1.2B, all-state donors → WA/NY/TX federal candidates) was built, so the
+  was loaded and NY/TX contributions were absent. Both are now fixed: NY+TX+ID FEC
+  contributions were loaded, and a **recipient-anchored inflow** dataset (5.50M gifts /
+  $1.21B, all-state donors → WA/NY/TX/ID federal candidates) was built, so the
   nationalization test *did* run ([`cross-state-fec-money.md`](cross-state-fec-money.md)
   §E–I). The result is **not** null-supporting at the inflow level: **27% (WA) / 41%
-  (NY) / 34% (TX)** of these states' U.S.-House candidate money is out-of-region, and
-  on the **outflow** side each state sends the *majority* of its candidate money out of
-  region (NY 62%, TX 43%) — Georgia Senate races alone drew ~$67M from WA/NY/TX
-  residents. The earlier "93.6% in-state" was indeed the ingestion artifact this item
-  warned about. (Remaining limit: still federal only — NYSBOE/TEC state money pending.)
+  (NY) / 34% (TX) / 53% (ID)** of these states' U.S.-House+Senate candidate money is
+  out-of-region, and on the **outflow** side each state sends the *majority* of its
+  candidate money out of region (NY 62%, ID 68% — the most — TX 43%) — Georgia Senate
+  races alone drew ~$68M from residents of the four states. The earlier "93.6% in-state"
+  was indeed the ingestion artifact this item warned about. (State-level money — WA PDC,
+  NY BOE, ID Sunshine, TX TEC — is now also loaded, though not yet folded into these
+  federal cross-state cuts.)
 - **Straight-ticket lock-in / candidate accountability (insight 28, data-sufficiency 3).**
   Individual ticket-splitting is **unmeasurable** (cross-party matchback fires for
   ~0 voters), and the precinct ticket-split tables can't yield a 19-election trend

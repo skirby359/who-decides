@@ -1,9 +1,13 @@
-"""Cross-state FEC donor-profile comparison: WA / NY / TX.
+"""Cross-state FEC donor-profile comparison (state-agnostic).
 
 Apples-to-apples basis = FEDERAL individual contributions BY IN-STATE
-RESIDENTS (2018-2026). NY/TX DBs are pure FEC bulk; WA mixes PDC (state)
-+ FEC, so WA is restricted to rows that carry an FEC committee id
-(fec_candidate_id ~ '^[CPHS][0-9]') AND contributor_state='WA'.
+RESIDENTS (2018-2026). Pure-FEC-bulk DBs (NY/TX) and mixed state+FEC DBs
+(WA=PDC, ID=Sunshine) are handled uniformly: rows are restricted to those
+carrying an FEC committee id (fec_candidate_id ~ '^[CPHS][0-9]', which excludes
+the 'SUNSHINE:'/PDC state-finance rows) AND contributor_state=<st>. The region
+is discovered dynamically (cross_state_common.region_states: every
+data/*_statewide.duckdb on disk, or CROSS_STATE_REGION override) — adding a
+state needs no edit here.
 
 This measures how each state's RESIDENTS give to federal committees
 (outflow by donor residence) — NOT out-of-state money flowing INTO a
@@ -14,14 +18,10 @@ conduit metrics are all robust on this basis.
 Outputs a JSON blob (for write-up) + a printed comparison.
 """
 import duckdb
-import json
-import sys
 
-STATES = [
-    ("WA", "data/wa_statewide.duckdb"),
-    ("NY", "data/ny_statewide.duckdb"),
-    ("TX", "data/tx_statewide.duckdb"),
-]
+from cross_state_common import region_states, write_json
+
+STATES = region_states()
 ACTBLUE = "C00401224"
 WINRED = "C00694323"
 
@@ -129,9 +129,7 @@ def analyze(st: str, path: str) -> dict:
 
 def main():
     results = [analyze(st, path) for st, path in STATES]
-    out = "reports/cross_state_fec.json"
-    with open(out, "w", encoding="utf-8") as fh:
-        json.dump(results, fh, indent=2)
+    out = write_json("cross_state_fec.json", results)
     print(f"wrote {out}\n")
 
     cols = [

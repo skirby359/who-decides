@@ -16,9 +16,9 @@ one-time count / overstates repeat, so retention here is an UPPER bound).
 2026 is a partial cycle.
 """
 import duckdb
-import json
 
-OUT = "reports/inflow_concentration_retention.json"
+from cross_state_common import region_codes, write_json
+
 CYCLES = [2018, 2020, 2022, 2024, 2026]
 
 
@@ -62,7 +62,8 @@ def main():
                      "top1": round(float(top1), 4), "top10": round(float(top10), 4),
                      "gini": round(float(gini), 4)}
     print("  (* 2026 partial cycle)")
-    print("\n  vs Section A OUTFLOW top-1% (WA/NY/TX residents): "
+    print(f"\n  region reflected here (from data/fec_inflow.duckdb): {'/'.join(region_codes())}")
+    print("  vs Section A OUTFLOW top-1% (big-state residents, WA/NY/TX ref): "
           "2018 28/35/29 -> 2024 36/47/42 (presidential sawtooth, mild rise)")
 
     # ---- (B) donor retention ----
@@ -125,11 +126,12 @@ def main():
     print("   ret(prior)=gave in the immediately preceding cycle [fixed look-back].)")
 
     c.close()
-    json.dump({"concentration_trend": trend,
-               "lifetime": {"one_time_n": int(one_n), "one_time_dollars": float(one_tot),
-                            "repeat_n": int(rep_n), "repeat_dollars": float(rep_tot)},
-               "retention": retention}, open(OUT, "w"), indent=2)
-    print(f"\nwrote {OUT}")
+    path = write_json("inflow_concentration_retention.json",
+                      {"concentration_trend": trend,
+                       "lifetime": {"one_time_n": int(one_n), "one_time_dollars": float(one_tot),
+                                    "repeat_n": int(rep_n), "repeat_dollars": float(rep_tot)},
+                       "retention": retention})
+    print(f"\nwrote {path}")
 
 
 if __name__ == "__main__":

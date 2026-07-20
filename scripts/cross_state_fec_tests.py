@@ -24,15 +24,13 @@ import csv
 
 import httpx
 
+from cross_state_common import region_states, write_json
+
 TMP = "data/_fec_bulk"
 os.makedirs(TMP, exist_ok=True)
 CYCLES = [2018, 2020, 2022, 2024, 2026]
 COMMITTEES_CSV = f"{TMP}/committees_master.csv"
-STATES = [
-    ("WA", "data/wa_statewide.duckdb"),
-    ("NY", "data/ny_statewide.duckdb"),
-    ("TX", "data/tx_statewide.duckdb"),
-]
+STATES = region_states()
 
 
 def build_committee_master() -> int:
@@ -108,8 +106,7 @@ def run():
         tot = sum(float(a) for _, a in drows) or 1.0
         dest[st] = {b: round(float(a) / tot, 4) for b, a in drows}
 
-    out = "reports/cross_state_fec_tests.json"
-    json.dump({"trend": trend, "dest": dest}, open(out, "w"), indent=2)
+    out = write_json("cross_state_fec_tests.json", {"trend": trend, "dest": dest})
     print(f"wrote {out}\n")
 
     print("=== TEST A: concentration trend — top 1% donor dollar share by cycle ===")

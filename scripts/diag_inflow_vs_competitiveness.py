@@ -8,32 +8,11 @@ Tossups the model flags, or pile into safe seats?
 """
 import duckdb
 
-
-def band(m):
-    if m < 5: return "Tossup"
-    if m < 10: return "Lean"
-    if m < 20: return "Likely"
-    return "Solid"
-
-
-def competitiveness():
-    comp = {}
-    for st, f in [("WA", "data/wa_statewide.duckdb"), ("NY", "data/ny_statewide.duckdb"), ("TX", "data/tx_statewide.duckdb")]:
-        c = duckdb.connect(f, read_only=True)  # raises if the API load still locks it
-        rows = c.execute(
-            "WITH r AS (SELECT district_id, predicted_margin, "
-            "ROW_NUMBER() OVER (PARTITION BY district_id ORDER BY as_of_date DESC) rn "
-            "FROM forecast_predictions WHERE party='Democratic' AND district_id LIKE 'cd%') "
-            "SELECT district_id, predicted_margin FROM r WHERE rn=1"
-        ).fetchall()
-        c.close()
-        for cd, m in rows:
-            comp[(st, cd)] = band(abs(float(m)))
-    return comp
+from cross_state_common import competitiveness_bands, region_codes
 
 
 def main():
-    comp = competitiveness()
+    comp = competitiveness_bands()  # {(state, cd): (margin_abs, band)}
     ic = duckdb.connect("data/fec_inflow.duckdb", read_only=True)
     rows = ic.execute("""
         SELECT recipient_state,
@@ -49,13 +28,14 @@ def main():
 
     bands = {b: {"d": 0, "tot": 0.0, "oos": 0.0} for b in ["Tossup", "Lean", "Likely", "Solid"]}
     dcount = {b: 0 for b in bands}
-    for (st, cd), b in comp.items():
+    for (st, cd), (m, b) in comp.items():
         dcount[b] += 1
     matched = 0
     for st, cd, tot, oos in rows:
-        b = comp.get((st, cd))
-        if not b:
+        cinfo = comp.get((st, cd))
+        if not cinfo:
             continue
+        b = cinfo[1]
         matched += 1
         bands[b]["d"] += 1
         bands[b]["tot"] += float(tot)
@@ -63,7 +43,8 @@ def main():
 
     total = sum(b["tot"] for b in bands.values()) or 1.0
     ndist = sum(dcount.values()) or 1
-    print("INFLOW to WA+NY+TX U.S. House by competitiveness band (2022-2026)\n")
+    region = "+".join(region_codes())
+    print(f"INFLOW to {region} U.S. House by competitiveness band (2022-2026)\n")
     print("Band   | #dists | %dists | $M in  | $/dist | %of$  | out-of-state$ | OOS share")
     print("-" * 86)
     for b in ["Tossup", "Lean", "Likely", "Solid"]:
@@ -72,7 +53,7 @@ def main():
         oosshare = x["oos"] / x["tot"] * 100 if x["tot"] else 0
         print(f"{b:6} | {x['d']:>6} | {dcount[b]/ndist*100:5.1f}% | {x['tot']/1e6:6.1f} | "
               f"{perdist:6.2f}M | {x['tot']/total*100:4.1f}% | {x['oos']/1e6:11.1f} | {oosshare:6.1f}%")
-    print(f"\nTotal WA+NY+TX House inflow (2022-2026): ${total/1e6:,.0f}M across {matched} districts")
+    print(f"\nTotal {region} House inflow (2022-2026): ${total/1e6:,.0f}M across {matched} districts")
 
     # --- Senate: per-state inflow + out-of-state share. The model does not forecast
     # US Senate, so competitiveness is noted via actual results in the write-up

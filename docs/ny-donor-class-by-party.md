@@ -55,7 +55,7 @@ vs the registration baseline:
 | DEM | 193,355 | 62.8% | 47.8% | **+15.0** | $849.2M | 71.0% |
 | REP | 65,898 | 21.4% | 22.3% | −0.9 | $197.2M | 16.5% |
 | NOPARTY (blank) | 38,601 | 12.5% | 25.5% | **−13.0** | $126.8M | 10.6% |
-| OTHER (minor) | 10,178 | 3.3% | 0.5% | +2.8 | $22.8M | 1.9% |
+| OTHER (minor) | 10,178 | 3.3% | 4.4% | −1.1 | $22.8M | 1.9% |
 
 **Finding.** The federal donor class over-represents registered Democrats
 (+15 pts vs their share of the roll) and **severely under-represents the
@@ -97,7 +97,7 @@ Among matched NY donors:
 - **top 1% of donors = 51.2% of matched dollars**
 - **top 10% of donors = 81.2% of matched dollars**
 
-This tracks the WA finding (top 1% ≈ 48.8% of matched $) — donor money is
+This tracks the WA finding (top 1% ≈ 47.7% of matched $) — donor money is
 whale-dominated to nearly the same degree in a much larger, bluer state,
 suggesting the concentration is structural to federal small-vs-large-dollar
 giving rather than state-specific.

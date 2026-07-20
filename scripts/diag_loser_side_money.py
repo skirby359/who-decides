@@ -26,8 +26,9 @@ party backfill), so like diag_ie_vs_margin it is not standalone from a raw publi
 """
 import duckdb
 
-STATES = [("NY", "data/ny_statewide.duckdb"), ("WA", "data/wa_statewide.duckdb"),
-          ("TX", "data/tx_statewide.duckdb")]
+from cross_state_common import region_states
+
+STATES = region_states()
 
 
 def band(m):

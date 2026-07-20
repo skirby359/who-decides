@@ -18,9 +18,11 @@ import zipfile
 
 import httpx
 
+from cross_state_common import region_states, region_codes, broadly_funded_min
+
 TMP = "data/_fec_bulk"
 CYCLES = [2018, 2020, 2022, 2024, 2026]
-STATES = [("WA", "data/wa_statewide.duckdb"), ("NY", "data/ny_statewide.duckdb"), ("TX", "data/tx_statewide.duckdb")]
+STATES = region_states()
 W = lambda st: f"regexp_matches(COALESCE(fec_candidate_id,''),'^[CPHS][0-9]') AND contributor_state='{st}' AND contribution_amount>0"
 
 
@@ -79,13 +81,17 @@ def main():
         for cid, amt in sorted(rows, key=lambda r: -float(r[1]))[:10]:
             print(f"  ${float(amt)/1e6:5.1f}M  {cname(cid)[:46]:46} ({cid})")
 
-    print("\n\n========== TOP 18 CROSS-STATE MONEY MAGNETS (funded by WA & NY & TX) ==========")
-    allthree = sorted([(cid, d) for cid, d in recip.items() if len(d) == 3],
-                      key=lambda x: -sum(x[1].values()))
-    for cid, d in allthree[:18]:
-        print(f"  ${sum(d.values())/1e6:5.0f}M  {cname(cid)[:40]:40}  "
-              f"[WA {d['WA']/1e6:4.1f} / NY {d['NY']/1e6:5.1f} / TX {d['TX']/1e6:5.1f}]")
-    print(f"\n  committees funded by donors in ALL THREE states: {len(allthree):,} "
+    codes = region_codes()
+    min_states = broadly_funded_min(codes)
+    label = "ALL" if min_states >= len(codes) else f">={min_states} of"
+    print(f"\n\n========== TOP 18 CROSS-STATE MONEY MAGNETS "
+          f"(funded by {label} {'/'.join(codes)}) ==========")
+    broad = sorted([(cid, d) for cid, d in recip.items() if len(d) >= min_states],
+                   key=lambda x: -sum(x[1].values()))
+    for cid, d in broad[:18]:
+        percol = " / ".join(f"{code} {d.get(code, 0)/1e6:4.1f}" for code in codes)
+        print(f"  ${sum(d.values())/1e6:5.0f}M  {cname(cid)[:40]:40}  [{percol}]")
+    print(f"\n  committees funded by donors in {label} {len(codes)} region states: {len(broad):,} "
           f"(of {len(recip):,} touched by any)")
 
 

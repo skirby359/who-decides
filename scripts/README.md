@@ -21,6 +21,15 @@ Two tiers.
   classifier-coverage audit; reads public FEC inflow). Coarser siblings that reproduce from
   public data alone: `diag_wa_rolloff_2024.py` (county roll-off) + the `diag_safe_seat_*`
   observed-competitiveness scripts.
+- `cross_state_common.py` — shared helper the cross-state scripts import: enumerates the
+  analysis region by globbing `data/*_statewide.duckdb` (override `CROSS_STATE_REGION`),
+  plus the competitiveness-band read and `reports/` JSON writer. Adding a state needs no
+  script edits.
+- `cross_state_state_money.py` — cross-state Section K: the state-disclosure money layer
+  (WA PDC / NY BOE / TX TEC / ID Sunshine in `candidate_finance`).
+- `diag_cross_state_donor_representativeness.py` (Section F5) and
+  `diag_cross_state_giving_turnout.py` (Section F6) — the cross-state individual layer;
+  F6 reads the `voter_scores` built by `populate_ny_id_voter_scores.py` (build tier).
 - `acs_wa_adult_age.py` — pulls the ACS/CVAP rows (needs a Census API key).
 - `md_to_pdf.py` — renders a paper `.md` to PDF (needs `markdown` + `wkhtmltopdf`).
 
@@ -33,6 +42,8 @@ Run from the repo root with `data/` populated. Side artifacts (JSON) go to `repo
   Legislative Council) into `data/raw/` before `load_*` builds the tables.
 - `load_*.py` — build the state DuckDB files from raw voter/FEC bulk downloads.
 - `match_*.py`, `backfill_*.py` — build the voter↔donor match and recipient-party tables.
+- `populate_ny_id_voter_scores.py` — fills the NY/ID `voter_scores` tables from their
+  voter files with WA-identical turnout definitions (feeds Section F6).
 
 `match_ny_voters_to_donors.py`, `match_id_voters_to_donors.py`,
 `backfill_ny_committee_party.py`, `download_id_sos.py`, and `diag_ie_vs_margin.py`

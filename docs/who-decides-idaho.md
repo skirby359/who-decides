@@ -8,8 +8,9 @@ off-year electorate is **older**; New York (deep blue) showed *whose* electorate
 ages and who is locked out. Idaho completes the set from the other pole: a state
 where the November general is a formality and the **closed Republican primary is
 the real election** — so the question "who decides" has a sharper, more literal
-answer than in any two-party state. **DRAFT — pending the independent-verification
-gate in [`publication-checklist.md`](publication-checklist.md).***
+answer than in any two-party state. **DRAFT — AI-side reproduction verified (all `verify_*`
+scripts re-run, exit 0; see [`publication-checklist.md`](publication-checklist.md)); pending
+human/editorial sign-off.***
 
 *Provenance. All figures from `data/id_vrdb.duckdb` — Idaho's statewide voter
 file with history (1,029,938 registrants; individual party affiliation + age +
@@ -163,7 +164,7 @@ composition of each contest, as R-minus-D margin:
 |---|--:|--:|--:|--:|
 | Nov 2024 general | 64.5% | 11.6% | 22.6% | +52.9 |
 | Nov 2022 general | 68.6% | 12.1% | 18.2% | +56.5 |
-| **May 2024 primary** | **85.2%** | 8.3% | 5.9% | **+76.8** |
+| **May 2024 primary** | **85.2%** | 8.3% | 5.9% | **+76.9** |
 | **May 2022 primary** | **85.9%** | 8.2% | 5.3% | **+77.7** |
 | — Registration baseline | 62.9% | 11.8% | 23.9% | +51.1 |
 
@@ -274,7 +275,7 @@ own party of record:
 |---|--:|--:|--:|--:|--:|
 | Republican | 18,115 | 66.5% | 62.9% | +3.6 | 71.1% |
 | Democratic | 5,685 | 20.9% | 11.8% | **+9.1** | 20.6% |
-| Unaffiliated | 3,281 | 12.0% | 23.9% | **−11.8** | 8.0% |
+| Unaffiliated | 3,281 | 12.0% | 23.9% | **−11.9** | 8.0% |
 | Other | 169 | 0.6% | 1.4% | −0.8 | 0.3% |
 
 Even in a state this red, the donor class **over-represents registered Democrats**
@@ -356,9 +357,15 @@ and the unaffiliated Democratic tilt.
   the unaffiliated excluded) and who is shut out, not about the ideology of those who
   show up. We make no claim that Idaho's primary voters are more extreme than other
   Republicans.
-- **The donor layer is state (Idaho Sunshine), not federal.** It characterizes the
+- **The donor layer here is state (Idaho Sunshine) by design.** It characterizes the
   people who fund Idaho's *state* campaigns — the relevant layer for state
-  electoral health. Recipient party is not in the feed; it is reconstructed for
+  electoral health. (Idaho's **federal** FEC contributions were since loaded too —
+  770,765 rows / $76.2M outflow + inflow, with 47,762 FEC voter↔donor matches — and the
+  cross-state donor comparison uses that FEC match; see
+  [`cross-state-fec-money.md`](cross-state-fec-money.md) §F5, whose ID donor mix
+  D 19% / R 67% / O 14% closely tracks the Sunshine mix below. The age skew survives the
+  matcher-bias re-weighting in ID as in WA/NY.) Recipient party is not in the feed; it is
+  reconstructed for
   ~52% of matched donors (candidate roster + committee-name patterns), so the
   crossover table above is limited to party-resolvable recipients and the
   majority-party crossover rate is an upper bound (see §VII).

@@ -27,7 +27,7 @@ We therefore publish **citations + code, not data** — which is also the only l
 voter files (see *Use restrictions*).
 
 **Code:** all loaders, the matcher, and the `scripts/diag_*.py` analysis scripts that produce every
-figure in these papers are in the public repository (`github.com/skirby359/who-decides`).
+figure in these papers are in the public reproduction repository (`github.com/skirby359/who-decides`).
 Each paper names the exact script under its figures (e.g. `scripts/diag_safe_seat_states.py`,
 `scripts/diag_wa_individual_findings.py`, `scripts/diag_cross_state_money_matrix.py`).
 
@@ -52,8 +52,15 @@ Each paper names the exact script under its figures (e.g. `scripts/diag_safe_sea
 | **Committee master** (`cm{yy}.zip`) + **Candidate master** (`cn{yy}.zip`) | FEC | same bulk portal | committee→candidate→office-state resolution (§G); inflow recipient anchoring |
 | FEC REST API (supplemental per-candidate pulls) | FEC | `api.open.fec.gov/v1` (free API key) | finance backfills |
 
+*State-level campaign finance is loaded for all four states (WA PDC, NY State Board of Elections
+via `etl/adapters/ny_finance.py`, ID Sunshine, TX Ethics Commission via `etl/adapters/tx_tec.py`) into
+the shared `candidate_finance` table, but the cross-state money cuts in these papers are **federal**;
+the state layer is available for follow-on state-level analysis.*
+
 *Recipient-anchored inflow (`fec_inflow.duckdb`) is the FEC bulk `indiv` files filtered to committees
-whose connected candidate's office state is WA/NY/TX — built by `scripts/load_fec_inflow_bulk.py`.*
+whose connected candidate's office state is WA/NY/TX/ID — built by `scripts/load_fec_inflow_bulk.py`.
+Idaho FEC contributions (outflow, donor `state='ID'`) and inflow were added 2026-07-19, bringing ID
+to full federal parity with the other three.*
 
 ### New York
 
@@ -80,7 +87,8 @@ unopposed list; the r206 report supplies the partisan lean used to label their h
 | Asset | Source | Access |
 |---|---|---|
 | Statewide & county election results — **general + primary canvasses, 2016–2024** (loaded via `scripts/download_id_sos.py`; primaries added 2026-07-09) | Idaho Secretary of State | `sos.idaho.gov/elections/data/results/`; archive `archive.sos.idaho.gov/ELECT/results/`; some county PDFs (e.g. Bannock County) |
-| Campaign-finance contributions | Idaho SoS **Sunshine** portal | `sunshine.voteidaho.gov` (export API `api-sunshine.voteidaho.gov`) |
+| State campaign-finance contributions | Idaho SoS **Sunshine** portal | `sunshine.voteidaho.gov` (export API `api-sunshine.voteidaho.gov`) |
+| **Federal** contributions (donor `state='ID'`) + ID inflow | FEC bulk | as in the Federal-money section (added 2026-07-19) |
 | Voter file w/ party affiliation + age + per-election ballot record *(loaded; powers "Who Decides Idaho?")* | Idaho SoS Elections | `forms.sos.idaho.gov/voter-registration-request-form/` ($20/report) |
 
 *Idaho primary coverage: 2024/2022/2018/2016 include the legislative + congressional

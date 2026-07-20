@@ -15,7 +15,7 @@ It also prints two structural precision indicators that need no hand review:
     risk of a false merge.
 
 PII: the CSV contains voter + donor names, so it is written OUTSIDE the repo
-written to data/validation/ (gitignored) and must not be committed.
+(scratchpad) and must not be committed.
 """
 import csv
 import os
@@ -25,6 +25,7 @@ VRDB = "data/wa_vrdb.duckdb"
 N = 150
 SEED = 42
 # data/ is gitignored, so the PII sample is durable-with-the-project but NEVER committed.
+# (Was a stale per-session scratchpad path; repointed 2026-07-10.)
 OUT = "data/validation/match_validation_sample.csv"
 
 

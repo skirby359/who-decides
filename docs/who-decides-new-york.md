@@ -7,8 +7,8 @@ and [`who-decides-idaho.md`](who-decides-idaho.md) (the deep-red counterpart).
 Washington showed the off-year electorate is **older**; New York publishes each
 voter's **party enrollment**, so here we can ask the question Washington could
 not — *whose* electorate ages, who is locked out, and where the real decision is
-made. **DRAFT — pending the independent-verification gate in
-[`publication-checklist.md`](publication-checklist.md).***
+made. **DRAFT — AI-side reproduction verified (all `verify_*` scripts re-run, exit 0; see
+[`publication-checklist.md`](publication-checklist.md)); pending human/editorial sign-off.***
 
 *Provenance. All figures from `data/ny_vrdb.duckdb` — New York's NYSVOTER
 statewide file (13.54M registrants; individual party enrollment + full DOB +
@@ -56,9 +56,10 @@ Share of the general-election electorate by age band:
 As the contest shrinks (presidential → midterm → odd-year), the under-30 share
 collapses (14% → 6% by 2023) and the 65+ share swells (28% → 42%); median age
 rises from 53 to 61. **Behavior, not rolls.** A Das-Gupta decomposition of the
-65+ share rise from 2024 to 2025 attributes it ~5–6× more to differential
-**turnout** than to the registration age structure (rate effect +7.5 to +8.7 pts
-vs composition +0.6 to +1.5, across parties) — the young *choose not to vote*
+65+ share rise from 2024 to 2025 attributes it several times more to differential
+**turnout** than to the registration age structure (rate effect **+2.5 to +8.7 pts**
+vs composition +0.6 to +1.5, depending on party — a 3.6× ratio for Democrats up to
+12.5× for the unaffiliated) — the young *choose not to vote*
 off-cycle. This is an institutional, on-cycle-timing-fixable pattern, not a
 registration artifact.
 
@@ -74,6 +75,10 @@ are 65+:
 | Nov 2024 (pres) | 28.7% | 32.4% | 22.2% | 27.0% |
 | Nov 2025 (odd) | 32.1% | **42.8%** | 30.6% | 35.1% |
 | Nov 2023 (odd) | 41.6% | 43.5% | 39.3% | 37.4% |
+
+<sub>Shares are of each party's actual voters. The Das-Gupta decomposition in
+[`ny-electorate-extras.md`](ny-electorate-extras.md) §3 uses all-roll-matched bases for the
+2024 presidential row (DEM 29.0 / REP 32.7 / NOPARTY 22.4), ~0.3pp higher.</sub>
 
 Median age within each party tells the same story — in the 2025 off-year, the
 **Republican median voter is 62 vs the Democratic 54**, an 8-year gap that was
@@ -106,7 +111,7 @@ rightward headcount shift.
 
 ## III. The unaffiliated quarter: young, disengaged, and locked out
 
-A quarter of New York registrants (25.1% of the active roll) enroll in no party.
+A quarter of New York registrants (25.3% of the active roll; 25.5% of the full roll) enroll in no party.
 They are not high-information independents holding the balance:
 
 | | median age | %65+ | %18–29 | 2024 turnout | donors / 1k |

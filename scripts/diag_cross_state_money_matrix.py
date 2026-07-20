@@ -30,13 +30,19 @@ import zipfile
 import csv
 import json
 
+from cross_state_common import (
+    region_states, region_codes, region_sql, broadly_funded_min, write_json,
+)
+
 TMP = "data/_fec_bulk"
 CYCLES = [2018, 2020, 2022, 2024, 2026]
 CM_NAMED = f"{TMP}/committees_named.csv"
-REGION = ("WA", "NY", "TX")
-STATES = [("WA", "data/wa_statewide.duckdb"), ("NY", "data/ny_statewide.duckdb"),
-          ("TX", "data/tx_statewide.duckdb")]
-OUT = "reports/cross_state_matrix.json"
+# Region discovered dynamically (every data/*_statewide.duckdb, or the
+# CROSS_STATE_REGION override). In-region classification and the out-of-region
+# magnet filter track REGION_SQL, so adding a state needs no edit here.
+STATES = region_states()
+REGION = tuple(region_codes())
+REGION_SQL = region_sql()
 
 
 def build_committee_master_named() -> int:
@@ -87,22 +93,22 @@ def build_committee_master_named() -> int:
 
 def inflow_matrix():
     c = duckdb.connect("data/fec_inflow.duckdb", read_only=True)
-    rows = c.execute("""
+    rows = c.execute(f"""
         SELECT recipient_state,
                CASE WHEN contributor_state = recipient_state THEN 'in_state'
-                    WHEN contributor_state IN ('WA','NY','TX') THEN 'in_region_other'
+                    WHEN contributor_state IN ({REGION_SQL}) THEN 'in_region_other'
                     ELSE 'rest_of_us' END origin,
                SUM(contribution_amount) amt
         FROM inflow_contributions
         WHERE recipient_office IN ('H','S') AND contribution_amount > 0
         GROUP BY 1,2
     """).fetchall()
-    # also the full 3x(states) breakdown of in-region cross flow
-    cross = c.execute("""
+    # also the full NxN breakdown of in-region cross flow
+    cross = c.execute(f"""
         SELECT recipient_state, contributor_state, SUM(contribution_amount) amt
         FROM inflow_contributions
         WHERE recipient_office IN ('H','S') AND contribution_amount > 0
-          AND contributor_state IN ('WA','NY','TX')
+          AND contributor_state IN ({REGION_SQL})
         GROUP BY 1,2
     """).fetchall()
     c.close()
@@ -161,20 +167,23 @@ def magnets():
             WHERE regexp_matches(COALESCE(ic.fec_candidate_id,''),'^C[0-9]')
               AND ic.contributor_state='{st}' AND ic.contribution_amount > 0
               AND m.office IN ('H','S','P') AND m.dsgn IN ('P','A')
-              AND m.office_st NOT IN ('WA','NY','TX')
+              AND m.office_st NOT IN ({REGION_SQL})
             GROUP BY 1,2,3,4
         """).fetchall()
         c.close()
         for cmte, nm, cst, off, amt in rows:
             d = agg.setdefault(cmte, {"nm": nm, "st": cst, "off": off,
-                                      "WA": 0.0, "NY": 0.0, "TX": 0.0})
+                                      **{s: 0.0 for s in REGION}})
             d[st] += float(amt)
     for d in agg.values():
-        d["total"] = d["WA"] + d["NY"] + d["TX"]
+        d["total"] = sum(d[s] for s in REGION)
         d["nstates"] = sum(1 for s in REGION if d[s] > 0)
     # focus on candidate committees (H/S) for the cleanest "race" magnets,
-    # funded by all 3 states, ranked by combined $
-    cand = [d for d in agg.values() if d["off"] in ("H", "S") and d["nstates"] == 3]
+    # funded broadly across the region (all but at most one state — a small
+    # state's giving rarely co-funds an out-of-region race, so an all-N filter
+    # would empty the list), ranked by combined $.
+    cand = [d for d in agg.values()
+            if d["off"] in ("H", "S") and d["nstates"] >= broadly_funded_min(REGION)]
     cand.sort(key=lambda d: d["total"], reverse=True)
     allc = sorted(agg.values(), key=lambda d: d["total"], reverse=True)
     return cand[:15], allc[:15]
@@ -217,22 +226,26 @@ def main():
         print(f"  {dst:12}" + "".join(f"{outflow_cross[dst].get(s,0)/1e6:9.1f}" for s in REGION))
 
     cand, allc = magnets()
+    _mn = broadly_funded_min(REGION)
+    _lbl = "ALL" if _mn >= len(REGION) else f">={_mn} of"
     print("\n" + "=" * 72)
-    print("SYSTEMATIC MAGNETS — out-of-region H/S candidate committees funded by ALL 3 states")
+    print(f"SYSTEMATIC MAGNETS — out-of-region H/S candidate committees funded by "
+          f"{_lbl} {len(REGION)} region states")
     print("=" * 72)
-    print(f"{'committee':42} {'st':3} {'off':3} {'WA$M':>6} {'NY$M':>6} {'TX$M':>6} {'tot$M':>7}")
+    print(f"{'committee':42} {'st':3} {'off':3} "
+          + "".join(f"{s+'$M':>7}" for s in REGION) + f"{'tot$M':>8}")
     for d in cand:
         print(f"{d['nm'][:42]:42} {d['st']:3} {d['off']:3} "
-              f"{d['WA']/1e6:6.2f} {d['NY']/1e6:6.2f} {d['TX']/1e6:6.2f} {d['total']/1e6:7.2f}")
+              + "".join(f"{d[s]/1e6:7.2f}" for s in REGION) + f"{d['total']/1e6:8.2f}")
 
     out = {
         "inflow": {st: {**inflow[st], "pct": pct(inflow[st])} for st in REGION},
         "outflow": {st: {**outflow[st], "pct": pct(outflow[st])} for st in REGION},
         "inflow_cross": inflow_cross, "outflow_cross": outflow_cross,
-        "magnets_cand": [{k: d[k] for k in ("nm", "st", "off", "WA", "NY", "TX", "total")} for d in cand],
+        "magnets_cand": [{k: d[k] for k in ("nm", "st", "off", *REGION, "total")} for d in cand],
     }
-    json.dump(out, open(OUT, "w"), indent=2, default=str)
-    print(f"\nwrote {OUT}")
+    path = write_json("cross_state_matrix.json", out)
+    print(f"\nwrote {path}")
 
 
 if __name__ == "__main__":

@@ -30,7 +30,7 @@ import os
 DB = "data/wa_statewide.duckdb"
 VRDB = "data/wa_vrdb.duckdb"
 # Side artifact — all findings print to stdout; this JSON is optional. reports/ is
-# gitignored.
+# gitignored. (Was a stale per-session scratchpad path; repointed 2026-07-10.)
 OUT = "reports/wa_individual_findings.json"
 
 # November generals by cycle type (the ones VRDB voting_history carries).

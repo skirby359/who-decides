@@ -7,11 +7,16 @@ Key B = (last, first-word, zip5)      -- a fuller key (uses the whole first name
 """
 import duckdb
 
+from cross_state_common import region_states
+
+# State-agnostic enumeration with a UNIFORM FEC-donor basis: the FEC-committee-id
+# regexp is a no-op on pure-FEC DBs (NY/TX) and excludes the state-finance rows on
+# mixed DBs (WA=PDC, ID=Sunshine), so the match-ceiling is apples-to-apples across
+# states. (Was per-state where-clauses incl. ID '1=1', which mixed in Sunshine.)
 STATES = [
-    ("WA-FEC", "data/wa_statewide.duckdb", "regexp_matches(COALESCE(fec_candidate_id,''),'^[CPHS][0-9]') AND contributor_state='WA'"),
-    ("NY",     "data/ny_statewide.duckdb", "contributor_state='NY'"),
-    ("TX",     "data/tx_statewide.duckdb", "contributor_state='TX'"),
-    ("ID",     "data/id_statewide.duckdb", "1=1"),
+    (code, path,
+     f"regexp_matches(COALESCE(fec_candidate_id,''),'^[CPHS][0-9]') AND contributor_state='{code}'")
+    for code, path in region_states()
 ]
 
 print(f"{'donors':>10} {'keyA-uniq':>10} {'keyB-uniq':>10}  state   (keyA=last+initial+zip5, keyB=last+firstword+zip5)")

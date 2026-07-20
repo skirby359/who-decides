@@ -15,7 +15,8 @@ WA's registered roll (5.51M) + 27.1M vote records + birthdates
 (`data/wa_vrdb.duckdb`), matched to FEC donors (382,408 voters). New York
 figures: `scripts/match_ny_voters_to_donors.py`,
 `scripts/backfill_ny_committee_party.py`, `scripts/diag_ny_match_bias.py`,
-`scripts/diag_ny_primary_participation.py` — NY's NYSVOTER roll (13.54M;
+`scripts/diag_ny_primary_participation.py`, `scripts/diag_ny_donor_extras.py`,
+`scripts/diag_ny_electorate_extras.py` — NY's NYSVOTER roll (13.54M;
 individual party enrollment + DOB; `data/ny_vrdb.duckdb`) matched to 10.02M FEC
 itemized contributions (`data/ny_statewide.duckdb`, 308,032 voters). Idaho
 figures: `scripts/match_id_voters_to_donors.py`,
@@ -143,8 +144,8 @@ Manhattan in a state with neither. (Idaho's top-1% concentration, 39%, is
 somewhat lower than the two federal layers — expected, since state contribution
 limits compress the very top of the state-money distribution.) At the
 statewide level (all itemized donors, not only matched), the same top-heaviness
-appears across all three states we have loaded — top 1% of donors supply
-**39.3%** of dollars in WA, **47.5%** in NY, **41.7%** in TX
+appears across all four states we have loaded — top 1% of donors supply
+**39.3%** of dollars in WA, **47.5%** in NY, **41.7%** in TX, and **36.0%** in ID
 (`cross_state_fec_money.py`). The "small-dollar democratization" narrative
 coexists with a money system whose itemized dollars are dominated by a thin top
 stratum and a single metro.
@@ -162,7 +163,7 @@ and **nearly excludes the unaffiliated**:
 | DEM | 193,355 | 62.8% | 47.8% | **+15.0** | $849.2M | 71.0% |
 | REP | 65,898 | 21.4% | 22.3% | −0.9 | $197.2M | 16.5% |
 | NOPARTY (blank) | 38,601 | 12.5% | 25.5% | **−13.0** | $126.8M | 10.6% |
-| OTHER (minor) | 10,178 | 3.3% | 0.5% | +2.8 | $22.8M | 1.9% |
+| OTHER (minor) | 10,178 | 3.3% | 4.4% | −1.1 | $22.8M | 1.9% |
 
 Registered Democrats are +15 points over their share of the roll and supply
 **71% of matched dollars**; Republicans give roughly in proportion; and NY's
@@ -196,13 +197,13 @@ own Idaho affiliation:
 |---|--:|--:|--:|--:|--:|--:|
 | REP | 18,115 | 66.5% | 62.9% | +3.6 | $11.31M | 71.1% |
 | DEM | 5,685 | 20.9% | 11.8% | **+9.1** | $3.27M | 20.6% |
-| UNAFF (unaffiliated) | 3,281 | 12.0% | 23.9% | **−11.8** | $1.27M | 8.0% |
+| UNAFF (unaffiliated) | 3,281 | 12.0% | 23.9% | **−11.9** | $1.27M | 8.0% |
 | OTHER (minor) | 169 | 0.6% | 1.4% | −0.8 | $0.04M | 0.3% |
 
 Republicans supply the plurality of Idaho's money, as a 63%-Republican state must
 — but relative to their numbers the **most over-represented donors are registered
 Democrats** (+9.1 points, nearly double their share of the roll), and the
-unaffiliated quarter is again the most *under*-represented (−11.8). The same
+unaffiliated quarter is again the most *under*-represented (−11.9). The same
 directional finding as New York, from the opposite end of the spectrum: the donor
 class leans Democratic-of-the-electorate and runs against the unaffiliated,
 whether the electorate around it is blue or red.

@@ -16,9 +16,8 @@ Sector classification is keyword-on-employer (noisy, free-text); an
 'unclassified' bucket carries the residue and its size is reported.
 """
 import duckdb
-import json
 
-OUT = "reports/sector_competitiveness.json"
+from cross_state_common import competitiveness_bands, region_codes, write_json
 
 # Keyword -> sector. Order matters (first match wins via the CASE below).
 SECTORS = {
@@ -80,32 +79,8 @@ def sector_sql_column():
     return "\n".join(parts)
 
 
-def band(m):
-    if m < 5: return "Tossup"
-    if m < 10: return "Lean"
-    if m < 20: return "Likely"
-    return "Solid"
-
-
-def competitiveness():
-    comp = {}
-    for st, f in [("WA", "data/wa_statewide.duckdb"), ("NY", "data/ny_statewide.duckdb"),
-                  ("TX", "data/tx_statewide.duckdb")]:
-        c = duckdb.connect(f, read_only=True)
-        rows = c.execute(
-            "WITH r AS (SELECT district_id, predicted_margin, "
-            "ROW_NUMBER() OVER (PARTITION BY district_id ORDER BY as_of_date DESC) rn "
-            "FROM forecast_predictions WHERE party='Democratic' AND district_id LIKE 'cd%') "
-            "SELECT district_id, predicted_margin FROM r WHERE rn=1"
-        ).fetchall()
-        c.close()
-        for cd, m in rows:
-            comp[(st, cd)] = band(abs(float(m)))
-    return comp
-
-
 def main():
-    comp = competitiveness()
+    comp = competitiveness_bands()  # {(state, cd): (margin_abs, band)}
     sector_col = sector_sql_column()
     ic = duckdb.connect("data/fec_inflow.duckdb", read_only=True)
     rows = ic.execute(f"""
@@ -129,9 +104,10 @@ def main():
     sectors = {}
     grand = 0.0
     for st, cd, sector, tot, oos in rows:
-        b = comp.get((st, cd))
-        if not b:
+        cinfo = comp.get((st, cd))
+        if not cinfo:
             continue
+        b = cinfo[1]
         tot = float(tot); oos = float(oos)
         grand += tot
         s = sectors.setdefault(sector, {bn: {"tot": 0.0, "oos": 0.0} for bn in
@@ -141,7 +117,7 @@ def main():
 
     order = ["finance", "tech", "energy", "law", "healthcare", "realestate",
              "academia/public", "non-working/none", "unclassified"]
-    print("Sector x competitiveness — WA/NY/TX U.S. House inflow, 2022-2026")
+    print(f"Sector x competitiveness — {'/'.join(region_codes())} U.S. House inflow, 2022-2026")
     print(f"(grand total matched to a band: ${grand/1e6:,.0f}M)\n")
     hdr = (f"{'sector':18} {'$M':>8} {'%of$':>6} | {'Tossup':>8} {'Lean':>8} {'Likely':>8} "
            f"{'Solid':>8} | {'COMPETv':>8} {'OOS%':>6}")
@@ -174,8 +150,8 @@ def main():
     allcomp = (sum(sectors[s]["Tossup"]["tot"] + sectors[s]["Lean"]["tot"] for s in sectors)
                / grand * 100)
     print(f"   {'[ALL sectors]':18} {allcomp:5.1f}%   <- baseline")
-    json.dump(out, open(OUT, "w"), indent=2)
-    print(f"\nwrote {OUT}")
+    path = write_json("sector_competitiveness.json", out)
+    print(f"\nwrote {path}")
 
 
 if __name__ == "__main__":

@@ -19,18 +19,13 @@ import zipfile
 
 import httpx
 
+from cross_state_common import region_states, competitiveness_bands, write_json
+
 TMP = "data/_fec_bulk"
 CYCLES = [2018, 2020, 2022, 2024, 2026]
-STATES = [("WA", "data/wa_statewide.duckdb"), ("NY", "data/ny_statewide.duckdb"), ("TX", "data/tx_statewide.duckdb")]
-TARGET_STATES = {"WA", "NY", "TX"}
+STATES = region_states()
+TARGET_STATES = {c for c, _ in STATES}
 DEST_CSV = f"{TMP}/house_committee_dest.csv"
-
-
-def band(margin_abs: float) -> str:
-    if margin_abs < 5: return "Tossup"
-    if margin_abs < 10: return "Lean"
-    if margin_abs < 20: return "Likely"
-    return "Solid"
 
 
 def build_dest_map():
@@ -78,30 +73,9 @@ def build_dest_map():
     return len(uniq)
 
 
-def competitiveness():
-    """(state, cd_id) -> (margin_abs, band) from the latest Democratic forecast row."""
-    comp = {}
-    for st, f in STATES:
-        try:
-            c = duckdb.connect(f, read_only=True)
-        except Exception:
-            print(f"  [competitiveness: {st} DB locked — skipping its districts]")
-            continue
-        rows = c.execute(
-            "WITH r AS (SELECT district_id, predicted_margin, "
-            "ROW_NUMBER() OVER (PARTITION BY district_id ORDER BY as_of_date DESC) rn "
-            "FROM forecast_predictions WHERE party='Democratic' AND district_id LIKE 'cd%') "
-            "SELECT district_id, predicted_margin FROM r WHERE rn=1"
-        ).fetchall()
-        c.close()
-        for cd, m in rows:
-            comp[(st, cd)] = (abs(float(m)), band(abs(float(m))))
-    return comp
-
-
 def main():
     n = build_dest_map()
-    comp = competitiveness()
+    comp = competitiveness_bands()
     print(f"House committee->district map: {n:,} committees | competitiveness districts: {len(comp)}\n")
 
     # $ to each destination House district, by donor-state (in-state vs cross-state).
@@ -156,11 +130,13 @@ def main():
         print(f"{b:8} | {nd:>10} | {nd/ndist*100:6.1f}% | {x['dollars']/1e6:9.1f} | "
               f"{perdist:9.2f}M | {x['dollars']/total*100:4.1f}% | {x['in']/1e6:8.1f} | {x['out']/1e6:6.1f}")
     print(f"\nTotal House $ ({'+'.join(donor_states)} residents -> readable-state House, 2022-2026): ${total/1e6:,.0f}M across {len(counted)} districts")
-    if len(donor_states) < 3:
-        print(f"PARTIAL RUN: donor states {donor_states} (others locked by the live load). Rerun when the load finishes for the full 3-state result.")
+    if len(donor_states) < len(STATES):
+        locked = [c for c, _ in STATES if c not in donor_states]
+        print(f"PARTIAL RUN: donor states {donor_states} present; {locked} unavailable "
+              f"(DB locked). Rerun when free for the full {len(STATES)}-state result.")
 
-    out = "reports/money_competitiveness.json"
-    json.dump({"bands": bands, "district_count": district_count, "total": total}, open(out, "w"), indent=2)
+    out = write_json("money_competitiveness.json",
+                     {"bands": bands, "district_count": district_count, "total": total})
     print(f"\nwrote {out}")
 
 
