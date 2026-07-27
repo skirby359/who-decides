@@ -289,3 +289,44 @@ python scripts/diag_ie_vs_margin.py               # Findings 2c + 3
 > start reporting a slope; treat that as a NEW result requiring its own review, not as
 > confirmation of the descriptive number above.
 
+
+---
+
+**"Safe-Seat Washington" — REBUILT 2026-07-27 after adversarial review.**
+
+Claims 11/12 above are SUPERSEDED. The prior figures came from a seat universe derived
+from `precinct_results`, which silently dropped 24 King County House seats per cycle in
+2016 and 2018 (King is largely absent from WA's statewide PRECINCT files those years) plus
+2020 LD15 on a race-name format variant. The universe is now built from certified
+statewide summary returns and asserted against the statutory chamber size.
+
+```bash
+python scripts/diag_seat_competition.py    # exit 0 == all cycles reconcile to 98 House / 10 US House
+```
+
+| # | Claim | Expected |
+|---|---|---|
+| 56 | Universe reconciles every cycle | 2016 98/26/10=134; 2018 98/25/10=133; 2020 98/26/10=134; 2022 98/25/10=133; 2024 98/25/10=133 |
+| 57 | D1 not-close share by year | 88.1 / 78.9 / 83.6 / 86.5 / 83.5% (2016-2024) |
+| 58 | D2 no-D-v-R share by year | 48.5 / 27.1 / 27.6 / 35.3 / 35.3% |
+| 59 | WA 2024 detail | 133 seats; 111 not close; 47 without D-v-R = 23 single + 15 same-party + 9 major-v-minor |
+| 60 | Safe-seat party split, by WINNER not vote totals | 68 D / 43 R (was 69/44 under the old rule) |
+| 61 | The one close same-party general | WA CD-4 2024, R-v-R, 6.0-point margin (Newhouse) |
+| 62 | Four-state lower chamber, not close | WA 87.8 (98/98) / NY 88.6 (149/150) / TX 94.0 (96/150 + 54 backfill) / ID 92.9 (70/70) |
+| 63 | Party-string sensitivity on no-D-v-R | strict vs loose differs 3.0pp in 2016, <=2.2pp elsewhere |
+
+> **Changes from the prior published figures** (paper Appendix G): 2016 90.7 -> 88.1;
+> **2018 75.0 -> 78.9**; 2020 84.1 -> 83.6; 2022 87.1 -> 86.5; **2024 85.0 -> 83.5**. The
+> 2018 "blue-wave dip" was materially exaggerated by the missing King County seats, which
+> are disproportionately safe and Democratic.
+>
+> **Withdrawn claims:** that seats were "decided before November" (observed November
+> margins cannot date the binding decision); and that the safe-seat/vote gap is a "packing
+> signature" (now descriptive, consistent with several mechanisms). The forecast comparison
+> is relabelled a loose aggregate consistency check, not a validation.
+>
+> **Still open before publication:** Appendix E's threshold and contest-gap tables are on
+> the prior classification and need recomputation; the 54 Texas backfilled seats need a
+> district-level verification table; NY's missing 150th Assembly district is unidentified;
+> the primary/general ratio needs recomputation on the corrected universe.
+

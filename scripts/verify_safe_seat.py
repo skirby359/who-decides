@@ -1,4 +1,31 @@
-"""Independent re-derivation of the headline numbers in docs/safe-seat-washington.md.
+"""SUPERSEDED for Washington — see scripts/diag_seat_competition.py.
+
+⚠ THIS SCRIPT REPRODUCES THE PRE-2026-07-27 FIGURES AND SHOULD NOT BE USED TO CHECK
+THE CURRENT PAPER. An adversarial review found two defects that this script embodies:
+
+  * Its seat universe comes from `precinct_results`, so a race absent from the results
+    table disappears rather than being flagged. King County is largely missing from WA's
+    statewide PRECINCT files for 2016 and 2018, so this script sees 74 of 98 House seats
+    in both years (and misses 2020 LD15 on a race-name format variant). It verifies that
+    the old table can be reproduced from the warehouse; it does NOT verify that the
+    warehouse holds the complete election universe.
+  * Its SAME-PARTY rule is `d == 0 or r == 0`, which is "no D-v-R pairing", not "same
+    party" — it sweeps in D-vs-independent and R-vs-minor races. It also derives the safe
+    seat's party from `d >= r`, which scores a race with no major-party votes as
+    Democratic.
+
+`scripts/diag_seat_competition.py` replaces it for Washington: it builds the universe
+from certified statewide summary returns, asserts it against the statutory chamber size,
+exits non-zero on any mismatch, and reports candidate competition and partisan
+availability as two separate dimensions. This file is retained only so the superseded
+figures in the paper's Appendix G can be reproduced on demand.
+
+The four-state lower-chamber section below has not yet been rebuilt; treat its WA row as
+superseded and its NY/TX/ID rows as still current but classified by the old rule.
+
+---
+
+Independent re-derivation of the headline numbers in docs/safe-seat-washington.md.
 
 Companion to the verify_who_decides_* harnesses. Re-derives OBSERVED general-
 election competitiveness with from-scratch SQL over `precinct_results` in each
