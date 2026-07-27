@@ -192,7 +192,14 @@ composition-based, as the robust cut.)
 
 - **Turnout rates vs shares.** The current-roll denominator inflates turnout
   *rates* for older cycles; composition *shares* (§I–II) and within-year
-  cross-party comparisons (§II–IV) are the robust cuts.
+  cross-party comparisons (§II–IV) are the robust cuts. An independent
+  reproduction of the §III turnout and §IV primary figures runs about **1–2
+  points under** the rate values reported here — the expected sensitivity to
+  the choice of denominator (current roll vs. contemporaneous roll), not a
+  discrepancy in the underlying counts. The direction and ordering are
+  identical, and the **composition shares — the cuts this paper's argument
+  rests on — reproduce exactly**. Read the rate figures as directional, with
+  the shares carrying the inference.
 - **NOPARTY lean is never imputed.** The blank bloc's partisan sympathies are
   unobserved; we describe its age, turnout, and donation behavior, not its
   hidden preference (its federal *giving*, separately, leans ~2:1 Democratic —
@@ -220,6 +227,40 @@ most excluded by the current calendar and primary structure. Combined with the
 donor-class paper, the picture is a series of narrowing, increasingly
 unrepresentative gates — who registers, who votes, who votes in the primary, and
 who pays.
+
+---
+
+## Related work
+
+This paper's mechanisms are established; the contribution is the party-resolved,
+individual-record measurement on 13.5M New York registration and vote records, and
+the finding that the Republican electorate ages hardest. It sits in these literatures:
+
+- **Turnout composition by salience (surge-and-decline).** Campbell, "Surge and
+  Decline" (1960); Wolfinger & Rosenstone, *Who Votes?* (1980); Leighley & Nagler,
+  *Who Votes Now?* (2013). Section I's presidential→off-year age gradient is this,
+  measured directly. Plutzer, "Becoming a Habitual Voter" (2002) frames the young-adult
+  drop-off in Section I.
+- **Off-cycle election timing, composition, and representation.** Anzia, *Timing and
+  Turnout* (2014); Hajnal & Trounstine, "Where Turnout Matters" (2005); Hajnal, Kogan
+  & Markarian, "Who Votes: City Election Timing and Voter Composition" (2022); Einstein
+  et al., "The Gray Vote" (2024) — the closest analog to the age result. Motivates the
+  on-cycle remedy.
+- **The primary as the real election under one-party dominance.** V.O. Key, *Southern
+  Politics in State and Nation* (1949); Hirano & Snyder, *Primary Elections in the
+  United States* (2019). Section V's safe-seat map is a modern, party-resolved instance.
+- **Primary-electorate representativeness (the tension).** Sides, Tausanovitch, Vavreck
+  & Warshaw, "On the Representativeness of Primary Electorates" (2020) — distinguished
+  here: our claim is composition and closure (Section IV), not ideological extremism.
+- **Independents / the unaffiliated.** Klar & Krupnikov, *Independent Politics* (2016);
+  Fiorina, "The (Re)Nationalization of Congressional Elections" and the broader
+  dealignment literature — the frame for the young, disengaged, locked-out unaffiliated
+  quarter (Section III) and the new-registrant abandonment of party labels (Section VI).
+- **Voter-file / individual-level method.** Ansolabehere & Hersh, "Validation: What Big
+  Data Reveal About Survey Misreporting and the Real Electorate" (2012); Hersh, *Hacking
+  the Electorate* (2015). On the current-roll survivorship caveat (Boundary of
+  inference): Feder & Miller, "The Racial Burden of Voter List Maintenance Errors,"
+  *Science Advances* (2020).
 
 ---
 
