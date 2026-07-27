@@ -616,6 +616,19 @@ testing. It is retained here as an objection because it is the intuitive reading
   2018–2026 to align with the WA PDC window — 3,954,090 contributions totalling $880.3M,
   of which $379.5M matches to a registered New York voter. Out-of-state donors are
   retained, as they are in the WA and ID state panels; the voter-roll join drops them.
+  Odd cycles are included deliberately: New York runs odd-year municipal and county
+  elections, and the Washington state panel likewise spans its odd years.
+  `scripts/sanity_check_ny_contributions.py` audits the load and passes. Two findings
+  from it are worth stating. **Amended filings do not double-count**: 44% of rows sit on
+  amended reports, but amended reports carry fresh transaction numbers, and a
+  content-level test (same filer, contributor, date and amount) finds only **0.66%** of
+  dollars in duplicate groups — a residue that on inspection is sequential same-day
+  repeat gifts, not restatements. And the even-cycle slice comes to 84% of the
+  independently-aggregated `candidate_finance` individual total for the same cycles,
+  the expected relationship given that this panel takes Schedule A alone while the
+  aggregate also counts Schedules B, C and G. A few hundred `SCHED_DATE` values are
+  transcription errors (years 206, 1900, 1919); no figure in this paper reads that
+  column — cycle, amount and identity all come from other fields.
 - **The match key and its uniqueness rule.** Matching proceeds in tiers, the first being
   `STRICT_ZIP5_FULL` — (last name, **full** first name, ZIP5) — followed by
   first-initial variants. Every tier carries the same guard: the key must resolve to
