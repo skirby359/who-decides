@@ -1,13 +1,13 @@
-# Publication checklist — independent-verification gate
+# Publication checklist — electoral-health lead paper
 
-*This is the verification gate the papers cite: the exact scripts and expected
-values needed to independently re-derive every headline number. The analysis is
-AI-assisted; **the headline numbers must be independently re-derived before
-posting under an author's name** — this file makes that fast, it does not
-substitute for it.*
+*Assembled 2026-06-29. Turns the human-owned items in
+[`electoral-health-TODO.md`](electoral-health-TODO.md) (#3 verify numbers, #4 hand-rate
+matches, #5 re-check cites, #6 publish) into a tick-through list. The work is
+AI-assisted; **you must independently re-derive the headline numbers before posting
+under your name** — this file makes that fast, it does not substitute for it.*
 
-Lead paper: [`who-decides-washington.md`](who-decides-washington.md)
-("Who Decides Washington State? The gray off-year electorate"). Companion:
+Lead paper for submission: [`who-decides-washington.md`](who-decides-washington.md)
+("Who Decides Washington State? The gray off-year electorate"). Companion, post second:
 [`safe-seat-washington.md`](safe-seat-washington.md).
 
 ---
@@ -29,19 +29,20 @@ python scripts/verify_safe_seat.py          # safe-seat-washington.md (WA by-yea
 python scripts/verify_cross_state_money.py  # cross-state-fec-money.md (inflow + outflow)  (all match)
 ```
 
-**Status — all six re-run, exit 0, reproduce.** WA outflow reconciles exactly (see
-below). One known, self-reported divergence remains (flagged inline by the script,
-not a paper error):
+**Status — all six re-run 2026-07-10, exit 0, reproduce.** WA outflow now reconciles
+exactly (see below). One known, self-reported divergence remains (flagged inline by the
+script, not a paper error):
 - **NY §III turnout / §IV primary participation** run ~1-2pp under the paper — current-roll
   denominator sensitivity (the paper's own soft cut); composition/structural cuts match exactly.
-- **‡‡ WA outflow concentration.** The verifier was recomputing on the
+- **‡‡ WA outflow concentration — RESOLVED 2026-07-10.** The verifier was recomputing on the
   raw WA `individual_contributions` (state PDC + non-WA donors + odd cycles → 1.12M / 47.5%);
   applying the paper's own filter (`fec_candidate_id ~ '^[CPHS][0-9]'` AND `contributor_state='WA'`,
   matching `cross_state_fec_money.py`) reproduces the paper **exactly: 361,818 donors / top-1%
   39.3% / top-10% 72.3% / Gini 0.800** (cycles resolve to clean 2018–2026 even years; total $646M).
-  NY tightened to 671,488 (was 699K raw), TX unchanged — all three reproduce.
+  NY tightened to 671,488 (was 699K raw), TX unchanged — all three now reproduce.
 
-The diag scripts (what the papers were built from) for any remaining ledger cells.
+The diag scripts (what the papers were built from) for any remaining ledger cells:
+
 Run from repo root. The WA individual numbers need the VRDB attached, which
 `diag_wa_individual_findings.py` handles. Tick each cell once you've reproduced it.
 
@@ -105,8 +106,8 @@ python scripts/diag_id_electorate_extras.py             # safe-seat, unaffiliate
 | 23 | Crossover (resolved ~52%) | DEM 93.5%→D; UNAFF 72.8%→D; REP 79.3%→R (REP→D upper bound) | match_id_voters_to_donors |
 
 **"The Donor Class Is Not the Electorate" Appendix G — confirm against
-`diag_contribution_limits.py`** (read-only over `id_statewide.duckdb` +
-`wa_statewide.duckdb`; no voter file needed):
+`diag_contribution_limits.py`** (read-only over `id_statewide.duckdb` + `wa_statewide.duckdb`;
+no voter file needed):
 
 | # | Claim in paper | Expected | Source |
 |---|---|---|---|
@@ -119,13 +120,13 @@ python scripts/diag_id_electorate_extras.py             # safe-seat, unaffiliate
 
 > Appendix G supersedes the earlier Finding-2 parenthetical attributing Idaho's lower
 > top-1% share to state contribution limits. That explanation is **disconfirmed** — do not
-> reinstate it. Two data-hygiene points the script enforces and any re-derivation must
+> reinstate it. Two data hygiene points the script enforces and any re-derivation must
 > match: PDC's `SMALL CONTRIBUTIONS` unitemized pseudo-contributor is **excluded** from all
 > WA state cuts (left in, it keys as one enormous donor), and the person/organization split
 > is a per-layer name heuristic (comma test for Sunshine/FEC `LAST, FIRST`; org-marker test
 > only for PDC's `LAST FIRST`, which is why no persons-only WA state figure is published).
 
-> **‡ Claim 17 — Idaho turnout RATES dropped (turnout sanity pass).** Idaho rates
+> **‡ Claim 17 — Idaho turnout RATES dropped (2026-07-09 turnout sanity pass).** Idaho rates
 > computed from the voter file are survivorship-inflated: the 2026 roll (1.03M) is smaller
 > than the **1.18M registered at the 2024 election**, so our all-voter 2024 rate comes out
 > ~94% against the official **77.8%** (and 2020 computes >100% via `registration_date`
@@ -137,8 +138,11 @@ python scripts/diag_id_electorate_extras.py             # safe-seat, unaffiliate
 > **WA and NY were checked and are NOT inflated** (our 2024 overall 75.9% vs official 78.9%;
 > NY 58.3% vs 60.4% of eligible) — their rolls are stable, so those papers' rates stand. This
 > is an Idaho-only fix; the rate columns were removed from `who-decides-idaho.md` §III and the
-> diag scripts' rate outputs carry a survivorship caveat. ID donor figures are Idaho Sunshine
-> **state** money (not FEC).
+> diag scripts' rate outputs carry a survivorship caveat.
+>
+> The two new NY drafts and the cross-state donor-class paper carry their own
+> reproducibility blocks; add their headline rows here when you run their verification
+> pass (TODO #3). ID donor figures are Idaho Sunshine **state** money (not FEC).
 
 > If any cell disagrees with the paper, the paper is wrong, not the script — fix the
 > prose (these scripts are the single source of truth and are re-runnable).
@@ -182,6 +186,7 @@ python scripts/diag_id_electorate_extras.py             # safe-seat, unaffiliate
 | 30 | WA federal matched layer | 172,998 donors / $420.3M / top-1% 42.4% / top-10% 74.8% / Gini 0.820 | federal |
 | 31 | WA state matched layer | 269,204 donors / $153.9M / top-1% 43.8% / top-10% 76.0% / Gini 0.827 | state |
 | 32 | NY federal matched layer | 307,841 donors / $1,196.1M / top-1% 51.2% / top-10% 81.4% / Gini 0.867 | federal |
+| 32b | NY state matched layer | 424,020 donors / $379.5M / top-1% 48.5% / top-10% 78.3% / Gini 0.846 | state |
 | 33 | ID federal matched layer | 27,196 donors / $49.6M / top-1% 35.8% / top-10% 70.4% / Gini 0.786 | federal |
 | 34 | ID state matched layer | 27,250 donors / $15.9M / top-1% 39.3% / top-10% 70.8% / Gini 0.798 | state |
 | 35 | WA generation multipliers | federal Silent 2.56x .. Gen Z 0.10x; state Silent 1.64x .. Gen Z 0.20x | both |
@@ -190,7 +195,184 @@ python scripts/diag_id_electorate_extras.py             # safe-seat, unaffiliate
 | 38 | ID recipient-party resolution | federal **86.7%** vs state ~52% (only the state REP->D rate is an upper bound) | both |
 | 39 | WA give<->vote | federal 85.4% vs 51.4% super; state 84.9% vs 50.8% | both |
 | 40 | WA bootstrap CIs (B=1,000) | federal top-1% [40.2-44.9], Gini [0.812-0.828]; state top-1% [39.6-48.9] | both |
-| 32b | NY state matched layer | 424,020 donors / $379.5M / top-1% 48.5% / top-10% 78.3% / Gini 0.846 | state |
+
+---
+
+## 2. Statute cites — DONE (re-verified 2026-06-29)
+
+- **WA RCW 29A.08.720** (political use allowed; advertising/solicitation barred) + **29A.08.740**
+  (penalties) — verified against current code at app.leg.wa.gov. Appendix sharpened from the bare
+  chapter cite to these subsections.
+- **Idaho Code §74-120** ("Prohibition on distribution or sale of mailing or telephone number
+  lists"; releases registrant age, withholds DOB/DL#/address) — verified at legislature.idaho.gov.
+- Remaining human step: one final glance at publication time (statutes can amend).
+
+**Campaign-finance statutes added 2026-07-26** for the donor paper's Appendix D / Appendix G.
+Verified against the primary sources noted; the two flagged items need a human glance before
+posting:
+
+- **Idaho Code § 67-6610A** — individual contributions capped at **$1,000/election**
+  (legislative, judicial, local) and **$5,000/election** (statewide); primary and general are
+  separate elections; candidate self-funding exempt. Verified at legislature.idaho.gov.
+- ⚠ **Idaho S.B. 1422 (2026)** would have raised those to $1,500 / $6,000 (a full rewrite of
+  Chapter 66 into Title 74, Ch. 3). Bill history at legislature.idaho.gov ends **"04/01
+  Retained on calendar"** with no passage or signature recorded. Cited in the paper as
+  *proposed only*. **HUMAN: confirm it died before publication** — if it was enacted, the
+  Appendix D figures need the effective date and both regimes.
+- **52 U.S.C. § 30116** — federal individual-to-candidate limit **$3,500/election** for the
+  2025–26 cycle (was $3,300 in 2023–24); indexed. Also **§ 30118** (corporate contribution
+  prohibition, which ID and TX state law do not share).
+- ***McCutcheon v. FEC*, 572 U.S. 185 (2014)** — struck the biennial **aggregate** limit, so
+  no federal ceiling on a donor's total giving. Load-bearing for Appendix G's mechanism.
+  ***Buckley v. Valeo*, 424 U.S. 1 (1976)** for the contribution/expenditure asymmetry.
+- **Tex. Elec. Code § 253.094** — bars corporate/labor contributions; **no dollar limit** on
+  individual gifts to non-judicial state candidates. Judicial Campaign Fairness Act,
+  §§ 253.151–253.176, is the capped exception. This replaces the previously uncited "no
+  contribution limits" assertion in `cross-state-fec-money.md` K1.
+- ⚠ **WA RCW 42.17A.405**, recodified **RCW 29B.40.020** eff. **Jan. 1, 2026**. Cited without
+  a dollar figure. **HUMAN: if a specific per-election amount is ever quoted, confirm it
+  against the PDC's current indexed schedule** — the amounts are adjusted, not statutory.
+- ⚠ **N.Y. Elec. Law § 14-114** (New York's caps) — cited qualitatively ("high") and **not
+  independently verified this session**. Confirm the section number before posting, or drop
+  to a bare "New York's caps are comparatively high" with no cite.
+- **N.Y. Pub. Off. Law art. 6** (FOIL) as the access basis for NYSVOTER in Appendix B —
+  the specific NY Election Law provision governing voter-list release was **not** verified;
+  Appendix B deliberately cites only FOIL plus the Board's elections-purpose certification.
+
+---
+
+## 3. Hand-rate the match sample (TODO #4) — needed only for the money/donor papers
+
+> **DONE 2026-07-10 (two rounds).** 150-row sample hand-rated: first pass 9 flagged;
+> **second, more thorough pass 15 flagged → ≈90% apparent precision** (135/150). Dominant
+> error = **spousal/household false-merge** (same surname + ZIP, a partner's donation),
+> some unverifiable for missing donor detail (so true precision may be a little higher).
+> Spousal mis-attributions barely move the age / geography / concentration cuts (partners
+> share household, ZIP, ~age). Filled CSV saved to `data/validation/` (gitignored, PII).
+> Folded into the donor-class paper's *Boundary of inference*.
+
+Not on the critical path for the lead turnout paper (no name-matching in it), but
+required before the donor-class paper:
+
+```bash
+python scripts/diag_match_validation_sample.py   # writes data/validation/match_validation_sample.csv (gitignored; PII)
+```
+
+Fill `is_same_person` (Y/N) by hand; precision = Y / (Y+N). Structural ceiling is
+already known low (87% full-name agreement, 13% namesake risk), so the hand rate
+calibrates the donor-overlap figures, not the turnout finding. **Sample generated to
+`data/validation/` 2026-07-10** (seed-42 deterministic — the same 150 rows already
+hand-rated; the file is gitignored so the PII never enters the repo).
+
+---
+
+## 4. SSRN + SocArXiv submission package
+
+Both are free, citable, **not peer review** — discoverability + a timestamp + a DOI
+(SocArXiv). Submit the lead paper as a single PDF (render via `scripts/md_to_pdf.py`).
+
+**Metadata (reuse for both):**
+
+- **Title:** *Who Decides Washington State? The Gray Off-Year Electorate, Measured from 27 Million Individual Vote Records*
+- **Author:** [your name], Tikor Consulting. Note "AI-assisted analysis; all figures independently reproducible from public records via the cited open-source scripts."
+- **Abstract (draft, ~150 words):**
+  > Washington holds its most local offices — city councils, school boards, port and
+  > fire commissions, many county and judicial seats — in odd-numbered, off-cycle
+  > Novembers, when about a third of registered voters return a ballot. Joining the
+  > state's 5.5-million-voter registration roll to 27.1 million individual vote
+  > records and each voter's birthdate, this paper measures who that third is. The
+  > off-year electorate is not a smaller copy of the presidential one; it is an older
+  > one. Turnout among voters 18–29 collapses from 58.4% in 2024 to roughly 16%
+  > off-cycle — a 42-point drop — while voters 65+ fall only from 88% to about 61%.
+  > Seniors make up ~40% of off-year voters versus 28.5% presidentially; the
+  > senior-to-youth ratio roughly triples. A behavior-vs-rolls decomposition shows
+  > 92% of the skew is turnout, not registration — pointing to on-cycle election
+  > timing as the lever.
+- **Keywords:** off-cycle elections; voter turnout; local elections; election timing; age and participation; Washington State; democratic representation.
+- **SocArXiv subject:** Social and Behavioral Sciences → Political Science → American Politics. **License:** CC-BY 4.0 (recommended) or CC0.
+- **SSRN classification:** Political Science Network → Elections, Voting, Public Opinion.
+
+**Mechanical steps:**
+
+1. Render the lead paper to PDF (`python scripts/md_to_pdf.py docs/who-decides-washington.md`); proof it.
+2. **SocArXiv:** osf.io/preprints/socarxiv → "Add a preprint" → upload PDF → paste metadata → submit (gets a DOI in ~1 day).
+3. **SSRN:** papers.ssrn.com author login → "Submit a paper" → same metadata → submit (review queue ~1–2 weeks).
+4. After both are live, drop the links into the white-paper header and notify the timing-reform audience (Sightline, Unite America) per TODO #7.
+
+---
+
+## 5. Pre-publication gate (do not post until all checked)
+
+- [ ] §1 verification ledger fully reproduced by you (the non-negotiable) — **AI-side
+  confirmed 2026-07-10: all six verifiers re-run, exit 0, reproduce (see §1 status); the
+  independent human sign-off under your name still remains**
+- [x] §2 statute cites re-verified (2026-06-29)
+- [x] §6 full sanity pass complete — turnout / composition / safe-seat / money / match, all
+  done (2026-07-10)
+- [~] §4 lead-paper PDF **rendered 2026-07-10** (`docs/who-decides-washington.pdf`, ~125 KB);
+  final proof (county-table layout, first-page, author block) = **HUMAN**
+- [ ] Author byline + AI-assistance disclosure finalized — **HUMAN** (needs your name)
+- [x] (donor papers only) §3 match sample hand-rated (2026-07-10, 2 rounds; ≈90%, spousal-dominant)
+- [ ] Posted to SocArXiv + SSRN; links folded back into the white paper — **HUMAN**
+
+---
+
+## 6. Sanity-pass log
+
+Running record of independent checks against official/external sources. Prompted by
+two defects found during validation (claim #17 denominator; Idaho turnout inflation).
+
+**Turnout rates vs official — DONE 2026-07-09.** The method computes turnout as
+past-voters ÷ current-roll, which inflates when the roll has shrunk since the
+election. Checked all three voter-file states:
+
+| State | our 2024 overall | official | verdict |
+|---|--:|--:|---|
+| WA | 75.9% | 78.9% of registered | sound (ours slightly low — stable roll) |
+| NY | 58.3% | 60.4% of eligible (higher on registered basis) | sound (ours low) |
+| ID | ~94% | **77.8% of registered** | **inflated** — roll shrank 1.18M→1.03M |
+
+Action: `who-decides-idaho.md` reframed onto composition shares (no rate claims);
+WA/NY rates stand (both papers already lead with composition). See ‡ above.
+
+**Composition robustness — DONE 2026-07-09.** Using WA's two roll snapshots
+(`voters_20230901` vs current `voters`), the 504K voters who *left* the roll skew
+**older** (33.1% 65+ vs 23.9% retained; median 50 vs 48 — deaths dominate). So a past
+electorate reconstructed from the current roll *under-counts* older voters → the
+"gray electorate" finding is **conservative (a lower bound), not inflated**. Within-
+contest comparisons (general vs primary) use the same surviving population, so those
+contrasts are unaffected. Direction confirmed empirically for WA (anchors the series);
+ID has larger attrition but the same death-dominated mechanism.
+
+**Safe-seat counts — DONE 2026-07-09.** `diag_safe_seat_states.py` reproduces exactly:
+WA 88.8 / NY 88.6 / TX 94.0 / ID 92.9% non-competitive (lower chamber).
+
+**Cross-state money — DONE 2026-07-09 (independent recompute).** Every headline verified:
+WA concentration top-1% 47.74% / top-10% 79.98% / Gini 0.8617 / 382,408 voters ($574.2M
+matched base); FEC inflow 5,480,513 rows / $1.20B (WA $154.6M / NY $462.7M / TX $582.4M);
+ID top-1% 39.3% / Gini 0.798 / ADA 49.2%. **One real error fixed:** `who-decides-idaho.md`
+ID donor top-10% read "69%" — corrected to **71%** (data = 70.8%; cross-state doc was already right).
+- Follow-ups: ~~"$128M matched" is a stale pre-Tier-0 figure~~ **FIXED 2026-07-10** (memory
+  index + donor_prospects.md now read 382K / $574.2M; the WA lead paper never carried it).
+  ~~WA resident-donor outflow "$646M" vs raw `individual_contributions` $1.04B — confirm the
+  filter~~ **CONFIRMED 2026-07-10**: the filter is `fec_candidate_id ~ '^[CPHS][0-9]'` AND
+  `contributor_state='WA'` (drops PDC + non-WA + odd cycles); it reproduces the paper's donors
+  (361,818) and concentration (39.3/72.3/0.800) exactly, so the same-population $646M stands.
+  The verifier now applies it (WA outflow divergence resolved above).
+
+**Verifier full re-run — DONE 2026-07-10.** All six `verify_*.py` re-run, **exit 0,
+reproduce** derived-vs-paper. **WA outflow concentration reconciled** (the last
+divergence): the paper's filter (`fec_candidate_id ~ '^[CPHS][0-9]'` +
+`contributor_state='WA'`) yields 361,818 / 39.3% / 72.3% / 0.800 exactly; NY tightened to
+671,488, TX unchanged. Only remaining self-flagged note is NY §III/§IV rate cuts ~1–2pp
+under (current-roll denominator; composition cuts match exactly). Lead-paper PDF
+re-rendered (`docs/who-decides-washington.pdf`).
+
+**Still to check:**
+- [x] Match precision — hand-rated 2026-07-10 (2 rounds): **≈90%** (15/150 flagged on the
+  second pass; spousal/household false-merges dominant, some unverifiable). Folded into
+  donor-class *Boundary of inference*; filled CSV in `data/validation/` (gitignored).
+
 
 **Donor paper — New York state panel (added 2026-07-26).** NYSBOE publishes
 transaction-level contributions (data.ny.gov `4j2b-6a2j`, 12.6M rows) carrying
@@ -208,54 +390,15 @@ registered voter.
 | 44 | NY state own-party skew | DEM +8.9 / REP +3.2 / NOPARTY -12.0 (vs federal +15.0 / -0.9 / -13.0) |
 | 45 | NY state geography | Manhattan 20.6% (vs 50.3% federal), Nassau 15.1%, Suffolk 11.1%; top-3 ZIP3 38.1% |
 | 46 | NY state give<->vote | 3.02 generals / 73.1% super vs 1.77 / 36.8% |
+
 | 47 | NY state crossover (after backfill) | resolution 25.9% -> **37.7%**; DEM 88.3->D, REP 84.7->R, NOPARTY 54.8->D |
 
 > NY state crossover is the thinnest cut in the paper at **37.7%** resolution
 > (`backfill_ny_recipient_party.py`). Stability check: lifting coverage from 25.9% to
-> 37.7% moved the rates by 1.0 / 4.5 / -2.1 points — directions hold, magnitudes are
+> 37.7% moved the rates by 1.0 / 4.5 / -2.1 points, so directions hold but magnitudes are
 > approximate. A bare-surname tier was built and REJECTED (it read "FRIENDS OF DAVID
-> KNAPP" as Republican via *David*); do not reinstate it. Corporate/labor PACs stay
+> KNAPP" as Republican via *David*) — do not reinstate it. Corporate/labor PACs stay
 > unresolved by design.
-
----
-
-## 2. Statute cites
-
-- **WA RCW 29A.08.720** (political use allowed; advertising/solicitation barred) + **29A.08.740**
-  (penalties) — verified against current code at app.leg.wa.gov. The appendix cites these
-  subsections rather than the bare chapter.
-- **Idaho Code §74-120** ("Prohibition on distribution or sale of mailing or telephone number
-  lists"; releases registrant age, withholds DOB/DL#/address) — verified at legislature.idaho.gov.
-- Remaining human step: one final glance at publication time (statutes can amend).
-
-**Campaign-finance statutes added 2026-07-26** for the donor paper's Appendix D / Appendix G.
-Two flagged items need a human glance before posting:
-
-- **Idaho Code § 67-6610A** — individual contributions capped at **$1,000/election**
-  (legislative, judicial, local) and **$5,000/election** (statewide); primary and general are
-  separate elections; candidate self-funding exempt. Verified at legislature.idaho.gov.
-- ⚠ **Idaho S.B. 1422 (2026)** would have raised those to $1,500 / $6,000. Bill history ends
-  **"04/01 Retained on calendar"** with no passage recorded; cited in the paper as *proposed
-  only*. **HUMAN: confirm it died before publication.**
-- **52 U.S.C. § 30116** — federal individual-to-candidate limit **$3,500/election** for the
-  2025–26 cycle (was $3,300 in 2023–24), indexed. Also **§ 30118** (corporate contribution
-  prohibition, which Idaho and Texas state law do not share).
-- ***McCutcheon v. FEC*, 572 U.S. 185 (2014)** — struck the biennial **aggregate** limit, so
-  there is no federal ceiling on a donor's total giving; load-bearing for Appendix G's
-  mechanism. ***Buckley v. Valeo*, 424 U.S. 1 (1976)** for the contribution/expenditure
-  asymmetry.
-- **Tex. Elec. Code § 253.094** — bars corporate/labor contributions; **no dollar limit** on
-  individual gifts to non-judicial state candidates (Judicial Campaign Fairness Act,
-  §§ 253.151–253.176, is the capped exception). Replaces the previously uncited "no
-  contribution limits" assertion in `cross-state-fec-money.md` K1.
-- ⚠ **WA RCW 42.17A.405**, recodified **RCW 29B.40.020** eff. **Jan. 1, 2026**. Cited without a
-  dollar figure; the amounts are PDC-indexed, not statutory. **HUMAN: confirm against the
-  current PDC schedule if any amount is ever quoted.**
-- ⚠ **N.Y. Elec. Law § 14-114** — cited qualitatively and **not independently verified**;
-  confirm the section number before posting, or drop to an uncited phrasing.
-- **N.Y. Pub. Off. Law art. 6** (FOIL) is the access basis cited for NYSVOTER in Appendix B;
-  the specific NY Election Law provision governing voter-list release was not verified, so
-  Appendix B cites only FOIL plus the Board's elections-purpose certification.
 
 
 ---
@@ -288,7 +431,6 @@ python scripts/diag_ie_vs_margin.py               # Findings 2c + 3
 > Schedule-E backfill (2018/2020/2022) later lifts n past the threshold, the script will
 > start reporting a slope; treat that as a NEW result requiring its own review, not as
 > confirmation of the descriptive number above.
-
 
 ---
 
@@ -348,6 +490,24 @@ python scripts/diag_seat_competition.py    # exit 0 == all cycles reconcile to 9
 > non-competitive count (94.0%) is unaffected: it needs only that the seats were
 > uncontested, not who held them.
 >
-> **Still genuinely open:** a certified TX candidate-filing list, to verify the 40 inferred
-> districts individually and replace imputed party with observed; and a specific citation
-> for the press-reported unopposed list.
+> **CLOSED 2026-07-27.** The Texas backfill is now verified against the Secretary of
+> State's certified election-night results (`build_tx_house_candidates.py` ->
+> `data/raw/tx/2024_tx_house_candidates.csv`). Its 54 single-candidate districts are
+> EXACTLY the 54 the TLC omits, so every backfilled seat is externally confirmed; holding
+> party is observed rather than imputed.
+>
+> | # | Claim | Expected |
+> |---|---|---|
+> | 71 | Certified source covers the chamber | 150 districts; 54 single-candidate |
+> | 72 | Backfill set matches certified uncontested set | exact match, 0 extra / 0 missed |
+> | 73 | Retired imputation error rate | wrong in **5 of 54** (HD 35/36/40/42/144, all D-held seats Trump carried) |
+> | 74 | Backfilled seats, observed party | **36 D / 18 R** (imputation said 31 D / 23 R) |
+> | 75 | TX not-close, certified | 141/150 = **94.0%** — unchanged from the backfilled figure |
+> | 76 | TX not-close split, corrected | **56 D / 85 R** (was 51 D / 90 R) |
+> | 77 | External sanity check | certified chamber 62 D / 88 R matches the seated 2024 TX House |
+>
+> Also established: the TLC dataset omits uncontested races at EVERY stage — all 14
+> press-confirmed unopposed districts appear in neither 2024 primary — so no work inside
+> that source could have distinguished "uncontested" from "missing".
+
+

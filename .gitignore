@@ -6,6 +6,10 @@ reports/*
 # safe-seat-washington.md Appendix F. Derived entirely from published election returns
 # (district numbers, presidential vote totals, classification) — no PII.
 !reports/tx_backfill_verification.csv
+# The certified 2024 Texas House candidate list — the external source that verifies the
+# backfill in Appendix F. Lives under data/ in the private repo, which is ignored here,
+# so it ships from reports/. Published election returns; no PII.
+!reports/2024_tx_house_candidates.csv
 __pycache__/
 *.pyc
 .env

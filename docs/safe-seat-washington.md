@@ -214,8 +214,11 @@ rather than assumed.
   chamber reads **88.0%** not close, if it was not close, **88.7%**. The true figure lies
   in that range whichever way it resolves, so the finding does not turn on it — but
   "complete" would be the wrong word and is not used.
-- **Texas is 64% loaded before backfill,** and its figures depend on that backfill
-  (Appendix F). The Texas party split is **imputed, not observed** — see below.
+- **Texas is 64% loaded in the canvass returns**, and its figures depend on a backfill of
+  the 54 uncontested seats that source omits. That backfill is now **verified seat by seat
+  against the Secretary of State's certified results**, which independently show exactly
+  those 54 districts as single-candidate, and supply the observed winning party for each
+  (Appendix F). Its not-close seats split **56 D / 85 R**.
 - Most recent loaded general: WA/TX/ID 2024, NY 2022.
 
 ---
@@ -273,11 +276,10 @@ choice is a question these findings motivate, not one they answer.
   gerrymandering. An earlier version claimed to make "no partisan-consequence claim" while
   analysing exactly that — the contradiction is resolved by scoping the claim rather than
   denying the analysis.
-- **The Texas party split should not be relied on.** Holding party for the 54 backfilled
-  seats is imputed from presidential lean, and where the press-confirmed subset allows a
-  check it is **wrong in 4 of 14 cases** — Rio Grande Valley seats held unopposed by
-  Democrats that Trump carried. The non-competitive count is unaffected; the 51 D / 90 R
-  split is not dependable. Appendix F quantifies this.
+- **The Texas backfill is verified and its party split is now observed.** Earlier versions
+  imputed holding party from presidential lean, which proved wrong in 5 of 54 seats. Party
+  now comes from certified returns, and the split is 56 D / 85 R rather than the previously
+  reported 51 D / 90 R. Appendix F documents the correction.
 - **New York is a cycle behind** (2022) and missing Assembly District 23, which bounds its
   figure to 88.0–88.7%.
 - **Margins are between candidates, not parties**, in Dimension 1. Third-party votes count
@@ -316,9 +318,13 @@ demonstration that residential geography produces seat/vote bias with nobody dra
 and single-member districts have no proportionality expectation to begin with. Appendix E
 reports the comparison descriptively and draws no inference about intent.
 
-**5. The Texas number rests on rows you added.** Correct, and Appendix F sets out the
-construction, its verification, and its limits. Excluding Texas entirely would not change
-the paper's conclusion; it would remove the most extreme case.
+**5. The Texas number rests on rows you added.** It did, and the objection prompted a
+proper check. The backfilled 54 have since been verified one by one against the Secretary
+of State's certified results, which independently identify exactly those districts as
+single-candidate and supply each winner's party. The headline was unchanged by the check
+(94.0% either way); the party split was not, and has been corrected. Appendix F sets out
+both. Excluding Texas entirely would still not change the paper's conclusion; it would
+remove the most extreme case.
 
 **6. Your earlier numbers were wrong.** Also correct. Appendix G documents what changed and
 why, rather than quietly restating.
@@ -339,12 +345,19 @@ why, rather than quietly restating.
   *Provenance note: the repository's loader path for New York results involves an
   intermediary; the exact ingested artifact and its transformation commit should be cited
   alongside the originating authority before publication.*
-- **Idaho.** Secretary of State certified returns. **Texas.** Legislative Council
-  canvass-grade VTD returns, plus the on-disk TLC r206 report
-  (`planh2316_r206_election24g.xls`) used for the Appendix F backfill.
-- **Outstanding for publication.** Full dataset citations — file name, release date, access
-  date, archived location, checksum, and loader commit — are not yet assembled for every
-  source and should be before circulation.
+- **Idaho.** Secretary of State certified returns.
+- **Texas.** Two sources, because one is insufficient. The Legislative Council's
+  canvass-grade VTD returns supply precinct-level results but **omit uncontested races at
+  every stage**, carrying 96 of 150 House districts. The **Texas Secretary of State's
+  election-night results service** (`results.texas-election.com`, read 2026-07-27)
+  publishes all 150 including uncontested ones with candidate, party and votes; it is the
+  seat universe and the source of holding party, captured to
+  `data/raw/tx/2024_tx_house_candidates.csv`. The TLC r206 report
+  (`planh2316_r206_election24g.xls`) is retained only for district presidential lean in
+  Appendix E.
+- **Outstanding for publication.** Full dataset citations — release date, access date,
+  archived location, checksum, and loader commit — are not yet assembled for every source
+  and should be before circulation.
 
 ## Appendix C — Methods
 
@@ -485,37 +498,37 @@ with holding party assigned from each district's 2024 presidential lean using th
 TLC r206 report (`planh2316_r206_election24g.xls`). Script:
 `scripts/diag_tx_safe_seat_backfill.py`. The results database was not mutated.
 
-**District-level verification.** `scripts/diag_tx_backfill_verification.py` emits one row
-per backfilled district to `reports/tx_backfill_verification.csv`, with two tiers:
+**Verified against a certified source.** The backfill was checked seat by seat against the
+Texas Secretary of State's election-night results service, which publishes every race
+including uncontested ones with candidate name, party and votes
+(`scripts/build_tx_house_candidates.py` → `data/raw/tx/2024_tx_house_candidates.csv`;
+audit in `scripts/diag_tx_backfill_verification.py` →
+`reports/tx_backfill_verification.csv`).
 
-| tier | districts | basis |
-|---|--:|---|
-| **Press-confirmed unopposed** | **14** | HD 35, 36, 38, 40, 42, 49, 51, 75, 78, 79, 90, 92, 95 and 81 appear on press-reported lists of 2024 races with no major-party opponent — evidence independent of this pipeline |
-| **Inferred from absence** | **40** | no VTD return published; the TLC omits uncontested races, so absence is evidence of non-contestation, but it is *our* pipeline's evidence, not an outside source's |
+**The match is exact.** The certified source shows **54 single-candidate districts**, and
+they are precisely the 54 the TLC returns omit — no district was backfilled that was
+actually contested, and no uncontested district was missed. The backfill is confirmed in
+full, not merely for a named subset. As an external check on the extraction, the certified
+data also puts the 2024 chamber at 62 D / 88 R, matching the seated Texas House.
 
-Only ten of the 54 sit in presidentially competitive districts (<10 points), where an
-uncontested race is most surprising: HD 35, 36, 38, 40, 42, 75, 78 (all press-confirmed)
-and HD 133, 135, 144 (inferred). Those three are the rows most worth manual confirmation.
+**Why the TLC data could never have settled this.** It omits uncontested races at *every*
+stage, not just the general: all 14 districts on the press-reported unopposed list appear
+in **neither** 2024 party primary, because those candidates were unopposed there too.
+Absence is a property of the whole dataset, so no amount of work inside it could
+distinguish "uncontested" from "missing".
 
-**The imputed party split is unreliable, and now measurably so.** Holding party for the 54
-comes from presidential lean. Where the press-confirmed subset lets that imputation be
-checked, **it is wrong in 4 of 14 cases** — HD 35, 36, 40 and 42 were held unopposed by
-Democrats while Trump carried each in 2024. These are Rio Grande Valley districts, where
-the 2024 presidential shift ran far ahead of legislative incumbency, and presidential lean
-is exactly the wrong proxy. A 29% error rate on the checkable subset means the reported
-Texas split of **51 D / 90 R should not be relied on**; it is imputed, demonstrably
-inaccurate where testable, and any comparison against presidential vote is circular
-besides. The **non-competitive count is unaffected** — it depends only on the seats being
-uncontested, not on who held them.
+**Holding party is now observed, and the old imputation was wrong.** Party for the 54 comes
+from the certified returns rather than presidential lean. Retrospectively, the retired
+imputation was **wrong in 5 of 54** — HD 35, 36, 40, 42 and 144, every one a district Trump
+carried while a Democrat held the seat, mostly Rio Grande Valley. The observed split of
+the backfilled seats is **36 D / 18 R**, against 31 D / 23 R imputed. Correcting it moves
+the chamber's not-close split from the previously reported 51 D / 90 R to **56 D / 85 R**.
 
-**Still outstanding.** A certified Texas candidate-filing list is needed to verify the 40
-inferred districts individually and to replace imputed party with observed. That source is
-not on disk. The press-reported list also needs a specific citation.
-
-**What it changes.** With the backfill Texas reads 150 seats, 94.0% not close, 61 with no
-major-party opponent. Without it, on the 96 contested-skewed districts, Texas reads 90.6%
-and just 7.3% without a D-vs-R option — visibly biased toward competitiveness. Readers who
-reject the backfill should read the four-state table as three states plus a lower bound.
+**The headline was unaffected throughout.** Not-close remains **141 of 150 = 94.0%** on
+certified data, identical to the backfilled figure, because that count needs only the
+seats to have been uncontested — which is exactly what the certified source confirms.
+Without the backfill, on the 96 contested-skewed districts, Texas would read 90.6% and
+just 7.3% without a D-vs-R option, visibly biased toward competitiveness.
 
 ## Appendix G — What changed in this revision, and why
 
@@ -575,8 +588,9 @@ python scripts/diag_seat_competition.py        # writes reports/seat_competition
 
 # Four-state lower-chamber count and the Texas completion:
 python scripts/diag_safe_seat_states.py
-python scripts/diag_tx_safe_seat_backfill.py       # Appendix F
-python scripts/diag_tx_backfill_verification.py    # Appendix F district-level audit
+python scripts/diag_tx_safe_seat_backfill.py       # Appendix F backfill
+python scripts/build_tx_house_candidates.py        # certified TX candidate list (all 150)
+python scripts/diag_tx_backfill_verification.py    # Appendix F seat-by-seat verification
                                                    # -> reports/tx_backfill_verification.csv
 
 # Robustness and the exploratory cuts:
