@@ -7,11 +7,13 @@ midterm → off-year salience gradient.
 
 **Lead paper:** [`docs/who-decides-washington.md`](docs/who-decides-washington.md)
 (Stephen Kirby, Tikor Consulting). Companions cover New York, Idaho, safe-seat
-competitiveness, and cross-state campaign money.
+competitiveness, cross-state campaign money, who funds the candidates, and whether that
+money moves margins.
 
-Every headline number in the papers is re-derived from scratch by the `verify_*.py`
-scripts here — read-only, aggregate-only, printed next to the paper's value for a
-cell-for-cell check.
+Every headline number in the papers is re-derived from scratch by the reproduction script
+listed against it below — read-only, aggregate-only, and printed next to the paper's value
+for a cell-for-cell check. Most are `verify_*.py`; two papers are reproduced by a `diag_*`
+script instead, for reasons given under the table.
 
 ## The reproducibility model (read first)
 
@@ -37,23 +39,40 @@ python -m pip install duckdb          # verifiers need only this
 # optional: a free Census API key in a .env as CENSUS_API_KEY=...  (for the ACS rows)
 
 # with data/ populated (see "Data access"):
-python scripts/verify_who_decides_wa.py     # WA lead paper — sections #1–#29
+python scripts/verify_who_decides_wa.py     # WA lead paper — sections #1–#30
 ```
 
-Run any of the six verifiers; each maps to one paper:
+Each paper has a reproduction entry point:
 
 | Script | Paper |
 |---|---|
 | `verify_who_decides_wa.py` | Who Decides Washington State? |
 | `verify_who_decides_ny.py` | Who Decides New York? |
 | `verify_who_decides_id.py` | Who Decides Idaho? |
-| `verify_safe_seat.py` | Safe-Seat Washington |
+| `diag_seat_competition.py` | Safe-Seat Washington |
 | `verify_donor_class.py` | The Donor Class Is Not the Electorate |
-| `verify_cross_state_money.py` | Three States, Three Donor Economies |
+| `verify_cross_state_money.py` | Four States, Four Donor Economies |
+| `diag_ie_vs_margin.py` | Does Money Move Votes in Washington? |
 
-The `diag_*.py` scripts are the underlying analyses; the `load_*/match_*/backfill_*`
-scripts are **build provenance** (how the DuckDB tables were assembled) and are not on
-the verification path — see [`scripts/README.md`](scripts/README.md).
+Three notes on that table, because two entries are not plain verifiers:
+
+- **Safe-Seat Washington** is reproduced by `diag_seat_competition.py`, not by
+  `verify_safe_seat.py`. The latter is **superseded** and retained only so the paper's
+  Appendix G can reproduce its own superseded figures: it derived the seat universe from
+  the results table, which silently dropped 24 King County House seats per cycle in 2016
+  and 2018. The replacement builds the universe from certified statewide returns and
+  exits non-zero if any cycle fails to reconcile to the statutory chamber size.
+- **Does Money Move Votes** reports a null and a data ceiling, so what there is to
+  reproduce is that the tests come back empty and that `diag_ie_vs_margin.py` still
+  declines to report a slope at n=7. Its other two cuts are
+  `diag_overperformance_patterns.py` and `diag_expenditures_vs_residual.py`.
+- **The donor paper's recomputations** — tier and household sensitivities, panel overlap,
+  period alignment — are in `diag_donor_class_revisions.py`, alongside the verifier.
+
+The remaining `diag_*.py` scripts are the underlying analyses; the
+`load_*/match_*/backfill_*` scripts are **build provenance** (how the DuckDB tables were
+assembled) and are not on the verification path — see
+[`scripts/README.md`](scripts/README.md).
 
 ## Data access
 
@@ -72,3 +91,4 @@ for full provenance and access paths.
 - **Code:** MIT (`LICENSE`).
 - **Papers** (`docs/*.md`, `docs/*.pdf`): CC-BY 4.0.
 - **Data:** not included; governed by the source states' voter-file statutes.
+

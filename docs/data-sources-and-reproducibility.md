@@ -68,6 +68,8 @@ to full federal parity with the other three.*
 |---|---|---|---|
 | Precinct/county election results (incl. Assembly & Senate, 2022) | NYS Board of Elections, via **OpenElections-NY** | `github.com/openelections/openelections-data-ny` | Safe-Seat four-state map |
 | NY federal contributions | FEC bulk (donor `state='NY'`) | as above | cross-state money |
+| **NYSVOTER statewide voter file** — 13.54M registrants with **individual party enrollment**, **full date of birth**, status code, and vote history *(loaded via `scripts/load_ny_voters.py` → `data/ny_vrdb.duckdb`)* | NYS Board of Elections | Public-records request under FOIL (N.Y. Pub. Off. Law art. 6), subject to the Board's elections-purpose certification. *Production `ALLNYVOTERS20260629.zip`, **dated 2026-06-29**.* The delivered columns are a property of this production, not a documented statutory layout — the Board's public request page does not publish the file layout. 91.9% of records are `status_code='A'`. Not redistributed. | Who Decides NY; donor-class F1/F3/F4 |
+| **NYSBOE contribution disclosure feed** — transaction-level, 12.6M rows back to 1999; 3,954,090 individual Schedule A rows / $880.3M loaded for cycles 2018–2026 *(via `scripts/load_ny_contributions.py`)* | NYS Board of Elections, via data.ny.gov | Socrata dataset **`4j2b-6a2j`**. Itemization threshold: contributor aggregate **> $99** (N.Y. Elec. Law § 14-102); $99 or less reportable in the aggregate. | donor-class state panel |
 
 ### Texas
 
@@ -89,7 +91,7 @@ unopposed list; the r206 report supplies the partisan lean used to label their h
 | Statewide & county election results — **general + primary canvasses, 2016–2024** (loaded via `scripts/download_id_sos.py`; primaries added 2026-07-09) | Idaho Secretary of State | `sos.idaho.gov/elections/data/results/`; archive `archive.sos.idaho.gov/ELECT/results/`; some county PDFs (e.g. Bannock County) |
 | State campaign-finance contributions | Idaho SoS **Sunshine** portal | `sunshine.voteidaho.gov` (export API `api-sunshine.voteidaho.gov`) |
 | **Federal** contributions (donor `state='ID'`) + ID inflow | FEC bulk | as in the Federal-money section (added 2026-07-19) |
-| Voter file w/ party affiliation + age + per-election ballot record *(loaded; powers "Who Decides Idaho?")* | Idaho SoS Elections | `forms.sos.idaho.gov/voter-registration-request-form/` ($20/report) |
+| Voter file w/ party affiliation + age + per-election ballot record *(loaded; powers "Who Decides Idaho?")* | Idaho SoS Elections | `forms.sos.idaho.gov/voter-registration-request-form/` ($20/report). Public statewide list per **Idaho Code § 34-437A(3)** — carries name, street + mailing address, county, gender, **age (not DOB)**, declared party, and participation history; DOB and other registration-card data are protected separately. (**Idaho Code § 74-120** is the unrelated mailing/telephone-list restriction.) *Extract received 2026-07-01.* The export carries **no active/inactive flag** — it is a current-roll extract and `load_id_voters.py` sets every row `status_code='A'`, so active-only and all-record baselines coincide by construction. |
 
 *Idaho primary coverage: 2024/2022/2018/2016 include the legislative + congressional
 primaries (each party's contest is a distinct race); the 2020 primary is

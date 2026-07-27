@@ -1,7 +1,7 @@
 # Publication checklist — electoral-health lead paper
 
 *Assembled 2026-06-29. Turns the human-owned items in
-[`electoral-health-TODO.md`](electoral-health-TODO.md) (#3 verify numbers, #4 hand-rate
+`electoral-health-TODO.md` (private repo) (#3 verify numbers, #4 hand-rate
 matches, #5 re-check cites, #6 publish) into a tick-through list. The work is
 AI-assisted; **you must independently re-derive the headline numbers before posting
 under your name** — this file makes that fast, it does not substitute for it.*
@@ -193,8 +193,27 @@ no voter file needed):
 | 36 | ID 65+ donor share | federal 64.7%, state 51.1% (roll 31.0%) | both |
 | 37 | ID own-party skew replicates | federal DEM +8.0 / UNAFF -11.2; state DEM +9.1 / UNAFF -11.8 | both |
 | 38 | ID recipient-party resolution | federal **86.7%** vs state ~52% (only the state REP->D rate is an upper bound) | both |
-| 39 | WA give<->vote | federal 85.4% vs 51.4% super; state 84.9% vs 50.8% | both |
+| 39 | WA give<->vote | federal 85.5% vs 51.4% super; state 84.9% vs 50.8% | both |
 | 40 | WA bootstrap CIs (B=1,000) | federal top-1% [40.2-44.9], Gini [0.812-0.828]; state top-1% [39.6-48.9] | both |
+
+**Added 2026-07-27 in response to external review.** All re-derived by
+`verify_donor_class.py` except where noted; the recomputations themselves are in
+`scripts/diag_donor_class_revisions.py`.
+
+| # | Claim | Expected | Panel |
+|---|---|---|---|
+| 60 | NY own-party skew, **ACTIVE** baseline | federal DEM +15.2 / NOPARTY -12.8; state DEM +9.1 / NOPARTY -11.8 (all-records baseline reads +15.0 / -13.0 / +8.9 / -12.0) | both |
+| 61 | NY active roll | 12,448,081 active of 13,540,558 records (91.9%); every ID record active | — |
+| 62 | NY give<->vote, active denominator | federal 3.00 vs 1.85 generals, 72.9% vs 39.3% super; state 2.99 vs 1.84, 73.0% vs 38.9% | both |
+| 63 | ID unaffiliated composition | roll 23.9% / 2024 general 22.6% / 2024 primary **5.9%**; primary ballots pulled REP 83.7% / DEM 12.2% / UNA 3.5% | — |
+| 64 | ID period-aligned panels (2023-2025) | federal 16,963 donors / $21.1M / top-1% 33.1% / 65+ **67.1%**; state unchanged at 27,250 / $15.9M / 39.3% / 51.1% | both |
+| 65 | Panel overlap (Jaccard) | WA 0.157, NY 0.160, ID 0.140; both-systems donors older than either single-system group in all three | both |
+| 66 | Match-tier mix | `STRICT_ZIP5_FULL` 85-89% of matches; weakest `RELAXED_ZIP3_MID` 0.3-5% | both |
+| 67 | Tier sensitivity (full-name tier only) | every headline survives; 65+ *rises* in all six panels (e.g. NY fed 47.9% -> 49.9%); top-1% moves <=1.3 pts | both |
+| 68 | Household bounding exclusion | surname+ZIP5 drop removes 75-83% of donors; top-1% moves <=4.7 pts, 65+ rises in all six | both |
+| 69 | Crossover resolution rates (differential) | NY fed DEM 90.1% vs NOPARTY 79.2%; NY state REP 45.2% vs NOPARTY 27.7% — not missing at random | both |
+| 70 | Aggregate recipient-party resolution | NY fed **87.8%**, NY state 37.7%, ID fed 86.7%, ID state **51.9%** (the "79%" in earlier drafts was stale) | both |
+| 71 | Itemization thresholds | federal >$200; WA >$100; NY >$99; ID >$50 — *not* a uniform $200 rule | — |
 
 ---
 
@@ -243,13 +262,35 @@ posting:
 
 ## 3. Hand-rate the match sample (TODO #4) — needed only for the money/donor papers
 
-> **DONE 2026-07-10 (two rounds).** 150-row sample hand-rated: first pass 9 flagged;
-> **second, more thorough pass 15 flagged → ≈90% apparent precision** (135/150). Dominant
-> error = **spousal/household false-merge** (same surname + ZIP, a partner's donation),
-> some unverifiable for missing donor detail (so true precision may be a little higher).
-> Spousal mis-attributions barely move the age / geography / concentration cuts (partners
-> share household, ZIP, ~age). Filled CSV saved to `data/validation/` (gitignored, PII).
-> Folded into the donor-class paper's *Boundary of inference*.
+> **REOPENED 2026-07-27 after external review.** The 2026-07-10 rating stands as an
+> *indication* but not as a validated precision estimate, and two things previously
+> recorded here were wrong:
+>
+> - **The verdicts were never persisted.** `data/validation/match_validation_sample.csv`
+>   exists but its `is_same_person(Y/N/?)` column is **empty for all 150 rows**. The
+>   "filled CSV" note was inaccurate. The confirmed-false / probable-false / unverifiable
+>   split and precision by donor-dollar decile therefore cannot be recovered.
+> - **"Spousal mis-attributions barely move the cuts" is withdrawn.** Spouses can differ
+>   in age, party enrollment and turnout history, and merging two people's giving into one
+>   donor total directly *raises* measured concentration. The argument was asserted, not
+>   tested.
+>
+> What the 2026-07-10 pass does say: first pass 9 flagged, second more thorough pass 15
+> flagged → **≈90% apparent precision** (135/150), dominant error spousal/household
+> false-merge. Its limits: drawn from the **pooled** `voter_donor_affiliation` table,
+> **Washington only**, **unstratified** (130/13/4/3 across the four tiers, so 3-4 records
+> in the weak tiers), **not blinded**, single rater.
+>
+> **What now stands in its place** (done, `diag_donor_class_revisions.py`): per-tier and
+> household sensitivity on every headline estimate in all six panels, plus a per-tier
+> donor-side collision rate over the full panels (7-9% on the dominant tier, which
+> brackets ≈90% independently). See donor-class paper Appendix F.
+>
+> **Still required before submission:** a fresh sample **stratified by state, panel, match
+> tier and donor-dollar decile**, rated **blind**, with verdicts **recorded**, reporting
+> confirmed-false / probable-false / unverifiable separately plus a sensitivity bound
+> treating all unverifiable records as wrong. `diag_match_validation_sample.py` needs a
+> stratified-sampling mode and a panel/state argument before it can produce this.
 
 Not on the critical path for the lead turnout paper (no name-matching in it), but
 required before the donor-class paper:
@@ -312,7 +353,18 @@ Both are free, citable, **not peer review** — discoverability + a timestamp + 
 - [~] §4 lead-paper PDF **rendered 2026-07-10** (`docs/who-decides-washington.pdf`, ~125 KB);
   final proof (county-table layout, first-page, author block) = **HUMAN**
 - [ ] Author byline + AI-assistance disclosure finalized — **HUMAN** (needs your name)
-- [x] (donor papers only) §3 match sample hand-rated (2026-07-10, 2 rounds; ≈90%, spousal-dominant)
+- [~] (donor papers only) §3 match sample hand-rated (2026-07-10, 2 rounds; ≈90%,
+  spousal-dominant) — **REOPENED 2026-07-27**: verdicts were never persisted and the
+  sample was WA-only, pooled-table, unstratified and unblinded. Tier + household
+  sensitivities now stand in its place; a stratified blind re-rating is still required
+  before the donor-class paper posts. See §3.
+- [ ] (donor papers only) **Tagged release + archival DOI** for the public repo (Zenodo or
+  OSF), cited in the paper in place of a mutable branch — **HUMAN**. The donor-class paper
+  currently links `github.com/skirby359/who-decides` without a commit pin.
+- [ ] (donor papers only) Public release must ship
+  `src/wa_analyzer/analysis/donor_analysis.py` alongside the scripts — the NY/ID match and
+  backfill scripts import `match_voters_to_donors` from it, so a scripts-only release is
+  not rebuildable. The paper's reproducibility statement has been narrowed to say so.
 - [ ] Posted to SocArXiv + SSRN; links folded back into the white paper — **HUMAN**
 
 ---
@@ -387,9 +439,9 @@ registered voter.
 | 41 | NY state contributions loaded | 3,954,090 rows / $880.3M, 9 cycles 2018-2026 |
 | 42 | NY state matched layer | 424,020 donors / $379.5M / top-1% 48.5% / Gini 0.846 |
 | 43 | NY state age bands | 4.9 / 17.8 / 38.9 / 38.4 (65+ 38.4% vs 47.9% federal) |
-| 44 | NY state own-party skew | DEM +8.9 / REP +3.2 / NOPARTY -12.0 (vs federal +15.0 / -0.9 / -13.0) |
+| 44 | NY state own-party skew | DEM +8.9 / REP +3.2 / NOPARTY -12.0 (vs federal +15.0 / -0.9 / -13.0) — **all-records baseline; superseded by #60's active-only figures** |
 | 45 | NY state geography | Manhattan 20.6% (vs 50.3% federal), Nassau 15.1%, Suffolk 11.1%; top-3 ZIP3 38.1% |
-| 46 | NY state give<->vote | 3.02 generals / 73.1% super vs 1.77 / 36.8% |
+| 46 | NY state give<->vote | 3.02 generals / 73.1% super vs 1.77 / 36.8% — **all-records denominator; superseded by #62's active-only figures** |
 
 | 47 | NY state crossover (after backfill) | resolution 25.9% -> **37.7%**; DEM 88.3->D, REP 84.7->R, NOPARTY 54.8->D |
 
@@ -509,5 +561,6 @@ python scripts/diag_seat_competition.py    # exit 0 == all cycles reconcile to 9
 > Also established: the TLC dataset omits uncontested races at EVERY stage — all 14
 > press-confirmed unopposed districts appear in neither 2024 primary — so no work inside
 > that source could have distinguished "uncontested" from "missing".
+
 
 
