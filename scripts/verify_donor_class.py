@@ -9,6 +9,20 @@ Reproduces the script-independent core of Findings 1-4 across WA / NY / ID:
   F3  partisan skew          (own-party donor share vs registration; NY & ID)
   F4  give<->vote stacking    (WA super-voter rate; NY generals-voted)
 
+TWO PANELS (2026-07-26). A state's individual_contributions can hold more than one
+money system, so the matched layer is built one source at a time and each panel gets
+its own table (see docs/donor-class-and-the-electorate.md):
+
+  voter_donor_affiliation_fec     federal (FEC) money  — WA, NY, ID   [primary panel]
+  voter_donor_affiliation_state   state money          — WA (PDC), ID (Sunshine)
+  voter_donor_affiliation         legacy POOLED match  — what the campaign tooling
+                                  reads; NOT a paper panel, since pooling stacks one
+                                  person's federal and state giving into a single
+                                  donor total and inflates measured concentration.
+
+New York has no state layer (BOE money is summary-only in candidate_finance), so it
+verifies on the federal panel alone.
+
 Recipient-party CROSSOVER tables and the IPW re-weighting depend on the match
 scripts' recipient-resolution logic and are reproduced by those scripts, not here;
 the 150-row match-precision hand-rate (publication-checklist §3/§4) is the remaining
@@ -22,32 +36,58 @@ import duckdb
 
 DATA = Path(__file__).resolve().parent.parent / "data"
 
+FED = "voter_donor_affiliation_fec"
+STATE = "voter_donor_affiliation_state"
 
-def concentration(con):
-    top1, top10 = con.execute("""
+
+def has_table(con, t):
+    return con.execute(
+        "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = ?", [t]
+    ).fetchone()[0] > 0
+
+
+def require(con, state, tables):
+    missing = [t for t in tables if not has_table(con, t)]
+    if missing:
+        print(f"  !! {state}: missing panel table(s) {', '.join(missing)} — rebuild with "
+              f"scripts/match_{state.lower()}_voters_to_donors.py --source {{fec,state}}")
+    return not missing
+
+
+def concentration(con, vda):
+    top1, top10 = con.execute(f"""
         WITH r AS (SELECT total_donated t, NTILE(100) OVER (ORDER BY total_donated DESC) p
-                   FROM voter_donor_affiliation WHERE total_donated > 0)
+                   FROM {vda} WHERE total_donated > 0)
         SELECT SUM(t) FILTER (WHERE p=1)/SUM(t), SUM(t) FILTER (WHERE p<=10)/SUM(t) FROM r
     """).fetchone()
-    gini = con.execute("""
+    gini = con.execute(f"""
         WITH r AS (SELECT total_donated t, ROW_NUMBER() OVER (ORDER BY total_donated) rn,
                           COUNT(*) OVER () n, SUM(total_donated) OVER () s
-                   FROM voter_donor_affiliation WHERE total_donated > 0)
+                   FROM {vda} WHERE total_donated > 0)
         SELECT (2.0*SUM(rn*t)/(MAX(n)*MAX(s))) - (MAX(n)+1.0)/MAX(n) FROM r
     """).fetchone()[0]
-    return top1 * 100, top10 * 100, gini
+    n, tot = con.execute(
+        f"SELECT COUNT(*), SUM(total_donated)/1e6 FROM {vda}").fetchone()
+    return int(n), float(tot), top1 * 100, top10 * 100, gini
 
 
-def party_skew(con, bucket_sql, order):
+def conc_line(con, label, vda, paper=""):
+    n, tot, t1, t10, g = concentration(con, vda)
+    tail = f"   (paper: {paper})" if paper else ""
+    print(f"    {label:<16} {n:>9,} donors  ${tot:>8.2f}M   "
+          f"top-1% {t1:5.1f}%  top-10% {t10:5.1f}%  Gini {g:.3f}{tail}")
+
+
+def party_skew(con, vda, bucket_sql, order):
     """Registration share vs matched-donor own-party share, using bucket_sql on vrdb.voters.party."""
     reg = dict(con.execute(f"""
         SELECT {bucket_sql} b, COUNT(*) FROM vrdb.voters GROUP BY 1
     """).fetchall())
     don = dict(con.execute(f"""
-        SELECT {bucket_sql} b, COUNT(*) FROM voter_donor_affiliation a JOIN vrdb.voters USING(state_voter_id) GROUP BY 1
+        SELECT {bucket_sql} b, COUNT(*) FROM {vda} a JOIN vrdb.voters USING(state_voter_id) GROUP BY 1
     """).fetchall())
     dol = dict(con.execute(f"""
-        SELECT {bucket_sql} b, SUM(a.total_donated) FROM voter_donor_affiliation a JOIN vrdb.voters USING(state_voter_id) GROUP BY 1
+        SELECT {bucket_sql} b, SUM(a.total_donated) FROM {vda} a JOIN vrdb.voters USING(state_voter_id) GROUP BY 1
     """).fetchall())
     rt, dt, lt = sum(reg.values()), sum(don.values()), sum(v for v in dol.values() if v)
     print(f"    {'bucket':9}{'reg%':>8}{'donor%':>8}{'skew':>8}{'$ share':>9}")
@@ -58,12 +98,12 @@ def party_skew(con, bucket_sql, order):
         print(f"    {b:9}{rp:7.1f}%{dp:7.1f}%{dp-rp:+7.1f}{sp:8.1f}%")
 
 
-def age_bands(con, age_expr, ref_voters_sql):
+def age_bands(con, vda, age_expr, ref_voters_sql):
     """donor% vs reference-population% by 18-29/30-44/45-64/65+."""
     band = (f"CASE WHEN {age_expr}<30 THEN '18-29' WHEN {age_expr}<45 THEN '30-44' "
             f"WHEN {age_expr}<65 THEN '45-64' ELSE '65+' END")
     don = dict(con.execute(f"""
-        SELECT {band} b, COUNT(*) FROM voter_donor_affiliation a JOIN vrdb.voters v USING(state_voter_id)
+        SELECT {band} b, COUNT(*) FROM {vda} a JOIN vrdb.voters v USING(state_voter_id)
         WHERE {age_expr} IS NOT NULL GROUP BY 1""").fetchall())
     ref = dict(con.execute(f"""
         SELECT {band} b, COUNT(*) FROM vrdb.voters v WHERE {age_expr} IS NOT NULL AND ({ref_voters_sql}) GROUP BY 1""").fetchall())
@@ -74,62 +114,71 @@ def age_bands(con, age_expr, ref_voters_sql):
 
 
 # ============================== WASHINGTON ==============================
-print("=" * 70 + "\nWASHINGTON  (wa_statewide + wa_vrdb)\n" + "=" * 70)
+print("=" * 78 + "\nWASHINGTON  (wa_statewide + wa_vrdb)\n" + "=" * 78)
 wa = duckdb.connect(str(DATA / "wa_statewide.duckdb"), read_only=True)
 wa.execute(f"ATTACH '{DATA / 'wa_vrdb.duckdb'}' AS vrdb (READ_ONLY)")
-n = wa.execute("SELECT COUNT(*) FROM voter_donor_affiliation").fetchone()[0]
-print(f"matched donors: {n:,}   (paper: 382,408)")
+require(wa, "WA", [FED, STATE])
 
-print("\nF1 generation multiplier = donor share / roll share  (paper: Silent 1.87 Boomer 1.64 GenX 1.18 Mill 0.59 GenZ 0.17)")
+print("\nF1 generation multiplier = donor share / roll share, FEDERAL panel")
 roll = dict(wa.execute("SELECT age_cohort,COUNT(*) FROM voter_scores WHERE LEFT(district_id,2)='ld' AND age_cohort IS NOT NULL GROUP BY 1").fetchall())
-don = dict(wa.execute("""SELECT s.age_cohort,COUNT(*) FROM voter_scores s JOIN voter_donor_affiliation a USING(state_voter_id)
+don = dict(wa.execute(f"""SELECT s.age_cohort,COUNT(*) FROM voter_scores s JOIN {FED} a USING(state_voter_id)
                          WHERE LEFT(s.district_id,2)='ld' AND s.age_cohort IS NOT NULL GROUP BY 1""").fetchall())
 rt, dt = sum(roll.values()), sum(don.values())
 for g in ["Silent", "Boomer", "Gen X", "Millennial", "Gen Z"]:
     rp, dp = roll.get(g, 0) / rt * 100, don.get(g, 0) / dt * 100
     print(f"    {g:11}{dp/rp:5.2f}x   (roll {rp:4.1f}%  donor {dp:4.1f}%)")
 
-t1, t10, g = concentration(wa)
-print(f"\nF2 concentration: top-1% {t1:.1f}%  top-10% {t10:.1f}%  Gini {g:.3f}   (paper: 47.7 / 80.0)")
-zip3 = wa.execute("""WITH z AS (SELECT SUBSTR(v.reg_zip,1,3) z3, SUM(a.total_donated) tot
-    FROM voter_donor_affiliation a JOIN vrdb.voters v USING(state_voter_id)
+print("\nF2 concentration by panel:")
+conc_line(wa, "federal", FED)
+conc_line(wa, "state (PDC)", STATE)
+zip3 = wa.execute(f"""WITH z AS (SELECT SUBSTR(v.reg_zip,1,3) z3, SUM(a.total_donated) tot
+    FROM {FED} a JOIN vrdb.voters v USING(state_voter_id)
     WHERE a.total_donated>0 AND v.reg_zip IS NOT NULL GROUP BY 1)
     SELECT z3, tot/SUM(tot) OVER () sh FROM z ORDER BY tot DESC LIMIT 3""").fetchall()
-print("    geography (paper: 981xx 35.9% + 980xx 25.2% = 61.2%): " + "  ".join(f"{z}xx {s*100:.1f}%" for z, s in zip3))
+print("    federal geography: " + "  ".join(f"{z}xx {s*100:.1f}%" for z, s in zip3))
 
-print("\nF4 give<->vote stacking (paper: donor 84.0% super vs non-donor 50.1%; prop 0.953 vs 0.748)")
-for donor, n2, sr, ap in wa.execute("""
+print("\nF4 give<->vote stacking, FEDERAL panel")
+for donor, n2, sr, ap in wa.execute(f"""
     WITH roll AS (SELECT DISTINCT state_voter_id,is_super_voter,turnout_propensity FROM voter_scores WHERE LEFT(district_id,2)='ld'),
-    f AS (SELECT r.*, CASE WHEN a.state_voter_id IS NOT NULL THEN 1 ELSE 0 END d FROM roll r LEFT JOIN voter_donor_affiliation a USING(state_voter_id))
+    f AS (SELECT r.*, CASE WHEN a.state_voter_id IS NOT NULL THEN 1 ELSE 0 END d FROM roll r LEFT JOIN {FED} a USING(state_voter_id))
     SELECT d,COUNT(*),AVG(CASE WHEN is_super_voter THEN 1.0 ELSE 0 END),AVG(turnout_propensity) FROM f GROUP BY d ORDER BY d""").fetchall():
     print(f"    {'matched donor' if donor else 'non-donor':14} n={n2:>10,}  super {sr*100:5.1f}%  avg prop {ap:.3f}")
 wa.close()
 
 # ============================== NEW YORK ==============================
-print("\n" + "=" * 70 + "\nNEW YORK  (ny_statewide + ny_vrdb)\n" + "=" * 70)
+print("\n" + "=" * 78 + "\nNEW YORK  (ny_statewide + ny_vrdb) — federal panel only\n" + "=" * 78)
 ny = duckdb.connect(str(DATA / "ny_statewide.duckdb"), read_only=True)
 ny.execute(f"ATTACH '{DATA / 'ny_vrdb.duckdb'}' AS vrdb (READ_ONLY)")
-print(f"matched donors: {ny.execute('SELECT COUNT(*) FROM voter_donor_affiliation').fetchone()[0]:,}   (paper: 308,032)")
-print("\nF1 age bands (paper donors: 3.0 / 14.2 / 34.9 / 47.9 ; 2024 GE voters ref)")
-age_bands(ny, "date_diff('year', v.birthdate, DATE '2024-11-05')",
+require(ny, "NY", [FED])
+print("\nF1 age bands (2024 GE voters ref)")
+age_bands(ny, FED, "date_diff('year', v.birthdate, DATE '2024-11-05')",
           "v.state_voter_id IN (SELECT state_voter_id FROM vrdb.voter_participation WHERE kind='GENERAL' AND election_year=2024)")
-t1, t10, g = concentration(ny)
-print(f"\nF2 concentration: top-1% {t1:.1f}%  top-10% {t10:.1f}%  Gini {g:.3f}   (paper: 51.2 / 81.4)")
-print("\nF3 own-party skew (paper: DEM 62.8/47.8 +15.0 ; REP 21.4/22.3 -0.9 ; NOPARTY 12.5/25.5 -13.0 ; DEM $ 71.0%)")
-party_skew(ny, "CASE WHEN party='DEM' THEN 'DEM' WHEN party='REP' THEN 'REP' WHEN party='BLK' THEN 'NOPARTY' ELSE 'OTHER' END",
+print("\nF2 concentration by panel:")
+conc_line(ny, "federal", FED)
+print("\nF3 own-party skew, FEDERAL panel")
+party_skew(ny, FED, "CASE WHEN party='DEM' THEN 'DEM' WHEN party='REP' THEN 'REP' WHEN party='BLK' THEN 'NOPARTY' ELSE 'OTHER' END",
            ["DEM", "REP", "NOPARTY", "OTHER"])
 ny.close()
 
 # ============================== IDAHO ==============================
-print("\n" + "=" * 70 + "\nIDAHO  (id_statewide + id_vrdb)\n" + "=" * 70)
+print("\n" + "=" * 78 + "\nIDAHO  (id_statewide + id_vrdb)\n" + "=" * 78)
 idc = duckdb.connect(str(DATA / "id_statewide.duckdb"), read_only=True)
 idc.execute(f"ATTACH '{DATA / 'id_vrdb.duckdb'}' AS vrdb (READ_ONLY)")
-print(f"matched donors: {idc.execute('SELECT COUNT(*) FROM voter_donor_affiliation').fetchone()[0]:,}   (paper: 27,250)")
-print("\nF1 age bands, current-roll age (paper donors: 2.6 / 13.1 / 33.2 / 51.1 ; all voters ref)")
-age_bands(idc, "v.age", "1=1")
-t1, t10, g = concentration(idc)   # standardized NTILE estimator, same as WA/NY
-print(f"\nF2 concentration: top-1% {t1:.1f}%  top-10% {t10:.1f}%  Gini {g:.3f}   (paper: 39.3 / 70.8, standardized NTILE)")
-print("\nF3 own-party skew (paper: REP 66.5/62.9 +3.6 ; DEM 20.9/11.8 +9.1 ; UNAFF 12.0/23.9 -11.8)")
-party_skew(idc, "CASE WHEN party='REP' THEN 'REP' WHEN party='DEM' THEN 'DEM' WHEN party='UNA' THEN 'UNAFF' ELSE 'OTHER' END",
+require(idc, "ID", [FED, STATE])
+
+print("\nF1 age bands, current-roll age, FEDERAL panel (all voters ref)")
+age_bands(idc, FED, "v.age", "1=1")
+print("\nF1 age bands, current-roll age, STATE panel (all voters ref)")
+age_bands(idc, STATE, "v.age", "1=1")
+
+print("\nF2 concentration by panel:")
+conc_line(idc, "federal", FED)
+conc_line(idc, "state (Sunshine)", STATE)
+
+print("\nF3 own-party skew, FEDERAL panel")
+party_skew(idc, FED, "CASE WHEN party='REP' THEN 'REP' WHEN party='DEM' THEN 'DEM' WHEN party='UNA' THEN 'UNAFF' ELSE 'OTHER' END",
+           ["REP", "DEM", "UNAFF", "OTHER"])
+print("\nF3 own-party skew, STATE panel")
+party_skew(idc, STATE, "CASE WHEN party='REP' THEN 'REP' WHEN party='DEM' THEN 'DEM' WHEN party='UNA' THEN 'UNAFF' ELSE 'OTHER' END",
            ["REP", "DEM", "UNAFF", "OTHER"])
 idc.close()

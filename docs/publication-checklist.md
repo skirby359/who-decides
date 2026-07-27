@@ -104,6 +104,27 @@ python scripts/diag_id_electorate_extras.py             # safe-seat, unaffiliate
 | 22 | Donor concentration / geography | top-1% 39.2%; Ada/Boise 49.2% of $ | match_id_voters_to_donors |
 | 23 | Crossover (resolved ~52%) | DEM 93.5%→D; UNAFF 72.8%→D; REP 79.3%→R (REP→D upper bound) | match_id_voters_to_donors |
 
+**"The Donor Class Is Not the Electorate" Appendix G — confirm against
+`diag_contribution_limits.py`** (read-only over `id_statewide.duckdb` +
+`wa_statewide.duckdb`; no voter file needed):
+
+| # | Claim in paper | Expected | Source |
+|---|---|---|---|
+| 24 | Idaho's legislative cap binds (bunching) | 6,797 gifts at exactly $1,000 vs 448 at $750, 94 at $999, 1 at $1,001 | G2 |
+| 25 | Capped ID state layer is MORE concentrated than ID federal | persons-only top-1% 39.7% vs 36.1%; all-filers 56.4% vs 36.1% | G3 |
+| 26 | Same pattern in WA | WA state all-filers top-1% 44.4% vs WA federal 39.3% | G3 |
+| 27 | Pure truncation WOULD compress (so the puzzle is real) | WA federal top-1% 39.3% → 32.2% at $5,000 → 26.4% at $1,000 | G4 |
+| 28 | Estimator cross-check: ID state persons ≈ the matched layer | 39.7% / Gini 0.800 vs paper's matched 39.3% / 0.798 | G3 vs Finding 2 |
+| 29 | Uncapped tail is where ID concentration lives | 41.9% of Sunshine $ in gifts > $5,000; largest single gift $1,245,000 | G2 |
+
+> Appendix G supersedes the earlier Finding-2 parenthetical attributing Idaho's lower
+> top-1% share to state contribution limits. That explanation is **disconfirmed** — do not
+> reinstate it. Two data-hygiene points the script enforces and any re-derivation must
+> match: PDC's `SMALL CONTRIBUTIONS` unitemized pseudo-contributor is **excluded** from all
+> WA state cuts (left in, it keys as one enormous donor), and the person/organization split
+> is a per-layer name heuristic (comma test for Sunshine/FEC `LAST, FIRST`; org-marker test
+> only for PDC's `LAST FIRST`, which is why no persons-only WA state figure is published).
+
 > **‡ Claim 17 — Idaho turnout RATES dropped (turnout sanity pass).** Idaho rates
 > computed from the voter file are survivorship-inflated: the 2026 roll (1.03M) is smaller
 > than the **1.18M registered at the 2024 election**, so our all-voter 2024 rate comes out
@@ -122,6 +143,54 @@ python scripts/diag_id_electorate_extras.py             # safe-seat, unaffiliate
 > If any cell disagrees with the paper, the paper is wrong, not the script — fix the
 > prose (these scripts are the single source of truth and are re-runnable).
 
+> ### RESOLVED 2026-07-26 — the donor paper now runs on TWO PANELS
+>
+> **What was wrong.** `match_voters_to_donors` read the whole of
+> `individual_contributions` with no money-source filter. Harmless when a state's table
+> holds one source; silently wrong when it holds two — and two states hold two: WA carries
+> `FEC:` ($646.2M) alongside `PDC:` ($394.6M), and ID carries `FEC:` ($76.2M) alongside
+> `SUNSHINE:` ($53.3M) since the 2026-07-19 ID FEC load. Pooling stacks one person's
+> federal and state giving into a single donor total, inflating concentration (WA read
+> top-1% 46.6% pooled vs 42.4% federal / 43.8% state). WA had been pooled all along; Idaho
+> only since 7/19. The paper's old label — "WA and NY are federal, ID is state" — was
+> wrong for WA and stale for ID.
+>
+> **The fix.** `match_voters_to_donors` gained keyword-only `source_prefixes` and
+> `output_table`, both defaulting to the historical behavior (all sources ->
+> `voter_donor_affiliation`), so the campaign tooling reading that table is untouched.
+> Panels are built one source at a time by
+> `scripts/match_{wa,ny,id}_voters_to_donors.py --source {fec,state}` into
+> `voter_donor_affiliation_fec` / `_state`. Locked in by
+> `TestMatchVotersToDonorsSourceScoping` in `tests/test_analysis/test_donor_analysis.py`
+> (5 assertions incl. a default-pools-everything regression and an identifier-injection
+> guard). `verify_donor_class.py` now verifies both panels.
+>
+> **The old Idaho figures were right all along** — they were the Sunshine panel.
+> `--source state` reproduces 27,250 voters / top-1% 39.3% / Ada 49.2% / DEM +9.1 /
+> UNAFF -11.8 exactly. NY is likewise unchanged (its `_fec` panel reads 51.2% / 81.4% /
+> +15.0 / -0.9 / -13.0); only its matched count moves, 308,032 -> 307,841, from dropping
+> 45,494 un-prefixed legacy rows.
+>
+> Ledger claims **21/22** describe the **ID state panel** and still hold as written.
+> Appendix G is unaffected: `diag_contribution_limits.py` selects layers by
+> `contribution_id` prefix and never reads `voter_donor_affiliation`.
+
+**Donor paper — panel expected values (`verify_donor_class.py`, both panels):**
+
+| # | Claim | Expected | Panel |
+|---|---|---|---|
+| 30 | WA federal matched layer | 172,998 donors / $420.3M / top-1% 42.4% / top-10% 74.8% / Gini 0.820 | federal |
+| 31 | WA state matched layer | 269,204 donors / $153.9M / top-1% 43.8% / top-10% 76.0% / Gini 0.827 | state |
+| 32 | NY federal matched layer | 307,841 donors / $1,196.1M / top-1% 51.2% / top-10% 81.4% / Gini 0.867 | federal |
+| 33 | ID federal matched layer | 27,196 donors / $49.6M / top-1% 35.8% / top-10% 70.4% / Gini 0.786 | federal |
+| 34 | ID state matched layer | 27,250 donors / $15.9M / top-1% 39.3% / top-10% 70.8% / Gini 0.798 | state |
+| 35 | WA generation multipliers | federal Silent 2.56x .. Gen Z 0.10x; state Silent 1.64x .. Gen Z 0.20x | both |
+| 36 | ID 65+ donor share | federal 64.7%, state 51.1% (roll 31.0%) | both |
+| 37 | ID own-party skew replicates | federal DEM +8.0 / UNAFF -11.2; state DEM +9.1 / UNAFF -11.8 | both |
+| 38 | ID recipient-party resolution | federal **86.7%** vs state ~52% (only the state REP->D rate is an upper bound) | both |
+| 39 | WA give<->vote | federal 85.4% vs 51.4% super; state 84.9% vs 50.8% | both |
+| 40 | WA bootstrap CIs (B=1,000) | federal top-1% [40.2-44.9], Gini [0.812-0.828]; state top-1% [39.6-48.9] | both |
+
 ---
 
 ## 2. Statute cites
@@ -132,3 +201,32 @@ python scripts/diag_id_electorate_extras.py             # safe-seat, unaffiliate
 - **Idaho Code §74-120** ("Prohibition on distribution or sale of mailing or telephone number
   lists"; releases registrant age, withholds DOB/DL#/address) — verified at legislature.idaho.gov.
 - Remaining human step: one final glance at publication time (statutes can amend).
+
+**Campaign-finance statutes added 2026-07-26** for the donor paper's Appendix D / Appendix G.
+Two flagged items need a human glance before posting:
+
+- **Idaho Code § 67-6610A** — individual contributions capped at **$1,000/election**
+  (legislative, judicial, local) and **$5,000/election** (statewide); primary and general are
+  separate elections; candidate self-funding exempt. Verified at legislature.idaho.gov.
+- ⚠ **Idaho S.B. 1422 (2026)** would have raised those to $1,500 / $6,000. Bill history ends
+  **"04/01 Retained on calendar"** with no passage recorded; cited in the paper as *proposed
+  only*. **HUMAN: confirm it died before publication.**
+- **52 U.S.C. § 30116** — federal individual-to-candidate limit **$3,500/election** for the
+  2025–26 cycle (was $3,300 in 2023–24), indexed. Also **§ 30118** (corporate contribution
+  prohibition, which Idaho and Texas state law do not share).
+- ***McCutcheon v. FEC*, 572 U.S. 185 (2014)** — struck the biennial **aggregate** limit, so
+  there is no federal ceiling on a donor's total giving; load-bearing for Appendix G's
+  mechanism. ***Buckley v. Valeo*, 424 U.S. 1 (1976)** for the contribution/expenditure
+  asymmetry.
+- **Tex. Elec. Code § 253.094** — bars corporate/labor contributions; **no dollar limit** on
+  individual gifts to non-judicial state candidates (Judicial Campaign Fairness Act,
+  §§ 253.151–253.176, is the capped exception). Replaces the previously uncited "no
+  contribution limits" assertion in `cross-state-fec-money.md` K1.
+- ⚠ **WA RCW 42.17A.405**, recodified **RCW 29B.40.020** eff. **Jan. 1, 2026**. Cited without a
+  dollar figure; the amounts are PDC-indexed, not statutory. **HUMAN: confirm against the
+  current PDC schedule if any amount is ever quoted.**
+- ⚠ **N.Y. Elec. Law § 14-114** — cited qualitatively and **not independently verified**;
+  confirm the section number before posting, or drop to an uncited phrasing.
+- **N.Y. Pub. Off. Law art. 6** (FOIL) is the access basis cited for NYSVOTER in Appendix B;
+  the specific NY Election Law provision governing voter-list release was not verified, so
+  Appendix B cites only FOIL plus the Board's elections-purpose certification.

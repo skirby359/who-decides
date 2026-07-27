@@ -69,12 +69,25 @@ def report(name, x, rng):
 
 def main():
     rng = np.random.default_rng(SEED)
+    # Two panels, never pooled — WA's contribution table holds federal (FEC:) and state
+    # (PDC:) money, and pooling them stacks one person's giving across two systems.
+    # See docs/donor-class-and-the-electorate.md Appendix C.
     c = duckdb.connect("data/wa_statewide.duckdb", read_only=True)
-    matched = np.array(c.execute(
-        "SELECT total_donated FROM voter_donor_affiliation WHERE total_donated > 0"
-    ).fetchall(), dtype=float).ravel()
+    for tbl, label in (("voter_donor_affiliation_fec", "MATCHED WA donors — FEDERAL panel"),
+                       ("voter_donor_affiliation_state", "MATCHED WA donors — STATE panel (PDC)")):
+        exists = c.execute(
+            "SELECT COUNT(*) FROM information_schema.tables WHERE table_name = ?",
+            [tbl]).fetchone()[0]
+        if not exists:
+            print(f"  !! {tbl} missing — build it with "
+                  f"scripts/match_wa_voters_to_donors.py --source "
+                  f"{'fec' if tbl.endswith('fec') else 'state'}")
+            continue
+        matched = np.array(c.execute(
+            f"SELECT total_donated FROM {tbl} WHERE total_donated > 0"
+        ).fetchall(), dtype=float).ravel()
+        report(f"{label} ({tbl})", matched, rng)
     c.close()
-    report("MATCHED WA donors (voter_donor_affiliation)", matched, rng)
 
     ic = duckdb.connect("data/fec_inflow.duckdb", read_only=True)
     inflow24 = np.array(ic.execute("""

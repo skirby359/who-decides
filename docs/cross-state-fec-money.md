@@ -346,7 +346,19 @@ competitiveness. `scripts/diag_inflow_vs_competitiveness.py`, now four-state.*
 (`voters`, 5.51M; `voting_history`, 27.1M). WA is the one state here that needs **no
 external voter file** — it already has the registered roll, the vote history, and the
 person-level voter↔donor match. These refresh the democracy-insight gauntlet's figures on
-the improved match (320K → **382,408 voters**, 343,891 of them carrying a generation label).*
+the improved match (320K → **382,408 voters**, 378,278 of them carrying a generation label).*
+
+*⚠ **Panel note (2026-07-26).** The F2–F4 figures below were computed on a **pooled**
+voter↔donor match — WA's `individual_contributions` holds federal FEC money ($646.2M)
+*and* state PDC filings ($394.6M), and the matcher had no source filter, so one person's
+federal and state giving stacked into a single donor total. Pooling inflates measured
+concentration. `docs/donor-class-and-the-electorate.md` now reports WA as two separate
+panels — **federal**: 172,998 donors / $420.3M / top-1% **42.4%** / Gini **0.820**;
+**state (PDC)**: 269,204 / $153.9M / top-1% **43.8%** / Gini **0.827** — and those
+supersede the pooled numbers in this section for any donor-level claim. The *direction*
+of every F2–F4 finding is unchanged and in fact strengthens on the federal panel (the
+Silent multiplier rises from 1.87× pooled to **2.56×** federal). Rebuild with
+`scripts/match_wa_voters_to_donors.py --source {fec,state}`.*
 
 **F1 — The off-year electorate is old, and the young drop out, not down.**
 - **Defensible claim.** Within-cohort turnout and electorate composition both swing hard by
@@ -376,7 +388,9 @@ the improved match (320K → **382,408 voters**, 343,891 of them carrying a gene
   real property of who gives, not of who the matcher can find. (Person-level concentration on
   this match: top-1% of matched donors = **47.7%** of matched dollars, top-10% = **80.0%**,
   Gini **0.862**; geographically, **61.2%** of matched-donor dollars come from just two
-  Seattle-metro ZIP3s — 981xx 35.9% + 980xx 25.2%.)
+  Seattle-metro ZIP3s — 981xx 35.9% + 980xx 25.2%. All pooled-panel figures — see the panel
+  note above; on the federal panel the multipliers run Silent **2.56×** to Gen Z **0.10×**,
+  concentration top-1% **42.4%** / Gini **0.820**, and the two-ZIP3 share **63.4%**.)
 - **Strongest objection / residual bias.** The IPW corrects the *name-commonness* channel — the
   matcher's actual uniqueness guard — but cannot correct the one channel it can't observe: a
   donor whose address changed between giving and today fails the zip match, and mobility skews
@@ -386,10 +400,11 @@ the improved match (320K → **382,408 voters**, 343,891 of them carrying a gene
   essentially none of it.
 
 **F3 — Money and votes stack on the same people (association only).**
-- **Defensible claim.** Among the 343,891 matched donors carrying a turnout score, **84.0% are
+- **Defensible claim.** Among the 378,278 matched donors carrying a turnout score, **84.0% are
   super-voters versus 50.1%** of non-donors (1.68×), and their mean turnout propensity is
   **0.953 vs 0.748**. Financial voice and electoral voice concentrate on the same individuals
-  rather than offsetting.
+  rather than offsetting. (Pooled panel; the split is essentially identical either way —
+  federal **85.4% vs 51.4%**, state **84.9% vs 50.8%**.)
 - **Strongest objection.** This is cross-sectional association, not a causal "giving makes you
   vote" claim: donors are pre-selected for engagement (reverse causation is equally plausible),
   and the matcher itself favors stable-address super-voters, so selection *and* reverse
@@ -401,7 +416,9 @@ the improved match (320K → **382,408 voters**, 343,891 of them carrying a gene
   Because donor identity is a name+zip5 *proxy*, the concentration estimates carry
   sampling-style uncertainty — but it is small. Matched-donor **Gini 0.862 [95% CI 0.856–0.868]**,
   **top-1% 47.7% [45.6–50.0]**, **top-10% 80.0% [79.1–80.9]**; the inflow side (2024) is tighter
-  still (Gini 0.690 [0.688–0.692]). The concentration is a precise feature of the data, not an
+  still (Gini 0.690 [0.688–0.692]). Re-bootstrapped per panel: federal **Gini 0.820
+  [0.812–0.828]**, top-1% **42.4% [40.2–44.9]**; state **Gini 0.827 [0.814–0.843]**, top-1%
+  **43.8% [39.6–48.9]**. The concentration is a precise feature of the data, not an
   artifact of which donors landed in the pool. (The proxy's over-merging biases concentration
   *down*, so true figures are, if anything, slightly higher.)
 - **Match-precision validation** (`scripts/diag_match_validation_sample.py`). On a seed-fixed
@@ -471,7 +488,7 @@ are.*
 
 | State | Donors super-voter % | Non-donors | Ratio | Avg propensity (donor / non) |
 |---|--:|--:|--:|--:|
-| WA | 84.0% (343.9K) | 50.1% (4.70M) | **1.68×** | 0.953 / 0.748 |
+| WA | 84.0% (378.3K) | 50.1% (5.06M) | **1.68×** | 0.953 / 0.748 |
 | NY | 80.6% (308.0K) | 45.8% (13.23M) | **1.76×** | 0.883 / 0.658 |
 | ID | 48.7% (47.8K) | 30.0% (982K) | **1.62×** | 0.890 / 0.851 |
 
@@ -694,8 +711,13 @@ detail; K1–K4 are computed on those rows and are unchanged by the expansion.)*
 **K1 — The price of a house seat varies 26× across the four states.** Per-seat-per-cycle
 candidate receipts (2022+2024): **TX $978K ≫ WA $253K > NY $138K > ID $37K**. Median
 candidate raise: TX $85.5K ≈ WA $83.6K > NY $45.0K > ID $13.7K (TX's mean, $353K, is 4×
-its median — no contribution limits produce a whale-candidate layer WA's capped system
-lacks). A competitive TX house seat costs more than most **congressional** seats' inflow;
+its median — Texas sets **no dollar limit** on individual contributions to non-judicial
+state candidates, barring only corporate and labor-organization money (Tex. Elec. Code
+§ 253.094; the Judicial Campaign Fairness Act, §§ 253.151–253.176, is the one capped
+exception), and that produces a whale-candidate layer WA's capped system lacks —
+though note that caps do *not* flatten donor-level concentration, which is tested in
+[`donor-class-and-the-electorate.md`](donor-class-and-the-electorate.md) Appendix G).
+A competitive TX house seat costs more than most **congressional** seats' inflow;
 an ID house seat costs less than a WA school-board race.
 
 **K2 — Does state money chase competitiveness the way federal money does (~2×, Section D)?
@@ -722,7 +744,10 @@ Only in the red states.** Per-district house-candidate $ by forecast band, with 
   2022+2024 — about half the $72.9M all legislative candidates raised combined** — a real
   routing-around-candidates layer, milder than New York's, which (together with WA's
   contribution caps compressing what any single hot race can absorb directly) is consistent
-  with its flat candidate-level premium.
+  with its flat candidate-level premium. That is a claim about what a *candidate committee*
+  can take in, and it does not extend to the shape of the donor pool: caps demonstrably fail
+  to flatten donor-level concentration
+  ([`donor-class-and-the-electorate.md`](donor-class-and-the-electorate.md) Appendix G).
 - **Strongest objection.** The forecast bands are 2026 labels applied to 2022+2024 money
   (bands are stable, but not identical, across cycles); WA's Lean band holds a single
   district; and NY's office classification is partial — if BOE office-coding is biased
@@ -866,3 +891,35 @@ Tests A–I are run. Status:
    ~13s; WA 1,559→16,604 rows / $1.52B), giving WA its K5 panorama row (top filer = SEIU's
    PAC; committees hold 69% of WA state money) and quantifying the caucus-committee routing
    layer ($36.2M ≈ half the candidate layer, 2022+2024).
+
+---
+
+## Related work
+
+The building blocks — donor concentration, out-of-district money, whether money chases
+competitive races — are established individually; the contribution here is the
+recipient-anchored, four-state, federal-and-state comparison built from bulk FEC and
+state-disclosure records on one harmonized frame. It sits in these literatures:
+
+- **Mapping the donor universe.** Bonica, "Mapping the Ideological Marketplace" (2014)
+  and the DIME database — the individual-contribution infrastructure this paper rebuilds
+  from bulk filings and joins to voter files (Section F).
+- **How much money, and why so little.** Ansolabehere, de Figueiredo & Snyder, "Why Is
+  There So Little Money in U.S. Politics?" *Journal of Economic Perspectives* (2003) —
+  the framing for the money-and-competitiveness cuts (Sections D, E, H): contributions
+  behave more like consumption/participation than investment.
+- **Cross-district and out-of-state money.** Gimpel, Lee & Pearson-Merkowitz, "The Check
+  Is in the Mail: Interdistrict Funding Flows in Congressional Elections," *American
+  Journal of Political Science* (2008) — the direct antecedent to the inflow/outflow
+  matrix and the out-of-region magnet list (Sections B, E, G).
+- **Donors, polarization, and influence.** Barber, "Ideological Donors, Contribution
+  Limits, and the Polarization of American Legislatures," *Journal of Politics* (2016);
+  Schlozman, Verba & Brady, *The Unheavenly Chorus* (2012); Bonica, McCarty, Poole &
+  Rosenthal, "Why Hasn't Democracy Slowed Rising Inequality?" *JEP* (2013) — the
+  concentration and Gini results (Sections F, I).
+- **State campaign finance.** La Raja & Schaffner, *Campaign Finance and Political
+  Polarization: When Purists Prevail* (2015) — context for the state-disclosure layer
+  and the PAC-vs-individual split across statehouses (Section K).
+- **Party and the donorate.** Grumbach & Sahn, "Race and Representation in Campaign
+  Finance," *American Political Science Review* (2020) — the donor-composition frame for
+  the individual layer (Section F).

@@ -7,7 +7,7 @@ zip3+middle; per-tier uniqueness guard; the conduit-PAC override join). We do
 NOT reimplement it — we just point it at the NY data:
   - voters  : data/ny_vrdb.duckdb        ATTACHed AS vrdb   (13.54M; party + DOB)
   - donors  : data/ny_statewide.duckdb   individual_contributions (10.02M FEC rows)
-  - output  : ny_statewide.duckdb         voter_donor_affiliation
+  - output  : ny_statewide.duckdb         voter_donor_affiliation_fec
 
 RECIPIENT-PARTY caveat: NY's candidate_finance.party is ~96% Unknown and
 committee_party_override is empty (the FEC committee-master / conduit-override
@@ -46,19 +46,26 @@ PARTY_CASE = """
 
 
 def main() -> int:
-    con = duckdb.connect(NY_STATEWIDE)  # read-write: writes voter_donor_affiliation
+    # New York publishes no itemized STATE contributions into
+    # individual_contributions (BOE money lands in candidate_finance as summary rows
+    # only), so NY has a federal layer and nothing else. It is still written to the
+    # `_fec` panel table so the three states' federal panels line up by name.
+    # See docs/donor-class-and-the-electorate.md for the two-panel design.
+    vda = "voter_donor_affiliation_fec"
+
+    con = duckdb.connect(NY_STATEWIDE)  # read-write: writes the panel table
     con.execute(f"ATTACH '{NY_VRDB}' AS vrdb (READ_ONLY)")
 
-    print("[match] running 4-tier voter<->donor match (NY)...")
-    res = match_voters_to_donors(con)
+    print(f"[match] running 4-tier voter<->donor match (NY, source=fec -> {vda})...")
+    res = match_voters_to_donors(con, source_prefixes=["FEC"], output_table=vda)
     if res.get("skipped"):
         print("  SKIPPED:", res.get("reason"))
         return 1
     print(f"  matched voters       : {res['matched_voters']:,}")
     print(f"  contributions matched: {res['contributions_matched']:,}")
     print("  match-quality tiers  :")
-    for q, n in con.execute("""
-        SELECT match_quality, count(*) FROM voter_donor_affiliation
+    for q, n in con.execute(f"""
+        SELECT match_quality, count(*) FROM {vda}
         GROUP BY 1 ORDER BY 2 DESC
     """).fetchall():
         print(f"    {q:18} {n:>10,}")
@@ -68,7 +75,7 @@ def main() -> int:
     rows = con.execute(f"""
         WITH d AS (
             SELECT {PARTY_CASE} AS party, vda.total_donated
-            FROM voter_donor_affiliation vda JOIN vrdb.voters v USING (state_voter_id)
+            FROM {vda} vda JOIN vrdb.voters v USING (state_voter_id)
         )
         SELECT party, count(*) donors,
                100.0*count(*)/sum(count(*)) OVER () donor_share_pct,
@@ -89,11 +96,11 @@ def main() -> int:
     # ---- Donor age skew vs the electorate (2024 general voters) ----
     print("\n=== DONOR AGE SKEW vs 2024 general electorate ===")
     print("  age-band share among: matched donors  |  all active voters  |  2024 GE voters")
-    age_rows = con.execute("""
+    age_rows = con.execute(f"""
         WITH donors AS (
             SELECT v.state_voter_id,
                    date_diff('year', v.birthdate, DATE '2024-11-05') AS age
-            FROM voter_donor_affiliation vda JOIN vrdb.voters v USING (state_voter_id)
+            FROM {vda} vda JOIN vrdb.voters v USING (state_voter_id)
             WHERE v.birthdate IS NOT NULL
         ),
         allv AS (
@@ -132,9 +139,9 @@ def main() -> int:
     # buckets over actual donors (total_donated>0). Equal-count buckets are robust to ties;
     # PERCENT_RANK (the prior method) drifts from an exact decile at small N. See
     # docs/donor-class-and-the-electorate.md §F2 note.
-    conc = con.execute("""
+    conc = con.execute(f"""
         WITH r AS (SELECT total_donated t, NTILE(100) OVER (ORDER BY total_donated DESC) p
-                   FROM voter_donor_affiliation WHERE total_donated > 0)
+                   FROM {vda} WHERE total_donated > 0)
         SELECT round(100.0*SUM(t) FILTER(WHERE p=1)/SUM(t),1) top1,
                round(100.0*SUM(t) FILTER(WHERE p<=10)/SUM(t),1) top10
         FROM r
@@ -152,7 +159,7 @@ def main() -> int:
     rows = con.execute(f"""
         WITH d AS (
             SELECT {PARTY_CASE} AS own_party, vda.donor_party
-            FROM voter_donor_affiliation vda JOIN vrdb.voters v USING (state_voter_id)
+            FROM {vda} vda JOIN vrdb.voters v USING (state_voter_id)
         )
         SELECT own_party,
             count(*) FILTER(WHERE donor_party<>'OTHER')                 AS resolved,

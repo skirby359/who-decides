@@ -6,13 +6,26 @@ WA matcher `match_voters_to_donors` (Tier 0 full-name+zip5 down to zip3+middle,
 per-tier uniqueness guard) unchanged — we just point it at the ID data:
   - voters : data/id_vrdb.duckdb        ATTACHed AS vrdb (1.03M; party + age)
   - donors : data/id_statewide.duckdb   individual_contributions (216.7K rows)
-  - output : id_statewide.duckdb         voter_donor_affiliation
+  - output : id_statewide.duckdb         voter_donor_affiliation[_fec|_state]
 
-DONOR SOURCE: unlike WA/NY (FEC federal individual contributions), the ID
-`individual_contributions` are **Idaho Sunshine STATE campaign** donations
-(recipient ids are `SUNSHINE:<cand>`), so this characterizes the *state*
-donor class — the money behind Idaho legislative/statewide races, which is the
-more relevant layer for state electoral health anyway.
+DONOR SOURCE — pick a panel with `--source` (resolved 2026-07-26).
+Idaho's `individual_contributions` holds TWO money systems: **Idaho Sunshine
+STATE** donations (`contribution_id` prefix `SUNSHINE:`, 216.7K rows / $53.3M) and,
+since the 2026-07-19 ID FEC load, **federal** contributions (`FEC:`, 770.8K rows /
+$76.2M). Matching across both pools them, so one person's state and federal giving
+stacks into a single donor total and measured concentration comes out above either
+layer alone. Each run therefore builds ONE panel:
+
+    --source fec    -> FEC: rows     -> voter_donor_affiliation_fec    (the paper's
+                                        primary panel; comparable to WA and NY)
+    --source state  -> SUNSHINE: rows -> voter_donor_affiliation_state (Idaho's state
+                                        money; comparable to WA PDC)
+    --source all    -> everything    -> voter_donor_affiliation        (legacy pooled
+                                        behavior; what the campaign tooling reads)
+
+The canonical `voter_donor_affiliation` is only touched by `--source all`, so the
+panels never disturb the table `donor_prospects` / segments / walk-lists depend on.
+See `docs/donor-class-and-the-electorate.md` for the two-panel design.
 
 Two ID-specific adaptations:
   * Age, not DOB — the age-skew section uses the current-roll `age` column for
@@ -28,8 +41,10 @@ Two ID-specific adaptations:
     depend on recipient party and are robust either way.
 
 Usage:
-    STATE=ID python scripts/match_id_voters_to_donors.py
+    STATE=ID python scripts/match_id_voters_to_donors.py --source fec
+    STATE=ID python scripts/match_id_voters_to_donors.py --source state
 """
+import argparse
 import os
 import sys
 
@@ -57,21 +72,35 @@ _BAND = """CASE WHEN age BETWEEN 18 AND 29 THEN '18-29'
     WHEN age BETWEEN 30 AND 44 THEN '30-44' WHEN age BETWEEN 45 AND 64 THEN '45-64'
     WHEN age BETWEEN 65 AND 105 THEN '65+' END"""
 
+# --source -> (contribution_id prefixes, output table). See the module docstring.
+PANELS = {
+    "fec":   (["FEC"],      "voter_donor_affiliation_fec"),
+    "state": (["SUNSHINE"], "voter_donor_affiliation_state"),
+    "all":   (None,         "voter_donor_affiliation"),
+}
 
-def main() -> int:
-    con = duckdb.connect(ID_STATEWIDE)  # read-write: writes voter_donor_affiliation
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap.add_argument("--source", choices=sorted(PANELS), default="fec",
+                    help="money layer to match (default: fec)")
+    args = ap.parse_args(argv)
+    prefixes, vda = PANELS[args.source]
+
+    con = duckdb.connect(ID_STATEWIDE)  # read-write: writes the panel table
     con.execute(f"ATTACH '{ID_VRDB}' AS vrdb (READ_ONLY)")
 
-    print("[match] running multi-tier voter<->donor match (ID)...")
-    res = match_voters_to_donors(con)
+    print(f"[match] running multi-tier voter<->donor match (ID, "
+          f"source={args.source} -> {vda})...")
+    res = match_voters_to_donors(con, source_prefixes=prefixes, output_table=vda)
     if res.get("skipped"):
         print("  SKIPPED:", res.get("reason"))
         return 1
     print(f"  matched voters       : {res['matched_voters']:,}")
     print(f"  contributions matched: {res['contributions_matched']:,}")
     print("  match-quality tiers  :")
-    for q, n in con.execute("""
-        SELECT match_quality, count(*) FROM voter_donor_affiliation GROUP BY 1 ORDER BY 2 DESC
+    for q, n in con.execute(f"""
+        SELECT match_quality, count(*) FROM {vda} GROUP BY 1 ORDER BY 2 DESC
     """).fetchall():
         print(f"    {q:18} {n:>10,}")
 
@@ -79,7 +108,7 @@ def main() -> int:
     print("\n=== DONOR CLASS vs ELECTORATE — by ID party-of-record ===")
     rows = con.execute(f"""
         WITH d AS (SELECT {PARTY_CASE} party, vda.total_donated
-                   FROM voter_donor_affiliation vda JOIN vrdb.voters v USING (state_voter_id))
+                   FROM {vda} vda JOIN vrdb.voters v USING (state_voter_id))
         SELECT party, count(*) donors, 100.0*count(*)/sum(count(*)) OVER () donor_share,
                round(sum(total_donated)/1e6,2) total_m,
                100.0*sum(total_donated)/sum(sum(total_donated)) OVER () dollar_share
@@ -98,7 +127,7 @@ def main() -> int:
     print("\n=== DONOR AGE SKEW vs electorate (current-roll age bands) ===")
     print("  age-band share among: matched donors | all voters | 2024 GE voters")
     age_rows = con.execute(f"""
-        WITH donors AS (SELECT v.age FROM voter_donor_affiliation vda
+        WITH donors AS (SELECT v.age FROM {vda} vda
                         JOIN vrdb.voters v USING (state_voter_id) WHERE v.age IS NOT NULL),
              allv AS (SELECT v.age FROM vrdb.voters v WHERE v.age IS NOT NULL),
              ge24 AS (SELECT v.age FROM vrdb.voter_participation p JOIN vrdb.voters v USING (state_voter_id)
@@ -124,9 +153,9 @@ def main() -> int:
     # top 1/10 buckets / all matched $. Equal-count buckets are robust to ties at round
     # dollar amounts; PERCENT_RANK (the prior method) drifts from an exact decile at ID's
     # small N (~27k: it read 69.0% vs 70.8%). See docs/donor-class-and-the-electorate.md §F2 note.
-    conc = con.execute("""
+    conc = con.execute(f"""
         WITH r AS (SELECT total_donated t, NTILE(100) OVER (ORDER BY total_donated DESC) p
-                   FROM voter_donor_affiliation WHERE total_donated > 0)
+                   FROM {vda} WHERE total_donated > 0)
         SELECT round(100.0*SUM(t) FILTER(WHERE p=1)/SUM(t),1),
                round(100.0*SUM(t) FILTER(WHERE p<=10)/SUM(t),1) FROM r
     """).fetchone()
@@ -135,9 +164,9 @@ def main() -> int:
 
     # ---- Geographic concentration (top counties by matched $) ----
     print("\n=== DONOR $ BY COUNTY (top 8, share of matched $) ===")
-    for cty, dn, sh in con.execute("""
+    for cty, dn, sh in con.execute(f"""
         WITH d AS (SELECT v.county_name, vda.total_donated
-                   FROM voter_donor_affiliation vda JOIN vrdb.voters v USING (state_voter_id))
+                   FROM {vda} vda JOIN vrdb.voters v USING (state_voter_id))
         SELECT county_name, count(*), 100.0*sum(total_donated)/sum(sum(total_donated)) OVER ()
         FROM d GROUP BY county_name ORDER BY sum(total_donated) DESC LIMIT 8
     """).fetchall():
@@ -145,14 +174,14 @@ def main() -> int:
 
     # ---- Recipient lean x own party (crossover) — reliability-flagged ----
     print("\n=== RECIPIENT LEAN x OWN PARTY (crossover) ===")
-    resolved = con.execute("""
-        SELECT 100.0*count(*) FILTER(WHERE donor_party<>'OTHER')/count(*) FROM voter_donor_affiliation
+    resolved = con.execute(f"""
+        SELECT 100.0*count(*) FILTER(WHERE donor_party<>'OTHER')/count(*) FROM {vda}
     """).fetchone()[0]
     print(f"  resolved-recipient share: {resolved:.1f}% "
           f"({'USABLE' if resolved and resolved > 40 else 'UNRESOLVED — Idaho Sunshine has no recipient party; needs a Sunshine candidate->party backfill (follow-on)'})")
     rows = con.execute(f"""
         WITH d AS (SELECT {PARTY_CASE} own_party, vda.donor_party
-                   FROM voter_donor_affiliation vda JOIN vrdb.voters v USING (state_voter_id))
+                   FROM {vda} vda JOIN vrdb.voters v USING (state_voter_id))
         SELECT own_party, count(*) FILTER(WHERE donor_party<>'OTHER') resolved,
             100.0*count(*) FILTER(WHERE donor_party='D_DONOR')/NULLIF(count(*) FILTER(WHERE donor_party<>'OTHER'),0) pd,
             100.0*count(*) FILTER(WHERE donor_party='R_DONOR')/NULLIF(count(*) FILTER(WHERE donor_party<>'OTHER'),0) pr,
