@@ -208,11 +208,14 @@ registered voter.
 | 44 | NY state own-party skew | DEM +8.9 / REP +3.2 / NOPARTY -12.0 (vs federal +15.0 / -0.9 / -13.0) |
 | 45 | NY state geography | Manhattan 20.6% (vs 50.3% federal), Nassau 15.1%, Suffolk 11.1%; top-3 ZIP3 38.1% |
 | 46 | NY state give<->vote | 3.02 generals / 73.1% super vs 1.77 / 36.8% |
+| 47 | NY state crossover (after backfill) | resolution 25.9% -> **37.7%**; DEM 88.3->D, REP 84.7->R, NOPARTY 54.8->D |
 
-> NY state **crossover is not reported**: NYSBOE carries no party on the filer and no
-> roster backfill exists, so recipient party resolves for only **25.9%** of matched state
-> donors — well below Idaho's ~52% and NY federal's 79%. A NYSBOE filer->party backfill
-> is the open follow-on.
+> NY state crossover is the thinnest cut in the paper at **37.7%** resolution
+> (`backfill_ny_recipient_party.py`). Stability check: lifting coverage from 25.9% to
+> 37.7% moved the rates by 1.0 / 4.5 / -2.1 points — directions hold, magnitudes are
+> approximate. A bare-surname tier was built and REJECTED (it read "FRIENDS OF DAVID
+> KNAPP" as Republican via *David*); do not reinstate it. Corporate/labor PACs stay
+> unresolved by design.
 
 ---
 
@@ -253,3 +256,4 @@ Two flagged items need a human glance before posting:
 - **N.Y. Pub. Off. Law art. 6** (FOIL) is the access basis cited for NYSVOTER in Appendix B;
   the specific NY Election Law provision governing voter-list release was not verified, so
   Appendix B cites only FOIL plus the Board's elections-purpose certification.
+

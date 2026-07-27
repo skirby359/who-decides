@@ -301,24 +301,33 @@ over (−0.9 → +3.2). New York's donor class leans Democratic most sharply whe
 is nationalized; its state-level donor pool is closer to — though still not — the
 electorate. The unaffiliated bloc is shut out either way.
 
-**Where the money goes — crossover.** Reported on the **federal** panel only, after
-resolving recipient party for 79% of contributions via the bulk FEC committee + candidate
-masters (`backfill_ny_committee_party.py`). New York's *state* panel resolves just
-**25.9%** — NYSBOE carries no party on the filer and no roster backfill has been built for
-it — which is too thin to report a crossover rate from, so none is given here:
+**Where the money goes — crossover.** Recipient party comes from the bulk FEC committee
+and candidate masters on the federal panel (`backfill_ny_committee_party.py`, 87.8% of
+matched donors resolved) and, on the state panel, from
+`backfill_ny_recipient_party.py` — NYSBOE publishes no party on the filer, so party is
+reconstructed from explicit party words in committee names, the finance rows that already
+carry a party, and the committee→candidate→roster chain. That reaches **37.7%**, the
+thinnest coverage in this paper; the state row below should be read as indicative, and
+the reasoning behind it is in Appendix C.
 
-| own party | donors (resolved) | → Democratic | → Republican | mixed |
-|---|--:|--:|--:|--:|
-| DEM | 174,156 | **94.4%** | 3.9% | 1.7% |
-| REP | 57,330 | 14.2% | **82.6%** | 3.1% |
-| NOPARTY | 30,568 | **65.6%** | 31.0% | 3.4% |
-| OTHER | 8,268 | 40.8% | 57.0% | 2.2% |
+| own party | federal: donors | → D | → R | state: donors | → D | → R |
+|---|--:|--:|--:|--:|--:|--:|
+| DEM | 174,156 | **94.4%** | 3.9% | 89,010 | **88.3%** | 8.9% |
+| REP | 57,330 | 14.2% | **82.6%** | 48,708 | 12.2% | **84.7%** |
+| NOPARTY | 30,568 | **65.6%** | 31.0% | 15,878 | **54.8%** | 41.8% |
+| OTHER | 8,268 | 40.8% | 57.0% | 6,114 | 36.9% | 58.8% |
 
-Two patterns: registered **Republicans fund Democrats at ~3.6× the rate
-Democrats fund Republicans** (14.2% vs 3.9%) — a deep-blue donor ecosystem; and
-the unaffiliated bloc, invisible to registration-based analysis, **leans ~2:1
-Democratic in its actual giving** (65.6% → D), so NY's independents are not
-centrist by behavior.
+Two patterns, both present in both panels: registered **Republicans fund Democrats at
+~3.6× the rate Democrats fund Republicans** federally (14.2% vs 3.9%) — a deep-blue donor
+ecosystem; and the unaffiliated bloc, invisible to registration-based analysis, **leans
+Democratic in its actual giving** (65.6% → D federally, 54.8% state), so NY's independents
+are not centrist by behavior. Both patterns attenuate in state money, where partisans of
+both stripes are more loyal to their own side and the unaffiliated split closer to even.
+
+*A stability check on the thin state coverage: extending the backfill lifted resolution
+from 25.9% to 37.7% of matched state donors and moved the reported rates by 1.0 point
+(DEM→D), 4.5 (REP→R) and −2.1 (NOPARTY→D). The direction of every cell survived; the
+magnitudes shifted enough that the state column should be treated as approximate.*
 
 **Idaho — the same skew, in the reddest state, in both money systems.** The decisive
 test of whether the Democratic tilt of the donor class is real or just a blue-state
@@ -447,11 +456,13 @@ and, per Finding 3, funded by a donor class narrower and more skewed still.
   *rates* for older cycles are biased by survivorship. Share-of-population figures,
   which need no denominator, carry the findings. Idaho's age is a current-roll
   integer, so its bands are current-age, not election-time.
-- **Recipient party is partial in one panel.** The crossover cut resolves 79% of NY
-  contributions and **86.7%** of ID federal matched donors, but only ~52% of ID *state*
-  donors, where recipient party has to be reconstructed rather than read off a filing —
-  so the majority-party crossover rate on Idaho's state panel is an upper bound. Own-party
-  and age cuts use the 100%-present party of record throughout.
+- **Recipient party is partial, and least complete on the state panels.** It resolves for
+  **87.8%** of NY federal and **86.7%** of ID federal matched donors, where the FEC masters
+  carry party outright, but only ~52% of ID state and **37.7%** of NY state donors, where
+  it must be reconstructed from committee names and candidate rosters. Both state
+  crossover columns are approximate, and Idaho's majority-party rate specifically is an
+  upper bound. Own-party and age cuts use the 100%-present party of record throughout and
+  are unaffected.
 - **No policy-influence claim.** This paper measures who gives and who votes. It does
   not measure whether money changes votes, wins elections, or moves policy, and the
   giving↔turnout relationship in Finding 4 is reported as association only.
@@ -620,6 +631,21 @@ testing. It is retained here as an objection because it is the intuitive reading
   exact decile at small N, reading Idaho's top-10% as 69.0% rather than 70.8%. Gini is
   computed on the same donor totals by the rank-weighted formula. Appendix G reuses this
   identical estimator so its layer comparisons are commensurable with Finding 2.
+- **Reconstructing recipient party on the state panels.** Neither NYSBOE nor Idaho
+  Sunshine publishes the recipient's party, so the crossover cut needs it inferred.
+  `backfill_ny_recipient_party.py` works in four uniqueness-guarded tiers — an explicit
+  party word in the committee name (dropped if a name claims both), a party already
+  present on the finance row, a committee→candidate→roster chain, and containment of a
+  roster candidate's full name — reaching 37.7% of matched state donors. A fifth,
+  bare-surname tier of the kind Idaho can use was built and **rejected**: Idaho's
+  recipient strings are "LAST, FIRST" candidate names, whereas New York's are free-text
+  committee names, so searching for a surname inside a phrase misfires — it read "FRIENDS
+  OF DAVID KNAPP" as Republican via the surname *David* and "SARATOGA COUNTY GREEN PARTY"
+  as Republican via *Green*. It would have added roughly $67M of apparently-resolved money
+  at the cost of silent misassignment. Corporate, labor and trade PACs are left unresolved
+  by design in both states: they are genuinely non-partisan recipients and a large share
+  of state money, and giving them a party would manufacture a crossover result rather than
+  measure one.
 - **Match-bias re-weighting.** P(uniquely matchable) is estimated per age band or
   generation directly on the roll, and donor shares are re-weighted by its inverse. This
   is the test in Finding 1 and Appendix F; it was run for WA and NY, not for ID.
@@ -966,6 +992,7 @@ python scripts/load_ny_voters.py                 # NYSVOTER FOIL -> ny_vrdb.duck
 python scripts/diag_ny_turnout_party.py --rebuild # voter_participation table
 python scripts/backfill_ny_committee_party.py     # bulk FEC committee/candidate party -> 79%
 python scripts/load_ny_contributions.py           # NYSBOE per-contribution rows (state layer)
+python scripts/backfill_ny_recipient_party.py     # state recipient party -> 37.7%
 STATE=NY python scripts/match_ny_voters_to_donors.py --source fec
 STATE=NY python scripts/match_ny_voters_to_donors.py --source state
 STATE=NY python scripts/diag_ny_match_bias.py           # age-skew validation
@@ -1003,3 +1030,4 @@ This is Paper #3 of the electoral-health series:
 [`who-decides-idaho.md`](who-decides-idaho.md) (party-resolved electorates),
 [`safe-seat-washington.md`](safe-seat-washington.md) (observed competitiveness), and
 [`cross-state-fec-money.md`](cross-state-fec-money.md) (the four-state money layer).
+
