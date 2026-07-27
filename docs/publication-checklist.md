@@ -190,6 +190,29 @@ python scripts/diag_id_electorate_extras.py             # safe-seat, unaffiliate
 | 38 | ID recipient-party resolution | federal **86.7%** vs state ~52% (only the state REP->D rate is an upper bound) | both |
 | 39 | WA give<->vote | federal 85.4% vs 51.4% super; state 84.9% vs 50.8% | both |
 | 40 | WA bootstrap CIs (B=1,000) | federal top-1% [40.2-44.9], Gini [0.812-0.828]; state top-1% [39.6-48.9] | both |
+| 32b | NY state matched layer | 424,020 donors / $379.5M / top-1% 48.5% / top-10% 78.3% / Gini 0.846 | state |
+
+**Donor paper — New York state panel (added 2026-07-26).** NYSBOE publishes
+transaction-level contributions (data.ny.gov `4j2b-6a2j`, 12.6M rows) carrying
+contributor last/first name and ZIP; the repo's NY adapter read that feed but kept only
+roll-up columns, which is why NY had no state donor panel. `scripts/load_ny_contributions.py`
+now loads the per-contribution rows (Individual contributors, Schedule A, cycles
+2018-2026): **3,954,090 contributions / $880.3M**, of which **$379.5M** matches a
+registered voter.
+
+| # | Claim | Expected |
+|---|---|---|
+| 41 | NY state contributions loaded | 3,954,090 rows / $880.3M, 9 cycles 2018-2026 |
+| 42 | NY state matched layer | 424,020 donors / $379.5M / top-1% 48.5% / Gini 0.846 |
+| 43 | NY state age bands | 4.9 / 17.8 / 38.9 / 38.4 (65+ 38.4% vs 47.9% federal) |
+| 44 | NY state own-party skew | DEM +8.9 / REP +3.2 / NOPARTY -12.0 (vs federal +15.0 / -0.9 / -13.0) |
+| 45 | NY state geography | Manhattan 20.6% (vs 50.3% federal), Nassau 15.1%, Suffolk 11.1%; top-3 ZIP3 38.1% |
+| 46 | NY state give<->vote | 3.02 generals / 73.1% super vs 1.77 / 36.8% |
+
+> NY state **crossover is not reported**: NYSBOE carries no party on the filer and no
+> roster backfill exists, so recipient party resolves for only **25.9%** of matched state
+> donors — well below Idaho's ~52% and NY federal's 79%. A NYSBOE filer->party backfill
+> is the open follow-on.
 
 ---
 

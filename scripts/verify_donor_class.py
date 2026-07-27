@@ -146,18 +146,27 @@ for donor, n2, sr, ap in wa.execute(f"""
 wa.close()
 
 # ============================== NEW YORK ==============================
-print("\n" + "=" * 78 + "\nNEW YORK  (ny_statewide + ny_vrdb) — federal panel only\n" + "=" * 78)
+print("\n" + "=" * 78 + "\nNEW YORK  (ny_statewide + ny_vrdb)\n" + "=" * 78)
 ny = duckdb.connect(str(DATA / "ny_statewide.duckdb"), read_only=True)
 ny.execute(f"ATTACH '{DATA / 'ny_vrdb.duckdb'}' AS vrdb (READ_ONLY)")
-require(ny, "NY", [FED])
-print("\nF1 age bands (2024 GE voters ref)")
-age_bands(ny, FED, "date_diff('year', v.birthdate, DATE '2024-11-05')",
-          "v.state_voter_id IN (SELECT state_voter_id FROM vrdb.voter_participation WHERE kind='GENERAL' AND election_year=2024)")
+require(ny, "NY", [FED, STATE])
+NY_AGE = "date_diff('year', v.birthdate, DATE '2024-11-05')"
+NY_REF = ("v.state_voter_id IN (SELECT state_voter_id FROM vrdb.voter_participation "
+          "WHERE kind='GENERAL' AND election_year=2024)")
+NY_PARTY = ("CASE WHEN party='DEM' THEN 'DEM' WHEN party='REP' THEN 'REP' "
+            "WHEN party='BLK' THEN 'NOPARTY' ELSE 'OTHER' END")
+
+print("\nF1 age bands, FEDERAL panel (2024 GE voters ref)")
+age_bands(ny, FED, NY_AGE, NY_REF)
+print("\nF1 age bands, STATE panel (2024 GE voters ref)")
+age_bands(ny, STATE, NY_AGE, NY_REF)
 print("\nF2 concentration by panel:")
 conc_line(ny, "federal", FED)
+conc_line(ny, "state (NYSBOE)", STATE)
 print("\nF3 own-party skew, FEDERAL panel")
-party_skew(ny, FED, "CASE WHEN party='DEM' THEN 'DEM' WHEN party='REP' THEN 'REP' WHEN party='BLK' THEN 'NOPARTY' ELSE 'OTHER' END",
-           ["DEM", "REP", "NOPARTY", "OTHER"])
+party_skew(ny, FED, NY_PARTY, ["DEM", "REP", "NOPARTY", "OTHER"])
+print("\nF3 own-party skew, STATE panel")
+party_skew(ny, STATE, NY_PARTY, ["DEM", "REP", "NOPARTY", "OTHER"])
 ny.close()
 
 # ============================== IDAHO ==============================

@@ -6,8 +6,18 @@ full-name+zip5 / first-initial+middle+zip5 / first-initial+zip5 /
 zip3+middle; per-tier uniqueness guard; the conduit-PAC override join). We do
 NOT reimplement it — we just point it at the NY data:
   - voters  : data/ny_vrdb.duckdb        ATTACHed AS vrdb   (13.54M; party + DOB)
-  - donors  : data/ny_statewide.duckdb   individual_contributions (10.02M FEC rows)
-  - output  : ny_statewide.duckdb         voter_donor_affiliation_fec
+  - donors  : data/ny_statewide.duckdb   individual_contributions
+  - output  : ny_statewide.duckdb         voter_donor_affiliation_{fec,state}
+
+DONOR SOURCE — pick a panel with `--source`. NY's individual_contributions holds
+**federal** FEC rows (`FEC:`, 9.98M / $2,066.6M) and, since
+`scripts/load_ny_contributions.py` was added, **state** NYSBOE rows (`NY:`, 3.95M /
+$880.3M). Matching across both would pool two separately regulated money systems and
+inflate concentration, so each run builds ONE panel:
+
+    --source fec    -> FEC: rows -> voter_donor_affiliation_fec
+    --source state  -> NY:  rows -> voter_donor_affiliation_state
+    --source all    -> everything -> voter_donor_affiliation   (legacy pooled)
 
 RECIPIENT-PARTY caveat: NY's candidate_finance.party is ~96% Unknown and
 committee_party_override is empty (the FEC committee-master / conduit-override
@@ -19,8 +29,10 @@ MATCH itself (which registered NY voters are federal donors), characterized by
 their own NY party enrollment and age.
 
 Usage (the script bootstraps sys.path itself, so no PYTHONPATH needed):
-    STATE=NY python scripts/match_ny_voters_to_donors.py
+    STATE=NY python scripts/match_ny_voters_to_donors.py --source fec
+    STATE=NY python scripts/match_ny_voters_to_donors.py --source state
 """
+import argparse
 import os
 import sys
 
@@ -44,20 +56,27 @@ PARTY_CASE = """
          WHEN v.party='BLK' THEN 'NOPARTY' ELSE 'OTHER' END
 """
 
+# --source -> (contribution_id prefixes, output table). See the module docstring.
+PANELS = {
+    "fec":   (["FEC"], "voter_donor_affiliation_fec"),
+    "state": (["NY"],  "voter_donor_affiliation_state"),
+    "all":   (None,    "voter_donor_affiliation"),
+}
 
-def main() -> int:
-    # New York publishes no itemized STATE contributions into
-    # individual_contributions (BOE money lands in candidate_finance as summary rows
-    # only), so NY has a federal layer and nothing else. It is still written to the
-    # `_fec` panel table so the three states' federal panels line up by name.
-    # See docs/donor-class-and-the-electorate.md for the two-panel design.
-    vda = "voter_donor_affiliation_fec"
+
+def main(argv: list[str] | None = None) -> int:
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap.add_argument("--source", choices=sorted(PANELS), default="fec",
+                    help="money layer to match (default: fec)")
+    args = ap.parse_args(argv)
+    prefixes, vda = PANELS[args.source]
 
     con = duckdb.connect(NY_STATEWIDE)  # read-write: writes the panel table
     con.execute(f"ATTACH '{NY_VRDB}' AS vrdb (READ_ONLY)")
 
-    print(f"[match] running 4-tier voter<->donor match (NY, source=fec -> {vda})...")
-    res = match_voters_to_donors(con, source_prefixes=["FEC"], output_table=vda)
+    print(f"[match] running 4-tier voter<->donor match (NY, "
+          f"source={args.source} -> {vda})...")
+    res = match_voters_to_donors(con, source_prefixes=prefixes, output_table=vda)
     if res.get("skipped"):
         print("  SKIPPED:", res.get("reason"))
         return 1

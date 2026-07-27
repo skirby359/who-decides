@@ -31,7 +31,9 @@ figures: `scripts/match_ny_voters_to_donors.py`,
 `scripts/diag_ny_primary_participation.py`, `scripts/diag_ny_donor_extras.py`,
 `scripts/diag_ny_electorate_extras.py` — NY's NYSVOTER roll (13.54M;
 individual party enrollment + DOB; `data/ny_vrdb.duckdb`) matched to 10.02M FEC
-itemized contributions (`data/ny_statewide.duckdb`, 307,841 voters). Idaho
+itemized contributions and, via `scripts/load_ny_contributions.py`, to 3.95M NYSBOE
+**state** contributions (`data/ny_statewide.duckdb`, 307,841 federal / 424,020 state
+matched voters). Idaho
 figures: `scripts/match_id_voters_to_donors.py`,
 `scripts/backfill_id_recipient_party.py`,
 `scripts/diag_id_electorate_extras.py` — ID's statewide roll (1.03M; individual
@@ -46,28 +48,32 @@ of these scripts.*
 governed by different rules, and a voter roll can be matched to either. Every finding
 below is therefore computed **twice**, once per system, and never pooled:*
 
-| panel | what it is | states |
+| panel | what it is | matched donors |
 |---|---|---|
-| **Federal** *(primary)* | FEC itemized individual contributions | WA, NY, ID |
-| **State** *(secondary)* | WA Public Disclosure Commission filings; Idaho Sunshine filings | WA, ID |
+| **Federal** *(primary)* | FEC itemized individual contributions | WA 172,998 · NY 307,841 · ID 27,196 |
+| **State** *(secondary)* | WA Public Disclosure Commission · NY State Board of Elections · Idaho Sunshine | WA 269,204 · NY 424,020 · ID 27,250 |
 
-*The federal panel is the spine because it is the one comparison available in all three
-states under a single rule set. New York appears only there: it publishes no itemized
-state contributions (Board of Elections money is disclosed in summary form), so no NY
-state panel can be built. Pooling the two systems — which earlier drafts did for
-Washington without intending to — inflates measured concentration, because one person's
-federal and state giving stacks into a single donor total while a one-system donor's does
-not; on Washington's data, pooling reads 46.6% top-1% against 42.4% federal and 43.8%
-state. The panels are kept separate for exactly that reason.*
+*Pooling the two systems — which earlier drafts did for Washington without intending to —
+inflates measured concentration, because one person's federal and state giving stacks
+into a single donor total while a one-system donor's does not; on Washington's data,
+pooling reads 46.6% top-1% against 42.4% federal and 43.8% state. The panels are kept
+separate for exactly that reason.*
 
 *This is a strength, not a limitation. Federal and state money are capped differently,
 solicited by different campaigns, and reported by different agencies. **Every finding in
 this paper holds in both** — the donor class is old, top-heavy, metro-concentrated,
 partisan-skewed, and stacked with high turnout whether the money is federal or state.
-Where the panels differ, they differ informatively: the federal donor class is markedly
-older than the state one (in Idaho, 64.7% of federal donors are 65+ against 51.1% of state
-donors), and Idaho's federal recipients can be party-resolved at 86.7% against ~52% for
-its state filings.*
+Where the panels differ, they differ informatively. One difference holds in **all three**
+states: **federal money is older money** — New York's federal donors are 47.9% over 65
+against 38.4% of its state donors, Idaho's 64.7% against 51.1%, and Washington's Silent
+Generation multiplier runs 2.56× federal against 1.64× state. Two more hold in the two
+large states and invert in Idaho: **state money reaches more donors** (New York 424,020
+state against 307,841 federal; Washington 269,204 against 172,998; Idaho essentially
+level at 27,250 and 27,196), and **federal money concentrates harder in the primary
+metro** (Manhattan supplies 50.3% of New York's federal dollars but 20.6% of its state
+dollars — while in Idaho it is Boise's grip that loosens, from 49.2% to 36.4%). Where the
+comparison is available, state giving is the broader, younger, more geographically
+dispersed layer — and still unrepresentative on every axis measured here.*
 
 ## Abstract
 
@@ -79,19 +85,23 @@ affiliation and age) — are linked person by person to itemized campaign contri
 under a conservative uniqueness rule. Because American donors give into two separately
 regulated money systems, every result is computed twice and never pooled: a federal
 panel (172,998 matched donors in Washington, 307,841 in New York, 27,196 in Idaho) and a
-state panel (269,204 in Washington, 27,250 in Idaho). Every finding holds in both. The
+state panel (269,204, 424,020, and 27,250). Every finding holds in both. The
 matched donor class is markedly older than the electorate that elects the officials it
 funds: 47.9% of New York's federal donors and 64.7% of Idaho's are 65 or older, against
 a quarter and a third of their rolls, and Washington's Silent Generation gives at 2.6
 times its share of the roll while Generation Z gives at one-tenth of its own. Money
 concentrates sharply, with the top 1% of matched donors supplying 42.4% of federal
 dollars in Washington, 51.2% in New York, and 35.8% in Idaho, and a single metropolitan
-area supplying a third to a half of each state's total. Where party of record is
+area supplying a fifth to a half of each state's total. Where party of record is
 observable, the donor class over-represents registered Democrats and under-represents
-the unaffiliated by double digits — in deep-blue New York (+15.0 points Democratic) and
-in deep-red Idaho (+8.0) alike, so the tilt is not an artifact of a state's majority
-party. The same individuals also vote at far higher rates than non-donors, stacking
-financial and electoral voice rather than offsetting them. The age skew survives
+the unaffiliated by double digits — in deep-blue New York (+15.0 points Democratic
+federally, +8.9 in state money) and in deep-red Idaho (+8.0) alike, so the tilt is not an
+artifact of a state's majority party. The same individuals also vote at far higher rates
+than non-donors, stacking financial and electoral voice rather than offsetting them.
+Comparing the two panels isolates a difference present in every state — federal money is
+older money — and two more that hold in the two large states: state money reaches more
+donors, and federal money concentrates far harder in the primary metropolis. The age skew
+survives
 inverse-propensity re-weighting for match bias, and hand rating of a 150-record sample
 puts match precision near 90%. Contribution caps do not explain the cross-state
 differences in concentration. The paper measures itemized giving and registration
@@ -138,15 +148,16 @@ In all three states matched donors are far older than the voters they fund.
 **New York** (`match_ny_voters_to_donors.py`) — age-band share, age as of
 2024-11-05:
 
-| age band | matched donors | all active voters | 2024 GE voters |
-|---|--:|--:|--:|
-| 18–29 | **3.0%** | 18.0% | 14.1% |
-| 30–44 | 14.2% | 25.6% | 23.1% |
-| 45–64 | 34.9% | 31.2% | 34.6% |
-| 65+ | **47.9%** | 25.2% | 28.2% |
+| age band | federal donors | state donors | all active voters | 2024 GE voters |
+|---|--:|--:|--:|--:|
+| 18–29 | **3.0%** | 4.9% | 18.0% | 14.1% |
+| 30–44 | 14.1% | 17.8% | 25.6% | 23.1% |
+| 45–64 | 34.9% | 38.9% | 31.2% | 34.6% |
+| 65+ | **47.9%** | 38.4% | 25.2% | 28.2% |
 
 Nearly **half of NY's federal donors are 65 or older**, versus a quarter of the
-active roll. **Washington** shows the same shape as generation multipliers
+active roll; its state donors are younger but still tilted, at 38.4%.
+**Washington** shows the same shape as generation multipliers
 (donor share ÷ roll share), and the skew is sharper in federal money than in state:
 
 | generation | federal panel | state panel |
@@ -172,11 +183,14 @@ state donors — against a third of the roll, with the under-30 share reduced to
 and 2.6% respectively. The donor class is the grayest slice of the electorate in blue
 and red states alike.
 
-Note the consistent gap between the panels: in both Washington and Idaho, **federal
-money is older money**. State-level giving reaches Gen X and Millennials at roughly
-twice the rate federal giving does (WA Gen X 1.26× vs 0.98×, Millennial 0.68× vs 0.39×).
-The generational narrowing is most extreme in exactly the layer where the most money
-moves.
+Note the consistent gap between the panels: in **all three states, federal money is
+older money**. New York's 65+ donor share falls from 47.9% federal to 38.4% state,
+Idaho's from 64.7% to 51.1%, and Washington's state-level giving reaches Gen X and
+Millennials at roughly twice the rate federal giving does (Gen X 1.26× vs 0.98×,
+Millennial 0.68× vs 0.39×). The generational narrowing is sharpest in exactly the layer
+where the most money moves. It is also the layer most visible to national donors: state
+races are contested in every district, federal races in a handful, and the age gradient
+tracks that difference.
 
 **The skew is not a matching artifact.** The obvious objection is that the match
 key (last name + first name + ZIP5, required to be *unique* on the roll) selects
@@ -208,6 +222,7 @@ and in both money systems:
 | Idaho | 27,196 | $49.6M | **35.8%** | 70.4% | 0.786 |
 | **State** | | | | | |
 | Washington (PDC) | 269,204 | $153.9M | **43.8%** | 76.0% | 0.827 |
+| New York (NYSBOE) | 424,020 | $379.5M | **48.5%** | 78.3% | 0.846 |
 | Idaho (Sunshine) | 27,250 | $15.9M | **39.3%** | 70.8% | 0.798 |
 
 *Estimator: donors are ranked by total matched dollars and split into 100 equal-count
@@ -215,24 +230,32 @@ buckets (`NTILE(100)`); "top 1% / 10%" is the top 1 / 10 buckets' dollars ÷ all
 dollars. Appendix C gives the full definition and the reason equal-count buckets are
 used; Appendix E gives the bootstrap confidence intervals.*
 
-Two readings. Within the federal panel the ordering is **New York > Washington > Idaho**
-— the same ranking the statewide all-donor figures give, so it is not an artifact of who
-the matcher can find. And in *both* states that have both panels, the **state** layer is
-slightly *more* concentrated than the federal one (WA 43.8% vs 42.4%; ID 39.3% vs 35.8%),
-even though state contributions are capped far lower. Appendix G takes that up directly.
+Two readings. First, the ordering **New York > Washington > Idaho** holds in *both*
+panels, and matches the statewide all-donor figures — so it is a property of these states'
+donor economies, not of who the matcher can find or which money system is examined.
 
-A geographic corollary everywhere. In WA, **63.4%** of federal matched-donor
-dollars come from just two Seattle-metro ZIP3s (981xx 37.3% + 980xx 26.1%); the state
-panel is a little broader at 55.1% (981xx 32.3% + 980xx 22.8%). NY is
-the most concentrated: **Manhattan (New York County) alone supplies 50.3%** of
-matched-donor dollars, ZIP3 100 = 46.3%, and the top three ZIP3s (Manhattan +
-Westchester + Brooklyn) = **63.4%** (`diag_ny_donor_extras.py`). Idaho shows the
-same single-metro dominance from a state with no large city: **Ada County (Boise)
+Second, the state-versus-federal comparison does **not** run one way. State money is
+slightly *more* concentrated in Washington (43.8% vs 42.4%) and Idaho (39.3% vs 35.8%),
+but *less* so in New York (48.5% vs 51.2%) — even though state contributions are capped
+far lower than federal ones in all three. Whatever caps do, they do not produce a
+consistent ordering between the two layers. Appendix G takes that up directly.
+
+A geographic corollary everywhere — and the sharpest panel difference in the paper.
+In WA, **63.4%** of federal matched-donor dollars come from two Seattle-metro ZIP3s
+(981xx 37.3% + 980xx 26.1%); the state panel is broader at 55.1% (32.3% + 22.8%).
+
+New York is the extreme case. **Manhattan (New York County) supplies 50.3%** of the
+state's *federal* matched-donor dollars — top three ZIP3s **63.4%** — but only **20.6%**
+of its *state* dollars, where the leaders are suburban **Nassau (15.1%)** and **Suffolk
+(11.1%)** and the top three ZIP3s take just **38.1%**. New York's federal money is a
+Manhattan phenomenon; its state money is a Long Island one. Any account of "the New York
+donor class" that rests on the federal file alone is describing one island.
+
+Idaho shows single-metro dominance from a state with no large city: **Ada County (Boise)
 supplies 49.2%** of state matched-donor dollars from 10,037 donors, and 36.4% of federal
-dollars from 10,338 — the money mirror of Seattle and Manhattan. Idaho's federal money is
-the one case where a second center appears: resort-county **Blaine (Sun Valley) supplies
-11.7%** of federal dollars from 1,097 donors — 4.0% of Idaho's federal donors carrying
-nearly three times their weight in dollars.
+dollars from 10,338. Idaho's federal money is the one case where a second center appears:
+resort-county **Blaine (Sun Valley) supplies 11.7%** of federal dollars from 1,097
+donors — 4.0% of Idaho's federal donors carrying nearly three times their weight.
 
 (Idaho is the least concentrated of the three in both panels, and its statutory
 per-election caps do visibly bind — 6,797 itemized state gifts land on exactly $1,000,
@@ -257,24 +280,32 @@ metro.
 
 This is the cut Washington cannot supply. Using each donor's **own** NY party
 enrollment (100% present), the donor class over-represents registered Democrats
-and **nearly excludes the unaffiliated**:
+and **nearly excludes the unaffiliated** — in both money systems:
 
-| party | matched donors | donor share | registration | **skew** | matched $ | $ share |
-|---|--:|--:|--:|--:|--:|--:|
-| DEM | 193,355 | 62.8% | 47.8% | **+15.0** | $849.2M | 71.0% |
-| REP | 65,898 | 21.4% | 22.3% | −0.9 | $197.2M | 16.5% |
-| NOPARTY (blank) | 38,601 | 12.5% | 25.5% | **−13.0** | $126.8M | 10.6% |
-| OTHER (minor) | 10,178 | 3.3% | 4.4% | −1.1 | $22.8M | 1.9% |
+| party | registration | federal donor share | **skew** | federal $ share | state donor share | **skew** | state $ share |
+|---|--:|--:|--:|--:|--:|--:|--:|
+| DEM | 47.8% | 62.8% | **+15.0** | 71.0% | 56.7% | **+8.9** | 55.0% |
+| REP | 22.3% | 21.4% | −0.9 | 16.5% | 25.4% | +3.2 | 27.3% |
+| NOPARTY (blank) | 25.5% | 12.5% | **−13.0** | 10.6% | 13.5% | **−12.0** | 14.1% |
+| OTHER (minor) | 4.5% | 3.3% | −1.2 | 1.9% | 4.4% | −0.1 | 3.6% |
 
-Registered Democrats are +15 points over their share of the roll and supply
-**71% of matched dollars**; Republicans give roughly in proportion; and NY's
-"blank" (no-party) enrollees — **a quarter of all registrants** — are only an
-eighth of donors. The donor class is not a scaled-down electorate but a
-partisan-skewed slice that runs *against* the largest non-partisan bloc.
+Registered Democrats are +15 points over their share of the roll in federal money and
+supply **71% of federal matched dollars**; Republicans give roughly in proportion. The
+constant across both panels is the **exclusion of the unaffiliated**: NY's "blank"
+enrollees are a quarter of all registrants and only an eighth of federal donors, barely
+better at a seventh of state donors.
 
-**Where the money goes — crossover.** After resolving recipient party for 79% of
-contributions via the bulk FEC committee + candidate masters
-(`backfill_ny_committee_party.py`):
+The Democratic tilt itself is substantially a *federal* phenomenon. It halves in state
+money (+15.0 → +8.9), where Republicans move from slightly under-represented to slightly
+over (−0.9 → +3.2). New York's donor class leans Democratic most sharply where the money
+is nationalized; its state-level donor pool is closer to — though still not — the
+electorate. The unaffiliated bloc is shut out either way.
+
+**Where the money goes — crossover.** Reported on the **federal** panel only, after
+resolving recipient party for 79% of contributions via the bulk FEC committee + candidate
+masters (`backfill_ny_committee_party.py`). New York's *state* panel resolves just
+**25.9%** — NYSBOE carries no party on the filer and no roster backfill has been built for
+it — which is too thin to report a crossover rate from, so none is given here:
 
 | own party | donors (resolved) | → Democratic | → Republican | mixed |
 |---|--:|--:|--:|--:|
@@ -373,11 +404,14 @@ overwhelmingly in the seats that are not in doubt.
 ## Finding 4 — Financial voice and electoral voice stack on the same people
 
 In both states, the people who give are the people who reliably vote, and it holds in
-both money systems. In Washington, federal matched donors are **85.4% super-voters
-versus 51.4%** of non-donors (mean turnout propensity 0.966 vs 0.754); the state panel
-is nearly identical at **84.9% versus 50.8%** (0.950 vs 0.751). In New York, matched
+both money systems — this is the finding least sensitive to the panel split. In
+Washington, federal matched donors are **85.4% super-voters versus 51.4%** of non-donors
+(mean turnout propensity 0.966 vs 0.754); the state panel is nearly identical at
+**84.9% versus 50.8%** (0.950 vs 0.751). In New York, federal matched
 donors voted in **3.03 of the last four federal generals on average versus 1.78** for
-non-donors, and **73.0% are super-voters (≥3 of 4) versus 37.1%**. The same individuals
+non-donors, and **73.0% are super-voters (≥3 of 4) versus 37.1%**; the state panel lands
+within a tenth of a point of that on every measure (3.02 vs 1.77; **73.1% versus 36.8%**),
+despite drawing on 116,000 more people. The same individuals
 concentrate *both* forms of influence rather than one offsetting the other. (Association
 only — donors are pre-selected for engagement, so reverse causation is equally
 plausible; the benign "donating as a gateway to participation" reading is fully live,
@@ -559,8 +593,18 @@ testing. It is retained here as an objection because it is the intuitive reading
   donor total while a one-system donor's does not, which mechanically raises measured
   concentration — Washington reads top-1% 46.6% pooled against 42.4% federal and 43.8%
   state. It also matters conceptually, since the two systems are capped and administered
-  differently (Appendix G). New York has a federal panel only: its Board of Elections
-  publishes state money in summary form, not as itemized contributions.
+  differently (Appendix G).
+- **The New York state panel.** NYSBOE publishes contributions as a transaction-level
+  feed (data.ny.gov `4j2b-6a2j`, 12.6M rows back to 1999) carrying contributor last name,
+  first name, and ZIP — everything the match key needs. Earlier drafts reported that New
+  York had no state panel; that was a tooling gap, not a data gap. The repo's NY adapter
+  read the same feed but kept only roll-up columns for `candidate_finance` and discarded
+  contributor identity. `scripts/load_ny_contributions.py` now loads the per-contribution
+  rows. Scope: individual contributors (`CNTRBR_TYPE_DESC = 'Individual'`) on Schedule A
+  (monetary receipts, the direct analog of the FEC itemized individual file), cycles
+  2018–2026 to align with the WA PDC window — 3,954,090 contributions totalling $880.3M,
+  of which $379.5M matches to a registered New York voter. Out-of-state donors are
+  retained, as they are in the WA and ID state panels; the voter-roll join drops them.
 - **The match key and its uniqueness rule.** Matching proceeds in tiers, the first being
   `STRICT_ZIP5_FULL` — (last name, **full** first name, ZIP5) — followed by
   first-initial variants. Every tier carries the same guard: the key must resolve to
@@ -698,18 +742,22 @@ committees, and PACs (`cross-state-fec-money.md` §I).
 |---|---|--:|---|
 | WA federal | ZIP3 981xx (Seattle) | 37.3% | 980xx 26.1% → two ZIP3s = **63.4%** |
 | WA state | ZIP3 981xx (Seattle) | 32.3% | 980xx 22.8% → two ZIP3s = **55.1%** |
-| NY federal | New York County (Manhattan) | 50.3% | Westchester 12.4%, Kings 6.6%; ZIP3 100 = 46.3%, top-3 ZIP3 = **63.4%** |
+| NY federal | New York County (Manhattan) | 50.3% | Westchester 12.4%, Kings 6.6%; top-3 ZIP3 = **63.4%** |
+| NY state | New York County (Manhattan) | 20.6% | Nassau 15.1%, Suffolk 11.1%; top-3 ZIP3 = **38.1%** |
 | ID federal | Ada County (Boise), 10,338 donors | 36.4% | Blaine 11.7%, Bonneville 11.2% |
 | ID state | Ada County (Boise), 10,037 donors | 49.2% | Kootenai 9.0%, Canyon 5.5% |
 
-The two panels do not order the same way here, and the difference is instructive.
-Washington's federal money is the *more* metro-concentrated of its two (top-two ZIP3s
-63.4% federal vs 55.1% state): state races run in all 49 legislative districts, so state
-money is raised everywhere, while federal money pools in Seattle. Idaho inverts it — Ada
-County's grip *loosens* from 49.2% of state dollars to 36.4% of federal — not because
-federal money is broadly spread, but because it relocates to wealthy enclaves outside the
-capital, above all resort-county Blaine at 11.7% from 1,097 donors. Concentration is the
-constant; which geography does the concentrating depends on the money system.
+Two of the three states put federal money in a tighter geographic box than state money,
+and in New York the gap is enormous — Manhattan's share of matched dollars falls by
+**30 points**, from half of the federal layer to a fifth of the state one, with suburban
+Nassau and Suffolk taking its place. The mechanism is plausible and the same in
+Washington: state legislative races are contested in every district, so state money is
+raised everywhere, while federal money pools where national donors live. Idaho inverts
+it — Ada County's grip *loosens* from 49.2% of state dollars to 36.4% of federal — not
+because Idaho's federal money is broadly spread, but because it relocates to wealthy
+enclaves outside the capital, above all resort-county Blaine at 11.7% from 1,097 donors.
+Concentration is the constant; which geography does the concentrating depends on the
+money system.
 
 **Donor pool versus registration, by district competitiveness (NY).** The Democratic
 share of the donor pool exceeds the Democratic share of registrants in every band, and
@@ -733,11 +781,14 @@ competitive districts carry a far more balanced mix (~46% R / ~34% D)
 | WA mean turnout propensity, federal panel | 0.966 | 0.754 |
 | WA super-voter share, state panel | 84.9% | 50.8% |
 | WA mean turnout propensity, state panel | 0.950 | 0.751 |
-| NY generals voted, of last 4 | 3.03 | 1.78 |
-| NY super-voter share (≥3 of 4) | 73.0% | 37.1% |
+| NY generals voted, of last 4, federal panel | 3.03 | 1.78 |
+| NY super-voter share (≥3 of 4), federal panel | 73.0% | 37.1% |
+| NY generals voted, of last 4, state panel | 3.02 | 1.77 |
+| NY super-voter share (≥3 of 4), state panel | 73.1% | 36.8% |
 
 The give↔vote overlap is the finding least sensitive to which money system is examined:
-Washington's two panels differ by half a point.
+Washington's two panels differ by half a point, and New York's by a tenth of one — even
+though New York's state panel draws on 116,000 more people than its federal panel.
 
 ## Appendix F — Match validation and robustness
 
@@ -910,11 +961,13 @@ python scripts/match_wa_voters_to_donors.py --source fec
 python scripts/match_wa_voters_to_donors.py --source state
 python scripts/diag_wa_individual_findings.py
 
-# New York (federal only — NY publishes no itemized state contributions):
+# New York — both panels:
 python scripts/load_ny_voters.py                 # NYSVOTER FOIL -> ny_vrdb.duckdb
 python scripts/diag_ny_turnout_party.py --rebuild # voter_participation table
 python scripts/backfill_ny_committee_party.py     # bulk FEC committee/candidate party -> 79%
-STATE=NY python scripts/match_ny_voters_to_donors.py    # match + own-party/age/crossover
+python scripts/load_ny_contributions.py           # NYSBOE per-contribution rows (state layer)
+STATE=NY python scripts/match_ny_voters_to_donors.py --source fec
+STATE=NY python scripts/match_ny_voters_to_donors.py --source state
 STATE=NY python scripts/diag_ny_match_bias.py           # age-skew validation
 STATE=NY python scripts/diag_ny_primary_participation.py
 STATE=NY python scripts/diag_ny_donor_extras.py         # geography, giving<->turnout, in/out-of-state x party
