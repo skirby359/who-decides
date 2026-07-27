@@ -171,7 +171,9 @@ def load_year(con, year: int) -> tuple[list[dict], list[str]]:
             "year": year, "chamber": chamber, "district": dist, "position": pos,
             "ncand": len(cands), "winner_party": cands[0][1], "winner": cands[0][0],
             "top1": top1, "runner": runner,
-            "cand_margin": None if margin is None else round(margin, 2),
+            # Full precision: rounding here and banding pre-rounding disagreed on a seat
+            # sitting at 9.995, which made the threshold table contradict the headline.
+            "cand_margin": margin,
             "cand_band": band(margin),
             "availability": availability(parties),
             "d_votes": d, "r_votes": r,
@@ -253,6 +255,24 @@ def main(argv=None) -> int:
         print(f"    {x['chamber']}{x['district']}"
               f"{'-' + str(x['position']) if x['position'] else '':<4} "
               f"{x['availability']:<7} margin {x['cand_margin']:.1f}  ({x['winner']})")
+
+    print("\n" + "=" * 88)
+    print("THRESHOLD SENSITIVITY — 'not close' share by margin cutoff")
+    print("=" * 88)
+    print("  Same code path as the headline, so the >=10 column reproduces Dimension 1")
+    print("  exactly. A seat with a single candidate is not close at every cutoff.")
+    cuts = [5, 8, 10, 12, 15]
+    print(f"\n  {'scope':<22}" + "".join(f"{'>=' + str(k) + 'pt':>9}" for k in cuts) + f"{'seats':>8}")
+    for label, sel in (("WA all seats 2024", lambda x: x["year"] == 2024),
+                       ("WA House 2024", lambda x: x["year"] == 2024 and x["chamber"] == "HSE")):
+        sub = [x for x in allrows if sel(x)]
+        cells = []
+        for k in cuts:
+            v = sum(1 for x in sub
+                    if x["ncand"] <= 1 or (x["cand_margin"] is not None and x["cand_margin"] >= k))
+            cells.append(100.0 * v / len(sub))
+        print(f"  {label:<22}" + "".join(f"{v:>8.1f}%" for v in cells) + f"{len(sub):>8}")
+    print("\n  There is no threshold at which the chamber looks competitive.")
 
     print("\n" + "=" * 88)
     print("SENSITIVITY — does the party-string rule change the answer?")

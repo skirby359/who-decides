@@ -46,7 +46,7 @@ points. Across five cycles the not-close share runs 79–88% and the no-major-ch
 27–49%. The pattern is not confined to Washington: in the lower chambers of three
 comparison states, 89–94% of seats were not close. Safe seats are bipartisan, splitting 68
 Democratic to 43 Republican in Washington in 2024. The results are insensitive to the
-competitiveness threshold, holding between 79% and 98% across cuts from 5 to 15 points.
+competitiveness threshold, holding between 74% and 98% across cuts from 15 points to 5.
 The paper counts contests and margins; it does not establish when the binding choice
 occurred, and makes no claim about which party benefits.
 
@@ -208,10 +208,12 @@ rather than assumed.
 - **Defensible claim.** Foreclosure is **not a Washington peculiarity** — in every state
   examined, **88–94% of lower-chamber seats were not close**, blue and red alike, and
   **more than a quarter offered no D-vs-R option.**
-- **New York is one seat short.** The Assembly has 150 districts and 149 are loaded; the
-  missing district has not been identified and its classification is unknown. At this
-  chamber size it cannot move the percentage by more than a point, but "complete" would be
-  the wrong word and is not used.
+- **New York is one seat short, and it is Assembly District 23.** The Assembly has 150
+  districts; 149 carry a race in the loaded returns and **AD-23 carries none**. Its
+  classification is therefore unknown, and the effect is bounded: if AD-23 was close the
+  chamber reads **88.0%** not close, if it was not close, **88.7%**. The true figure lies
+  in that range whichever way it resolves, so the finding does not turn on it — but
+  "complete" would be the wrong word and is not used.
 - **Texas is 64% loaded before backfill,** and its figures depend on that backfill
   (Appendix F). The Texas party split is **imputed, not observed** — see below.
 - Most recent loaded general: WA/TX/ID 2024, NY 2022.
@@ -226,13 +228,27 @@ legislative and congressional seats are not close, and a third of the ballot off
 choice between the parties.
 
 Where a general election is not close, attention naturally turns to the August top-two
-primary as the round where the outcome is effectively determined. This paper does not
-establish that. Observed November margins can show that a race was not close; they cannot
-by themselves show *when* the binding choice was made, or that a primary presented a
-meaningful alternative. Establishing that would require tracing each seat through its
-primary — whether it was contested, whether the eventual winner faced a credible
-same-party rival, and whether the general's finalists were themselves closely matched.
-That is the obvious sequel and is not attempted here.
+primary as the round where the outcome is effectively determined. **The primary is much
+the smaller round.** Matching every seat to its own August primary on the corrected
+universe, the median primary race drew this share of the votes cast in the same seat's
+general:
+
+| 2016 | 2018 | 2020 | 2022 | 2024 |
+|--:|--:|--:|--:|--:|
+| 42.1% | 55.9% | 61.6% | 61.2% | **51.2%** |
+
+Read this as a ratio of **votes cast in a contest**, not of distinct voters: roll-off and
+undervoting mean a race's vote total is not a headcount of participants. So in 2024 the
+median legislative or congressional primary recorded about half as many votes as the
+November contest for the same seat.
+
+That the primary is smaller does not establish that it is where the decision was made.
+Observed November margins can show a race was not close; they cannot show *when* the
+binding choice occurred, or that a primary presented a meaningful alternative.
+Establishing that would require tracing each seat through its primary — whether it was
+contested, whether the eventual winner faced a credible same-party rival, and whether the
+general's finalists were themselves closely matched. That is the obvious sequel and is not
+attempted here.
 
 What the evidence does support is narrower and still substantial: **a large share of
 Washington's legislative representation is settled in November by margins wide enough that
@@ -257,10 +273,13 @@ choice is a question these findings motivate, not one they answer.
   gerrymandering. An earlier version claimed to make "no partisan-consequence claim" while
   analysing exactly that — the contradiction is resolved by scoping the claim rather than
   denying the analysis.
-- **The Texas party split is imputed.** Holding party for the 54 backfilled seats comes
-  from presidential lean, so those D/R counts are not observed, and any comparison between
-  them and presidential vote is partly circular. Appendix F says so.
-- **New York is a cycle behind** (2022) and one seat short of its chamber.
+- **The Texas party split should not be relied on.** Holding party for the 54 backfilled
+  seats is imputed from presidential lean, and where the press-confirmed subset allows a
+  check it is **wrong in 4 of 14 cases** — Rio Grande Valley seats held unopposed by
+  Democrats that Trump carried. The non-competitive count is unaffected; the 51 D / 90 R
+  split is not dependable. Appendix F quantifies this.
+- **New York is a cycle behind** (2022) and missing Assembly District 23, which bounds its
+  figure to 88.0–88.7%.
 - **Margins are between candidates, not parties**, in Dimension 1. Third-party votes count
   toward the margin when a minor-party candidate is one of the top two.
 - **Primary participation is measured in race votes, not voters** — see Appendix C.
@@ -350,8 +369,10 @@ why, rather than quietly restating.
   same-district August primary, and the reported figure is the **median ratio of primary
   race votes to general race votes** — a comparison of votes cast in a contest, *not* of
   distinct voters. Roll-off and undervoting affect race totals, so the two are not
-  interchangeable. **This figure has not yet been recomputed on the corrected seat
-  universe and is therefore not quoted as a headline in this revision.**
+  interchangeable. Recomputed on the corrected universe (all five cycles, every seat
+  matched): 42.1 / 55.9 / 61.6 / 61.2 / 51.2% for 2016–2024. The 2024 and 2022 figures
+  are within a point of the previously published ~51% and ~62%, so the correction to the
+  seat universe did not move this measure.
 - **Reproduction.** `scripts/diag_seat_competition.py` builds the classification and writes
   `reports/seat_competition.csv` (one row per seat, both dimensions). Supporting scripts:
   `diag_safe_seat_states.py` (four-state), `diag_tx_safe_seat_backfill.py` (Appendix F),
@@ -393,26 +414,29 @@ why, rather than quietly restating.
 
 ## Appendix E — Robustness, and exploratory cuts
 
-**Threshold sensitivity.** The not-close share across margin cutoffs
-(`scripts/diag_safe_seat_robustness.py`, lower chambers):
+**Threshold sensitivity.** The not-close share across margin cutoffs. The Washington rows
+come from `scripts/diag_seat_competition.py` on the corrected universe, using the same
+code path as the headline, so the ≥10 column reproduces Dimension 1 exactly; the other
+chambers come from `scripts/diag_safe_seat_robustness.py`.
 
-| lower chamber | ≥5pt | ≥8pt | ≥10pt | ≥12pt | ≥15pt |
-|---|--:|--:|--:|--:|--:|
-| WA House | 95.9% | 91.8% | 88.8% | 80.6% | 78.6% |
-| NY Assembly | 94.6% | 92.6% | 88.6% | 85.9% | 82.6% |
-| TX House | 98.0% | 96.0% | 94.0% | 91.3% | 86.0% |
-| ID House | 95.7% | 92.9% | 92.9% | 91.4% | 90.0% |
+| scope | ≥5pt | ≥8pt | ≥10pt | ≥12pt | ≥15pt | seats |
+|---|--:|--:|--:|--:|--:|--:|
+| WA all seats | 92.5% | 88.0% | **83.5%** | 77.4% | 73.7% | 133 |
+| WA House | 95.9% | 91.8% | **87.8%** | 80.6% | 76.5% | 98 |
+| NY Assembly | 94.6% | 92.6% | 88.6% | 85.2% | 82.6% | 149 |
+| TX House | 98.0% | 96.0% | 94.0% | 91.3% | 86.0% | 150 |
+| ID House | 95.7% | 92.9% | 92.9% | 91.4% | 90.0% | 70 |
 
-There is no threshold at which these chambers look competitive. *(These figures were
-computed on the prior classification and are being recomputed on the corrected universe;
-the WA row will shift by roughly a point.)*
+Even at a stringent 15-point cut, **74–90%** of seats are not close; at a loose 5-point
+cut, 93–98%. There is no threshold at which these chambers look competitive.
 
 **The contest gap.** Comparing each chamber's actual not-close share with the share of its
-districts that are ≥10-point safe by 2024 presidential lean:
+districts that are ≥10-point safe by 2024 presidential lean. The Washington figure uses
+the corrected House number:
 
 | | actual | presidential-lean safe | gap |
 |---|--:|--:|--:|
-| WA House | 88.8% | 79.6% | **+9.2 pp** |
+| WA House | 87.8% | 79.6% | **+8.2 pp** |
 | TX House | 94.0% | 84.0% | **+10.0 pp** |
 | ID House | 92.9% | 94.3% | −1.4 pp |
 
@@ -461,19 +485,32 @@ with holding party assigned from each district's 2024 presidential lean using th
 TLC r206 report (`planh2316_r206_election24g.xls`). Script:
 `scripts/diag_tx_safe_seat_backfill.py`. The results database was not mutated.
 
-**Two limits, stated plainly.**
+**District-level verification.** `scripts/diag_tx_backfill_verification.py` emits one row
+per backfilled district to `reports/tx_backfill_verification.csv`, with two tiers:
 
-1. **Verification is partial.** The missing set was cross-checked against press-reported
-   2024 unopposed races — HD 35, 36, 38, 40, 42, 49, 51, 75, 78, 79, 90, 92, 95 (D) and 81
-   (R) among others — and each falls in the absent set. That demonstrates *some* of the 54
-   were uncontested; it does not verify all 54 individually. A district-level table giving
-   certified candidates, party, and source for each of the 54 is required before
-   publication, along with a specific citation for the press-reported list.
-2. **The party split is imputed and partly circular.** Holding party comes from presidential
-   lean, so the Texas D/R counts are **imputed, not observed** — and any comparison between
-   those counts and presidential vote (Appendix E) uses presidential lean on both sides.
-   Party should be taken from certified candidate or incumbent records before the Texas
-   seat/vote figure is relied on.
+| tier | districts | basis |
+|---|--:|---|
+| **Press-confirmed unopposed** | **14** | HD 35, 36, 38, 40, 42, 49, 51, 75, 78, 79, 90, 92, 95 and 81 appear on press-reported lists of 2024 races with no major-party opponent — evidence independent of this pipeline |
+| **Inferred from absence** | **40** | no VTD return published; the TLC omits uncontested races, so absence is evidence of non-contestation, but it is *our* pipeline's evidence, not an outside source's |
+
+Only ten of the 54 sit in presidentially competitive districts (<10 points), where an
+uncontested race is most surprising: HD 35, 36, 38, 40, 42, 75, 78 (all press-confirmed)
+and HD 133, 135, 144 (inferred). Those three are the rows most worth manual confirmation.
+
+**The imputed party split is unreliable, and now measurably so.** Holding party for the 54
+comes from presidential lean. Where the press-confirmed subset lets that imputation be
+checked, **it is wrong in 4 of 14 cases** — HD 35, 36, 40 and 42 were held unopposed by
+Democrats while Trump carried each in 2024. These are Rio Grande Valley districts, where
+the 2024 presidential shift ran far ahead of legislative incumbency, and presidential lean
+is exactly the wrong proxy. A 29% error rate on the checkable subset means the reported
+Texas split of **51 D / 90 R should not be relied on**; it is imputed, demonstrably
+inaccurate where testable, and any comparison against presidential vote is circular
+besides. The **non-competitive count is unaffected** — it depends only on the seats being
+uncontested, not on who held them.
+
+**Still outstanding.** A certified Texas candidate-filing list is needed to verify the 40
+inferred districts individually and to replace imputed party with observed. That source is
+not on disk. The press-reported list also needs a specific citation.
 
 **What it changes.** With the backfill Texas reads 150 seats, 94.0% not close, 61 with no
 major-party opponent. Without it, on the 96 contested-skewed districts, Texas reads 90.6%
@@ -538,7 +575,9 @@ python scripts/diag_seat_competition.py        # writes reports/seat_competition
 
 # Four-state lower-chamber count and the Texas completion:
 python scripts/diag_safe_seat_states.py
-python scripts/diag_tx_safe_seat_backfill.py   # Appendix F
+python scripts/diag_tx_safe_seat_backfill.py       # Appendix F
+python scripts/diag_tx_backfill_verification.py    # Appendix F district-level audit
+                                                   # -> reports/tx_backfill_verification.csv
 
 # Robustness and the exploratory cuts:
 python scripts/diag_safe_seat_robustness.py    # Appendix E thresholds + contest gap

@@ -325,8 +325,29 @@ python scripts/diag_seat_competition.py    # exit 0 == all cycles reconcile to 9
 > signature" (now descriptive, consistent with several mechanisms). The forecast comparison
 > is relabelled a loose aggregate consistency check, not a validation.
 >
-> **Still open before publication:** Appendix E's threshold and contest-gap tables are on
-> the prior classification and need recomputation; the 54 Texas backfilled seats need a
-> district-level verification table; NY's missing 150th Assembly district is unidentified;
-> the primary/general ratio needs recomputation on the corrected universe.
-
+> **The four items above were closed 2026-07-27.** Appendix E recomputed (WA rows now share
+> the headline code path; contest gap +8.2pp). NY's missing seat identified as **AD-23**,
+> effect bounded to 88.0-88.7%. Primary/general ratio recomputed: 51.2% (2024) / 61.2%
+> (2022), confirming the published figures. Texas district-level audit built
+> (`diag_tx_backfill_verification.py`).
+>
+> | # | Claim | Expected |
+> |---|---|---|
+> | 64 | Threshold table, WA all seats 2024 | 92.5 / 88.0 / 83.5 / 77.4 / 73.7% at >=5/8/10/12/15pt |
+> | 65 | Threshold table, WA House 2024 | 95.9 / 91.8 / 87.8 / 80.6 / 76.5% |
+> | 66 | Contest gap | WA +8.2pp (87.8 vs 79.6); TX +10.0; ID -1.4 |
+> | 67 | NY missing seat | Assembly District 23; bound 88.0-88.7% |
+> | 68 | Primary/general median ratio | 42.1 / 55.9 / 61.6 / 61.2 / 51.2% (2016-2024) |
+> | 69 | TX backfill verification tiers | 14 press-confirmed / 40 inferred from absence |
+> | 70 | TX imputed party ERROR RATE | wrong in **4 of 14** checkable (HD 35/36/40/42) |
+>
+> **Claim 70 is the consequential one.** Presidential lean imputes the holding party for
+> the 54 backfilled Texas seats, and where the press-confirmed subset lets that be checked
+> it fails 29% of the time — Rio Grande Valley districts held unopposed by Democrats that
+> Trump carried in 2024. The Texas **51 D / 90 R split must not be quoted**. The
+> non-competitive count (94.0%) is unaffected: it needs only that the seats were
+> uncontested, not who held them.
+>
+> **Still genuinely open:** a certified TX candidate-filing list, to verify the 40 inferred
+> districts individually and replace imputed party with observed; and a specific citation
+> for the press-reported unopposed list.

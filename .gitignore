@@ -1,6 +1,11 @@
 data/
 reports/*
 !reports/.gitkeep
+# Exception: a verification artifact a paper cites by name should ship with the paper.
+# This is the district-level audit of the 54 backfilled Texas House seats referenced in
+# safe-seat-washington.md Appendix F. Derived entirely from published election returns
+# (district numbers, presidential vote totals, classification) — no PII.
+!reports/tx_backfill_verification.csv
 __pycache__/
 *.pyc
 .env

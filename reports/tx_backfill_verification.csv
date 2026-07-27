@@ -1,0 +1,55 @@
+district,verification,press_reported_party,pres_2024_D,pres_2024_R,pres_margin_D_minus_R,imputed_holding_party,party_source,classification,reason_absent
+1,inferred from absence,,18182,64633,-56.1,R,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+3,inferred from absence,,23707,76758,-52.8,R,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+9,inferred from absence,,18374,69877,-58.4,R,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+11,inferred from absence,,17205,62204,-56.7,R,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+15,inferred from absence,,35116,61581,-27.4,R,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+21,inferred from absence,,17224,66191,-58.7,R,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+22,inferred from absence,,30272,23758,12.1,D,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+24,inferred from absence,,31995,67439,-35.6,R,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+31,inferred from absence,,21966,47876,-37.1,R,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+33,inferred from absence,,35237,60881,-26.7,R,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+35,press-confirmed,D,17276,19851,-6.9,R,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+36,press-confirmed,D,20539,23052,-5.8,R,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+38,press-confirmed,D,23323,22997,0.7,D,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+40,press-confirmed,D,23250,23270,-0.0,R,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+42,press-confirmed,D,24758,25006,-0.5,R,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+49,press-confirmed,D,81753,19183,62.0,D,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+50,inferred from absence,,47608,16359,48.9,D,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+51,press-confirmed,D,51747,15328,54.3,D,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+60,inferred from absence,,17399,89629,-67.5,R,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+72,inferred from absence,,14883,53936,-56.7,R,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+75,press-confirmed,D,27407,24924,4.7,D,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+77,inferred from absence,,32703,16937,31.8,D,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+78,press-confirmed,D,38960,32396,9.2,D,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+79,press-confirmed,D,36874,24898,19.4,D,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+81,press-confirmed,R,10820,37314,-55.0,R,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+83,inferred from absence,,17864,65070,-56.9,R,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+85,inferred from absence,,27523,67905,-42.3,R,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+86,inferred from absence,,14788,63722,-62.3,R,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+88,inferred from absence,,8959,52915,-71.0,R,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+90,press-confirmed,D,29961,17123,27.3,D,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+91,inferred from absence,,28795,45136,-22.1,R,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+92,press-confirmed,D,29313,21443,15.5,D,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+95,press-confirmed,D,38783,15873,41.9,D,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+100,inferred from absence,,31544,9050,55.4,D,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+102,inferred from absence,,29989,19839,20.4,D,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+103,inferred from absence,,34883,16805,35.0,D,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+104,inferred from absence,,27612,16393,25.5,D,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+107,inferred from absence,,24316,16647,18.7,D,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+109,inferred from absence,,51734,16082,52.6,D,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+110,inferred from absence,,28130,7797,56.6,D,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+111,inferred from absence,,48286,15447,51.5,D,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+120,inferred from absence,,36669,21482,26.1,D,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+123,inferred from absence,,42664,24477,27.1,D,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+125,inferred from absence,,44936,33157,15.1,D,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+131,inferred from absence,,33982,11732,48.7,D,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+133,inferred from absence,,35523,41018,-7.2,R,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+135,inferred from absence,,34545,29444,8.0,D,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+139,inferred from absence,,41960,18545,38.7,D,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+140,inferred from absence,,17762,12554,17.2,D,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+141,inferred from absence,,29579,9583,51.1,D,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+142,inferred from absence,,36708,16425,38.2,D,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+143,inferred from absence,,21747,16443,13.9,D,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+144,inferred from absence,,20063,21279,-2.9,R,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
+145,inferred from absence,,40418,20209,33.3,D,IMPUTED from presidential lean (not observed),no major-party choice,no VTD return published; TLC omits uncontested races
