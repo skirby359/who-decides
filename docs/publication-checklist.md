@@ -257,3 +257,35 @@ Two flagged items need a human glance before posting:
   the specific NY Election Law provision governing voter-list release was not verified, so
   Appendix B cites only FOIL plus the Board's elections-purpose certification.
 
+
+---
+
+**"Does Money Move Votes in Washington?" (`does-money-move-votes.md`, drafted 2026-07-26)**
+
+No dedicated verifier: this paper reports a *null* and a *data ceiling*, so the thing to
+re-derive is that the tests come back empty and that the IE script still refuses to
+infer. Run the three diagnostics and check the numbers below.
+
+```bash
+python scripts/diag_overperformance_patterns.py   # Finding 1
+python scripts/diag_expenditures_vs_residual.py   # Finding 2a
+python scripts/diag_ie_vs_margin.py               # Findings 2c + 3
+```
+
+| # | Claim | Expected |
+|---|---|---|
+| 48 | Fundraising is the strongest correlate of overperformance | r = +0.55 (incumbency +0.43, quality +0.34, local trend +0.32) |
+| 49 | Monotonic by funding side | D out-raised +4.20 / even +2.37 / R out-raised -1.93 |
+| 50 | Allocation shares carry no signal | field +0.02, media +0.05, professional -0.03; total spend +0.26 (scale, not mix) |
+| 51 | Cross-cycle holdout (fit 2022 -> predict 2024) | core 0.000 / +field 0.006 / +all shares 0.018 / shares alone 0.041 (r=-0.20, wrong-signed); in-sample 0.049 -> 0.144 = overfit |
+| 52 | IE cross-section runs negative | slope -0.39 pp per $1M net pro-D IE, Pearson r = -0.39, n = 7 |
+| 53 | WA-03 2024, the saturation case | $40.08M total IE, +$16.18M net pro-D, residual +0.06 pp |
+| 54 | The data ceiling | directional IE = FEC Schedule-E 2024 only, 7 scorable WA races; PDC's $70.6M legislative IE has a NULL support/oppose flag |
+| 55 | Party attribution is complete | $0.00M of $53.94M unresolvable, so the negative slope is not a coding artifact |
+
+> The IE script **withholds inference below 10 scorable races** and prints its data-ceiling
+> notice instead. That behavior is deliberate — at n=7 the sign flips on one race. If a
+> Schedule-E backfill (2018/2020/2022) later lifts n past the threshold, the script will
+> start reporting a slope; treat that as a NEW result requiring its own review, not as
+> confirmation of the descriptive number above.
+

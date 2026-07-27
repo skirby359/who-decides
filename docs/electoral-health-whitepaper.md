@@ -403,9 +403,13 @@ signal. Accuracy-weighted failure signal across all findings = **22/100**.*
    [`cross-state-fec-money.md`](cross-state-fec-money.md) (§F donor-class + matcher-bias
    correction; §A/E whale-vs-small-dollar + concentration). Conduit/earmark attribution
    verified (§E).
-4. **Methods/curiosity piece:** Finding 6 — "Does Money Move Votes in Washington?" —
-   **analysis executed** (`diag_ie_vs_margin.py`; see Finding 6 above). The story is the
-   honest near-null *and* the data ceiling: directional IE is one cycle deep, so the
-   verdict stays "cannot confirm or refute." Prose write-up still to assemble.
+4. **Methods/curiosity piece:** Finding 6 — **DRAFTED** as
+   [`does-money-move-votes.md`](does-money-move-votes.md) (2026-07-26). The story is the
+   honest near-null *and* the data ceiling: money is the strongest single correlate of
+   overperformance (+0.55) yet leaves no causal fingerprint — allocation holdout R² ≈ 0,
+   the forecast model discards the term against a known baseline, and the directional IE
+   cross-section runs *negative* (n=7). Directional IE is one cycle deep and the $70.6M of
+   PDC legislative IE has no support/oppose flag, so the verdict stays "cannot confirm or
+   refute," and the data ceiling is the citable result.
 5. **Party-of-record boundary questions — DONE** (NY + ID voter files loaded); the
    longitudinal/causal version of Finding 4 remains for a future extension.
