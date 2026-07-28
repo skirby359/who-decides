@@ -1,0 +1,257 @@
+"""Stratified, blinded match-precision validation sampler (2026-07-27).
+
+Replaces the 2026-07-10 sampler for the donor-class paper's precision gate. The external
+review found four defects in that pass, and this fixes all four:
+
+  1. It sampled the POOLED `voter_donor_affiliation` table, not either paper panel, and
+     only Washington. -> This samples all six panels (3 states x federal/state).
+  2. It sampled UNSTRATIFIED, so the weak tiers got 3-4 records and per-tier precision
+     was unestimable. -> This stratifies on tier and allocates equally, oversampling the
+     weak tiers relative to their population share, then reweights when reporting.
+  3. It was not blinded. -> The evidence file the rater reads carries NO stratum labels
+     (no state, no panel, no tier, no dollar decile) and rows are shuffled; labels live
+     in a separate key file joined only after verdicts are recorded.
+  4. Its verdicts were never persisted. -> The evidence file has a `verdict` column, and
+     `score_match_validation.py` refuses to score until it is filled.
+
+DOLLAR DECILE. Errors in the top dollar decile matter most (they drive the concentration
+finding), so within each tier x panel cell half the sample is drawn from the top decile
+and half from the rest, and the scorer reports precision for both bands.
+
+WHAT BLINDING CAN AND CANNOT ACHIEVE HERE. The rater sees no stratum label and cannot
+tell which cell a row came from, so no per-cell standard can be applied and there is no
+batch/priming effect. The rater CAN partly infer the tier from the evidence itself (if
+the donor's full first name equals the voter's, the row is probably the full-name tier),
+because the tier IS a fact about how the two names relate. That is unavoidable without
+withholding the evidence needed to judge, so it is disclosed rather than engineered away.
+
+VERDICT VOCABULARY (the reviewer asked for these separated, not pooled):
+  Y      same person
+  NC     confirmed different person  (e.g. donor first name is a different given name)
+  NP     probably different person   (weak/ambiguous mismatch)
+  U      unverifiable                (insufficient donor detail to judge)
+
+PII. The evidence file carries voter and donor names. It is written under gitignored
+`data/validation/` and must never be committed. This script prints only counts.
+
+Run:  python scripts/diag_match_validation_stratified.py
+      python scripts/diag_match_validation_stratified.py --per-cell 10
+"""
+from __future__ import annotations
+
+import argparse
+import csv
+import hashlib
+from pathlib import Path
+
+import duckdb
+
+ROOT = Path(__file__).resolve().parent.parent
+DATA = ROOT / "data"
+OUTDIR = DATA / "validation"
+EVIDENCE = OUTDIR / "match_validation_stratified.csv"
+KEYFILE = OUTDIR / "match_validation_stratified_key.csv"
+
+SEED = "2026-07-27"
+
+# (state, statewide db, vrdb db, {panel: contribution_id prefix})
+STATES = [
+    ("WA", "wa_statewide", "wa_vrdb", {"federal": "FEC", "state": "PDC"}),
+    ("NY", "ny_statewide", "ny_vrdb", {"federal": "FEC", "state": "NY"}),
+    ("ID", "id_statewide", "id_vrdb", {"federal": "FEC", "state": "SUNSHINE"}),
+]
+# The `_alltier` SNAPSHOTS, not the live primaries (repointed 2026-07-27). The primaries
+# were rebuilt full-name-only, which leaves nothing to stratify: three of the four tiers
+# would return zero rows and the by-tier precision estimate — the whole point of this
+# sampler — would die silently. `scripts/snapshot_alltier_panels.py` creates these.
+PANEL_TABLE = {"federal": "voter_donor_affiliation_fec_alltier",
+               "state": "voter_donor_affiliation_state_alltier"}
+
+TIERS = ["STRICT_ZIP5_FULL", "STRICT_ZIP5_MID", "STRICT_ZIP5", "RELAXED_ZIP3_MID"]
+
+# Per-tier join condition against the reconstructed contribution keys. These mirror
+# `match_voters_to_donors` exactly, so the donor side shown to the rater is the evidence
+# the matcher actually acted on.
+TIER_JOIN = {
+    "STRICT_ZIP5_FULL": "c.lk = s.lk AND c.ffull = s.ffull AND c.z5 = s.z5",
+    "STRICT_ZIP5_MID":  "c.lk = s.lk AND c.fi = s.fi AND c.mi = s.mi AND c.z5 = s.z5",
+    "STRICT_ZIP5":      "c.lk = s.lk AND c.fi = s.fi AND c.z5 = s.z5",
+    "RELAXED_ZIP3_MID": "c.lk = s.lk AND c.fi = s.fi AND c.mi = s.mi AND c.z3 = s.z3",
+}
+
+# Replicates the matcher's contributor-name parsing. FEC / NYSBOE / Sunshine file people
+# as "LAST, FIRST MID"; WA PDC files them as "LAST FIRST MID" with no comma.
+CK_SQL = """
+CREATE OR REPLACE TEMP TABLE _ck AS
+SELECT
+  CASE WHEN contributor_name LIKE '%,%'
+       THEN UPPER(TRIM(SPLIT_PART(contributor_name, ',', 1)))
+       ELSE UPPER(TRIM(SPLIT_PART(TRIM(contributor_name), ' ', 1))) END           AS lk,
+  CASE WHEN contributor_name LIKE '%,%'
+       THEN UPPER(SPLIT_PART(TRIM(SPLIT_PART(contributor_name, ',', 2)), ' ', 1))
+       ELSE UPPER(SPLIT_PART(TRIM(contributor_name), ' ', 2)) END                 AS ffull,
+  CASE WHEN contributor_name LIKE '%,%'
+       THEN UPPER(SUBSTR(TRIM(SPLIT_PART(contributor_name, ',', 2)), 1, 1))
+       ELSE UPPER(SUBSTR(TRIM(SPLIT_PART(TRIM(contributor_name), ' ', 2)), 1, 1)) END AS fi,
+  CASE WHEN contributor_name LIKE '%,%'
+       THEN UPPER(SUBSTR(SPLIT_PART(TRIM(SPLIT_PART(contributor_name, ',', 2)), ' ', 2), 1, 1))
+       ELSE UPPER(SUBSTR(SPLIT_PART(TRIM(contributor_name), ' ', 3), 1, 1)) END   AS mi,
+  SUBSTR(contributor_zip, 1, 5) AS z5,
+  SUBSTR(contributor_zip, 1, 3) AS z3,
+  contributor_name, contribution_amount
+FROM individual_contributions
+WHERE contributor_name IS NOT NULL AND contributor_name <> ''
+  AND contributor_zip IS NOT NULL AND contributor_zip <> ''
+  AND contribution_amount > 0
+  AND UPPER(contributor_name) NOT IN ('SMALL CONTRIBUTIONS', 'UNITEMIZED', 'ANONYMOUS')
+  AND contribution_id LIKE '{prefix}:%'
+"""
+
+
+def sample_cell(con, panel_tbl, tier, band, n):
+    """Sample up to n matched voters from one tier x dollar-band cell.
+
+    band: 'top10' = top donor-dollar decile within the panel, 'rest' = deciles 2-10.
+    Deterministic via md5(state_voter_id || SEED).
+    """
+    band_pred = "d.decile = 1" if band == "top10" else "d.decile > 1"
+    return [r[0] for r in con.execute(f"""
+        WITH d AS (
+            SELECT state_voter_id, match_quality,
+                   NTILE(10) OVER (ORDER BY total_donated DESC) AS decile
+            FROM {panel_tbl} WHERE total_donated > 0)
+        SELECT d.state_voter_id
+        FROM d
+        JOIN vrdb.voters v USING (state_voter_id)
+        WHERE d.match_quality = ? AND {band_pred}
+          AND v.first_name IS NOT NULL AND v.last_name IS NOT NULL
+          AND v.reg_zip IS NOT NULL
+        ORDER BY md5(d.state_voter_id || '{SEED}')
+        LIMIT {int(n)}
+    """, [tier]).fetchall()]
+
+
+def evidence_for(con, panel_tbl, tier, voter_ids):
+    """Reconstruct the donor side for sampled voters using the tier's own key."""
+    if not voter_ids:
+        return []
+    con.execute("CREATE OR REPLACE TEMP TABLE _samp_ids (state_voter_id VARCHAR)")
+    con.executemany("INSERT INTO _samp_ids VALUES (?)", [(v,) for v in voter_ids])
+    return con.execute(f"""
+        WITH s AS (
+            SELECT a.state_voter_id, a.donation_count, a.total_donated,
+                   v.first_name, v.middle_name, v.last_name, v.reg_city,
+                   UPPER(TRIM(v.last_name))                               AS lk,
+                   UPPER(SPLIT_PART(UPPER(TRIM(v.first_name)), ' ', 1))    AS ffull,
+                   UPPER(SUBSTR(TRIM(v.first_name), 1, 1))                 AS fi,
+                   UPPER(SUBSTR(TRIM(COALESCE(v.middle_name, '')), 1, 1))  AS mi,
+                   SUBSTR(v.reg_zip, 1, 5)                                 AS z5,
+                   SUBSTR(v.reg_zip, 1, 3)                                 AS z3
+            FROM {panel_tbl} a
+            JOIN _samp_ids USING (state_voter_id)
+            JOIN vrdb.voters v USING (state_voter_id))
+        SELECT s.state_voter_id, s.first_name, s.middle_name, s.last_name, s.z5, s.reg_city,
+               s.donation_count, s.total_donated,
+               COUNT(c.contributor_name)                                   AS ic_rows,
+               COALESCE(ROUND(SUM(c.contribution_amount), 0), 0)           AS ic_total,
+               COUNT(DISTINCT c.ffull)                                     AS n_first,
+               LIST(DISTINCT c.contributor_name)                           AS names,
+               LIST(DISTINCT c.z5)                                         AS zips
+        FROM s LEFT JOIN _ck c ON {TIER_JOIN[tier]}
+        GROUP BY ALL
+    """).fetchall()
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--per-cell", type=int, default=10,
+                    help="target records per (state x panel x tier x dollar-band) cell")
+    args = ap.parse_args()
+
+    OUTDIR.mkdir(parents=True, exist_ok=True)
+    rows = []
+
+    for state, db, vrdb, panels in STATES:
+        con = duckdb.connect(str(DATA / f"{db}.duckdb"), read_only=True)
+        con.execute(f"ATTACH '{DATA / f'{vrdb}.duckdb'}' AS vrdb (READ_ONLY)")
+        for panel, prefix in panels.items():
+            con.execute(CK_SQL.format(prefix=prefix))
+            tbl = PANEL_TABLE[panel]
+            for tier in TIERS:
+                got = {}
+                for band in ("top10", "rest"):
+                    ids = sample_cell(con, tbl, tier, band, args.per_cell)
+                    got[band] = ids
+                # Backfill a short band from the other so the tier keeps its allocation.
+                short = 2 * args.per_cell - len(got["top10"]) - len(got["rest"])
+                if short > 0:
+                    for band in ("rest", "top10"):
+                        extra = [i for i in sample_cell(con, tbl, tier, band,
+                                                        args.per_cell + short)
+                                 if i not in got[band]][:short]
+                        got[band] += extra
+                        short -= len(extra)
+                        if short <= 0:
+                            break
+                for band, ids in got.items():
+                    for r in evidence_for(con, tbl, tier, ids):
+                        (svid, vf, vm, vl, vz, vcity, dcount, dtot,
+                         ic_rows, ic_total, n_first, names, zips) = r
+                        rows.append({
+                            "_state": state, "_panel": panel, "_tier": tier,
+                            "_band": band, "_svid": svid,
+                            "voter_first": vf or "", "voter_middle": vm or "",
+                            "voter_last": vl or "", "voter_zip5": vz or "",
+                            "voter_city": vcity or "",
+                            "matched_gifts": dcount, "matched_total": float(dtot or 0),
+                            "donor_rows_refound": ic_rows,
+                            "donor_total_refound": float(ic_total or 0),
+                            "donor_distinct_first_names": n_first,
+                            "donor_names": " | ".join(sorted(n for n in (names or []) if n)[:6]),
+                            "donor_zip5s": " ".join(sorted(set(z for z in (zips or []) if z))[:4]),
+                        })
+        con.close()
+        print(f"  {state}: cumulative {len(rows):,} sampled")
+
+    # Shuffle deterministically, THEN assign opaque ids, so id order carries no stratum
+    # information at all.
+    rows.sort(key=lambda r: hashlib.md5(
+        (r["_svid"] + r["_tier"] + SEED).encode()).hexdigest())
+    for i, r in enumerate(rows, 1):
+        r["sample_id"] = f"S{i:04d}"
+
+    ev_cols = ["sample_id", "voter_first", "voter_middle", "voter_last", "voter_zip5",
+               "voter_city", "matched_gifts", "matched_total", "donor_names",
+               "donor_zip5s", "donor_distinct_first_names", "donor_rows_refound",
+               "donor_total_refound", "verdict", "notes"]
+    with open(EVIDENCE, "w", newline="", encoding="utf-8") as fh:
+        w = csv.DictWriter(fh, fieldnames=ev_cols, extrasaction="ignore")
+        w.writeheader()
+        for r in rows:
+            w.writerow({**r, "verdict": "", "notes": ""})
+
+    with open(KEYFILE, "w", newline="", encoding="utf-8") as fh:
+        w = csv.writer(fh)
+        w.writerow(["sample_id", "state", "panel", "tier", "dollar_band",
+                    "matched_total"])
+        for r in rows:
+            w.writerow([r["sample_id"], r["_state"], r["_panel"], r["_tier"],
+                        r["_band"], r["matched_total"]])
+
+    print(f"\nwrote {len(rows):,} rows")
+    print(f"  blinded evidence -> {EVIDENCE}   (NO stratum labels; PII; gitignored)")
+    print(f"  stratum key      -> {KEYFILE}    (join only AFTER verdicts are recorded)")
+    print("\nallocation actually achieved (counts only):")
+    from collections import Counter
+    for key, label in ((("_tier",), "tier"), (("_state", "_panel"), "state x panel"),
+                       (("_band",), "dollar band")):
+        print(f"  by {label}:")
+        for k, n in sorted(Counter(tuple(r[c] for c in key) for r in rows).items()):
+            print(f"    {' / '.join(k):34} {n:>5,}")
+    print("\nNEXT: fill `verdict` with Y / NC / NP / U, then "
+          "python scripts/score_match_validation.py")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

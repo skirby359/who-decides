@@ -1,5 +1,20 @@
 # New York: The Donor Class vs the Electorate — by Party-of-Record and Age
 
+> **⚠ SUPERSEDED BY THE PAPER'S FEDERAL PANEL (2026-07-27).** This document describes a
+> **pooled** NY match of **308,032** voters that was, in fact, FEC-money-only — it predated
+> `scripts/load_ny_contributions.py`, so no NYSBOE state contribution ever reached it. Two
+> things have since changed: the NY pooled table now genuinely pools both money systems
+> (**558,017** voters), and the match specification changed to the full-first-name key
+> alone. Neither the counts nor the party/age tables below survive either change.
+>
+> **Use `donor-class-and-the-electorate.md` Finding 3 instead.** It reports NY as two
+> separate panels on the current specification — federal **269,218** donors, state
+> **378,383** — with the party skew measured against an ACTIVE-registrant baseline
+> (federal DEM **+16.1**, NOPARTY **−13.7**). Current figures for every panel are in
+> [`reference/primary_spec_figures_2026-07-27.md`](reference/primary_spec_figures_2026-07-27.md).
+>
+> This file is kept only as a record of the earlier analysis. Do not cite its numbers.
+
 *Party-resolved donor-class analysis, 2026-06-29. The NY counterpart of the WA
 §F donor findings (donor-class ≠ electorate; whale concentration). New York's
 individual **party enrollment** lets us ask which registered voters become
@@ -97,7 +112,8 @@ Among matched NY donors:
 - **top 1% of donors = 51.2% of matched dollars**
 - **top 10% of donors = 81.2% of matched dollars**
 
-This tracks the WA finding (top 1% ≈ 47.7% of matched $) — donor money is
+This tracked the WA finding (pooled top 1% ≈ 46.6% of matched $ on the current
+specification) — donor money is
 whale-dominated to nearly the same degree in a much larger, bluer state,
 suggesting the concentration is structural to federal small-vs-large-dollar
 giving rather than state-specific.

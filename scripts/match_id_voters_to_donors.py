@@ -56,7 +56,9 @@ for _p in (os.path.join(_ROOT, "src"), _ROOT):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from wa_analyzer.analysis.donor_analysis import match_voters_to_donors  # noqa: E402
+from wa_analyzer.analysis.donor_analysis import (  # noqa: E402
+    PRIMARY_TIERS, _ALL_TIER_RANKS, match_voters_to_donors,
+)
 
 ID_STATEWIDE = "data/id_statewide.duckdb"
 ID_VRDB = "data/id_vrdb.duckdb"
@@ -84,15 +86,21 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--source", choices=sorted(PANELS), default="fec",
                     help="money layer to match (default: fec)")
+    ap.add_argument("--tiers", choices=("full", "all"), default="full",
+                    help="match tiers: 'full' = the full-first-name key alone (the "
+                         "paper's primary specification, 100%% precision), 'all' = every "
+                         "tier incl. the initial-based keys (47.9-71.7%%). Default: full")
     args = ap.parse_args(argv)
     prefixes, vda = PANELS[args.source]
+    tiers = list(PRIMARY_TIERS if args.tiers == "full" else _ALL_TIER_RANKS)
 
     con = duckdb.connect(ID_STATEWIDE)  # read-write: writes the panel table
     con.execute(f"ATTACH '{ID_VRDB}' AS vrdb (READ_ONLY)")
 
     print(f"[match] running multi-tier voter<->donor match (ID, "
-          f"source={args.source} -> {vda})...")
-    res = match_voters_to_donors(con, source_prefixes=prefixes, output_table=vda)
+          f"source={args.source} tiers={args.tiers} -> {vda})...")
+    res = match_voters_to_donors(con, source_prefixes=prefixes,
+                                 output_table=vda, tiers=tiers)
     if res.get("skipped"):
         print("  SKIPPED:", res.get("reason"))
         return 1

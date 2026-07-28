@@ -183,18 +183,18 @@ no voter file needed):
 
 | # | Claim | Expected | Panel |
 |---|---|---|---|
-| 30 | WA federal matched layer | 172,998 donors / $420.3M / top-1% 42.4% / top-10% 74.8% / Gini 0.820 | federal |
-| 31 | WA state matched layer | 269,204 donors / $153.9M / top-1% 43.8% / top-10% 76.0% / Gini 0.827 | state |
-| 32 | NY federal matched layer | 307,841 donors / $1,196.1M / top-1% 51.2% / top-10% 81.4% / Gini 0.867 | federal |
-| 32b | NY state matched layer | 424,020 donors / $379.5M / top-1% 48.5% / top-10% 78.3% / Gini 0.846 | state |
-| 33 | ID federal matched layer | 27,196 donors / $49.6M / top-1% 35.8% / top-10% 70.4% / Gini 0.786 | federal |
-| 34 | ID state matched layer | 27,250 donors / $15.9M / top-1% 39.3% / top-10% 70.8% / Gini 0.798 | state |
-| 35 | WA generation multipliers | federal Silent 2.56x .. Gen Z 0.10x; state Silent 1.64x .. Gen Z 0.20x | both |
-| 36 | ID 65+ donor share | federal 64.7%, state 51.1% (roll 31.0%) | both |
-| 37 | ID own-party skew replicates | federal DEM +8.0 / UNAFF -11.2; state DEM +9.1 / UNAFF -11.8 | both |
+| 30 | WA federal matched layer | **147,745** donors / **$346.3M** / top-1% **41.2%** / top-10% **74.2%** / Gini **0.815** | federal |
+| 31 | WA state matched layer | **217,114** donors / **$122.5M** / top-1% **43.5%** / top-10% **75.3%** / Gini **0.821** | state |
+| 32 | NY federal matched layer | **269,218** donors / **$1,015.7M** / top-1% **50.7%** / top-10% **81.2%** / Gini **0.865** | federal |
+| 32b | NY state matched layer | **378,383** donors / **$339.8M** / top-1% **48.6%** / top-10% **78.2%** / Gini **0.845** | state |
+| 33 | ID federal matched layer | **23,303** donors / **$42.1M** / top-1% **37.2%** / top-10% **70.8%** / Gini **0.789** | federal |
+| 34 | ID state matched layer | **23,613** donors / **$13.6M** / top-1% **40.0%** / top-10% **71.0%** / Gini **0.799** | state |
+| 35 | WA generation multipliers | federal Silent **2.67x** .. Gen Z **0.04x**; state Silent **1.72x** .. Gen Z **0.11x** | both |
+| 36 | ID 65+ donor share | federal **66.8%**, state **51.3%** (roll 31.0%) | both |
+| 37 | ID own-party skew replicates | federal DEM **+8.6** / UNAFF **-12.1**; state DEM **+9.8** / UNAFF **-12.3** | both |
 | 38 | ID recipient-party resolution | federal **86.7%** vs state ~52% (only the state REP->D rate is an upper bound) | both |
-| 39 | WA give<->vote | federal 85.5% vs 51.4% super; state 84.9% vs 50.8% | both |
-| 40 | WA bootstrap CIs (B=1,000) | federal top-1% [40.2-44.9], Gini [0.812-0.828]; state top-1% [39.6-48.9] | both |
+| 39 | WA give<->vote | federal **88.0%** vs **52.0%** super; state **88.9%** vs **51.5%** | both |
+| 40 | WA bootstrap CIs (B=1,000) | federal top-1% **41.2% [38.6-43.4]**, Gini **0.815 [0.806-0.822]**; state **43.5% [38.7-48.9]** | both |
 
 **Added 2026-07-27 in response to external review.** All re-derived by
 `verify_donor_class.py` except where noted; the recomputations themselves are in
@@ -202,18 +202,46 @@ no voter file needed):
 
 | # | Claim | Expected | Panel |
 |---|---|---|---|
-| 60 | NY own-party skew, **ACTIVE** baseline | federal DEM +15.2 / NOPARTY -12.8; state DEM +9.1 / NOPARTY -11.8 (all-records baseline reads +15.0 / -13.0 / +8.9 / -12.0) | both |
+| 60 | NY own-party skew, **ACTIVE** baseline | federal DEM **+16.1** / NOPARTY **-13.7**; state DEM **+9.6** / NOPARTY **-12.6** | both |
 | 61 | NY active roll | 12,448,081 active of 13,540,558 records (91.9%); every ID record active | — |
-| 62 | NY give<->vote, active denominator | federal 3.00 vs 1.85 generals, 72.9% vs 39.3% super; state 2.99 vs 1.84, 73.0% vs 38.9% | both |
+| 62 | NY give<->vote, active denominator | federal **3.10** vs 1.85 generals, **75.7%** vs 39.3% super; state **3.07** vs 1.84, **75.3%** vs 39.0% | both |
 | 63 | ID unaffiliated composition | roll 23.9% / 2024 general 22.6% / 2024 primary **5.9%**; primary ballots pulled REP 83.7% / DEM 12.2% / UNA 3.5% | — |
-| 64 | ID period-aligned panels (2023-2025) | federal 16,963 donors / $21.1M / top-1% 33.1% / 65+ **67.1%**; state unchanged at 27,250 / $15.9M / 39.3% / 51.1% | both |
-| 65 | Panel overlap (Jaccard) | WA 0.157, NY 0.160, ID 0.140; both-systems donors older than either single-system group in all three | both |
-| 66 | Match-tier mix | `STRICT_ZIP5_FULL` 85-89% of matches; weakest `RELAXED_ZIP3_MID` 0.3-5% | both |
+| 64 | ID period-aligned panels (2023-2025) | federal **14,848** donors / **$18.4M** / top-1% **34.7%** / 65+ **68.5%**; state **23,613 / $13.6M / 40.0% / 51.3%** | both |
+| 65 | Panel overlap (Jaccard) | WA **0.159**, NY **0.161**, ID **0.141**; both-systems donors older than either single-system group in all three | both |
+| 66 | Match-tier mix (in the retained `_alltier` snapshots) | `STRICT_ZIP5_FULL` **80.7-89.2%** of matches; weakest `RELAXED_ZIP3_MID` 0.3-5% | both |
 | 67 | Tier sensitivity (full-name tier only) | every headline survives; 65+ *rises* in all six panels (e.g. NY fed 47.9% -> 49.9%); top-1% moves <=1.3 pts | both |
 | 68 | Household bounding exclusion | surname+ZIP5 drop removes 75-83% of donors; top-1% moves <=4.7 pts, 65+ rises in all six | both |
 | 69 | Crossover resolution rates (differential) | NY fed DEM 90.1% vs NOPARTY 79.2%; NY state REP 45.2% vs NOPARTY 27.7% — not missing at random | both |
 | 70 | Aggregate recipient-party resolution | NY fed **87.8%**, NY state 37.7%, ID fed 86.7%, ID state **51.9%** (the "79%" in earlier drafts was stale) | both |
 | 71 | Itemization thresholds | federal >$200; WA >$100; NY >$99; ID >$50 — *not* a uniform $200 rule | — |
+| 72 | Match precision by tier (`score_match_validation.py`) | `STRICT_ZIP5_FULL` **100.0%** (120/120, Wilson [96.9-100]); `STRICT_ZIP5_MID` 71.7%; `STRICT_ZIP5` **47.9%**; `RELAXED_ZIP3_MID` **50.4%** | both |
+| 73 | Population-weighted precision | WA fed 93.3 / WA state 90.4 / NY fed 93.1 / NY state 94.3 / ID fed 92.6 / ID state 96.5; donor-weighted **93.0%** (bound 92.9%) | both |
+| 74 | Precision by dollar band | top decile 63.0% vs deciles 2-10 72.1% (raw, tier-confounded) — lower at the top | both |
+| 75 | Error modes of 152 confirmed-false | 129 household/relative (initial-based keys only, **0** on full-name key); 14 organisation-as-person (**all ID Sunshine**); 9 name-order parse (**all WA PDC**) | both |
+| 76 | Sunshine organisation contamination | 4.7% of rows but **32.6% of dollars** look like organisations, vs 0.1% / 0.8% for WA PDC | state |
+
+**Added 2026-07-27 (second pass) — the primary-specification switch.** Panels rebuilt on the
+full-first-name key; see `docs/reference/primary_spec_figures_2026-07-27.md`.
+
+| # | Claim | Expected | Panel |
+|---|---|---|---|
+| 80 | Reconciliation, all six panels | an independent rank-0 reconstruction reproduces each panel's donor count and `SUM(total_donated)` **to the cent** (asserted by `verify_donor_class.py`) | both |
+| 81 | Two-definitions dollar delta | filter-a-panel vs restrict-the-match: **7.71%** WA fed, **9.44%** WA state, **5.35%** NY fed, **3.77%** NY state, **5.89%** ID fed, **5.76%** ID state; donor counts identical in all six | both |
+| 82 | Pooled tables | WA 382,408 -> **314,974** ($574.21M -> **$468.85M**); ID 47,762 -> **41,136**; NY 308,032 -> **558,017** (tier switch PLUS correction of a stale FEC-only build — two causes, do not conflate) | pooled |
+| 83 | Full-name-key namesake collision | middle-initial signal **0.03-2.14%** of donors, and **0.00% at one gift in every panel** rising to 0.36-8.33% at 20+ gifts = recording noise, not two people. The paper's old 7-9% was computed on a first-initial join and is withdrawn | both |
+| 84 | Roll-side inactive namesakes | **0.21-0.40%** (WA fed 0.24%, NY fed 0.40%); not measurable for ID | both |
+| 85 | Recall cost / selection bias | discards **10.8-19.3%** of donors; discarded set younger in all six panels (WA fed 40.5% vs 55.7% over-65) and less Democratic in all four party panels (NY fed 56.6% vs 63.6%) | both |
+| 86 | Joint filings | 0.06-0.25% of dollars everywhere except **ID Sunshine 1.87% of rows / 3.27% of dollars** (~20x outlier; explains 6 of 8 partial merges) | both |
+| 87 | WA PDC name-order parse failure | **1.85%** of comma-less rows / **2.08%** of dollars — NOT the 0.1%/0.8% organisation figure the paper cited as its analogue | state |
+| 88 | NY duplicate voter ids in panels | 0 of 53 reach the federal panel, **5** reach the state panel, all on the rank-0 key; NY state reads 378,383 standalone / 378,388 after a roll join | both |
+| 89 | contributor_type backfill | WA 8,599,537 PERSON; NY 13,974,685; TX 12,563,547; ID 770,765 PERSON + **216,700 NULL** (Sunshine, awaiting its deferred reload) | — |
+| 90 | ID Sunshine reload (2026-07-27) | returns exactly 216,700 contributions / 2,067 candidate_finance / 1,139 IE; Appendix G byte-identical ($53,256,865.38 layer, max gift $1,245,000, 668 gifts >$5k = 41.9% of layer $) | state |
+| 91 | ID Sunshine contributor_type | PERSON **181,749** / UNKNOWN **17,374** / ORGANIZATION **14,273** / COMMITTEE **3,304**; org+cttee = 8.1% of rows but **53.9% of dollars** | state |
+| 92 | Reload effect on panels | **none** — ID state 23,613 / $13.64M, pooled 41,136 / $55.75M, aligned state 23,613 / $13.64M all unchanged; **zero** org rows can match rank-0 | both |
+| 93 | Human re-rating, primary spec | **75/75** full-name-key records rated Y, Wilson [95.1-100]; zero divergences in that block | both |
+| 94 | Inter-rater agreement | 4-category observed 88.0% / kappa **0.656** / PABAK 0.760; collapsed binary 93.9% / kappa **0.815** / PABAK 0.878; full-name block kappa undefined (no variance), PABAK 1.000 | both |
+| 95 | Divergence direction | all 18 on initial-based keys; 6 NC->Y, 7 NC->NP, 3 NP->Y, 2 U->Y, and **zero** AI-Y -> human-non-Y. Human donor-weighted precision **95.7%** vs AI 93.0% | both |
+| 96 | Human weak-tier rates | 64-68% against the AI's 47.9-71.7%; qualitative finding robust, exact rates rater-dependent | both |
 
 ---
 
@@ -266,10 +294,17 @@ posting:
 > *indication* but not as a validated precision estimate, and two things previously
 > recorded here were wrong:
 >
-> - **The verdicts were never persisted.** `data/validation/match_validation_sample.csv`
->   exists but its `is_same_person(Y/N/?)` column is **empty for all 150 rows**. The
->   "filled CSV" note was inaccurate. The confirmed-false / probable-false / unverifiable
->   split and precision by donor-dollar decile therefore cannot be recovered.
+> - **The verdicts were not retained, deliberately.** `data/validation/match_validation_sample.csv`
+>   exists but its `is_same_person(Y/N/?)` column was empty: the rating sheet pairs voter
+>   names with donor names, and the project's rule is not to keep individual-level rows.
+>   Sound PII hygiene, and the earlier "filled CSV" note was simply inaccurate about it. The
+>   consequence stands either way " — the confirmed/probable/unverifiable split and precision
+>   by dollar decile cannot be re-derived from that pass. A list regenerated 2026-07-27
+>   reproduces 15/150 (90.0%) with spousal notes, corroborating the reported figure, but a
+>   reconstruction is not a preserved artifact and the paper says so.
+>   **This is now moot for every published claim:** the 480-record AI pass and the 150-record
+>   human re-rating supersede it, and both publish PII-free verdict ledgers under
+>   `docs/reference/`, which is how the persistence problem is solved going forward.
 > - **"Spousal mis-attributions barely move the cuts" is withdrawn.** Spouses can differ
 >   in age, party enrollment and turnout history, and merging two people's giving into one
 >   donor total directly *raises* measured concentration. The argument was asserted, not
@@ -286,11 +321,48 @@ posting:
 > donor-side collision rate over the full panels (7-9% on the dominant tier, which
 > brackets ≈90% independently). See donor-class paper Appendix F.
 >
-> **Still required before submission:** a fresh sample **stratified by state, panel, match
-> tier and donor-dollar decile**, rated **blind**, with verdicts **recorded**, reporting
-> confirmed-false / probable-false / unverifiable separately plus a sensitivity bound
-> treating all unverifiable records as wrong. `diag_match_validation_sample.py` needs a
-> stratified-sampling mode and a panel/state argument before it can produce this.
+> **DONE 2026-07-27 — stratified blinded re-rating complete.**
+> `scripts/diag_match_validation_stratified.py` + `scripts/score_match_validation.py`.
+> 480 records, **20 per state x panel x tier cell**, split 10/10 top-dollar-decile vs
+> deciles 2-10. Evidence file carries NO stratum labels and is shuffled before opaque ids
+> are assigned; the key is joined only after verdicts are recorded. The scorer was written
+> BEFORE the verdicts, so the analysis was pre-specified. Verdicts published PII-free at
+> `docs/reference/match_validation_verdicts_2026-07-27.csv`.
+>
+> **HEADLINE: precision is entirely a function of match tier.**
+>
+> | tier | share of matches | precision | Wilson 95% CI |
+> |---|--:|--:|---|
+> | `STRICT_ZIP5_FULL` | 81-89% | **100.0%** (120/120) | [96.9-100.0] |
+> | `STRICT_ZIP5_MID` | 0.4-2% | 71.7% | [63.0-79.0] |
+> | `STRICT_ZIP5` | 9-13% | **47.9%** | [39.1-56.8] |
+> | `RELAXED_ZIP3_MID` | 0.3-5% | **50.4%** | [41.6-59.2] |
+>
+> Population-weighted (each tier by its share of the panel): WA fed 93.3 / WA state 90.4 /
+> NY fed 93.1 / NY state 94.3 / ID fed 92.6 / ID state 96.5; **donor-weighted 93.0%**,
+> bound 92.9%. So the old ~90% was roughly right at panel level but concealed the
+> structure. The raw sample mean (67.6%) is NOT a panel estimate — weak tiers are
+> oversampled 30-300x.
+>
+> Precision is LOWER in the top dollar decile (63.0% vs 72.1% raw) — the direction the
+> reviewer worried about. Error modes, of 152 confirmed-false: **129 household/relative
+> merges, all on initial-based keys, ZERO on the full-name key**; **14 organisations parsed
+> as people, all Idaho Sunshine**; **9 name-order parse failures, all WA PDC**. Both
+> format defects follow from those files having no comma, so the parser takes token 1 as
+> the surname.
+>
+> **ACTION IMPLIED (author decision):** make `STRICT_ZIP5_FULL` the paper's **primary
+> specification**. It carries 81-89% of matches, has no detectable false match, and moves
+> every headline AWAY from the null (65+ rises in all six panels, DEM skew rises in all
+> four party panels, concentration moves <=1.3 pts). The all-tier figures currently in the
+> paper are therefore conservative. Cost: discards 11-19% of matched donors. Separately,
+> the Idaho Sunshine loader needs a person/organisation filter regardless of tier choice.
+>
+> **CAVEAT, disclosed in the paper:** the adjudication was performed by the AI assistant
+> under the blinding protocol, not an independent human rater. It is seeded, published and
+> pre-specified — auditable in a way the 2026-07-10 pass was not — but it is single-rater
+> and by the same system that produced the analysis. Remaining item: a human spot-check,
+> ideally a second rater on the initial-based tiers where judgments are hardest.
 
 Not on the critical path for the lead turnout paper (no name-matching in it), but
 required before the donor-class paper:
@@ -353,11 +425,26 @@ Both are free, citable, **not peer review** — discoverability + a timestamp + 
 - [~] §4 lead-paper PDF **rendered 2026-07-10** (`docs/who-decides-washington.pdf`, ~125 KB);
   final proof (county-table layout, first-page, author block) = **HUMAN**
 - [ ] Author byline + AI-assistance disclosure finalized — **HUMAN** (needs your name)
-- [~] (donor papers only) §3 match sample hand-rated (2026-07-10, 2 rounds; ≈90%,
-  spousal-dominant) — **REOPENED 2026-07-27**: verdicts were never persisted and the
-  sample was WA-only, pooled-table, unstratified and unblinded. Tier + household
-  sensitivities now stand in its place; a stratified blind re-rating is still required
-  before the donor-class paper posts. See §3.
+- [x] (donor papers only) §3 match sample re-rated **stratified + blinded, 2026-07-27**
+  (480 records, 20/cell; verdicts published PII-free). Per-tier precision: full-name key
+  **100%**, initial-based keys 48-72%; donor-weighted **93.0%**. See §3.
+- [ ] (donor papers only) **Author decision**: adopt `STRICT_ZIP5_FULL` as the primary
+  specification (recommended — 100% precision, all findings strengthen), or keep the
+  conservative all-tier figures and cite the sensitivity. See §3.
+- [x] (donor papers only) **Human re-rating DONE 2026-07-27.** Independent rater, 150 of the
+  480 records, blind (fresh ids, no stratum labels, no AI verdict), scorer committed first.
+  **75 of 75 full-name-key records agreed** — the primary specification holds. Cohen's kappa
+  0.815 collapsed-binary / 0.656 four-category overall; all 18 divergences on initial-based
+  keys and all in the direction of the human being MORE permissive, so the published
+  weak-tier rates are conservative. Verdicts at
+  `docs/reference/match_validation_human_verdicts_2026-07-27.csv`.
+- [x] Person/organisation filter on the Idaho Sunshine loader **DONE 2026-07-27**, from the
+  real `Contributor Type` field rather than a name heuristic. Reload verified against a file
+  backup plus in-DB snapshots of all three replaced tables; every Appendix G figure is
+  byte-identical. Organisations + committees are **8.1% of Sunshine rows but 53.9% of its
+  dollars** ($28.70M of $53.26M), well above the 32.6% the heuristic estimated. It changed
+  **no** panel figure — zero organisation rows can match on the full-name key — so it is
+  defence-in-depth for the retained all-tier panels and any future source.
 - [ ] (donor papers only) **Tagged release + archival DOI** for the public repo (Zenodo or
   OSF), cited in the paper in place of a mutable branch — **HUMAN**. The donor-class paper
   currently links `github.com/skirby359/who-decides` without a commit pin.

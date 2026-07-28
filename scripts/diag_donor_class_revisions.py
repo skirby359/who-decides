@@ -454,15 +454,19 @@ def build_aligned_panels() -> int:
     # package's __init__ imports config, so both need to be importable.
     sys.path.insert(0, str(root))
     sys.path.insert(0, str(root / "src"))
-    from wa_analyzer.analysis.donor_analysis import match_voters_to_donors
+    from wa_analyzer.analysis.donor_analysis import (
+        PRIMARY_TIERS, match_voters_to_donors,
+    )
 
     for state, db, vrdb, prefix, (dmin, dmax), out in ALIGNED:
-        print(f"\n[{state}] {prefix} -> {out}   window {dmin} .. {dmax}")
+        print(f"\n[{state}] {prefix} -> {out}   window {dmin} .. {dmax}   "
+              f"tiers={list(PRIMARY_TIERS)}")
         con = duckdb.connect(str(DATA / f"{db}.duckdb"))
         con.execute(f"ATTACH '{DATA / f'{vrdb}.duckdb'}' AS vrdb (READ_ONLY)")
+        # These are paper panels, so they take the primary specification like the rest.
         res = match_voters_to_donors(
             con, source_prefixes=[prefix], output_table=out,
-            date_min=dmin, date_max=dmax)
+            date_min=dmin, date_max=dmax, tiers=list(PRIMARY_TIERS))
         print(f"  matched_voters={res.get('matched_voters'):,} "
               f"contributions={res.get('contributions_matched'):,}")
         con.close()
@@ -512,6 +516,11 @@ def main() -> int:
                 "WHEN v.party='UNA' THEN 'UNAFF' ELSE 'OTHER' END")
     ID_ORDER = ["REP", "DEM", "UNAFF", "OTHER"]
     PANELS = {"federal": FED, "state": STATE}
+    # The tier-sensitivity, household and donor-side-risk sections MUST read the
+    # `_alltier` snapshots (2026-07-27). The primaries are now single-tier, so comparing
+    # tier subsets against them is meaningless: three of the four subsets would return
+    # zero rows and the comparison would silently read as "no difference".
+    PANELS_ALL = {"federal": FED + "_alltier", "state": STATE + "_alltier"}
 
     # ---------------- NEW YORK ----------------
     rule("NEW YORK  (ny_statewide + ny_vrdb)", "#")
@@ -519,9 +528,9 @@ def main() -> int:
     ny.execute(f"ATTACH '{DATA / 'ny_vrdb.duckdb'}' AS vrdb (READ_ONLY)")
     report_denominators(ny, "NY", NY_PARTY_REG, NY_ORDER, PANELS)
     report_crossover(ny, "NY", NY_PARTY, NY_ORDER, PANELS)
-    report_tiers(ny, "NY", PANELS, NY_AGE, NY_PARTY, NY_ORDER)
-    report_households(ny, "NY", PANELS, NY_AGE, has_street=True)
-    report_donorside_risk(ny, "NY", PANELS, {"federal": "FEC", "state": "NY"})
+    report_tiers(ny, "NY", PANELS_ALL, NY_AGE, NY_PARTY, NY_ORDER)
+    report_households(ny, "NY", PANELS_ALL, NY_AGE, has_street=True)
+    report_donorside_risk(ny, "NY", PANELS_ALL, {"federal": "FEC", "state": "NY"})
     report_overlap(ny, "NY", NY_AGE)
     ny.close()
 
@@ -531,9 +540,9 @@ def main() -> int:
     idc.execute(f"ATTACH '{DATA / 'id_vrdb.duckdb'}' AS vrdb (READ_ONLY)")
     report_denominators(idc, "ID", ID_PARTY, ID_ORDER, PANELS)
     report_crossover(idc, "ID", ID_PARTY, ID_ORDER, PANELS)
-    report_tiers(idc, "ID", PANELS, "v.age", ID_PARTY, ID_ORDER)
-    report_households(idc, "ID", PANELS, "v.age", has_street=True)
-    report_donorside_risk(idc, "ID", PANELS, {"federal": "FEC", "state": "SUNSHINE"})
+    report_tiers(idc, "ID", PANELS_ALL, "v.age", ID_PARTY, ID_ORDER)
+    report_households(idc, "ID", PANELS_ALL, "v.age", has_street=True)
+    report_donorside_risk(idc, "ID", PANELS_ALL, {"federal": "FEC", "state": "SUNSHINE"})
     report_overlap(idc, "ID", "v.age")
     report_idaho_composition(idc)
     report_aligned(idc, "ID", "v.age", ID_PARTY, ID_ORDER)
@@ -546,9 +555,9 @@ def main() -> int:
     WA_AGE = "date_diff('year', v.birthdate, DATE '2024-11-05')"
     print("\n  (WA publishes no party of record, so there is no denominator or")
     print("   crossover cut here — only the tier, household and overlap tests.)")
-    report_tiers(wa, "WA", PANELS, WA_AGE, None, None)
-    report_households(wa, "WA", PANELS, WA_AGE, has_street=True)
-    report_donorside_risk(wa, "WA", PANELS, {"federal": "FEC", "state": "PDC"})
+    report_tiers(wa, "WA", PANELS_ALL, WA_AGE, None, None)
+    report_households(wa, "WA", PANELS_ALL, WA_AGE, has_street=True)
+    report_donorside_risk(wa, "WA", PANELS_ALL, {"federal": "FEC", "state": "PDC"})
     report_overlap(wa, "WA", WA_AGE)
     wa.close()
     return 0

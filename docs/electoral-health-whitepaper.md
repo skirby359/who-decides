@@ -48,7 +48,8 @@ blind to (see *Boundary of Inference*).
 >   counts **validate** the model's projection used below.
 > - **Findings 4 & 5 → [`cross-state-fec-money.md`](cross-state-fec-money.md) §F**
 >   — and the matcher-bias objection to Finding 5 has been **tested and rejected**
->   (see that finding below); the donor match is now **382K**, not 320K.
+>   (see that finding below); the donor match is **314,974** on the full-name-key
+>   specification adopted 2026-07-27 (it was 382K all-tier, and 320K before tier 0).
 > - **The "non-constituent money" boundary item is no longer blocked** — NY/TX
 >   contributions were loaded and the recipient-anchored inflow built, so the
 >   cross-state nationalization test *did* run (`cross-state-fec-money.md` §E–I).
@@ -82,8 +83,8 @@ comparable across states and time.
 **Data provenance:** ~5.1M precinct-result rows across 19 elections (WA) plus
 NY/TX/ID; ~8.6M individual contributions (FEC + state PDC, ~$1.3B, 2018–2026) with
 employer/occupation/ZIP; ~9.2M voter-score rows; ~27.1M individual VRDB vote
-records; and the rare asset — **382K voters matched to their donations** at the
-person level (up from 320K after the full-first-name matcher tier; see §F of the
+records; and the rare asset — **314,974 voters matched to their donations** at the
+person level, on the full-name-key specification adopted 2026-07-27; see §F of the
 cross-state money paper).
 
 ---
@@ -175,8 +176,8 @@ concrete analysis to run.
 ### 4. Money and votes stack on the same people
 *Insight 47 · failure-contribution 22 · null: weak-against · V-Dem: participatory, egalitarian · trajectory: indeterminate · (most novel: 6)*
 
-- **Defensible claim (cross-sectional only).** Among the 382,408 matched voters,
-  donors are a participation elite: **84.0% are super-voters vs 50.1%** of non-donors
+- **Defensible claim (cross-sectional only).** Among the 314,974 matched voters,
+  donors are a participation elite: **87.6% are super-voters vs 50.9%** of non-donors
   (average turnout propensity 0.95 vs 0.75; donor-class verifier F4). Financial voice
   and electoral voice concentrate on the same individuals rather than offsetting.
 - **Strongest objection.** The *causal/longitudinal* version ("giving *makes* people
@@ -188,7 +189,7 @@ concrete analysis to run.
   history. The benign reading — donating as a *gateway* that broadens participation
   — is live.
 - **First analysis — DONE** ([`cross-state-fec-money.md`](cross-state-fec-money.md) §F3):
-  the cross-sectional benchmark — matched donors are **84.0% super-voters vs 50.1%** of
+  the cross-sectional benchmark — matched donors are **87.6% super-voters vs 50.9%** of
   non-donors (1.68×), mean turnout propensity 0.953 vs 0.748 — framed strictly as
   association, with the match-bias diagnostic from §F2 (the giving↔voting overlap is real;
   the *causal/longitudinal* version remains out of reach).
@@ -205,19 +206,19 @@ concrete analysis to run.
 > $394.6M) money and the matcher had no source filter. Pooling stacks one person's
 > federal and state giving into a single donor total and inflates concentration.
 > [`donor-class-and-the-electorate.md`](donor-class-and-the-electorate.md) now reports
-> two panels — **federal** 172,998 donors / top-1% **42.4%** / Gini **0.820**, **state**
-> 269,204 / **43.8%** / **0.827** — which supersede the pooled numbers below. Every
+> two panels — **federal** 147,745 donors / top-1% **41.2%** / Gini **0.815**, **state**
+> 217,114 / **43.5%** / **0.821** — which supersede the pooled numbers below. Every
 > finding survives, and the age skew *strengthens* on the federal panel (Silent
-> **2.56×**, Gen Z **0.10×**).
+> **2.67×**, Gen Z **0.04×**).
 
 - **Defensible claim.** At the person level, donors are a narrow slice that does not
-  mirror the electorate: **~3.5–6% of voters**, skewed old (Silent 1.87×, Boomer
+  mirror the electorate: **~3.5–6% of voters**, skewed old (Silent 1.96×, Boomer
   1.63× over-represented; Gen Z 0.18×, Millennial 0.60× under-represented —
-  2.56× / 1.97× / 0.10× on the federal panel),
+  2.67× / 2.04× / 0.04× on the federal panel),
   overwhelmingly super-voters, geographically concentrated (**~61% of WA donor
   dollars from two Seattle-metro ZIP3s**; 63.4% federal-only), and internally top-heavy
-  (top 1% of matched donors supply **47.7%** of matched dollars pooled, **42.4%**
-  federal; top 10% **80.0%** / **74.8%**).
+  (top 1% of matched donors supply **46.6%** of matched dollars pooled, **41.2%**
+  federal; top 10% **79.3%** / **74.2%**).
   RETIRED ($221.7M, 21.3%) and NOT EMPLOYED ($147.4M, 14.1%) are the two largest
   occupation blocs. The voter↔donor join makes this *person-level*, not ecological —
   the genuine value-add over the standard FEC-aggregate literature.
@@ -227,7 +228,7 @@ concrete analysis to run.
   **Tested directly** (cross-state §F2): the probability a voter is uniquely matchable
   on that key is **nearly flat across generations (68.9%–73.1%, a ~4-pt spread)**, so
   inverse-propensity re-weighting **barely moves** the over-representation ratios
-  (Silent 1.87→1.83×, Gen Z 0.17→0.17× on the refreshed 382K match). The age skew is a
+  (Silent 1.96→1.91×, Gen Z 0.09→0.09× on the 314,974-voter match). The age skew is a
   real property of *who gives*, not of who the matcher can find. (One residual bias it
   can't observe — donors who moved between giving and now — runs the *same* direction,
   so the raw skew is an upper bound; the named name-commonness mechanism explains almost
@@ -235,10 +236,10 @@ concrete analysis to run.
   richer/whiter claims remain proxied, not tested.
 - **First analysis — DONE** ([`cross-state-fec-money.md`](cross-state-fec-money.md) §F2):
   the matcher-bias inverse-propensity re-weighting above; skews reported raw *and*
-  re-weighted; income/race labeled untestable. Concentration on the pooled 382K match:
-  top-1% **47.7%**, top-10% **80.0%**, Gini 0.862; ~61% of dollars from two Seattle ZIP3s.
+  re-weighted; income/race labeled untestable. Concentration on the pooled 314,974 match:
+  top-1% **46.6%**, top-10% **79.3%**, Gini 0.857; 61.4% of dollars from two Seattle ZIP3s.
   Superseded per the panel note above — federal panel top-1% **42.4%** [40.2–44.9],
-  Gini **0.820**, two-ZIP3 share **63.4%**; state panel top-1% **43.8%**, Gini **0.827**.
+  Gini **0.815**, two-ZIP3 share **63.5%**; state panel top-1% **43.5%**, Gini **0.821**.
 - **Party-resolved — DONE for NY + ID** ([`donor-class-and-the-electorate.md`](donor-class-and-the-electorate.md)):
   with party of record the demographic claim sharpens into a partisan one, and the striking
   result is that it holds **in both directions of the spectrum** — the donor class

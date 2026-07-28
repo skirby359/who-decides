@@ -31,6 +31,28 @@ auditable code plus a data-access recipe:
 The papers and scripts emit **aggregate cohort counts only** (cells in the thousands to
 millions); no individual records are published.
 
+### What "reproducible" covers, precisely (2026-07-27)
+
+Two different things get conflated, so they are separated here:
+
+- **Re-deriving the published aggregates: fully covered.** Every `verify_*.py` reaches the
+  built DuckDB tables with from-scratch SQL and imports no analysis code, so a match
+  confirms each finding independently of the build path.
+- **Rebuilding the donor panels from raw voter files: not yet covered by this repo.** The
+  NY and ID donor-match scripts import `match_voters_to_donors` from
+  `src/wa_analyzer/analysis/donor_analysis.py` in the private codebase, which this release
+  does **not** ship. So `verify_donor_class.py` will reproduce the donor-class paper's
+  numbers from panels you have already built, but `match_*_voters_to_donors.py` cannot
+  build them here. The donor-class paper states this limitation rather than claiming
+  otherwise.
+
+The match-precision validation is auditable without any of that: the per-record verdicts
+for both the 480-record blinded pass and the 150-record independent human re-rating are
+published under [`docs/reference/`](docs/reference/), stripped of names " — sample id,
+stratum, verdict. `docs/reference/match_validation_tier_shares_2026-07-27.csv` carries the
+frozen reweighting shares, so the published 93.0% figure re-derives from the ledger alone
+with no database at all.
+
 ## Quick start
 
 ```bash

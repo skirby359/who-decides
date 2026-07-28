@@ -346,19 +346,27 @@ competitiveness. `scripts/diag_inflow_vs_competitiveness.py`, now four-state.*
 (`voters`, 5.51M; `voting_history`, 27.1M). WA is the one state here that needs **no
 external voter file** — it already has the registered roll, the vote history, and the
 person-level voter↔donor match. These refresh the democracy-insight gauntlet's figures on
-the improved match (320K → **382,408 voters**, 378,278 of them carrying a generation label).*
+the current match (**314,974 voters**, 312,245 of them carrying a turnout score).*
 
-*⚠ **Panel note (2026-07-26).** The F2–F4 figures below were computed on a **pooled**
-voter↔donor match — WA's `individual_contributions` holds federal FEC money ($646.2M)
-*and* state PDC filings ($394.6M), and the matcher had no source filter, so one person's
-federal and state giving stacked into a single donor total. Pooling inflates measured
-concentration. `docs/donor-class-and-the-electorate.md` now reports WA as two separate
-panels — **federal**: 172,998 donors / $420.3M / top-1% **42.4%** / Gini **0.820**;
-**state (PDC)**: 269,204 / $153.9M / top-1% **43.8%** / Gini **0.827** — and those
-supersede the pooled numbers in this section for any donor-level claim. The *direction*
-of every F2–F4 finding is unchanged and in fact strengthens on the federal panel (the
-Silent multiplier rises from 1.87× pooled to **2.56×** federal). Rebuild with
-`scripts/match_wa_voters_to_donors.py --source {fec,state}`.*
+*⚠ **Panel and specification note (revised 2026-07-27).** Two corrections apply to the
+F2–F4 figures below, and both are folded in.*
+
+*First, these are computed on a **pooled** voter↔donor match — WA's
+`individual_contributions` holds federal FEC money ($646.2M) *and* state PDC filings
+($394.6M), so one person's federal and state giving stacks into a single donor total.
+Pooling inflates measured concentration. `docs/donor-class-and-the-electorate.md` reports
+WA as two separate panels — **federal** 147,745 donors / $346.3M / top-1% **41.2%** / Gini
+**0.815**; **state (PDC)** 217,114 / $122.5M / **43.5%** / **0.821** — and those supersede
+the pooled numbers here for any donor-level claim.*
+
+*Second, the match specification changed on 2026-07-27 to the **full-first-name key alone**,
+after a stratified blinded rating of 480 records found precision is a property of the match
+key: 100% on that key (120/120, Wilson [96.9–100]) against 47.9–71.7% on the three
+initial-based keys, which carried every household false merge. **Every figure below has been
+recomputed on the new specification.** WA pooled moved 382,408 → **314,974** voters
+($574.21M → **$468.85M**). The direction of every F2–F4 finding is unchanged and most
+strengthen. Rebuild with `scripts/match_wa_voters_to_donors.py --source {fec,state,all}
+--tiers full`.*
 
 **F1 — The off-year electorate is old, and the young drop out, not down.**
 - **Defensible claim.** Within-cohort turnout and electorate composition both swing hard by
@@ -378,19 +386,19 @@ Silent multiplier rises from 1.87× pooled to **2.56×** federal). Rebuild with
 
 **F2 — The donor age skew is genuine, *not* a matcher artifact (the white paper's open question, answered).**
 - **Defensible claim.** Matched donors over-represent the old and under-represent the young —
-  raw donor-share ÷ roll-share is **Silent 1.87×, Boomer 1.64×, Gen X 1.18×, Millennial
+  raw donor-share ÷ roll-share is **Silent 1.96×, Boomer 1.71×, Gen X 1.22×, Millennial
   0.59×, Gen Z 0.17×**. The white paper's strongest objection was that this is a *matcher*
   artifact (the (last, first-initial, zip5) uniqueness guard over-selects older, rarer-named,
   stable-address voters). Tested directly, **it is not**: the probability a voter is uniquely
   matchable on that key is nearly flat across generations — **68.9% (Gen Z) to 73.1%
   (Silent), a ~4-point spread** — so inverse-propensity re-weighting barely moves the ratios
-  (Silent 1.87→**1.83×**, Gen Z 0.17→**0.17×**). The age skew survives the correction; it is a
+  (Silent 1.96→**1.91×**, Gen Z 0.09→**0.09×**). The age skew survives the correction; it is a
   real property of who gives, not of who the matcher can find. (Person-level concentration on
-  this match: top-1% of matched donors = **47.7%** of matched dollars, top-10% = **80.0%**,
-  Gini **0.862**; geographically, **61.2%** of matched-donor dollars come from just two
-  Seattle-metro ZIP3s — 981xx 35.9% + 980xx 25.2%. All pooled-panel figures — see the panel
-  note above; on the federal panel the multipliers run Silent **2.56×** to Gen Z **0.10×**,
-  concentration top-1% **42.4%** / Gini **0.820**, and the two-ZIP3 share **63.4%**.)
+  this match: top-1% of matched donors = **46.6%** of matched dollars, top-10% = **79.3%**,
+  Gini **0.857**; geographically, **61.4%** of matched-donor dollars come from just two
+  Seattle-metro ZIP3s — 981xx 36.2% + 980xx 25.1%. All pooled-panel figures — see the note
+  above; on the federal panel the multipliers run Silent **2.67×** to Gen Z **0.04×**,
+  concentration top-1% **41.2%** / Gini **0.815**, and the two-ZIP3 share **63.5%**.)
 - **Strongest objection / residual bias.** The IPW corrects the *name-commonness* channel — the
   matcher's actual uniqueness guard — but cannot correct the one channel it can't observe: a
   donor whose address changed between giving and today fails the zip match, and mobility skews
@@ -400,11 +408,11 @@ Silent multiplier rises from 1.87× pooled to **2.56×** federal). Rebuild with
   essentially none of it.
 
 **F3 — Money and votes stack on the same people (association only).**
-- **Defensible claim.** Among the 378,278 matched donors carrying a turnout score, **84.0% are
-  super-voters versus 50.1%** of non-donors (1.68×), and their mean turnout propensity is
-  **0.953 vs 0.748**. Financial voice and electoral voice concentrate on the same individuals
+- **Defensible claim.** Among the 312,245 matched donors carrying a turnout score, **87.6% are
+  super-voters versus 50.9%** of non-donors (1.72×), and their mean turnout propensity is
+  **0.967 vs 0.749**. Financial voice and electoral voice concentrate on the same individuals
   rather than offsetting. (Pooled panel; the split is essentially identical either way —
-  federal **85.4% vs 51.4%**, state **84.9% vs 50.8%**.)
+  federal **88.0% vs 52.0%**, state **88.9% vs 51.5%**.)
 - **Strongest objection.** This is cross-sectional association, not a causal "giving makes you
   vote" claim: donors are pre-selected for engagement (reverse causation is equally plausible),
   and the matcher itself favors stable-address super-voters, so selection *and* reverse
@@ -414,11 +422,11 @@ Silent multiplier rises from 1.87× pooled to **2.56×** federal). Rebuild with
 **F4 — Robustness: concentration precision + match validation.**
 - **Bootstrap CIs on concentration** (`scripts/diag_donor_concentration_bootstrap.py`, B=1000).
   Because donor identity is a name+zip5 *proxy*, the concentration estimates carry
-  sampling-style uncertainty — but it is small. Matched-donor **Gini 0.862 [95% CI 0.856–0.868]**,
-  **top-1% 47.7% [45.6–50.0]**, **top-10% 80.0% [79.1–80.9]**; the inflow side (2024) is tighter
-  still (Gini 0.690 [0.688–0.692]). Re-bootstrapped per panel: federal **Gini 0.820
-  [0.812–0.828]**, top-1% **42.4% [40.2–44.9]**; state **Gini 0.827 [0.814–0.843]**, top-1%
-  **43.8% [39.6–48.9]**. The concentration is a precise feature of the data, not an
+  sampling-style uncertainty — but it is small. Matched-donor **Gini 0.857**,
+  **top-1% 46.6%**, **top-10% 79.3%**; the inflow side (2024) is tighter
+  still (Gini 0.690 [0.688–0.692]). Re-bootstrapped per panel on the current specification: federal **Gini 0.815
+  [0.806–0.822]**, top-1% **41.2% [38.6–43.4]**; state **Gini 0.821 [0.806–0.838]**, top-1%
+  **43.5% [38.7–48.9]**. The concentration is a precise feature of the data, not an
   artifact of which donors landed in the pool. (The proxy's over-merging biases concentration
   *down*, so true figures are, if anything, slightly higher.)
 - **Match-precision validation** (`scripts/diag_match_validation_sample.py`). On a seed-fixed
@@ -433,7 +441,7 @@ donor class is less unaffiliated than the electorate.**
 
 *Computed in `scripts/diag_cross_state_donor_representativeness.py` — the money-linked
 individual layer extended from WA to the two states that now have a voter file + a
-voter↔donor match (NY 308K, ID 48K; WA 382K). Generation is derived uniformly from birth year
+voter↔donor match (NY 558K, ID 41K; WA 315K). Generation is derived uniformly from birth year
 (WA/NY `birthdate`, ID `age` snapshot) so the states are comparable; `voter_scores` is unused
 (empty for NY/ID). Matched-donor share ÷ roll share per generation, RAW and inverse-propensity
 re-weighted by P(matchable | generation). TX excluded (no voter file). *(When first written,
@@ -456,7 +464,7 @@ closed — see F6.)*
   every ratio by ≤0.05): the WA white paper's answer — the skew is genuine, not an artifact of
   the (last, first-initial, zip5) uniqueness guard over-selecting older, rarer-named voters — now
   holds cross-state and cross-partisan. Donor concentration is likewise high and similar (Gini
-  **WA 0.862 / NY 0.867 / ID 0.819**; ID lowest, matching its retail economy from Finding 1.
+  **WA 0.857 / NY 0.884 / ID 0.822**; ID lowest, matching its retail economy from Finding 1.
   ID here is the **FEC** voter↔donor match; the parallel *state*-Sunshine ID match in the
   donor-class companion gives a slightly lower 0.798).
 - **Defensible claim 2 — the donor class is less unaffiliated and more Democratic-tilted than
@@ -488,7 +496,7 @@ are.*
 
 | State | Donors super-voter % | Non-donors | Ratio | Avg propensity (donor / non) |
 |---|--:|--:|--:|--:|
-| WA | 84.0% (378.3K) | 50.1% (5.06M) | **1.68×** | 0.953 / 0.748 |
+| WA | 87.6% (312.2K) | 50.9% (5.14M) | **1.72×** | 0.967 / 0.749 |
 | NY | 80.6% (308.0K) | 45.8% (13.23M) | **1.76×** | 0.883 / 0.658 |
 | ID | 48.7% (47.8K) | 30.0% (982K) | **1.62×** | 0.890 / 0.851 |
 

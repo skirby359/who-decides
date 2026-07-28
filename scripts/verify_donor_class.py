@@ -57,6 +57,13 @@ DATA = Path(__file__).resolve().parent.parent / "data"
 
 FED = "voter_donor_affiliation_fec"
 STATE = "voter_donor_affiliation_state"
+# The retained pre-switch snapshots (scripts/snapshot_alltier_panels.py). Reported
+# alongside the primaries so a reader sees both specifications in one run.
+FED_ALL = FED + "_alltier"
+STATE_ALL = STATE + "_alltier"
+
+TIER_LABELS = ("STRICT_ZIP5_FULL", "STRICT_ZIP5_MID", "STRICT_ZIP5", "RELAXED_ZIP3_MID")
+_FAILURES: list[str] = []
 
 
 def has_table(con, t):
@@ -122,6 +129,106 @@ def party_skew(con, vda, bucket_sql, order):
         print(f"    {b:9}{rp:7.1f}%{dp:7.1f}%{dp-rp:+7.1f}{sp:8.1f}%")
 
 
+def integrity(con, state, panels, source_prefix):
+    """Standing assertions on each rebuilt panel. Prints PASS/FAIL, returns failures.
+
+    These are tripwires, not findings. The reconciliation one is the check that would have
+    caught, on its own, the fact that "full-name only" has two non-equivalent definitions:
+    filtering a built panel on `match_quality` keeps a rank-0 voter's whole dollar total
+    including weak-key gifts, while restricting the MATCH to rank 0 drops them. The panels
+    use the latter, so an independently reconstructed rank-0 key must reproduce each
+    panel's SUM(total_donated) to the cent.
+    """
+    fails = []
+    print(f"\nINTEGRITY  {state}")
+    for label, panel in panels.items():
+        if not has_table(con, panel):
+            continue
+        # 1. No UNKNOWN tier label. Unreachable today (best_tier_rank is always 0-3), so
+        #    its value is as a tripwire on a future tier addition.
+        n_unk = con.execute(
+            f"SELECT COUNT(*) FROM {panel} WHERE match_quality = 'UNKNOWN'").fetchone()[0]
+        # 2. Every label is one of the four declared tiers — the check that actually fires
+        #    on a `tiers=` typo producing a garbage panel.
+        bad = [q for (q,) in con.execute(
+            f"SELECT DISTINCT match_quality FROM {panel}").fetchall()
+            if q not in TIER_LABELS]
+        for cond, msg in ((n_unk, f"{n_unk:,} rows labelled UNKNOWN"),
+                          (bad, f"undeclared tier label(s): {bad}")):
+            if cond:
+                fails.append(f"{state} {label}: {msg}")
+                print(f"    FAIL {label:16} {msg}")
+        if not (n_unk or bad):
+            print(f"    ok   {label:16} tier labels are all declared tiers")
+
+        # REFUND RESIDUE — reported, not failed. WA PDC files contribution refunds as
+        # negative amounts, so `total_donated` is a NET figure while d_amount/r_amount sum
+        # only the party-resolved gifts. A donor whose refunds exceed their giving nets
+        # negative, and a donor with a refund can have d+r above their net total. Neither
+        # is corruption. It is confined to WA PDC (every other layer reads zero), and the
+        # concentration estimator already filters `total_donated > 0`, so it cannot reach
+        # any published concentration figure. The counts are printed so a CHANGE is
+        # visible; an earlier version of this check asserted d+r <= total unscoped and
+        # flagged 233 WA rows that were simply refunds.
+        neg, zero, excess = con.execute(f"""
+            SELECT COUNT(*) FILTER (WHERE total_donated < 0),
+                   COUNT(*) FILTER (WHERE total_donated = 0),
+                   COUNT(*) FILTER (WHERE total_donated > 0
+                       AND COALESCE(d_amount,0) + COALESCE(r_amount,0)
+                           > total_donated + 0.005)
+            FROM {panel}""").fetchone()
+        if neg or zero or excess:
+            print(f"    note {label:16} refund residue: {neg:,} net-negative, "
+                  f"{zero:,} net-zero, {excess:,} with d+r above a positive net")
+    return fails
+
+
+def reconcile_primary(con, state, panel, source_prefix):
+    """Assert a panel's dollars equal an independent rank-0 reconstruction, to the cent."""
+    if not has_table(con, panel):
+        return []
+    tiers = {q for (q,) in con.execute(
+        f"SELECT DISTINCT match_quality FROM {panel}").fetchall()}
+    if tiers != {"STRICT_ZIP5_FULL"}:
+        print(f"    --   {panel}: not a primary-spec panel (tiers={sorted(tiers)}), "
+              f"reconciliation skipped")
+        return []
+    con.execute("""CREATE OR REPLACE TEMP TABLE _rc_vk AS
+        SELECT UPPER(TRIM(last_name)) lk, UPPER(TRIM(first_name)) ff,
+               SUBSTR(reg_zip,1,5) z5, ANY_VALUE(state_voter_id) svid
+        FROM vrdb.voters WHERE status_code='A' AND first_name IS NOT NULL
+          AND last_name IS NOT NULL AND reg_zip IS NOT NULL
+        GROUP BY 1,2,3 HAVING COUNT(*)=1""")
+    got = con.execute(f"""
+        WITH ck AS (
+            SELECT CASE WHEN contributor_name LIKE '%,%'
+                        THEN UPPER(TRIM(SPLIT_PART(contributor_name,',',1)))
+                        ELSE UPPER(TRIM(SPLIT_PART(TRIM(contributor_name),' ',1))) END lk,
+                   CASE WHEN contributor_name LIKE '%,%'
+                        THEN UPPER(SPLIT_PART(TRIM(SPLIT_PART(contributor_name,',',2)),' ',1))
+                        ELSE UPPER(SPLIT_PART(TRIM(contributor_name),' ',2)) END ff,
+                   SUBSTR(contributor_zip,1,5) z5, contribution_amount amt
+            FROM individual_contributions
+            WHERE contribution_id LIKE '{source_prefix}:%'
+              AND contributor_name IS NOT NULL AND contributor_zip IS NOT NULL
+              AND UPPER(contributor_name) NOT IN
+                  ('SMALL CONTRIBUTIONS','UNITEMIZED','ANONYMOUS')
+              AND COALESCE(contributor_type,'UNKNOWN')
+                  NOT IN ('ORGANIZATION','COMMITTEE'))
+        SELECT COUNT(DISTINCT v.svid), COALESCE(SUM(k.amt),0)
+        FROM ck k JOIN _rc_vk v ON v.lk=k.lk AND v.ff=k.ff AND v.z5=k.z5
+        WHERE LENGTH(k.ff) >= 2""").fetchone()
+    exp = con.execute(
+        f"SELECT COUNT(*), COALESCE(SUM(total_donated),0) FROM {panel}").fetchone()
+    dn, dd = exp[0] - got[0], abs(float(exp[1]) - float(got[1]))
+    ok = (dn == 0) and (dd < 0.01)
+    print(f"    {'ok  ' if ok else 'FAIL'} {panel:38} "
+          f"donors {exp[0]:>8,} vs {got[0]:>8,}   "
+          f"${float(exp[1])/1e6:8.2f}M vs ${float(got[1])/1e6:8.2f}M")
+    return [] if ok else [
+        f"{state} {panel}: reconciliation off by {dn} donors / ${dd:,.2f}"]
+
+
 def age_bands(con, vda, age_expr, ref_voters_sql):
     """donor% vs reference-population% by 18-29/30-44/45-64/65+."""
     band = (f"CASE WHEN {age_expr}<30 THEN '18-29' WHEN {age_expr}<45 THEN '30-44' "
@@ -170,6 +277,10 @@ for _label, _panel in (("FEDERAL", FED), ("STATE (PDC)", STATE)):
         f AS (SELECT r.*, CASE WHEN a.state_voter_id IS NOT NULL THEN 1 ELSE 0 END d FROM roll r LEFT JOIN {_panel} a USING(state_voter_id))
         SELECT d,COUNT(*),AVG(CASE WHEN is_super_voter THEN 1.0 ELSE 0 END),AVG(turnout_propensity) FROM f GROUP BY d ORDER BY d""").fetchall():
         print(f"    {'matched donor' if donor else 'non-donor':14} n={n2:>10,}  super {sr*100:5.1f}%  avg prop {ap:.3f}")
+_FAILURES += integrity(wa, "WA", {"federal": FED, "state": STATE}, None)
+print("\nRECONCILIATION  WA (primary-spec panels only)")
+_FAILURES += reconcile_primary(wa, "WA", FED, "FEC")
+_FAILURES += reconcile_primary(wa, "WA", STATE, "PDC")
 wa.close()
 
 # ============================== NEW YORK ==============================
@@ -216,6 +327,10 @@ for _label, _panel in (("FEDERAL", FED), ("STATE (NYSBOE)", STATE)):
         FROM roll GROUP BY d ORDER BY d""").fetchall():
         print(f"    {'matched donor' if donor else 'non-donor':14} n={n2:>10,}  "
               f"generals {avg:.2f} of 4  super(>=3) {sup*100:5.1f}%")
+_FAILURES += integrity(ny, "NY", {"federal": FED, "state": STATE}, None)
+print("\nRECONCILIATION  NY (primary-spec panels only)")
+_FAILURES += reconcile_primary(ny, "NY", FED, "FEC")
+_FAILURES += reconcile_primary(ny, "NY", STATE, "NY")
 ny.close()
 
 # ============================== IDAHO ==============================
@@ -273,4 +388,19 @@ if has_table(idc, FED + "_aligned") and has_table(idc, STATE + "_aligned"):
 else:
     print("\n  (aligned ID panels not built — run "
           "scripts/diag_donor_class_revisions.py --build-aligned)")
+_FAILURES += integrity(idc, "ID", {"federal": FED, "state": STATE}, None)
+print("\nRECONCILIATION  ID (primary-spec panels only)")
+_FAILURES += reconcile_primary(idc, "ID", FED, "FEC")
+_FAILURES += reconcile_primary(idc, "ID", STATE, "SUNSHINE")
 idc.close()
+
+# ============================== INTEGRITY SUMMARY ==============================
+print("\n" + "=" * 78)
+if _FAILURES:
+    print(f"INTEGRITY: {len(_FAILURES)} FAILURE(S)")
+    print("=" * 78)
+    for f in _FAILURES:
+        print(f"  - {f}")
+    raise SystemExit(1)
+print("INTEGRITY: all assertions pass")
+print("=" * 78)
