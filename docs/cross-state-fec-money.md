@@ -437,12 +437,22 @@ strengthen. Rebuild with `scripts/match_wa_voters_to_donors.py --source {fec,sta
   **43.5% [38.7–48.9]**. The concentration is a precise feature of the data, not an
   artifact of which donors landed in the pool. (The proxy's over-merging biases concentration
   *down*, so true figures are, if anything, slightly higher.)
-- **Match-precision validation** (`scripts/diag_match_validation_sample.py`). On a seed-fixed
-  150-match sample, the matched donor's full first name equals the voter's in **87%** of cases,
-  and only **13%** sit on a (last, first-initial, zip5) key shared by a same-key donor namesake
-  — the population where a false merge or pooled-attribution is even possible (4 of 150 could not
-  be re-found, parsing/PDC edge cases). The sample is emitted as a CSV for human adjudication
-  (true precision = Y/(Y+N)); the structural ceiling on false merges is reassuringly low.
+- **Match-precision validation** — superseded and now much stronger
+  (`scripts/diag_match_validation_stratified.py` + `scripts/score_match_validation.py`).
+  A **stratified blinded rating of 480 matched records** (20 per state × panel × tier, evidence
+  file carrying no stratum labels, scorer written before the verdicts) found that precision is
+  **a property of the match key**, not a single pooled number: the full-first-name key
+  `STRICT_ZIP5_FULL` measured **100.0%** (120/120, Wilson 95% CI 96.9–100) while the three
+  initial-based keys ran **47.9–71.7%**. Population-weighted across the panels, donor-weighted
+  precision is **93.0%**. Of 152 confirmed-false matches, **129 were household/relative merges
+  and every one of them sat on an initial-based key — none on the full-name key.** An
+  independent human rater re-rated 150 of the 480 blind and **agreed on all 75 full-name-key
+  records**. This is why the papers' primary specification is the full-name key alone; the
+  pooled figures in F1–F3 above are the all-tier match and therefore carry the 93.0% weighted
+  precision, not 100%. *(An earlier version of this bullet reported an unadjudicated 150-match
+  sample — "87% full-first-name agreement, 13% namesake risk, CSV emitted for human review".
+  Those verdicts were never retained, so that pass cannot be re-derived; it is withdrawn in
+  favour of the above.)*
 
 **F5 — The donor age skew is cross-state and cross-partisan (NY + ID confirm WA), and the
 donor class is less unaffiliated than the electorate.**
@@ -458,23 +468,35 @@ closed — see F6.)*
 
 | Generation | WA raw / rwt | NY raw / rwt | ID raw / rwt |
 |---|--:|--:|--:|
-| Silent | 1.86× / 1.81× | 1.87× / 1.82× | 2.01× / 1.96× |
-| Boomer | 1.63× / 1.62× | 1.77× / 1.75× | 1.69× / 1.66× |
-| Gen X | 1.19× / 1.21× | 1.07× / 1.09× | 0.96× / 1.00× |
-| Millennial | 0.61× / 0.60× | 0.50× / 0.51× | 0.48× / 0.49× |
-| Gen Z | 0.18× / 0.18× | 0.13× / 0.14× | 0.14× / 0.15× |
+| Silent | 1.96× / 1.91× | 1.50× / 1.45× | 2.08× / 2.03× |
+| Boomer | 1.71× / 1.70× | 1.65× / 1.63× | 1.71× / 1.68× |
+| Gen X | 1.22× / 1.24× | 1.21× / 1.23× | 0.96× / 1.00× |
+| Millennial | 0.54× / 0.54× | 0.58× / 0.59× | 0.46× / 0.47× |
+| Gen Z | 0.09× / 0.09× | 0.14× / 0.15× | 0.10× / 0.10× |
 
-- **Defensible claim 1 — the age skew is a near-universal property of who gives.** In all three
-  states the oldest cohort (Silent) is **~1.9–2.0× over-represented** among matched donors and
-  the youngest (Gen Z) is **~0.13–0.18×** — a >10× old-to-young gradient that is essentially
-  identical in a Democratic mega-state (NY), a swing-ish Pacific state (WA), and a deep-red small
-  state (ID). And it **survives the matcher-bias correction everywhere** (the IPW reweight moves
-  every ratio by ≤0.05): the WA white paper's answer — the skew is genuine, not an artifact of
-  the (last, first-initial, zip5) uniqueness guard over-selecting older, rarer-named voters — now
-  holds cross-state and cross-partisan. Donor concentration is likewise high and similar (Gini
-  **WA 0.857 / NY 0.884 / ID 0.822**; ID lowest, matching its retail economy from Finding 1.
-  ID here is the **FEC** voter↔donor match; the parallel *state*-Sunshine ID match in the
-  donor-class companion gives a slightly lower 0.798).
+> **Recomputed 2026-07-27.** This table and F6's had gone stale: the primary-specification
+> switch rebuilt all three pooled matches (NY 308,032 → 558,017, ID 47,762 → 41,136, WA
+> 382,408 → 314,974) and only the WA cells were refreshed. The figures above are what
+> `diag_cross_state_donor_representativeness.py` prints today. The correction *widens* the
+> cross-state spread, so the claim below is weaker than the one it replaces — see the
+> revised claim 1.
+
+- **Defensible claim 1 — the age skew is a property of who gives in every state, but its
+  steepness is not constant.** In all three states the oldest cohort (Silent) is
+  over-represented among matched donors (**1.50–2.08×**) and the youngest (Gen Z) is sharply
+  under-represented (**0.09–0.14×**). The *direction* is universal and the *magnitude* is not:
+  the old-to-young gradient is ~21× in WA and ~21× in ID but only ~11× in NY, so New York's
+  donor pool is materially less age-skewed than the other two. An earlier version of this
+  section claimed the gradient was "essentially identical" across the three states; **that is
+  withdrawn** — it was an artifact of the stale table, in which NY's Silent ratio read 1.87×
+  rather than 1.50×. The skew does **survive the matcher-bias correction everywhere** (the IPW
+  reweight moves every ratio by ≤0.05), which is the part that answers the WA white paper's
+  open question: the skew is genuine, not an artifact of the uniqueness guard over-selecting
+  older, rarer-named voters. Donor concentration is high in all three (Gini **WA 0.857 / NY
+  0.884 / ID 0.822**; ID lowest, matching its retail economy from Finding 1). **ID here is the
+  POOLED voter↔donor match** (FEC + Sunshine, 41,136 donors) — an earlier version called it the
+  FEC match, which it is not; the FEC-only panel has 23,303. The *state*-Sunshine-only match in
+  the donor-class companion gives a slightly lower Gini, 0.798.
 - **Defensible claim 2 — the donor class is less unaffiliated and more Democratic-tilted than
   the electorate** (the party-of-record cut WA cannot do). Matched-donor registered-party vs the
   full roll:
@@ -504,14 +526,20 @@ are.*
 
 | State | Donors super-voter % | Non-donors | Ratio | Avg propensity (donor / non) |
 |---|--:|--:|--:|--:|
-| WA | 87.6% (312.2K) | 50.9% (5.14M) | **1.72×** | 0.967 / 0.749 |
-| NY | 80.6% (308.0K) | 45.8% (13.23M) | **1.76×** | 0.883 / 0.658 |
-| ID | 48.7% (47.8K) | 30.0% (982K) | **1.62×** | 0.890 / 0.851 |
+| WA | 87.6% (312.3K) | 50.9% (5.14M) | **1.72×** | 0.967 / 0.749 |
+| NY | 83.1% (558.0K) | 45.0% (12.98M) | **1.85×** | 0.892 / 0.653 |
+| ID | 50.0% (41.1K) | 30.1% (988.8K) | **1.66×** | 0.892 / 0.851 |
+
+> **Recomputed 2026-07-27**, same cause as F5: the NY and ID rows were still on the
+> pre-switch pooled matches (308.0K and 47.8K) while WA's had been refreshed.
 
 - **Defensible claim.** The engagement gap between the donor class and the rest of the roll is
-  a **constant of the system, not a state peculiarity**: with identical definitions the
-  donor/non-donor super-voter ratio lands in a tight **1.62–1.76×** band across a blue
-  mega-state, a Pacific vote-by-mail state, and a deep-red closed-primary state. Within the
+  a **feature of every state measured, not a state peculiarity**: with identical definitions the
+  donor/non-donor super-voter ratio runs **1.66–1.85×** across a blue
+  mega-state, a Pacific vote-by-mail state, and a deep-red closed-primary state. (An earlier
+  version called this a "tight 1.62–1.76× band"; on the corrected figures the band is wider and
+  NY sits at its top, so "tight" is withdrawn — the robust claim is that every state shows a
+  substantial gap in the same direction, not that they share a magnitude.) Within the
   donor class the gradient is generational everywhere (donor super-voter rates: Silent/Boomer
   ~0.55–0.93 vs Gen Z ~0.03–0.17) — the "money-linked electorate" is the same doubly-selected
   (old + habitual) slice in all three states.
@@ -867,8 +895,9 @@ Tests A–I are run. Status:
    Dem-tilted in NY and ID. **F6 (2026-07-19) closes the turnout half**: NY/ID `voter_scores`
    populated with WA-identical definitions (`scripts/populate_ny_id_voter_scores.py` — NY 13.54M
    rows from the parsed history, ID 1.03M from the melted participation table), and the
-   giving→turnout cut replicates at a near-constant donor/non-donor super-voter ratio
-   (WA 1.68× / NY 1.76× / ID 1.62×). The individual layer is now complete for all three
+   giving→turnout cut replicates at a substantial donor/non-donor super-voter ratio in every
+   state (WA **1.72×** / NY **1.85×** / ID **1.66×** — see F6; "near-constant" overstated it
+   and is withdrawn). The individual layer is now complete for all three
    voter-file states.
 4. **Cross-state flow matrix — DONE, now four-state** (Section G): inflow provenance + outflow
    destination + the systematic out-of-region magnet list (Georgia Senate ~$68M from

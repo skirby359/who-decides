@@ -13,6 +13,14 @@ state, this script re-derives:
   F4c Idaho primary gate     unaffiliated COMPOSITION share of roll / general /
                              primary electorate (denominator-free)
 
+Plus, for Idaho only, a §VII block covering every published figure in
+`docs/who-decides-idaho.md`'s donor section — the party table with donor counts, the
+age comparison, concentration, Ada County, the district-safety cut and the crossover
+table. Unlike F1-F4, which print derived-vs-paper for a human to compare, these HARD
+FAIL on divergence. Added 2026-07-27 because §VII had been published for weeks on the
+retired all-tier panel with nothing flagging it: the numbers looked plausible, so an
+eyeball pass sustained them. Seeding the old count (27,250) now exits non-zero.
+
 NOT covered here, and the paper says so: the recipient-party CROSSOVER tables, the
 inverse-propensity re-weighting, the match-tier and household sensitivities, and the
 150-record hand rating. The first four are reproduced by their own scripts
@@ -229,6 +237,134 @@ def reconcile_primary(con, state, panel, source_prefix):
         f"{state} {panel}: reconciliation off by {dn} donors / ${dd:,.2f}"]
 
 
+def check(rows):
+    """Assert derived values against published ones. rows = (label, derived, paper, tol).
+
+    Unlike the F1-F4 cuts above, which print derived-vs-paper for a human to eyeball,
+    these HARD FAIL. The Idaho section they cover was published for weeks carrying figures
+    from a retired panel specification with nothing marking them stale (see
+    docs/publication-checklist.md rows 21-23b), which is exactly the failure an eyeball
+    pass does not catch. Tolerances match the precision the paper prints at: counts are
+    exact, one-decimal table cells 0.05, and prose figures rounded to whole percents 0.5.
+    """
+    fails = []
+    for label, derived, paper, tol in rows:
+        ok = abs(float(derived) - float(paper)) <= tol
+        shown = f"{derived:,.0f}" if tol == 0 else f"{derived:.1f}"
+        want = f"{paper:,.0f}" if tol == 0 else f"{paper:.1f}"
+        print(f"    {'ok  ' if ok else 'FAIL'} {label:44} {shown:>10}   (paper: {want})")
+        if not ok:
+            fails.append(f"ID §VII {label}: derived {shown} vs paper {want}")
+    return fails
+
+
+def section_vii(con):
+    """Idaho paper §VII — every published figure in the donor section, machine-checked.
+
+    §VII reports the STATE (Sunshine) panel; the federal panel is the cross-state
+    comparison's, not this section's. Ada County, the district-safety cut and the
+    crossover table are unique to this section and are covered nowhere else.
+    """
+    print("\n§VII who-decides-idaho.md — published figures (STATE panel), asserted")
+    if not has_table(con, STATE):
+        print("    -- state panel absent, skipped")
+        return []
+    P = ("CASE WHEN v.party='REP' THEN 'REP' WHEN v.party='DEM' THEN 'DEM' "
+         "WHEN v.party='UNA' THEN 'UNAFF' ELSE 'OTHER' END")
+    rows = []
+
+    n, gifts, usd = con.execute(
+        f"SELECT COUNT(*), SUM(donation_count), SUM(total_donated) FROM {STATE}").fetchone()
+    rows += [("matched donors", n, 23_613, 0), ("donations", gifts, 114_806, 0),
+             ("matched dollars ($M)", float(usd) / 1e6, 13.64, 0.005)]
+
+    # Party table: donors, donor share, registration share, skew, dollar share.
+    pub = {"REP": (15_645, 66.3, 62.9, 3.4, 72.2), "DEM": (5_097, 21.6, 11.8, 9.8, 20.0),
+           "UNAFF": (2_735, 11.6, 23.9, -12.3, 7.6), "OTHER": (136, 0.6, 1.4, -0.9, 0.2)}
+    reg = dict(con.execute(
+        f"SELECT {P} b, COUNT(*) FROM vrdb.voters v WHERE status_code='A' GROUP BY 1").fetchall())
+    rt = sum(reg.values())
+    for b, dn, dp, sp in con.execute(f"""
+        SELECT {P} b, COUNT(*), 100.0*COUNT(*)/SUM(COUNT(*)) OVER (),
+               100.0*SUM(a.total_donated)/SUM(SUM(a.total_donated)) OVER ()
+        FROM {STATE} a JOIN vrdb.voters v USING(state_voter_id) GROUP BY 1""").fetchall():
+        pn, pdp, prp, psk, pdl = pub[b]
+        rows += [(f"{b} donors", dn, pn, 0), (f"{b} donor share %", dp, pdp, 0.05),
+                 (f"{b} reg share %", reg.get(b, 0) / rt * 100, prp, 0.05),
+                 (f"{b} skew", dp - reg.get(b, 0) / rt * 100, psk, 0.05),
+                 (f"{b} dollar share %", sp, pdl, 0.05)]
+
+    # Age. All three populations on CURRENT-ROLL age — the paper says so explicitly,
+    # because Section I's table is age-at-election and the two are not interchangeable.
+    d65, d30 = con.execute(f"""
+        SELECT 100.0*COUNT(*) FILTER (WHERE v.age>=65)/COUNT(*),
+               100.0*COUNT(*) FILTER (WHERE v.age<30)/COUNT(*)
+        FROM {STATE} a JOIN vrdb.voters v USING(state_voter_id)""").fetchone()
+    r65, r30 = con.execute("""
+        SELECT 100.0*COUNT(*) FILTER (WHERE age>=65)/COUNT(*),
+               100.0*COUNT(*) FILTER (WHERE age<30)/COUNT(*)
+        FROM vrdb.voters WHERE status_code='A'""").fetchone()
+    g65, = con.execute("""
+        SELECT 100.0*COUNT(*) FILTER (WHERE v.age>=65)/COUNT(*)
+        FROM vrdb.voters v JOIN vrdb.voter_participation p USING(state_voter_id)
+        WHERE p.election_year=2024 AND p.kind='GENERAL'""").fetchone()
+    rows += [("donors 65+ %", d65, 51, 0.5), ("donors under-30 %", d30, 2.1, 0.05),
+             ("roll 65+ %", r65, 31, 0.5), ("roll under-30 %", r30, 15, 0.5),
+             ("2024 general 65+ % (current-roll age)", g65, 33, 0.5)]
+
+    t1, t10 = con.execute(f"""
+        WITH r AS (SELECT total_donated t, NTILE(100) OVER (ORDER BY total_donated DESC) p
+                   FROM {STATE} WHERE total_donated>0)
+        SELECT 100.0*SUM(t) FILTER(WHERE p=1)/SUM(t),
+               100.0*SUM(t) FILTER(WHERE p<=10)/SUM(t) FROM r""").fetchone()
+    ada, = con.execute(f"""
+        SELECT 100.0*SUM(a.total_donated) FILTER (WHERE v.county_name='ADA')
+               /SUM(a.total_donated)
+        FROM {STATE} a JOIN vrdb.voters v USING(state_voter_id)""").fetchone()
+    rows += [("top-1% share of $", t1, 40, 0.5), ("top-10% share of $", t10, 71, 0.5),
+             ("Ada County share of $", ada, 50, 0.5)]
+
+    # District safety, on Section V's own registration bands so the cut is reproducible.
+    bands = {r[0]: r[1:] for r in con.execute(f"""
+        WITH ld AS (SELECT legislative_district d,
+               100.0*COUNT(*) FILTER(WHERE party='REP')/COUNT(*)
+             - 100.0*COUNT(*) FILTER(WHERE party='DEM')/COUNT(*) net
+            FROM vrdb.voters WHERE legislative_district IS NOT NULL GROUP BY 1),
+        b AS (SELECT d, CASE WHEN net>=40 THEN 'solid' ELSE 'competitive-adjacent' END band
+              FROM ld)
+        SELECT b.band, COUNT(DISTINCT b.d), COUNT(*),
+               100.0*COUNT(*) FILTER (WHERE v.party='REP')/COUNT(*),
+               100.0*COUNT(*) FILTER (WHERE v.party='DEM')/COUNT(*)
+        FROM {STATE} a JOIN vrdb.voters v USING(state_voter_id)
+        JOIN b ON b.d = v.legislative_district GROUP BY 1""").fetchall()}
+    for band, (plds, pn, prep, pdem) in (("solid", (27, 14_594, 78, 13)),
+                                         ("competitive-adjacent", (8, 9_019, 47, 35))):
+        lds, dn, rp, dp = bands[band]
+        rows += [(f"{band} LDs", lds, plds, 0), (f"{band} donors", dn, pn, 0),
+                 (f"{band} donors % REP", rp, prep, 0.5),
+                 (f"{band} donors % DEM", dp, pdem, 0.5)]
+
+    # Crossover. Denominators matter here: resolution is a share of ALL matched donors
+    # and of ALL matched dollars, while the D-only/R-only/mixed rates are shares of the
+    # RESOLVED donors only. The paper states both bases.
+    rd, rdol = con.execute(f"""
+        SELECT 100.0*COUNT(*) FILTER (WHERE d_amount+r_amount>0)/COUNT(*),
+               100.0*SUM(d_amount+r_amount)/SUM(total_donated) FROM {STATE}""").fetchone()
+    rows += [("recipient resolved, % of donors", rd, 51, 0.5),
+             ("recipient resolved, % of dollars", rdol, 41, 0.5)]
+    xpub = {"REP": (19.1, 79.0), "DEM": (94.6, 3.0), "UNAFF": (77.1, 20.5)}
+    for b, d_only, r_only in con.execute(f"""
+        SELECT {P} b,
+          100.0*COUNT(*) FILTER (WHERE d_amount>0 AND r_amount=0)/COUNT(*),
+          100.0*COUNT(*) FILTER (WHERE r_amount>0 AND d_amount=0)/COUNT(*)
+        FROM {STATE} a JOIN vrdb.voters v USING(state_voter_id)
+        WHERE d_amount+r_amount>0 GROUP BY 1""").fetchall():
+        if b in xpub:
+            rows += [(f"{b} gave only to D %", d_only, xpub[b][0], 0.05),
+                     (f"{b} gave only to R %", r_only, xpub[b][1], 0.05)]
+    return check(rows)
+
+
 def age_bands(con, vda, age_expr, ref_voters_sql):
     """donor% vs reference-population% by 18-29/30-44/45-64/65+."""
     band = (f"CASE WHEN {age_expr}<30 THEN '18-29' WHEN {age_expr}<45 THEN '30-44' "
@@ -388,6 +524,7 @@ if has_table(idc, FED + "_aligned") and has_table(idc, STATE + "_aligned"):
 else:
     print("\n  (aligned ID panels not built — run "
           "scripts/diag_donor_class_revisions.py --build-aligned)")
+_FAILURES += section_vii(idc)
 _FAILURES += integrity(idc, "ID", {"federal": FED, "state": STATE}, None)
 print("\nRECONCILIATION  ID (primary-spec panels only)")
 _FAILURES += reconcile_primary(idc, "ID", FED, "FEC")

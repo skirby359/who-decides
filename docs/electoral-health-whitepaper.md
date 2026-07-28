@@ -44,8 +44,11 @@ blind to (see *Boundary of Inference*).
 >   off-year electorate, from 27.1M VRDB vote records).
 > - **Finding 2 → [`safe-seat-washington.md`](safe-seat-washington.md)** — now on
 >   **observed** margins, extended to a **complete four-state lower-chamber map**
->   (WA 88.8 / NY 88.6 / TX 94.0 / ID 92.9% non-competitive), and the observed
->   counts **validate** the model's projection used below.
+>   (WA **87.8** / NY 88.6 / TX 94.0 / ID 92.9% not close), and the observed
+>   counts **validate** the model's projection used below. *(WA read 88.8% until the
+>   seat universe was rebuilt from certified statewide summaries; the old figure came
+>   from a results-table universe that silently dropped 24 King County House seats per
+>   cycle in 2016 and 2018.)*
 > - **Findings 4 & 5 → [`cross-state-fec-money.md`](cross-state-fec-money.md) §F**
 >   — and the matcher-bias objection to Finding 5 has been **tested and rejected**
 >   (see that finding below); the donor match is **314,974** on the full-name-key
@@ -139,11 +142,17 @@ concrete analysis to run.
   electorates — the null's "outcomes reflect voter choice."
 - **First analysis — DONE** ([`safe-seat-washington.md`](safe-seat-washington.md)):
   Ran **observed** margins, not the projection: per state, the
-  most recent general for partisan legislative + congressional offices → two-party
-  margin per district → band counts (the "no major-party choice" bucket captures the
-  *truly uncontested* / same-party seats). For WA, built the 2016–2024 seat-level trend
-  (stable ~85%, dipping only in the 2018 wave) and the primary-to-general turnout ratio
-  in safe seats (~0.5) — the one
+  most recent general for partisan legislative + congressional offices → margin per
+  district → band counts. **The companion has since split this into two dimensions that
+  must not be merged:** *candidate competition* (was the race close, on the top-two margin
+  regardless of party) and *partisan availability* (did the ballot offer both a Democrat
+  and a Republican). They overlap but are different questions — in WA 2024, 83.5% of seats
+  were not close and 35.3% offered no D-v-R option, and of the fifteen same-party generals
+  fourteen were also lopsided but **one was decided by six points**. Treating "no major-party
+  choice" as automatically non-competitive, as this bullet originally did, is the conflation
+  the rewrite removed. For WA, built the 2016–2024 seat-level trend (not-close share runs
+  **78.9–88.1%** across the five cycles, dipping in the 2018 wave) and the
+  primary-to-general turnout ratio in safe seats (~0.5) — the one
   place this data *adds* to Cook/Ballotpedia/Unite America by attaching real
   turnout (and the voter-donor join) to the "primary decides" claim.
 - **Key literature.** Cook PVI (swing districts 164 in 1997 → ~72 post-2016);
@@ -178,7 +187,7 @@ concrete analysis to run.
 
 - **Defensible claim (cross-sectional only).** Among the 314,974 matched voters,
   donors are a participation elite: **87.6% are super-voters vs 50.9%** of non-donors
-  (average turnout propensity 0.95 vs 0.75; donor-class verifier F4). Financial voice
+  (average turnout propensity **0.967 vs 0.749**; donor-class verifier F4). Financial voice
   and electoral voice concentrate on the same individuals rather than offsetting.
 - **Strongest objection.** The *causal/longitudinal* version ("giving *makes* people
   vote more; inequality *deepens*") is unsupportable here: donors are pre-selected
@@ -190,7 +199,7 @@ concrete analysis to run.
   — is live.
 - **First analysis — DONE** ([`cross-state-fec-money.md`](cross-state-fec-money.md) §F3):
   the cross-sectional benchmark — matched donors are **87.6% super-voters vs 50.9%** of
-  non-donors (1.68×), mean turnout propensity 0.953 vs 0.748 — framed strictly as
+  non-donors (**1.72×**), mean turnout propensity **0.967 vs 0.749** — framed strictly as
   association, with the match-bias diagnostic from §F2 (the giving↔voting overlap is real;
   the *causal/longitudinal* version remains out of reach).
 - **Key literature.** Verba/Schlozman/Brady (*Voice and Equality*; *Unheavenly
@@ -212,11 +221,11 @@ concrete analysis to run.
 > **2.67×**, Gen Z **0.04×**).
 
 - **Defensible claim.** At the person level, donors are a narrow slice that does not
-  mirror the electorate: **~3.5–6% of voters**, skewed old (Silent 1.96×, Boomer
-  1.63× over-represented; Gen Z 0.18×, Millennial 0.60× under-represented —
-  2.67× / 2.04× / 0.04× on the federal panel),
-  overwhelmingly super-voters, geographically concentrated (**~61% of WA donor
-  dollars from two Seattle-metro ZIP3s**; 63.4% federal-only), and internally top-heavy
+  mirror the electorate: **~3.5–6% of voters**, skewed old (pooled WA: Silent **1.96×**,
+  Boomer **1.71×** over-represented; Gen Z **0.09×**, Millennial **0.54×**
+  under-represented — 2.67× / 2.04× / 0.04× / 0.35× on the federal panel),
+  overwhelmingly super-voters, geographically concentrated (**61.4% of WA donor
+  dollars from two Seattle-metro ZIP3s**; 63.5% federal-only), and internally top-heavy
   (top 1% of matched donors supply **46.6%** of matched dollars pooled, **41.2%**
   federal; top 10% **79.3%** / **74.2%**).
   RETIRED ($221.7M, 21.3%) and NOT EMPLOYED ($147.4M, 14.1%) are the two largest
@@ -238,17 +247,28 @@ concrete analysis to run.
   the matcher-bias inverse-propensity re-weighting above; skews reported raw *and*
   re-weighted; income/race labeled untestable. Concentration on the pooled 314,974 match:
   top-1% **46.6%**, top-10% **79.3%**, Gini 0.857; 61.4% of dollars from two Seattle ZIP3s.
-  Superseded per the panel note above — federal panel top-1% **42.4%** [40.2–44.9],
-  Gini **0.815**, two-ZIP3 share **63.5%**; state panel top-1% **43.5%**, Gini **0.821**.
+  Superseded per the panel note above — federal panel top-1% **41.2%** [38.6–43.4],
+  Gini **0.815** [0.806–0.822], two-ZIP3 share **63.5%**; state panel top-1% **43.5%**
+  [38.7–48.9], Gini **0.821** [0.806–0.838]. *(This line previously read 42.4% [40.2–44.9]
+  for the federal panel — the all-tier value, contradicting the 41.2% in the panel note
+  directly above it. The bootstrap CIs are the per-panel re-runs in
+  [`cross-state-fec-money.md`](cross-state-fec-money.md) §F4.)*
 - **Party-resolved — DONE for NY + ID** ([`donor-class-and-the-electorate.md`](donor-class-and-the-electorate.md)):
   with party of record the demographic claim sharpens into a partisan one, and the striking
   result is that it holds **in both directions of the spectrum** — the donor class
-  over-represents registered Democrats relative to the electorate in **deep-blue NY (+15
-  pts)** *and* **deep-red Idaho (+9 pts)**, under-represents the unaffiliated in both, and
-  the age skew replicates (NY 48% / ID 51% of donors are 65+). Crossover: Democrats are
-  near-monolithic donors (94% NY / 93.5% ID → own party) and unaffiliated donors lean
-  Democratic (~2:1 NY, ~3:1 ID). So the Democratic tilt is a property of who donates, not
-  of a state's majority party. (ID is a state-money layer; see that paper's caveats.)
+  over-represents registered Democrats relative to the electorate in **deep-blue NY (+16.1
+  pts federal, +9.6 state)** *and* **deep-red Idaho (+8.6 federal, +9.8 state)**,
+  under-represents the unaffiliated in both, and
+  the age skew replicates (65+: NY federal **49.9%**, ID federal **66.8%**, ID state
+  **51.3%**). Crossover: Democrats are
+  near-monolithic donors (94% NY / **94.6%** ID → own party) and unaffiliated donors lean
+  Democratic (~2:1 NY, nearly **4:1** ID). So the Democratic tilt is a property of who donates,
+  not of a state's majority party. (The ID crossover and 51.3% figures are the state-money
+  layer; see that paper's caveats.) **These are the primary (full-name-key) specification.**
+  It discards 11–19% of matched donors who are younger and less Democratic than those
+  retained, so part of the sharpened skew is selection rather than precision — the
+  all-tier figures, which are the more conservative ones, are reported alongside in the
+  donor-class paper.
 - **Key literature.** Demos (*Whose Voice, Whose Choice*); Bonica (DIME); and the
   same-state result that tempers the benign reading — **Grumbach, Sahn & Staszak
   (APSR): Seattle's democracy vouchers did *not* diversify the donor pool.**

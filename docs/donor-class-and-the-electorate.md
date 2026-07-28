@@ -427,10 +427,10 @@ carry a party, and the committee→candidate→roster chain.
 | NOPARTY | 31,319 | 25,074 | 80.1% | **65.1%** | 31.4% | 3.5% | | 75.7% |
 | OTHER | 8,694 | 7,122 | 81.9% | 39.1% | 58.9% | 2.1% | | 48.1% |
 | *state panel* | | | | | | | | |
-| DEM | 240,401 | 89,010 | 37.0% | **88.3%** | 8.9% | 2.9% | | 91.2% |
-| REP | 107,854 | 48,708 | 45.2% | 12.2% | **84.7%** | 3.1% | | 23.0% |
-| NOPARTY | 57,259 | 15,878 | 27.7% | **54.8%** | 41.8% | 3.4% | | 67.7% |
-| OTHER | 18,511 | 6,114 | 33.0% | 36.9% | 58.8% | 4.3% | | 50.7% |
+| DEM | 216,244 | 80,010 | 37.0% | **89.0%** | 8.2% | 2.8% | | 91.8% |
+| REP | 97,632 | 44,443 | 45.5% | 10.8% | **86.2%** | 3.0% | | 22.2% |
+| NOPARTY | 48,024 | 12,931 | 26.9% | **52.9%** | 43.5% | 3.6% | | 66.9% |
+| OTHER | 16,488 | 5,410 | 32.8% | 35.8% | 59.8% | 4.3% | | 51.6% |
 
 **Idaho.** Idaho Sunshine carries no party on the recipient either, so state recipient
 party is reconstructed from the Secretary of State candidate roster plus party/committee
@@ -445,21 +445,33 @@ reconstruction — the FEC masters carry party directly.
 | UNAFF | 2,754 | 2,286 | 83.0% | **78.3%** | 20.6% | 1.1% | | 77.7% |
 | OTHER | 164 | 102 | 62.2% | 16.7% | 81.4% | 2.0% | | 7.5% |
 | *state panel* | | | | | | | | |
-| REP | 18,115 | 9,420 | 52.0% | 18.8% | **79.3%** | 1.9% | | 18.1% |
-| DEM | 5,685 | 3,365 | 59.2% | **93.5%** | 4.0% | 2.5% | | 96.4% |
-| UNAFF | 3,281 | 1,303 | 39.7% | **72.8%** | 24.5% | 2.7% | | 68.4% |
-| OTHER | 169 | 59 | 34.9% | 18.6% | 81.4% | 0.0% | | 22.3% |
+| REP | 15,645 | 7,962 | 50.9% | 19.1% | **79.0%** | 1.9% | | 17.6% |
+| DEM | 5,097 | 2,985 | 58.6% | **94.6%** | 3.0% | 2.3% | | 97.9% |
+| UNAFF | 2,735 | 1,066 | 39.0% | **77.1%** | 20.5% | 2.3% | | 74.3% |
+| OTHER | 136 | 44 | 32.4% | 18.2% | 81.8% | 0.0% | | 36.5% |
+
+> **Both state blocks were recomputed 2026-07-27.** They had been left on the all-tier
+> match when the panels were rebuilt on the primary specification, while the two federal
+> blocks above them were updated — so the table silently set one specification beside
+> another and invited exactly the federal-vs-state comparison that mismatch corrupts. The
+> state rows now sum to the published panels (NY 378,383; ID 23,613), not to the retired
+> all-tier totals (424,020; 27,250). No conclusion in this section changes: Democratic
+> loyalty and the unaffiliated Democratic tilt both hold, and the Idaho unaffiliated lean
+> strengthens from ~3:1 to nearly 4:1.
 
 *Source: the four panel tables' `donor_party` classification and `d_amount` / `r_amount`
-columns, joined to each state's party of record. Aggregate resolution: NY federal 87.8%,
-NY state 37.7%, ID federal 86.7%, ID state 51.9% of matched donors. Script:
+columns, joined to each state's party of record. Aggregate resolution: NY federal **88.8%**,
+NY state 37.7%, ID federal **87.6%**, ID state 51.1% of matched donors. *(This line
+previously gave 87.8% and 86.7% for the two federal panels; both are the **Republican
+row's** resolution rate, not the panel aggregate — read straight off the wrong cell.)*
+Script:
 `diag_donor_class_revisions.py`. Not covered by `verify_donor_class.py` — the crossover
 cut depends on the recipient-resolution logic in the backfill scripts.*
 
 **These tables are exploratory, and the unresolved pool is not missing at random.** The
-resolution rate varies systematically by donor group — 90.1% for NY federal Democrats
-against 79.2% for the unaffiliated, and on the NY state panel 45.2% for Republicans
-against 27.7% for the unaffiliated. Whatever is unresolved is disproportionately the
+resolution rate varies systematically by donor group — 91.1% for NY federal Democrats
+against 80.1% for the unaffiliated, and on the NY state panel 45.5% for Republicans
+against 26.9% for the unaffiliated. Whatever is unresolved is disproportionately the
 unaffiliated bloc's giving, in the very rows the reader most wants. At 37.7% aggregate
 resolution the NY state column should be read as indicative only.
 
@@ -467,10 +479,10 @@ Read against those limits, two patterns are stable in both panels and both state
 
 - **Among donors whose recipients can be assigned a party, D-only donors outnumber R-only
   donors within the registered-Democratic and unaffiliated blocs, by wide margins.**
-  Registered Democrats are near-monolithic (94.4% D-only federally in NY, 96.5% in ID).
+  Registered Democrats are near-monolithic (95.3% D-only federally in NY, 98.5% in ID).
 - **Among unaffiliated donors, D-only donors outnumber R-only donors roughly 2:1 in New
-  York and 3:1 in Idaho**, and the dollar-flow measure agrees (75.7% and 71.9% of resolved
-  dollars to Democrats). This says the unaffiliated bloc's *party-directed giving* leans
+  York and nearly 4:1 in Idaho**, and the dollar-flow measure agrees (75.7% and 77.7% of
+  resolved dollars to Democrats). This says the unaffiliated bloc's *party-directed giving* leans
   Democratic. It does not establish that these donors are non-centrist ideologically:
   party-directed giving is one behavior, not a measure of ideological position.
 

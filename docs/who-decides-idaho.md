@@ -280,7 +280,12 @@ registered voters to 114,806 donations ($13.64M)**. The match uses the full-name
 key alone (last name + full first name + ZIP5), the specification adopted across
 this series on 2026-07-27 after a stratified blinded validation measured it at
 100% precision (120/120) while initial-based keys ran 48–72%; see the donor-class
-companion, Appendix F. Characterized by the donor's own party of record:
+companion, Appendix F. The restriction buys that precision at a cost worth stating
+where the findings are read rather than in a methods note: it **discards 11–19% of
+matched donors, who are younger and less Democratic than those retained**, so some
+part of the age and party skews below is selection rather than measurement. The
+superseded all-tier figures are the more conservative ones and are reported in the
+companion. Characterized by the donor's own party of record:
 
 | Party | donors | donor share | reg share | skew | $ share |
 |---|--:|--:|--:|--:|--:|

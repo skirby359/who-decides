@@ -713,3 +713,48 @@ python scripts/diag_seat_competition.py    # exit 0 == all cycles reconcile to 9
 
 
 
+
+---
+
+## 7. Adversarial review log
+
+**2026-07-27 — cross-paper consistency pass.** Attacked the papers as a hostile reviewer
+would: not re-deriving each headline (§1 does that) but hunting for figures that
+**contradict each other across documents**, claims **stronger than the data now supports**,
+and **base/denominator mismatches**. Everything below was found by recomputing from the
+databases, and all of it is fixed.
+
+The dominant finding is one failure mode, not eight unrelated slips. The
+primary-specification switch rebuilt every panel *and* the three pooled tables. The
+donor-class paper and the WA-facing cuts were updated; **the NY and ID cuts in the
+downstream documents were not.** Because a partial update leaves plausible-looking
+numbers, nothing failed loudly.
+
+| # | Document | Defect | Resolution |
+|---|---|---|---|
+| R1 | `cross-state-fec-money.md` §F5 | The whole generation table disagreed with the script it cites — NY Silent read 1.87× against an actual **1.50×** | Table replaced with the script's current output |
+| R2 | §F5 claim 1 | Claimed Silent "~1.9–2.0×" and a gradient "essentially identical" across states. Actual range **1.50–2.08×**; gradient ~21× in WA/ID but **~11× in NY** | Range corrected; "essentially identical" **withdrawn** |
+| R3 | §F5 | Called the Idaho cut "the **FEC** voter↔donor match" — it is the **pooled** match (41,136, not 23,303) | Relabelled; the same mislabel fixed in `who-decides-idaho.md` |
+| R4 | §F6 | NY and ID rows still on pre-switch matches (308.0K / 47.8K); "tight **1.62–1.76×** band" | Rows recomputed (**1.66–1.85×**); "tight" withdrawn |
+| R5 | §F4 | Match-precision bullet described the unadjudicated 150-record sample as pending human review — superseded by the 480-record blinded study, and those verdicts were never retained | Replaced with the tier-resolved result (full-name key **100%**, weighted **93.0%**) |
+| R6 | **`donor-class-and-the-electorate.md`** crossover tables | **Federal blocks primary-spec, state blocks all-tier, in the same table** — inviting precisely the federal-vs-state comparison that mismatch corrupts | Both state blocks recomputed; rows now sum to 378,383 / 23,613 |
+| R7 | Same section, footnote | "Aggregate resolution: NY federal 87.8%, ID federal 86.7%" — both are the **Republican row's** rate, read off the wrong cell. Aggregates are **88.8%** / **87.6%** | Corrected, with the cause stated |
+| R8 | Same section, prose | Prose disagreed with its own adjacent tables (90.1/79.2 vs 91.1/80.1; 94.4% vs 95.3%; ID unaffiliated "3:1" vs **3.8:1**; ID $-to-D 71.9% vs **77.7%**) | Prose reconciled to the tables |
+| R9 | `electoral-health-whitepaper.md` Finding 5 | **Self-contradictory**: federal top-1% given as 41.2% in the panel note and **42.4%** two bullets later; Gen Z as 0.18× in one bullet and 0.09× in another | Both resolved to the verified values; stale CI [40.2–44.9] → **[38.6–43.4]** |
+| R10 | Whitepaper Findings 2 & 4 | WA four-state cell still **88.8%** (dropped-King-County universe); ratio 1.68× and propensity 0.953 stale; "no major-party choice" treated as automatically non-competitive — the conflation the safe-seat rewrite removed | Corrected to **87.8%** / **1.72×** / **0.967**; two-dimension distinction restored |
+| R11 | `who-decides-idaho.md` §VII | Spec-dependent age and party claims carried no selection caveat, though the restriction discards 11–19% of donors who are **younger and less Democratic** | Caveat added where the findings are read, not in a methods note |
+
+**Checked and found clean:** the lead WA paper (all cells verify, and its bounding /
+imputation / geography sensitivity sections are intact); the safe-seat paper (rebuilt and
+reconciling to statutory chamber size every cycle); the donor paper's own all-tier
+references, which are **all** explicitly labelled "all tiers" / "all matched" / "superseded"
+in sensitivity tables — that paper never mixed specifications in its own prose, which is why
+R6 stood out.
+
+**Reviewer's note on what this says about the process.** Every defect above is a
+*propagation* failure, not an analysis error: the recomputations were right, and the
+documents downstream of them were not revisited. The §VII figures are now machine-checked in
+`verify_donor_class.py` (47 assertions, hard-fail), which closes that path for Idaho. The
+equivalent cuts in `cross-state-fec-money.md` §F5/F6 and the whitepaper are still
+prose-only — **they are the most likely place for the next instance of R1–R4**, and are
+worth wiring into a verifier before the next specification change.
