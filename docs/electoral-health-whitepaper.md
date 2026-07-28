@@ -228,8 +228,15 @@ concrete analysis to run.
   dollars from two Seattle-metro ZIP3s**; 63.5% federal-only), and internally top-heavy
   (top 1% of matched donors supply **46.6%** of matched dollars pooled, **41.2%**
   federal; top 10% **79.3%** / **74.2%**).
-  RETIRED ($221.7M, 21.3%) and NOT EMPLOYED ($147.4M, 14.1%) are the two largest
-  occupation blocs. The voter↔donor join makes this *person-level*, not ecological —
+  RETIRED ($154.0M, 23.8%) and NOT EMPLOYED ($128.8M, 19.9%) are the two largest
+  occupation blocs. *(These are contribution-level, not matched-donor, figures — occupation
+  is on the gift, not the voter — and they are stated on the series' documented outflow
+  basis: FEC rows, Washington-resident donors, $646.2M. Until 2026-07-27 they read $221.7M
+  / 21.3% and $147.4M / 14.1%, computed on the **unfiltered pooled** table — FEC plus state
+  PDC plus non-resident donors, $1,050.8M — i.e. the same two-money-system pooling this
+  series corrected everywhere else, sitting inside a finding whose every other number is
+  panel-scoped. On the federal basis both blocs are a LARGER share, so the point sharpens.)*
+  The voter↔donor join makes this *person-level*, not ecological —
   the genuine value-add over the standard FEC-aggregate literature.
 - **Strongest objection — now tested and rejected.** The objection was that the skew
   is a **matcher artifact**: the (last name, first initial, ZIP) unique-key over-selects
@@ -298,8 +305,8 @@ concrete analysis to run.
   One cross-section of 7 races cannot bear the bootstrap CI, the early-vs-late split,
   or the next-cycle placebo, so **inference is withheld** (the script says so rather
   than reporting a coin-flip slope). What the descriptive cross-section *shows* still
-  cuts toward the null: the association is, if anything, **negative** (−0.42 pp per
-  $1M net pro-Dem IE, Pearson r −0.43, n=7) — money flowing toward the side that is
+  cuts toward the null: the association is, if anything, **negative** (−0.39 pp per
+  $1M net pro-Dem IE, Pearson r −0.39, n=7) — money flowing toward the side that is
   *behind*, the textbook endogeneity signature — and the single most IE-saturated
   House race in the country, **WA-03 2024 ($40.1M total IE, +$16.2M net pro-Dem),
   finished +0.06 pp off its fundamentals: dead-on.** The citable Finding-6 result for

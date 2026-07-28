@@ -804,5 +804,31 @@ Building it caught three more, all now fixed:
 | R13 | §F2 + whitepaper Finding 5 | P(matchable) published as 68.9%–73.1%; the roll has since grown and it is **69.1%–73.3%**. Not a tier-switch defect — ordinary drift in a figure nothing was watching |
 | R14 | — | My own first derivation of NY's 65+ donor share read 54.6% against a published 49.9%, because NY publishes age **as of the 2024 general** and I measured at 2026. The published figure was right; the check was wrong. Recorded because a verifier that silently adopts the wrong basis is worse than no verifier |
 
-Every paper-level cut in the series now has a machine check. What remains unenforced is
-narrower and worth naming: the bootstrap CIs, the occupation blocs, and Finding 6.
+**The last three were wired in the same day**, so `UNCHECKED` is now down to items that
+cannot be re-derived here rather than items nobody got to:
+
+- **Bootstrap CIs.** My earlier note called B=1,000 "too slow for a verifier". That was
+  simply wrong — the whole block runs in ~35s. Because
+  `diag_donor_concentration_bootstrap.py` fixes its seed, the published intervals are
+  *exactly* reproducible, so they are asserted at full precision instead of with a
+  Monte-Carlo slack. One caveat is now recorded in the code: a single RNG is threaded
+  through federal → state → inflow in sequence, so **the panel order is load-bearing** and
+  reordering them silently changes every interval.
+- **Finding 6**, in two halves. Its data-ceiling facts — scorable-race count, WA-03's IE
+  dollars, the $70.6M of PDC IE carrying no support/oppose flag — are re-derived from
+  scratch, and by the paper's own argument those *are* the citable result. Its slope and
+  Pearson r are not re-derived: they regress a fundamentals-net residual only the forecast
+  model produces, and reimplementing it here would fork the model rather than check it.
+  They are instead asserted against `does-money-move-votes.md`, the paper that owns them.
+  That is a consistency check, labelled as such — and it immediately earned its keep.
+- **The occupation blocs**, which I had listed as out of scope and which turned out to be
+  the most substantive find of the three.
+
+| # | Where | Defect |
+|---|---|---|
+| R15 | whitepaper Finding 6 | Slope and r read **−0.42 / −0.43** against `does-money-move-votes.md`'s correct **−0.39 / −0.39**. The white paper had drifted from the paper it summarises — the exact failure this verifier was built for, found the moment it was pointed at Finding 6 |
+| R16 | whitepaper Finding 5 | The occupation blocs (RETIRED, NOT EMPLOYED) were computed on the **unfiltered pooled** contributions table — FEC + state PDC + non-resident donors, $1,050.8M — inside a finding whose every other figure is panel-scoped. **The same two-money-system pooling this series corrected everywhere else, still sitting in the white paper.** Restated on the documented outflow basis (FEC, WA-resident, $646.2M): RETIRED **$154.0M / 23.8%**, NOT EMPLOYED **$128.8M / 19.9%** — both a *larger* share, so the point sharpens |
+
+Remaining in `UNCHECKED`, and each for a stated reason rather than convenience: Finding 6's
+slope/r (cross-checked, not re-derived) and Findings 1-3 (prospectus items whose realized
+analyses are verified by `verify_who_decides_wa.py` and `diag_seat_competition.py`).
