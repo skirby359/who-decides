@@ -28,6 +28,8 @@ python scripts/verify_donor_class.py        # donor-class-and-the-electorate.md 
 python scripts/diag_seat_competition.py     # safe-seat-washington.md (WA 5 cycles, both dimensions)
 python scripts/verify_cross_state_money.py  # cross-state-fec-money.md — outflow + inflow (advisory),
                                             #   plus §F5/§F6 as 88 HARD assertions (exits non-zero)
+python scripts/verify_whitepaper.py         # electoral-health-whitepaper.md Findings 4 & 5 —
+                                            #   SCRAPES the prose and asserts it (exits non-zero)
 ```
 
 > A seventh check, `verify_public_matcher_extract.py`, runs in the **private repo only** —
@@ -778,7 +780,29 @@ and the withdrawn "tight 1.62–1.76×" band all fail the run. Building the chec
 one more, unrelated to the tier switch: **Idaho's pooled Gini is 0.821450, and the paper's
 0.822 was a double-rounding of the diagnostic's 4-decimal 0.8215.** Corrected to 0.821.
 
-Still prose-only: the whitepaper's Findings 4 and 5, which restate these cuts in narrative
-form. They are now consistent with the verified values, but nothing enforces that — the
-whitepaper is a prospectus rather than a paper with its own verifier, so it remains the
-most likely site of the next instance.
+**The whitepaper gap is now closed too (`verify_whitepaper.py`).** It is built differently
+on purpose. Findings 4 and 5 do not compute anything — they *restate* figures from the
+donor-class and cross-state papers, and their two observed failure modes were drift from
+those sources and **self-contradiction** (the federal top-1% given as 41.2% in a panel note
+and 42.4% four lines later). A constants table cannot catch either, because it never reads
+the prose: the sentence can be edited while the constant stays right. So this verifier
+**scrapes the prose** — each probe is a regex anchored on the surrounding words, and every
+occurrence of a figure must equal the derived value, so a number stated twice is checked
+twice. **An anchor that matches nothing is a failure, not a skip**, because rewording a
+sentence out from under a check is itself the thing to catch.
+
+Negative-tested against all three modes: reinstating the 42.4% contradiction, deleting the
+figure from a sentence, and a single stale digit each fail the run. Two things are listed
+in the script's `UNCHECKED` rather than quietly omitted — the bootstrap CIs (B=1,000, too
+slow) and the occupation blocs (an outflow-side cut).
+
+Building it caught three more, all now fixed:
+
+| # | Where | Defect |
+|---|---|---|
+| R12 | `cross-state-fec-money.md` §F2 | Raw multipliers gave Millennial **0.59×** and Gen Z **0.17×** against 0.54× / 0.09× — and **contradicted the "Gen Z 0.09→0.09×" in the same bullet**. Missed by the first review pass, which read F5's table but not F2's sentence |
+| R13 | §F2 + whitepaper Finding 5 | P(matchable) published as 68.9%–73.1%; the roll has since grown and it is **69.1%–73.3%**. Not a tier-switch defect — ordinary drift in a figure nothing was watching |
+| R14 | — | My own first derivation of NY's 65+ donor share read 54.6% against a published 49.9%, because NY publishes age **as of the 2024 general** and I measured at 2026. The published figure was right; the check was wrong. Recorded because a verifier that silently adopts the wrong basis is worse than no verifier |
+
+Every paper-level cut in the series now has a machine check. What remains unenforced is
+narrower and worth naming: the bootstrap CIs, the occupation blocs, and Finding 6.

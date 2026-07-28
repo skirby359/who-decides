@@ -395,10 +395,12 @@ strengthen. Rebuild with `scripts/match_wa_voters_to_donors.py --source {fec,sta
 **F2 — The donor age skew is genuine, *not* a matcher artifact (the white paper's open question, answered).**
 - **Defensible claim.** Matched donors over-represent the old and under-represent the young —
   raw donor-share ÷ roll-share is **Silent 1.96×, Boomer 1.71×, Gen X 1.22×, Millennial
-  0.59×, Gen Z 0.17×**. The white paper's strongest objection was that this is a *matcher*
+  0.54×, Gen Z 0.09×**. *(Millennial and Gen Z read 0.59× and 0.17× here until 2026-07-27 —
+  stale, and self-contradictory with the "Gen Z 0.09→0.09×" later in this same bullet.)*
+  The white paper's strongest objection was that this is a *matcher*
   artifact (the (last, first-initial, zip5) uniqueness guard over-selects older, rarer-named,
   stable-address voters). Tested directly, **it is not**: the probability a voter is uniquely
-  matchable on that key is nearly flat across generations — **68.9% (Gen Z) to 73.1%
+  matchable on that key is nearly flat across generations — **69.1% (Gen Z) to 73.3%
   (Silent), a ~4-point spread** — so inverse-propensity re-weighting barely moves the ratios
   (Silent 1.96→**1.91×**, Gen Z 0.09→**0.09×**). The age skew survives the correction; it is a
   real property of who gives, not of who the matcher can find. (Person-level concentration on

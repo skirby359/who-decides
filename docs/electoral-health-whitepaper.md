@@ -235,7 +235,7 @@ concrete analysis to run.
   is a **matcher artifact**: the (last name, first initial, ZIP) unique-key over-selects
   the older, rarer-named, stable-address residents it then "finds" over-represented.
   **Tested directly** (cross-state §F2): the probability a voter is uniquely matchable
-  on that key is **nearly flat across generations (68.9%–73.1%, a ~4-pt spread)**, so
+  on that key is **nearly flat across generations (69.1%–73.3%, a ~4-pt spread)**, so
   inverse-propensity re-weighting **barely moves** the over-representation ratios
   (Silent 1.96→1.91×, Gen Z 0.09→0.09× on the 314,974-voter match). The age skew is a
   real property of *who gives*, not of who the matcher can find. (One residual bias it
