@@ -20,18 +20,39 @@ derived-vs-paper side by side, so a match confirms each finding independently of
 the analysis code. Read-only, aggregate-only. Run and eyeball the two columns:
 
 ```bash
-python scripts/verify_who_decides_wa.py     # who-decides-washington.md  #1-#10   (all match)
+python scripts/verify_who_decides_wa.py     # who-decides-washington.md  #1-#30  (all match)
 python scripts/verify_who_decides_id.py     # who-decides-idaho.md §I-§V          (all match)
 python scripts/verify_who_decides_ny.py     # who-decides-new-york.md §I-§VI       (§I/II/V/VI + §III comp match;
                                             #   §III turnout & §IV primary RATES ~1-2pp under = current-roll denom)
-python scripts/verify_donor_class.py        # donor-class-and-the-electorate.md F1-F4 (WA/NY/ID)
-python scripts/verify_safe_seat.py          # safe-seat-washington.md (WA by-year + 4-state)  (all match)
+python scripts/verify_donor_class.py        # donor-class-and-the-electorate.md F1-F4, both panels x 3 states
+python scripts/diag_seat_competition.py     # safe-seat-washington.md (WA 5 cycles, both dimensions)
 python scripts/verify_cross_state_money.py  # cross-state-fec-money.md (inflow + outflow)  (all match)
 ```
 
-**Status — all six re-run 2026-07-10, exit 0, reproduce.** WA outflow now reconciles
-exactly (see below). One known, self-reported divergence remains (flagged inline by the
-script, not a paper error):
+> A seventh check, `verify_public_matcher_extract.py`, runs in the **private repo only** —
+> it is inherently cross-repo, loading the public `donor_matcher.py` from a sibling
+> checkout and anti-joining its rebuilt Idaho federal panel against the one the private
+> matcher built (0 differing rows across all 9 columns of all 23,303). It is not published
+> because it exists to compare the two trees.
+
+> **`verify_safe_seat.py` is superseded — do not use it for sign-off.** It derived the
+> seat universe from the results table, which silently dropped 24 King County House seats
+> per cycle in 2016 and 2018. `diag_seat_competition.py` builds the universe from certified
+> statewide summaries and **exits non-zero if any cycle fails to reconcile to the statutory
+> chamber size**. The old script is retained only so the paper's Appendix G can reproduce
+> its own superseded figures.
+
+**Status — all six above, plus the private cross-repo check, re-run 2026-07-27; exit 0, all reproduce.** This supersedes the
+2026-07-10 run, which predated the primary-specification switch, the Idaho Sunshine
+reload, the NY state panel, and the seat-universe rebuild. `diag_seat_competition.py`
+additionally reports "All cycles match the statutory seat universe."
+
+> **Run the verifiers one at a time.** Several attach the same DuckDB file, and running
+> them concurrently fails with `IO Error: ... used by another process` — an artifact of the
+> lock, not a reproduction failure.
+
+WA outflow reconciles exactly (see below). One known, self-reported divergence remains
+(flagged inline by the script, not a paper error):
 - **NY §III turnout / §IV primary participation** run ~1-2pp under the paper — current-roll
   denominator sensitivity (the paper's own soft cut); composition/structural cuts match exactly.
 - **‡‡ WA outflow concentration — RESOLVED 2026-07-10.** The verifier was recomputing on the
@@ -78,9 +99,15 @@ python scripts/diag_tx_safe_seat_backfill.py       # TX completion (r206 backfil
 
 | # | Claim | Expected |
 |---|---|---|
-| 11 | WA leg+cong seats non-competitive 2016–2024 | ~85% |
-| 12 | Four-state lower-chamber non-competitive | WA 88.8 / NY 88.6 / TX 94.0 / ID 92.9% |
-| 13 | Donor concentration (cross-state §F) | top-1% 47.7%, Gini 0.862 [.856–.868] |
+| 11 | WA seats not close (Dimension 1), by cycle | 88.1 / 78.9 / 83.6 / 86.5 / **83.5%** (2016→2024); **`diag_seat_competition.py`** |
+| 11b | WA seats offering no D-v-R (Dimension 2) | 48.5 / 27.1 / 27.6 / 35.3 / **35.3%** — a *separate* question from 11, not a restatement |
+| 12 | Four-state lower-chamber not close | WA **87.8** / NY 88.6 / TX 94.0 / ID 92.9% |
+| 13 | Outflow concentration by state (cross-state §F) | WA top-1% **39.3%** / Gini **0.800**; NY **47.5%** / **0.848**; TX **41.7%** / **0.818** |
+
+> **Claims 11–13 were restated 2026-07-27.** The old row 11 ("~85%") predated the paper's
+> split into two dimensions and conflated them; row 12's WA cell read 88.8% from the
+> superseded seat universe; row 13 cited a single pooled 47.7% / 0.862 pair that appears
+> nowhere in the current paper. Do not sign off against the old values.
 
 **"Who Decides Idaho?" — re-derive (needs `data/id_vrdb.duckdb` from `load_id_voters.py`):**
 
@@ -88,7 +115,9 @@ python scripts/diag_tx_safe_seat_backfill.py       # TX completion (r206 backfil
 python scripts/load_id_voters.py                        # -> id_vrdb.duckdb (voters 1,029,938)
 python scripts/diag_id_turnout_party.py                 # turnout by age x party + closed primary
 STATE=ID python scripts/backfill_id_recipient_party.py  # recipient party (crossover)
-STATE=ID python scripts/match_id_voters_to_donors.py    # donor class x party
+STATE=ID python scripts/match_id_voters_to_donors.py --source state   # donor class x party
+#   --source state is the Sunshine panel §VII reports (rows 21-23b); --source fec builds
+#   the federal panel. Both default to the full-name key (the primary specification).
 python scripts/diag_id_electorate_extras.py             # safe-seat, unaffiliated bloc, cohorts
 ```
 
@@ -101,9 +130,10 @@ python scripts/diag_id_electorate_extras.py             # safe-seat, unaffiliate
 | 18 | GOP-primary electorate age | median 55→63, 65+ 34.5%→46.7% | diag_id_turnout_party E4 |
 | 19 | Age gap party-neutral | REP 65+ 31.7% ≈ DEM 31.5% (2024) | diag_id_turnout_party B |
 | 20 | Safe-seat map | 2/2 CD + all 35 LD Safe/Likely/Lean R; 0 competitive | diag_id_electorate_extras s5 |
-| 21 | Donor class by party | DEM +9.1 skew; UNAFF −11.8; donors 51% 65+ | match_id_voters_to_donors |
-| 22 | Donor concentration / geography | top-1% 39.2%; Ada/Boise 49.2% of $ | match_id_voters_to_donors |
-| 23 | Crossover (resolved ~52%) | DEM 93.5%→D; UNAFF 72.8%→D; REP 79.3%→R (REP→D upper bound) | match_id_voters_to_donors |
+| 21 | Donor class by party (ID **state** panel) | 23,613 donors / $13.64M; DEM **+9.8** skew; UNAFF **−12.3**; donors **51.3%** 65+ | `match_id_voters_to_donors.py --source state` |
+| 22 | Donor concentration / geography | top-1% **40.0%**; top-10% **71.0%**; Ada/Boise **50.3%** of $ | same |
+| 23 | Crossover (resolved **51%** of donors / 41% of $) | DEM **94.6%**→D; UNAFF **77.1%**→D; REP **79.0%**→R (REP→D upper bound) | same |
+| 23b | Donor mix by district safety | 27 Solid-R LDs hold 14,594 donors at **78% R / 13% D**; the 8 Likely/Lean-R LDs hold 9,019 at **47% / 35%** | same |
 
 **"The Donor Class Is Not the Electorate" Appendix G — confirm against
 `diag_contribution_limits.py`** (read-only over `id_statewide.duckdb` + `wa_statewide.duckdb`;
@@ -169,13 +199,19 @@ no voter file needed):
 > (5 assertions incl. a default-pools-everything regression and an identifier-injection
 > guard). `verify_donor_class.py` now verifies both panels.
 >
-> **The old Idaho figures were right all along** — they were the Sunshine panel.
-> `--source state` reproduces 27,250 voters / top-1% 39.3% / Ada 49.2% / DEM +9.1 /
-> UNAFF -11.8 exactly. NY is likewise unchanged (its `_fec` panel reads 51.2% / 81.4% /
-> +15.0 / -0.9 / -13.0); only its matched count moves, 308,032 -> 307,841, from dropping
-> 45,494 un-prefixed legacy rows.
+> **The old Idaho figures were right for the specification they were built on** — they were
+> the Sunshine panel, and at the time `--source state` reproduced 27,250 voters / top-1%
+> 39.3% / Ada 49.2% / DEM +9.1 / UNAFF -11.8 exactly.
 >
-> Ledger claims **21/22** describe the **ID state panel** and still hold as written.
+> ⚠ **Superseded 2026-07-27 by the primary-specification switch.** Rebuilt on the
+> full-name key, the ID state panel reads **23,613 / 40.0% / Ada 50.3% / DEM +9.8 /
+> UNAFF -12.3**. The sentence that used to stand here — "ledger claims 21/22 describe the
+> ID state panel and still hold as written" — **is no longer true**; rows 21-23 have been
+> restated above and row 23b added. `docs/who-decides-idaho.md` §VII was still carrying the
+> old all-tier figures unflagged and was rewritten on the same date, along with the ID and
+> NY donor-mix bullet in `cross-state-fec-money.md` §F5 (NY pooled had moved furthest,
+> 308,032 -> 558,017).
+>
 > Appendix G is unaffected: `diag_contribution_limits.py` selects layers by
 > `contribution_id` prefix and never reads `voter_donor_affiliation`.
 
@@ -417,20 +453,31 @@ Both are free, citable, **not peer review** — discoverability + a timestamp + 
 ## 5. Pre-publication gate (do not post until all checked)
 
 - [ ] §1 verification ledger fully reproduced by you (the non-negotiable) — **AI-side
-  confirmed 2026-07-10: all six verifiers re-run, exit 0, reproduce (see §1 status); the
-  independent human sign-off under your name still remains**
+  re-confirmed 2026-07-27: all seven verifiers re-run, exit 0, reproduce (see §1 status),
+  and every panel reconciles to the cent; the independent human sign-off under your name
+  still remains.** This is the one gate no amount of AI verification can close.
 - [x] §2 statute cites re-verified (2026-06-29)
 - [x] §6 full sanity pass complete — turnout / composition / safe-seat / money / match, all
   done (2026-07-10)
-- [~] §4 lead-paper PDF **rendered 2026-07-10** (`docs/who-decides-washington.pdf`, ~125 KB);
-  final proof (county-table layout, first-page, author block) = **HUMAN**
-- [ ] Author byline + AI-assistance disclosure finalized — **HUMAN** (needs your name)
+- [~] §4 PDFs **all re-rendered and current as of 2026-07-27** — every `docs/*.md` with a
+  PDF counterpart was checked against its source timestamp in both repos and re-rendered
+  where it lagged. Final proof (table layout, first page, author block) = **HUMAN**
+- [x] Author byline + AI-assistance disclosure present on **all seven** papers
+  (2026-07-27). Washington, donor-class, safe-seat and money-moves-votes already carried
+  the block; `who-decides-idaho.md`, `who-decides-new-york.md` and
+  `cross-state-fec-money.md` were missing it entirely and now carry the same standard
+  block, each naming its own verifier. Wording is **HUMAN** to approve, but no paper is
+  now unattributed.
 - [x] (donor papers only) §3 match sample re-rated **stratified + blinded, 2026-07-27**
   (480 records, 20/cell; verdicts published PII-free). Per-tier precision: full-name key
   **100%**, initial-based keys 48-72%; donor-weighted **93.0%**. See §3.
-- [ ] (donor papers only) **Author decision**: adopt `STRICT_ZIP5_FULL` as the primary
-  specification (recommended — 100% precision, all findings strengthen), or keep the
-  conservative all-tier figures and cite the sensitivity. See §3.
+- [x] (donor papers only) **Author decision TAKEN 2026-07-27: `STRICT_ZIP5_FULL` is the
+  primary specification.** All six panels and the three pooled tables were rebuilt on it;
+  the all-tier panels are retained as `*_alltier` snapshots (they are the superset and
+  cannot be re-derived) and carry the tier/household/donor-risk sensitivities. Every
+  affected paper, the donor submission metadata, and the ledger rows above were moved onto
+  the new figures. The selection cost — the discarded donors are younger and less
+  Democratic — is disclosed in the paper rather than buried. See §3 and claims 80-96.
 - [x] (donor papers only) **Human re-rating DONE 2026-07-27.** Independent rater, 150 of the
   480 records, blind (fresh ids, no stratum labels, no AI verdict), scorer committed first.
   **75 of 75 full-name-key records agreed** — the primary specification holds. Cohen's kappa
@@ -446,8 +493,14 @@ Both are free, citable, **not peer review** — discoverability + a timestamp + 
   **no** panel figure — zero organisation rows can match on the full-name key — so it is
   defence-in-depth for the retained all-tier panels and any future source.
 - [ ] (donor papers only) **Tagged release + archival DOI** for the public repo (Zenodo or
-  OSF), cited in the paper in place of a mutable branch — **HUMAN**. The donor-class paper
-  currently links `github.com/skirby359/who-decides` without a commit pin.
+  OSF), cited in the paper in place of a mutable branch — **HUMAN**. Every paper's byline
+  block links `github.com/skirby359/who-decides` without a commit pin, so a reader cites a
+  moving branch. **Prepared 2026-07-27:** `CITATION.cff` is committed in the public repo
+  with the author block, abstract, keywords and licence filled in, and carries the four
+  mechanical steps inline. What remains is genuinely human: sign in to Zenodo, enable the
+  repository, tag a release, then paste the concept DOI into `identifiers` and into the
+  seven byline blocks. Zenodo only archives releases created *after* the hook is enabled,
+  so enable it before tagging.
 - [x] (donor papers only) **The public release is rebuildable from raw inputs**
   (2026-07-27). Rather than publishing `src/wa_analyzer/db.py` — the product's entire schema
   definition — the matcher was **extracted**: `who-decides/scripts/donor_matcher.py` carries

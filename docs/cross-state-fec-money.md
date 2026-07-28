@@ -1,6 +1,14 @@
 # Four States, Four Donor Economies
 ### Federal individual contributions in Washington, New York, Texas, and Idaho (FEC, 2018–2026)
 
+**Stephen Kirby** · Tikor Consulting · July 2026
+
+*AI-assisted drafting and analysis review. All figures are reproducible from
+public-record data and from the open-source scripts cited below, including
+`scripts/verify_cross_state_money.py`. The paper source, code, and data-acquisition recipe
+are public at <https://github.com/skirby359/who-decides>; the underlying voter files are
+not redistributed. Contact: kirby@tikorconsulting.com.*
+
 *Companion to [the electoral-health prospectus](electoral-health-whitepaper.md). This
 realizes that paper's cross-state money thread, which was previously data-blocked
 (NY/TX had zero contributions loaded). Source: `scripts/cross_state_fec_money.py`.
@@ -470,13 +478,13 @@ closed — see F6.)*
 - **Defensible claim 2 — the donor class is less unaffiliated and more Democratic-tilted than
   the electorate** (the party-of-record cut WA cannot do). Matched-donor registered-party vs the
   full roll:
-  - **NY:** electorate **D 48% / R 22% / unaffiliated-or-other 30%** → donors **D 63% / R 21% /
-    O 16%.** Donors are +15 pts more Democratic and half as unaffiliated — the "donor class older
-    *and* more Dem" finding, confirmed at the person level.
-  - **ID:** electorate **D 12% / R 63% / O 25%** → donors **D 19% / R 67% / O 14%.** Even in a
+  - **NY:** electorate **D 48% / R 22% / unaffiliated-or-other 30%** → donors **D 59% / R 25% /
+    O 17%.** Donors are +11 pts more Democratic and little more than half as unaffiliated — the
+    "donor class older *and* more Dem" finding, confirmed at the person level.
+  - **ID:** electorate **D 12% / R 63% / O 25%** → donors **D 20% / R 67% / O 13%.** Even in a
     deep-red state the donor pool is *more partisan than the electorate on both sides* (the
-    unaffiliated quarter collapses to a seventh), and the Democratic share rises proportionally
-    more (12→19%) than the Republican (63→67%).
+    unaffiliated quarter collapses to an eighth), and the Democratic share rises proportionally
+    more (12→20%) than the Republican (63→67%).
 - **Strongest objection.** The registered-party comparison mixes states with different party
   registration regimes (NY closed-primary registration vs ID's open system), so the *levels*
   aren't directly comparable across states — only the within-state donor-vs-roll *gap* is. And

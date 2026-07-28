@@ -2,6 +2,14 @@
 
 ### The one-party electorate, resolved by party — from 1.03 million individual registration and vote records
 
+**Stephen Kirby** · Tikor Consulting · July 2026
+
+*AI-assisted drafting and analysis review. All figures are reproducible from
+public-record data available through lawful request and from the open-source scripts
+cited below, including `scripts/verify_who_decides_id.py`. The paper source, code, and
+data-acquisition recipe are public at <https://github.com/skirby359/who-decides>; the
+underlying voter file is not redistributed. Contact: kirby@tikorconsulting.com.*
+
 *Deep-red companion to [`who-decides-washington.md`](who-decides-washington.md)
 and [`who-decides-new-york.md`](who-decides-new-york.md). Washington showed the
 off-year electorate is **older**; New York (deep blue) showed *whose* electorate
@@ -267,16 +275,19 @@ say in who governs, not more.
 
 ## VII. The donor class is not the electorate — and leans against the rolls
 
-Matching the roll to Idaho Sunshine state-campaign contributions links **27,250
-registered voters to 131,466 donations ($15.9M)**. Characterized by the donor's
-own party of record:
+Matching the roll to Idaho Sunshine state-campaign contributions links **23,613
+registered voters to 114,806 donations ($13.64M)**. The match uses the full-name
+key alone (last name + full first name + ZIP5), the specification adopted across
+this series on 2026-07-27 after a stratified blinded validation measured it at
+100% precision (120/120) while initial-based keys ran 48–72%; see the donor-class
+companion, Appendix F. Characterized by the donor's own party of record:
 
 | Party | donors | donor share | reg share | skew | $ share |
 |---|--:|--:|--:|--:|--:|
-| Republican | 18,115 | 66.5% | 62.9% | +3.6 | 71.1% |
-| Democratic | 5,685 | 20.9% | 11.8% | **+9.1** | 20.6% |
-| Unaffiliated | 3,281 | 12.0% | 23.9% | **−11.9** | 8.0% |
-| Other | 169 | 0.6% | 1.4% | −0.8 | 0.3% |
+| Republican | 15,645 | 66.3% | 62.9% | +3.4 | 72.2% |
+| Democratic | 5,097 | 21.6% | 11.8% | **+9.8** | 20.0% |
+| Unaffiliated | 2,735 | 11.6% | 23.9% | **−12.3** | 7.6% |
+| Other | 136 | 0.6% | 1.4% | −0.9 | 0.2% |
 
 Even in a state this red, the donor class **over-represents registered Democrats**
 — they are 12% of the roll but 21% of donors and give 21% of the money, nearly
@@ -288,33 +299,37 @@ numbers the *most* over-represented donors are Democrats.
 The donor class is also **grayer and more concentrated** than the electorate:
 
 - **Age.** 51% of matched donors are 65+, versus 31% of the roll and 33% of 2024
-  general voters; the under-30 share is 2.6% versus 15% of the roll. The donor
-  class is the oldest layer of all.
-- **Concentration.** The top 1% of matched donors supply **39%** of the matched
+  general voters; the under-30 share is 2.1% versus 15% of the roll. (All three
+  are computed on current-roll age, so they share one basis; the age-at-election
+  figures in Section I are not interchangeable with them.) The donor class is the
+  oldest layer of all.
+- **Concentration.** The top 1% of matched donors supply **40%** of the matched
   dollars; the top 10% supply **71%**.
-- **Geography.** Ada County (Boise) alone accounts for **49%** of matched donor
+- **Geography.** Ada County (Boise) alone accounts for **50%** of matched donor
   dollars — the money mirror of the population-vs-influence gap seen in New York
   (Manhattan) and Washington (Seattle).
-- **Where the money sits.** Donor party mix tracks district safety: in Solid-R
-  legislative districts (which hold the bulk of donors, ~22,000) donors are 71%
-  Republican, but in the handful of more competitive districts the mix is far more
-  balanced (~46% Republican / ~34% Democratic).
+- **Where the money sits.** Donor party mix tracks district safety. Grouping the
+  35 districts by the same registration lean used in Section V, the 27 Solid-R
+  districts hold 14,594 donors who are **78% Republican / 13% Democratic**, while
+  the eight Likely-R and Lean-R districts hold 9,019 donors at a far more balanced
+  **47% / 35%**. Idaho's competitive-adjacent seats are where the two parties'
+  donor bases actually meet.
 
 **Crossover — where the money goes.** Idaho Sunshine carries no party on the
 recipient record, but recipient party can be reconstructed from data on hand (the
 Secretary of State candidate roster plus party/committee name patterns), which
-resolves the recipient for ~52% of matched donors and ~66% of candidate-directed
-dollars (`scripts/backfill_id_recipient_party.py`). Among donors whose money
-reached a party-resolvable recipient:
+resolves the recipient for **51% of matched donors and 41% of matched dollars**
+(`scripts/backfill_id_recipient_party.py`). Among donors whose money reached a
+party-resolvable recipient:
 
 | Donor's registration | → gave only to D | → gave only to R | mixed |
 |---|--:|--:|--:|
-| Republican | 18.8% | 79.3% | 1.9% |
-| Democratic | **93.5%** | 4.0% | 2.5% |
-| Unaffiliated | **72.8%** | 24.5% | 2.7% |
+| Republican | 19.1% | 79.0% | 1.9% |
+| Democratic | **94.6%** | 3.0% | 2.3% |
+| Unaffiliated | **77.1%** | 20.5% | 2.3% |
 
-Registered Democrats are near-monolithic donors (94% give only to Democrats — the
-same loyalty seen in New York), and unaffiliated donors lean roughly **3:1
+Registered Democrats are near-monolithic donors (95% give only to Democrats — the
+same loyalty seen in New York), and unaffiliated donors lean nearly **4:1
 Democratic** when their money can be traced, echoing the blank-bloc donor lean in
 New York. Republicans predominantly fund Republicans (79%); the apparent ~19%
 giving only to Democrats is an **upper bound** — the unresolved recipient pool
@@ -360,13 +375,14 @@ and the unaffiliated Democratic tilt.
 - **The donor layer here is state (Idaho Sunshine) by design.** It characterizes the
   people who fund Idaho's *state* campaigns — the relevant layer for state
   electoral health. (Idaho's **federal** FEC contributions were since loaded too —
-  770,765 rows / $76.2M outflow + inflow, with 47,762 FEC voter↔donor matches — and the
-  cross-state donor comparison uses that FEC match; see
-  [`cross-state-fec-money.md`](cross-state-fec-money.md) §F5, whose ID donor mix
-  D 19% / R 67% / O 14% closely tracks the Sunshine mix below. The age skew survives the
-  matcher-bias re-weighting in ID as in WA/NY.) Recipient party is not in the feed; it is
-  reconstructed for
-  ~52% of matched donors (candidate roster + committee-name patterns), so the
+  770,765 rows / $76.2M outflow + inflow, with 23,303 FEC voter↔donor matches on the
+  full-name key. The cross-state comparison in
+  [`cross-state-fec-money.md`](cross-state-fec-money.md) §F5 uses the **pooled** Idaho
+  match instead — both money systems in one table, 41,136 donors — and its mix
+  D 20% / R 67% / O 13% closely tracks the Sunshine-only mix below. The age skew survives
+  the matcher-bias re-weighting in ID as in WA/NY.) Recipient party is not in the feed; it
+  is reconstructed for
+  ~51% of matched donors (candidate roster + committee-name patterns), so the
   crossover table above is limited to party-resolvable recipients and the
   majority-party crossover rate is an upper bound (see §VII).
 - **Lean is never imputed for the unaffiliated.** Every "unaffiliated" figure is a
@@ -448,9 +464,12 @@ python scripts/diag_id_turnout_party.py
 python scripts/diag_id_primary_contested.py
 
 # 3. Donor class x party (Section VII) — resolve recipient party (crossover),
-#    then match; writes committee_party_override + voter_donor_affiliation
+#    then match; writes committee_party_override + voter_donor_affiliation_state.
+#    --source state is the Sunshine layer this section reports; --source fec builds
+#    the federal panel used by the cross-state comparison. Both default to the
+#    full-name key (the primary specification).
 STATE=ID python scripts/backfill_id_recipient_party.py
-STATE=ID python scripts/match_id_voters_to_donors.py
+STATE=ID python scripts/match_id_voters_to_donors.py --source state
 
 # 4. Electorate extras: unaffiliated bloc, decomposition, cohort trend,
 #    safe-seat map, donor-mix x competitiveness (Sections I, III, V, VI, VII)

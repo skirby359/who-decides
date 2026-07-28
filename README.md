@@ -121,6 +121,12 @@ assembled) and are not on the verification path — see
 See [`docs/data-sources-and-reproducibility.md`](docs/data-sources-and-reproducibility.md)
 for full provenance and access paths.
 
+## Citing
+
+See [`CITATION.cff`](CITATION.cff). An archival DOI has not been minted yet, so the papers
+currently link this repository rather than an immutable tagged tree — cite the commit hash
+if you need a stable reference in the meantime.
+
 ## License
 
 - **Code:** MIT (`LICENSE`).

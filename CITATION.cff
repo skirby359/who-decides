@@ -1,0 +1,62 @@
+cff-version: 1.2.0
+title: >-
+  who-decides: code and papers on who votes and who funds elections in
+  Washington, New York, Texas, and Idaho
+message: >-
+  If you use this repository or its papers, please cite the archived release.
+  Once a Zenodo DOI is minted, add it under `identifiers` below and replace the
+  repository link in each paper with the versioned DOI.
+type: software
+authors:
+  - family-names: Kirby
+    given-names: Stephen
+    affiliation: Tikor Consulting
+    email: kirby@tikorconsulting.com
+repository-code: 'https://github.com/skirby359/who-decides'
+abstract: >-
+  Open-source reproduction code and papers measuring who returns the ballot and
+  who funds campaigns across four U.S. states. Individual registration and vote
+  records are linked to itemized campaign contributions to compare the age and
+  partisan composition of electorates against the donor class that finances
+  them. The repository ships verification scripts that re-derive every published
+  headline number from scratch; the underlying voter files are not
+  redistributable and are not included.
+keywords:
+  - voter turnout
+  - off-cycle elections
+  - election timing
+  - campaign finance
+  - political donors
+  - record linkage
+  - electoral competitiveness
+  - Washington
+  - New York
+  - Idaho
+  - Texas
+license: MIT
+license-url: 'https://github.com/skirby359/who-decides/blob/master/LICENSE'
+# Papers in docs/ are released under CC-BY 4.0, not MIT. See README "License".
+
+# ---------------------------------------------------------------------------
+# HUMAN STEP — minting the archival DOI (the last open pre-submission item).
+#
+#   1. Sign in to https://zenodo.org with the GitHub account and enable the
+#      skirby359/who-decides repository on the Zenodo GitHub page.
+#   2. Tag and publish a GitHub release (e.g. v1.0.0). Zenodo archives the
+#      tagged tree and mints both a version DOI and a concept DOI.
+#   3. Put the CONCEPT DOI in `identifiers` below and set `version` /
+#      `date-released` to the tagged release.
+#   4. Replace the bare repository link in each paper's byline block with the
+#      versioned DOI, so a reader cites an immutable tree rather than a moving
+#      branch. The papers currently link the repository without a commit pin,
+#      which is the specific gap this file exists to close.
+#
+# Enabling the repository on Zenodo BEFORE tagging is required — Zenodo only
+# archives releases created after the hook is switched on.
+# ---------------------------------------------------------------------------
+# version: 1.0.0
+# date-released: 'YYYY-MM-DD'
+# identifiers:
+#   - type: doi
+#     value: 10.5281/zenodo.XXXXXXX
+#     description: Concept DOI (always resolves to the latest version)

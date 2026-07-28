@@ -2,6 +2,14 @@
 
 ### The off-year electorate, resolved by party — from 13.5 million individual registration and vote records
 
+**Stephen Kirby** · Tikor Consulting · July 2026
+
+*AI-assisted drafting and analysis review. All figures are reproducible from
+public-record data available through lawful request and from the open-source scripts
+cited below, including `scripts/verify_who_decides_ny.py`. The paper source, code, and
+data-acquisition recipe are public at <https://github.com/skirby359/who-decides>; the
+underlying voter file is not redistributed. Contact: kirby@tikorconsulting.com.*
+
 *Party-resolved companion to [`who-decides-washington.md`](who-decides-washington.md)
 and [`who-decides-idaho.md`](who-decides-idaho.md) (the deep-red counterpart).
 Washington showed the off-year electorate is **older**; New York publishes each
