@@ -133,7 +133,13 @@ publish the access path, not the data. (The product layer additionally enforces 
 1. Obtain the inputs above (file the records requests; download the public bulk files).
 2. Clone the repository and load each state per its loader (`README.md` / `CLAUDE.md`).
 3. Build the recipient-anchored inflow: `scripts/load_fec_inflow_bulk.py`.
-4. Run the matcher: `match_voters_to_donors(conn)`.
+4. Run the matcher. In the public release it ships standalone as `scripts/donor_matcher.py`
+   (duckdb + stdlib only), driven by the per-state wrappers:
+   `python scripts/match_id_voters_to_donors.py --source fec --tiers full`. `--tiers full`
+   is the primary specification — the full-first-name key alone — and is the default;
+   `--tiers all` reproduces the superseded all-tier specification. Restricting the match is
+   NOT equivalent to filtering a built panel on `match_quality` (identical donor counts,
+   dollar totals 3.8–9.4% apart), so pick one and stay in it.
 5. Re-run the per-paper scripts named under each figure.
 
 Report your VRDB/voter-file **access dates** alongside any replicated counts.

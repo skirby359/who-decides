@@ -38,17 +38,30 @@ Two different things get conflated, so they are separated here:
 - **Re-deriving the published aggregates: fully covered.** Every `verify_*.py` reaches the
   built DuckDB tables with from-scratch SQL and imports no analysis code, so a match
   confirms each finding independently of the build path.
-- **Rebuilding the donor panels from raw voter files: not yet covered by this repo.** The
-  NY and ID donor-match scripts import `match_voters_to_donors` from
-  `src/wa_analyzer/analysis/donor_analysis.py` in the private codebase, which this release
-  does **not** ship. So `verify_donor_class.py` will reproduce the donor-class paper's
-  numbers from panels you have already built, but `match_*_voters_to_donors.py` cannot
-  build them here. The donor-class paper states this limitation rather than claiming
-  otherwise.
+- **Rebuilding the donor panels from raw voter files: also covered, as of 2026-07-27.**
+  The record-linkage step is no longer a private dependency. `scripts/donor_matcher.py` is
+  a standalone extract of `match_voters_to_donors` — the function body verbatim from
+  `src/wa_analyzer/analysis/donor_analysis.py`, with the two `contributor_type` helpers and
+  a minimal DDL for the two tables it writes folded in, and its two internal imports
+  removed. It depends on nothing but `duckdb` and the standard library, so
+  `match_{wa,ny,id}_voters_to_donors.py` now run from a bare clone. Verified by rebuilding
+  the Idaho federal panel through the public wrapper and anti-joining it against the
+  published one: **0 rows differ in either direction across all 9 columns of all 23,303
+  rows**, and the script reprints the paper's Idaho figures (66.8% aged 65+, top 1% = 37.2%
+  of matched dollars).
+
+  Two things to know before you rebuild. **Pass the tier restriction.** The published
+  panels are the *primary specification* — the full-first-name key alone
+  (`--tiers full`, the default; `PRIMARY_TIERS` in code). `--tiers all` reproduces the
+  superseded all-tier specification, which carries the initial-based keys measured at
+  47.9–71.7% precision. **And `--tiers` is not the same as filtering on `match_quality`.**
+  Restricting the match drops a contribution reachable only by a weak key; filtering a
+  built panel keeps a full-name donor's whole dollar total. Both give identical donor
+  counts, but dollars differ by 3.8–9.4%. Never move a dollar figure between the two.
 
 The match-precision validation is auditable without any of that: the per-record verdicts
 for both the 480-record blinded pass and the 150-record independent human re-rating are
-published under [`docs/reference/`](docs/reference/), stripped of names " — sample id,
+published under [`docs/reference/`](docs/reference/), stripped of names — sample id,
 stratum, verdict. `docs/reference/match_validation_tier_shares_2026-07-27.csv` carries the
 frozen reweighting shares, so the published 93.0% figure re-derives from the ledger alone
 with no database at all.

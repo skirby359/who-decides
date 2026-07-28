@@ -41,8 +41,8 @@ Two ID-specific adaptations:
     depend on recipient party and are robust either way.
 
 Usage:
-    STATE=ID python scripts/match_id_voters_to_donors.py --source fec
-    STATE=ID python scripts/match_id_voters_to_donors.py --source state
+    python scripts/match_id_voters_to_donors.py --source fec
+    python scripts/match_id_voters_to_donors.py --source state
 """
 import argparse
 import os
@@ -50,14 +50,13 @@ import sys
 
 import duckdb
 
-os.environ.setdefault("STATE", "ID")
-_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-for _p in (os.path.join(_ROOT, "src"), _ROOT):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
+# The matcher ships in this repo as scripts/donor_matcher.py — a standalone extract of
+# the private product's match_voters_to_donors (function body verbatim). Import it as a
+# sibling so the script runs from a bare clone with no PYTHONPATH and no src/ tree.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from wa_analyzer.analysis.donor_analysis import (  # noqa: E402
-    PRIMARY_TIERS, _ALL_TIER_RANKS, match_voters_to_donors,
+from donor_matcher import (  # noqa: E402
+    PRIMARY_TIERS, _ALL_TIER_RANKS, ensure_schema, match_voters_to_donors,
 )
 
 ID_STATEWIDE = "data/id_statewide.duckdb"
@@ -96,6 +95,7 @@ def main(argv: list[str] | None = None) -> int:
 
     con = duckdb.connect(ID_STATEWIDE)  # read-write: writes the panel table
     con.execute(f"ATTACH '{ID_VRDB}' AS vrdb (READ_ONLY)")
+    ensure_schema(con)  # output table + committee_party_override, if absent
 
     print(f"[match] running multi-tier voter<->donor match (ID, "
           f"source={args.source} tiers={args.tiers} -> {vda})...")

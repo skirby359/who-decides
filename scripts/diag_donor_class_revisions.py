@@ -449,13 +449,11 @@ def build_aligned_panels() -> int:
     difference in election portfolio (reviewer point 9). Sunshine is re-matched on
     the same window too, so both panels come from the identical code path.
     """
-    root = Path(__file__).resolve().parent.parent
-    # `config` sits at the repo root and `wa_analyzer` under src/; the analysis
-    # package's __init__ imports config, so both need to be importable.
-    sys.path.insert(0, str(root))
-    sys.path.insert(0, str(root / "src"))
-    from wa_analyzer.analysis.donor_analysis import (
-        PRIMARY_TIERS, match_voters_to_donors,
+    # The matcher ships beside this file as donor_matcher.py — a standalone extract of
+    # the private product's match_voters_to_donors, function body verbatim.
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from donor_matcher import (
+        PRIMARY_TIERS, ensure_schema, match_voters_to_donors,
     )
 
     for state, db, vrdb, prefix, (dmin, dmax), out in ALIGNED:
@@ -463,6 +461,7 @@ def build_aligned_panels() -> int:
               f"tiers={list(PRIMARY_TIERS)}")
         con = duckdb.connect(str(DATA / f"{db}.duckdb"))
         con.execute(f"ATTACH '{DATA / f'{vrdb}.duckdb'}' AS vrdb (READ_ONLY)")
+        ensure_schema(con)
         # These are paper panels, so they take the primary specification like the rest.
         res = match_voters_to_donors(
             con, source_prefixes=[prefix], output_table=out,

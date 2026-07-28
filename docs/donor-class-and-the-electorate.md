@@ -9,10 +9,14 @@
 *Reproducibility, stated precisely. The aggregate results in this paper can be
 independently re-derived from the built panel tables by `scripts/verify_donor_class.py`,
 which reaches the databases with from-scratch SQL and imports no analysis code.
-**Rebuilding those panel tables from the raw voter files additionally requires the
-matcher module** `src/wa_analyzer/analysis/donor_analysis.py`, which the public release
-must therefore ship alongside the scripts; the NY and ID match and party-backfill
-scripts import it. Paper source, code, and the data-acquisition recipe are at
+**Rebuilding those panel tables from the raw voter files is also covered**, as of
+2026-07-27: the record-linkage step ships as `scripts/donor_matcher.py`, a standalone
+extract of the matcher (function body verbatim from
+`src/wa_analyzer/analysis/donor_analysis.py`, with the `contributor_type` helpers and a
+minimal DDL folded in) that depends on nothing but `duckdb` and the standard library.
+Rebuilding the Idaho federal panel through the public wrapper reproduces the published
+panel exactly — 0 differing rows in either direction across all 9 columns of all 23,303
+rows. Paper source, code, and the data-acquisition recipe are at
 <https://github.com/skirby359/who-decides>; the underlying voter files are not
 redistributable and are not included. Before submission this paper must cite a **tagged
 release and archival DOI** (Zenodo or OSF) rather than a mutable branch — see
@@ -1694,9 +1698,22 @@ python scripts/verify_donor_class.py
 
 The verifier reaches the databases directly and imports no analysis code, so it re-derives
 the aggregates independently of the build path. Rebuilding the panel tables from raw voter
-files is a separate matter: the match scripts import `match_voters_to_donors` from
-`src/wa_analyzer/analysis/donor_analysis.py`, which the public release must therefore ship
-alongside the scripts.
+files is covered separately, by the extracted matcher the release ships as
+`scripts/donor_matcher.py`:
+
+```bash
+# Rebuild a panel from the raw inputs (needs the voter file ATTACHable as vrdb).
+# --tiers full is the default and is the primary specification; --tiers all reproduces
+# the superseded all-tier specification.
+python scripts/match_id_voters_to_donors.py --source fec --tiers full
+```
+
+Two cautions for a replicator. `--tiers` restricts which tier joins fire, so a
+contribution reachable only by a weaker key is dropped; filtering an all-tier panel on
+`match_quality` instead keeps a full-name donor's entire dollar total. The two give
+identical donor counts but dollar totals differing by 3.8–9.4% (Appendix F6), so a figure
+must not be moved between them. And the ranks are absolute: renumbering them for a
+restricted call would label a `RELAXED_ZIP3_MID` panel `STRICT_ZIP5_FULL`.
 
 All inputs are public records (FEC bulk files; Idaho Sunshine, Washington PDC and NYSBOE
 filings; state voter files obtained under each state's lawful-use terms — NY NYSVOTER

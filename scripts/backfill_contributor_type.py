@@ -37,9 +37,11 @@ from pathlib import Path
 import duckdb
 
 ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "src"))
+# scripts/donor_matcher.py is the standalone extract of the private matcher and carries
+# these two helpers, so this script needs no PYTHONPATH and no src/ tree.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from wa_analyzer.db import (  # noqa: E402
+from donor_matcher import (  # noqa: E402
     backfill_contributor_type, ensure_contributor_type_column,
 )
 

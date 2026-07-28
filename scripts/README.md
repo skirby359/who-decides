@@ -42,15 +42,24 @@ Run from the repo root with `data/` populated. Side artifacts (JSON) go to `repo
 - `download_*.py` — fetch the public certified-results files (Idaho SoS, Texas
   Legislative Council) into `data/raw/` before `load_*` builds the tables.
 - `load_*.py` — build the state DuckDB files from raw voter/FEC bulk downloads.
+- `donor_matcher.py` — **the record-linkage step, standalone.** A verbatim extract of the
+  private product's `match_voters_to_donors` (four uniqueness-guarded match tiers) plus the
+  `contributor_type` helpers, the backfill, and a minimal DDL for the two tables it writes.
+  Imports nothing but `duckdb` and the standard library.
 - `match_*.py`, `backfill_*.py` — build the voter↔donor match and recipient-party tables.
+  The three `match_{wa,ny,id}_voters_to_donors.py` wrappers and
+  `backfill_contributor_type.py` import `donor_matcher` as a sibling and **run from a bare
+  clone**. Default `--tiers full` = the papers' primary specification.
 - `populate_ny_id_voter_scores.py` — fills the NY/ID `voter_scores` tables from their
   voter files with WA-identical turnout definitions (feeds Section F6).
 
-`match_ny_voters_to_donors.py`, `match_id_voters_to_donors.py`,
-`backfill_ny_committee_party.py`, `download_id_sos.py`, and `diag_ie_vs_margin.py`
-import helpers from the private product codebase (`wa_analyzer` / `config` / the backtest
-model) and will not run standalone here. (`download_tx_tlc.py` is self-contained and does
-run.) They are included for transparency; the **paper numbers reproduce entirely from the
+Five scripts still import helpers from the private product codebase and will not run
+standalone here: `backfill_ny_committee_party.py` and `load_ny_contributions.py`
+(`wa_analyzer.etl` loaders), `download_id_sos.py` (`config.states.id`), and
+`diag_ie_vs_margin.py` / `diag_overperformance_patterns.py` /
+`diag_expenditures_vs_residual.py` (`config.districts` + the backtest model).
+(`download_tx_tlc.py` is self-contained and does run.) They are included for transparency,
+and none is on the donor-panel rebuild path. The **paper numbers reproduce entirely from the
 built tables via the `verify_*` scripts** — you do not need to rebuild to verify.
 
 `diag_wa_rolloff_precinct.py` is a different case: it imports no private helpers and runs

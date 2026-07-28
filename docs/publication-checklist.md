@@ -448,10 +448,19 @@ Both are free, citable, **not peer review** — discoverability + a timestamp + 
 - [ ] (donor papers only) **Tagged release + archival DOI** for the public repo (Zenodo or
   OSF), cited in the paper in place of a mutable branch — **HUMAN**. The donor-class paper
   currently links `github.com/skirby359/who-decides` without a commit pin.
-- [ ] (donor papers only) Public release must ship
-  `src/wa_analyzer/analysis/donor_analysis.py` alongside the scripts — the NY/ID match and
-  backfill scripts import `match_voters_to_donors` from it, so a scripts-only release is
-  not rebuildable. The paper's reproducibility statement has been narrowed to say so.
+- [x] (donor papers only) **The public release is rebuildable from raw inputs**
+  (2026-07-27). Rather than publishing `src/wa_analyzer/db.py` — the product's entire schema
+  definition — the matcher was **extracted**: `who-decides/scripts/donor_matcher.py` carries
+  `match_voters_to_donors` verbatim plus the two `contributor_type` helpers, the backfill,
+  and a minimal DDL for the two tables it writes (`voter_donor_affiliation`,
+  `committee_party_override`). Its only import is `duckdb`. The five public scripts that
+  previously reached into `wa_analyzer` — `match_{wa,ny,id}_voters_to_donors.py`,
+  `backfill_contributor_type.py`, `diag_donor_class_revisions.py` — now import it as a
+  sibling and run from a bare clone. **Verified end-to-end:** the public wrapper rebuilt the
+  Idaho federal panel and an anti-join against the published table found 0 differing rows in
+  either direction across all 9 columns of all 23,303 rows, with the script reprinting the
+  paper's Idaho figures (66.8% aged 65+; top 1% = 37.2% of matched dollars). Paper §
+  reproducibility statement and the public README updated from "not yet covered" to covered.
 - [ ] Posted to SocArXiv + SSRN; links folded back into the white paper — **HUMAN**
 
 ---
