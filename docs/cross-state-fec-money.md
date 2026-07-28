@@ -485,7 +485,7 @@ closed — see F6.)*
   steepness is not constant.** In all three states the oldest cohort (Silent) is
   over-represented among matched donors (**1.50–2.08×**) and the youngest (Gen Z) is sharply
   under-represented (**0.09–0.14×**). The *direction* is universal and the *magnitude* is not:
-  the old-to-young gradient is ~21× in WA and ~21× in ID but only ~11× in NY, so New York's
+  the old-to-young gradient is **21.6× in WA and 21.8× in ID but only 10.5× in NY**, so New York's
   donor pool is materially less age-skewed than the other two. An earlier version of this
   section claimed the gradient was "essentially identical" across the three states; **that is
   withdrawn** — it was an artifact of the stale table, in which NY's Silent ratio read 1.87×
@@ -493,7 +493,9 @@ closed — see F6.)*
   reweight moves every ratio by ≤0.05), which is the part that answers the WA white paper's
   open question: the skew is genuine, not an artifact of the uniqueness guard over-selecting
   older, rarer-named voters. Donor concentration is high in all three (Gini **WA 0.857 / NY
-  0.884 / ID 0.822**; ID lowest, matching its retail economy from Finding 1). **ID here is the
+  0.884 / ID 0.821**; ID lowest, matching its retail economy from Finding 1 — ID read 0.822
+  until 2026-07-27, a double-rounding of the diagnostic's 4-decimal 0.8215; the value is
+  0.821450). **ID here is the
   POOLED voter↔donor match** (FEC + Sunshine, 41,136 donors) — an earlier version called it the
   FEC match, which it is not; the FEC-only panel has 23,303. The *state*-Sunshine-only match in
   the donor-class companion gives a slightly lower Gini, 0.798.

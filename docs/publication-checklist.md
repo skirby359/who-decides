@@ -26,7 +26,8 @@ python scripts/verify_who_decides_ny.py     # who-decides-new-york.md §I-§VI  
                                             #   §III turnout & §IV primary RATES ~1-2pp under = current-roll denom)
 python scripts/verify_donor_class.py        # donor-class-and-the-electorate.md F1-F4, both panels x 3 states
 python scripts/diag_seat_competition.py     # safe-seat-washington.md (WA 5 cycles, both dimensions)
-python scripts/verify_cross_state_money.py  # cross-state-fec-money.md (inflow + outflow)  (all match)
+python scripts/verify_cross_state_money.py  # cross-state-fec-money.md — outflow + inflow (advisory),
+                                            #   plus §F5/§F6 as 88 HARD assertions (exits non-zero)
 ```
 
 > A seventh check, `verify_public_matcher_extract.py`, runs in the **private repo only** —
@@ -753,8 +754,31 @@ R6 stood out.
 
 **Reviewer's note on what this says about the process.** Every defect above is a
 *propagation* failure, not an analysis error: the recomputations were right, and the
-documents downstream of them were not revisited. The §VII figures are now machine-checked in
-`verify_donor_class.py` (47 assertions, hard-fail), which closes that path for Idaho. The
-equivalent cuts in `cross-state-fec-money.md` §F5/F6 and the whitepaper are still
-prose-only — **they are the most likely place for the next instance of R1–R4**, and are
-worth wiring into a verifier before the next specification change.
+documents downstream of them were not revisited.
+
+**Both gaps are now closed by machine checks (2026-07-27).**
+
+- `verify_donor_class.py` — 47 hard-failing assertions over Idaho §VII.
+- `verify_cross_state_money.py` — 88 hard-failing assertions over §F5/§F6: every cell of
+  the generation table (raw *and* IPW), the pooled donor counts, Gini, the party-of-record
+  skew, and the full F6 table. The script previously had no exit code at all; it now
+  returns non-zero. Its OUTFLOW/INFLOW blocks stay advisory by design — their name+zip
+  donor key carries documented sub-0.5pt grouping drift, so asserting them would be noise.
+
+**The F5/F6 checks assert the derived CLAIMS, not only the cells**, because R2 and R4 were
+sentences that stayed wrong while their tables were being fixed: the cross-state range of
+the Silent and Gen Z ratios, the maximum raw-vs-IPW shift, each state's old-to-young
+gradient, and the F6 ratio band. There is also a guard that re-raises the withdrawn
+"essentially identical" claim if the gradients ever converge within 1.5×, so the withdrawal
+is revisited on evidence rather than forgotten.
+
+Each check was negative-tested by reinstating the actual defect: the stale NY Silent 1.87×
+cell, the pre-switch ID pooled count 47,762, the withdrawn "~1.9–2.0× / ~0.13–0.18×" range,
+and the withdrawn "tight 1.62–1.76×" band all fail the run. Building the checks also caught
+one more, unrelated to the tier switch: **Idaho's pooled Gini is 0.821450, and the paper's
+0.822 was a double-rounding of the diagnostic's 4-decimal 0.8215.** Corrected to 0.821.
+
+Still prose-only: the whitepaper's Findings 4 and 5, which restate these cuts in narrative
+form. They are now consistent with the verified values, but nothing enforces that — the
+whitepaper is a prospectus rather than a paper with its own verifier, so it remains the
+most likely site of the next instance.
