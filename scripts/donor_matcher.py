@@ -299,7 +299,7 @@ def match_voters_to_donors(
     ``source_prefixes=["FEC"]`` to build a single-layer panel, and ``output_table``
     to keep panels side by side. **Both default to the historical behavior**
     (all sources -> ``voter_donor_affiliation``) because the campaign tooling
-    (``donor_prospects``, segments, walk lists) reads that table and assumes one row
+    (segments, walk lists) reads that table and assumes one row
     per voter. See ``docs/donor-class-and-the-electorate.md`` for the panel design.
 
     CONTRIBUTION WINDOW (``date_min`` / ``date_max``, added 2026-07-27). The two money

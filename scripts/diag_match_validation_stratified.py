@@ -51,8 +51,17 @@ DATA = ROOT / "data"
 OUTDIR = DATA / "validation"
 EVIDENCE = OUTDIR / "match_validation_stratified.csv"
 KEYFILE = OUTDIR / "match_validation_stratified_key.csv"
+# sample_id -> state_voter_id, written so that a LATER fresh draw can exclude the records
+# this one already rated (`--exclude-rated`). Added 2026-07-28: no prior artifact carried the
+# voter id — not the published verdicts, not the stratum key, not the evidence file — which
+# is good PII hygiene but made an "independent sample" unverifiable, since there was no way
+# to prove a new draw did not re-draw the old records. This file is PII-adjacent (it links a
+# sample row to a real registrant) and lives under gitignored data/validation/; it must never
+# be committed or published.
+IDFILE = OUTDIR / "match_validation_stratified_ids.csv"
 
-SEED = "2026-07-27"
+DEFAULT_SEED = "2026-07-27"   # the seed of the published 480-record pass
+SEED = DEFAULT_SEED           # rebound by --seed; the draw is md5(state_voter_id || SEED)
 
 # (state, statewide db, vrdb db, {panel: contribution_id prefix})
 STATES = [
@@ -108,13 +117,20 @@ WHERE contributor_name IS NOT NULL AND contributor_name <> ''
 """
 
 
-def sample_cell(con, panel_tbl, tier, band, n):
+def sample_cell(con, panel_tbl, tier, band, n, exclude_ids=()):
     """Sample up to n matched voters from one tier x dollar-band cell.
 
     band: 'top10' = top donor-dollar decile within the panel, 'rest' = deciles 2-10.
     Deterministic via md5(state_voter_id || SEED).
     """
     band_pred = "d.decile = 1" if band == "top10" else "d.decile > 1"
+    # A FRESH sample must not re-draw records the published pass already rated, or the
+    # "independent sample" claim is false: exclude_ids carries those voter ids.
+    excl = ""
+    params = [tier]
+    if exclude_ids:
+        excl = " AND d.state_voter_id NOT IN (" +                ",".join("?" for _ in exclude_ids) + ")"
+        params += list(exclude_ids)
     return [r[0] for r in con.execute(f"""
         WITH d AS (
             SELECT state_voter_id, match_quality,
@@ -123,12 +139,12 @@ def sample_cell(con, panel_tbl, tier, band, n):
         SELECT d.state_voter_id
         FROM d
         JOIN vrdb.voters v USING (state_voter_id)
-        WHERE d.match_quality = ? AND {band_pred}
+        WHERE d.match_quality = ? AND {band_pred}{excl}
           AND v.first_name IS NOT NULL AND v.last_name IS NOT NULL
           AND v.reg_zip IS NOT NULL
         ORDER BY md5(d.state_voter_id || '{SEED}')
         LIMIT {int(n)}
-    """, [tier]).fetchall()]
+    """, params).fetchall()]
 
 
 def evidence_for(con, panel_tbl, tier, voter_ids):
@@ -166,7 +182,55 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--per-cell", type=int, default=10,
                     help="target records per (state x panel x tier x dollar-band) cell")
+    ap.add_argument("--seed", default=DEFAULT_SEED,
+                    help="draw seed. Change it to draw a DIFFERENT sample; the default "
+                         "reproduces the published 480-record pass exactly.")
+    ap.add_argument("--tiers", nargs="+", default=None, metavar="TIER",
+                    help="restrict to these tiers (e.g. --tiers STRICT_ZIP5_FULL to test "
+                         "the primary specification alone)")
+    ap.add_argument("--live-panels", action="store_true",
+                    help="sample the LIVE primary panels instead of the _alltier snapshots. "
+                         "The live panels hold only STRICT_ZIP5_FULL, so this is the right "
+                         "source for a full-name-key draw and the wrong one for a by-tier "
+                         "precision estimate (three tiers would return zero rows).")
+    ap.add_argument("--exclude-rated", nargs="*", metavar="CSV",
+                    help="verdict CSV(s) whose state_voter_id column names records to "
+                         "EXCLUDE, so a fresh draw is independent of the published pass")
     args = ap.parse_args()
+
+    global SEED, PANEL_TABLE, TIERS
+    SEED = args.seed
+    if args.live_panels:
+        PANEL_TABLE = {"federal": "voter_donor_affiliation_fec",
+                       "state": "voter_donor_affiliation_state"}
+    if args.tiers:
+        unknown = [x for x in args.tiers if x not in TIERS]
+        if unknown:
+            print(f"  !! unknown tier(s): {unknown}; valid are {TIERS}")
+            return 2
+        TIERS = list(args.tiers)
+
+    exclude_ids: set[str] = set()
+    for path in (args.exclude_rated or []):
+        fp = Path(path)
+        if not fp.exists():
+            print(f"  !! --exclude-rated file not found: {fp}")
+            return 2
+        with fp.open(encoding="utf-8-sig", newline="") as fh:
+            rdr = csv.DictReader(fh)
+            col = next((c for c in (rdr.fieldnames or [])
+                        if c and c.strip().lower() == "state_voter_id"), None)
+            if col is None:
+                print(f"  !! {fp} has no state_voter_id column — cannot exclude by id. "
+                      f"The published verdict files are PII-free by design, so a fresh "
+                      f"independent draw needs the gitignored key file instead.")
+                return 2
+            exclude_ids.update(r[col].strip() for r in rdr if r.get(col))
+    if exclude_ids:
+        print(f"  excluding {len(exclude_ids):,} already-rated voter ids")
+
+    print(f"  seed={SEED}  tiers={TIERS}  panels="
+          f"{'LIVE primaries' if args.live_panels else '_alltier snapshots'}")
 
     OUTDIR.mkdir(parents=True, exist_ok=True)
     rows = []
@@ -180,7 +244,8 @@ def main() -> int:
             for tier in TIERS:
                 got = {}
                 for band in ("top10", "rest"):
-                    ids = sample_cell(con, tbl, tier, band, args.per_cell)
+                    ids = sample_cell(con, tbl, tier, band, args.per_cell,
+                                      exclude_ids)
                     got[band] = ids
                 # Backfill a short band from the other so the tier keeps its allocation.
                 short = 2 * args.per_cell - len(got["top10"]) - len(got["rest"])
@@ -240,7 +305,15 @@ def main() -> int:
 
     print(f"\nwrote {len(rows):,} rows")
     print(f"  blinded evidence -> {EVIDENCE}   (NO stratum labels; PII; gitignored)")
+    with open(IDFILE, "w", newline="", encoding="utf-8") as fh:
+        w = csv.writer(fh)
+        w.writerow(["sample_id", "state_voter_id"])
+        for r in rows:
+            w.writerow([r["sample_id"], r["_svid"]])
+
     print(f"  stratum key      -> {KEYFILE}    (join only AFTER verdicts are recorded)")
+    print(f"  voter-id map     -> {IDFILE}     (gitignored; feeds a later "
+          f"--exclude-rated)")
     print("\nallocation actually achieved (counts only):")
     from collections import Counter
     for key, label in ((("_tier",), "tier"), (("_state", "_panel"), "state x panel"),

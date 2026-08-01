@@ -1,147 +1,107 @@
 # The Donor Class Is Not the Electorate
 
-### Who funds elections in Washington, New York, and Idaho — substantially older and more concentrated than the electorate, with registered Democrats over-represented relative to registration in New York and Idaho — measured from individual voter-to-donor matches
+### Who Gives? The demographic and partisan composition of matched campaign donors in Washington, New York, and Idaho
 
-**Stephen Kirby** · Tikor Consulting · July 2026
+*The first line is this preprint's public-facing title and states a claim about one of the
+comparisons below; the second describes the paper's scope and is the title used for journal
+submission. Where the two differ, the second governs. "Electorate" throughout means the
+**registered electorate** — see the definition in "The question".*
 
-*AI-assisted drafting and analysis review. Contact: kirby@tikorconsulting.com.*
+**Stephen Kirby** · Tikor Consulting · July 2026 · <kirby@tikorconsulting.com>
 
-*Reproducibility, stated precisely. The aggregate results in this paper can be
-independently re-derived from the built panel tables by `scripts/verify_donor_class.py`,
-which reaches the databases with from-scratch SQL and imports no analysis code.
-**Rebuilding those panel tables from the raw voter files is also covered**, as of
-2026-07-27: the record-linkage step ships as `scripts/donor_matcher.py`, a standalone
-extract of the matcher (function body verbatim from
-`src/wa_analyzer/analysis/donor_analysis.py`, with the `contributor_type` helpers and a
-minimal DDL folded in) that depends on nothing but `duckdb` and the standard library.
-Rebuilding the Idaho federal panel through the public wrapper reproduces the published
-panel exactly — 0 differing rows in either direction across all 9 columns of all 23,303
-rows. Paper source, code, and the data-acquisition recipe are at
-<https://github.com/skirby359/who-decides>; the underlying voter files are not
-redistributable and are not included. Before submission this paper must cite a **tagged
-release and archival DOI** (Zenodo or OSF) rather than a mutable branch — see
-[`publication-checklist.md`](publication-checklist.md).*
+*AI-assistance disclosure.* Anthropic's Claude was used throughout: drafting and editing prose;
+generating, modifying and reviewing analysis code, including the SQL producing the published
+figures and the verification script that re-derives them; checking citations and statutory
+references; and proposing robustness analyses, several of which were adopted. This is AI use
+affecting methods, analysis and code, not only language. AI was not an author and made no
+autonomous adjudication: in the match-precision validation the AI-assisted verdicts are the first
+rating pass, published at row level, and an independent human rater re-rated a subset, with both
+passes and their disagreements reported (Appendix F). **No PII-bearing voter, contribution or
+linkage record was submitted to any hosted AI service** — assistance operated on code, schemas,
+aggregate outputs and prose. The author independently verified all sources, code and outputs and
+is solely responsible for the content and conclusions.*
 
-*Paper #3 of the electoral-health series (companion to
-[`who-decides-washington.md`](who-decides-washington.md),
-[`who-decides-new-york.md`](who-decides-new-york.md),
-[`who-decides-idaho.md`](who-decides-idaho.md),
-[`safe-seat-washington.md`](safe-seat-washington.md), and
-[`cross-state-fec-money.md`](cross-state-fec-money.md)). **DRAFT — revised 2026-07-27 in
-response to external review, and again 2026-07-27 to fold in a stratified blinded
-match-precision re-rating (Appendix F), since **independently re-rated by a human** who
-agreed on 75 of 75 full-name-key records. That re-rating found precision is entirely a
-function of match tier — no detectable false match on the full-first-name key, 48–72% on
-the initial-based keys — and **the full-name key is now the paper's primary
-specification**: every panel below was rebuilt on it. The superseded all-tier figures moved every headline *toward* the
-null, so they were the conservative ones. One caveat is carried in the open: the restriction
-discards 11–19% of matched donors and that discarded set is younger and less Democratic
-than the retained set, so part of the sharpened skew is selection rather than precision
-(Appendix F).***
+*Data and code availability.* Paper source, analysis code, and the data-acquisition recipe are
+at <https://github.com/skirby359/who-decides>. All inputs are public records — FEC bulk files;
+Idaho Sunshine, Washington PDC and New York State Board of Elections filings; and the three
+state voter files, obtained under each state's lawful-use terms. The voter files are not
+redistributable and are not included. `scripts/verify_donor_class.py` independently re-derives
+the designated results below from the built panel tables and runs a numeric coverage audit over
+them; a small number of expressly identified tables that depend on specialised
+person/organisation classification logic are reproduced by their originating diagnostic scripts
+rather than reimplemented, and the supplement names them. The panels themselves are rebuildable
+from the raw inputs by an authorised user who independently obtains the restricted voter files
+and follows the full dependency-ordered recipe — `scripts/donor_matcher.py` is the
+record-linkage stage of that, not the whole of it. Provenance per figure, the
+reproduction recipe, and a ledger of claims withdrawn during review are in the companion
+[methods and provenance supplement](donor-class-methods-supplement.md). *Before submission this
+paper must cite a tagged release and archival DOI rather than a mutable branch.*
 
-*Provenance. Each panel is built by a per-state match script run once per money source
-(`--source fec` / `--source state`), writing to `voter_donor_affiliation_fec` and
-`voter_donor_affiliation_state`. Washington figures:
-`scripts/match_wa_voters_to_donors.py` and `scripts/diag_wa_individual_findings.py` —
-WA's registered roll (5.51M) + 27.1M vote records + birth years
-(`data/wa_vrdb.duckdb`), matched to 147,745 federal and 217,114 state donors. New York
-figures: `scripts/match_ny_voters_to_donors.py`,
-`scripts/backfill_ny_committee_party.py`, `scripts/backfill_ny_recipient_party.py`,
-`scripts/diag_ny_match_bias.py`, `scripts/diag_ny_primary_participation.py`,
-`scripts/diag_ny_donor_extras.py`, `scripts/diag_ny_electorate_extras.py` — NY's
-NYSVOTER roll (13.54M; individual party enrollment + DOB; `data/ny_vrdb.duckdb`) matched
-to 10.0M FEC itemized contributions and, via `scripts/load_ny_contributions.py`, to 3.95M
-NYSBOE **state** contributions (`data/ny_statewide.duckdb`; 269,218 federal / 378,383
-state matched voters). Idaho figures: `scripts/match_id_voters_to_donors.py`,
-`scripts/backfill_id_recipient_party.py`, `scripts/diag_id_electorate_extras.py` — ID's
-statewide roll (1.03M; individual party affiliation + age; `data/id_vrdb.duckdb`) matched
-to both Idaho Sunshine **state** filings (23,613 voters) and **federal** FEC
-contributions (23,303 voters), in `data/id_statewide.duckdb`. Cross-state dollar
-concentration: `scripts/cross_state_fec_money.py`. Contribution-limit tests (Appendix G):
-`scripts/diag_contribution_limits.py`. The review-response recomputations — denominator
-standardisation, match-tier and household sensitivities, panel overlap, period-aligned
-panels, Idaho composition shares: `scripts/diag_donor_class_revisions.py`. Every figure
-below traces to one of these scripts.*
+*Two panels, read this first.* American donors give into two separately regulated money
+systems, and a voter roll can be matched to either. Every result below is therefore computed
+**twice**, once per system, and never pooled:
 
-*Two panels, read this first. American donors give into two separately regulated money
-systems, and a voter roll can be matched to either. Every result below is therefore
-computed **twice**, once per system, and never pooled:*
-
-| panel | what it is | matched donors | itemization threshold |
+| panel | what it is | matched donors | mandatory itemization trigger |
 |---|---|--:|---|
 | **Federal** *(primary)* | FEC itemized individual contributions | WA 147,745 · NY 269,218 · ID 23,303 | aggregate **> $200** |
-| **State** *(secondary)* | WA Public Disclosure Commission · NY State Board of Elections · Idaho Sunshine | WA 217,114 · NY 378,383 · ID 23,613 | WA **> $100** · NY **> $99** · ID **> $50** |
+| **State** *(secondary)* | WA Public Disclosure Commission · NY State Board of Elections · Idaho Sunshine | WA 217,114 · NY 378,383 · ID 23,613 | WA **> $25**, **> $100** from Apr. 2023 · NY **> $99** · ID **> $50** |
 
-*Pooling the two systems — which earlier drafts did for Washington without intending to —
-inflates measured concentration, because one person's federal and state giving stacks
-into a single donor total while a one-system donor's does not; on Washington's data,
-pooling read 46.6% top-1% against 42.4% federal and 43.8% state on the superseded
-all-tier build. The panels are kept separate for that reason.*
+Pooling the two inflates measured concentration, because one person's federal and state giving
+stacks into a single donor total while a one-system donor's does not. On Washington's data, and
+on the primary match specification throughout, pooling reads top-1% **46.6%** against **41.2%**
+federal and **43.5%** state — a 3.0-point overstatement against the higher of the two panels it
+is built from. All three figures are on the same specification; mixing specifications between a
+pooled and a single-panel figure is itself an error, and the retired all-tier trio (47.7 / 42.4 /
+43.8) appears only in Appendix F, where it is labelled.
 
-*What the panel split does and does not establish.* Where an outcome is observable, it is
-estimated separately in the federal and state panels, and the principal directional
-patterns — older than the electorate, dollars concentrated at the top, metro-concentrated,
-stacked with high turnout, and (where party is observable) tilted toward registered
-Democrats and against the unaffiliated — replicate across every state-and-panel
-combination in which they can be measured. Party is **not** observable in Washington, and
-Idaho's turnout figures are reported as composition rather than rates, so no claim here is
-that *every* finding is measured in every cell.
+*What the panel split does and does not establish.* Where an outcome is observable it is
+estimated separately in both panels, and the principal directional patterns — older than the
+registered electorate, dollars concentrated at the top, metro-concentrated, coincident with high turnout,
+and (where party is observable) tilted toward registered Democrats and against the
+unaffiliated — replicate across every state-and-panel combination in which they can be
+measured. Party is **not** observable in Washington, and Idaho's turnout figures are reported
+as composition rather than rates, so no claim here is that every finding is measured in every
+cell.
 
-*The differences between the panels are informative but are **descriptive differences
-between two datasets**, not identified effects of federal versus state regulation. Three
-confounds run alongside the regulatory one, and Appendix C quantifies each: the panels
-have **different disclosure thresholds** (a $50 Idaho floor reaches far deeper into
-small-dollar giving than a $200 federal floor), they can cover **different years** (Idaho
-Sunshine holds 2023–2025 against a 2017–2026 federal layer), and they are largely
-**different people** — the federal and state matched sets overlap by a Jaccard coefficient
-of only 0.14–0.16 in all three states. With that stated, the most robust panel difference
-is that federal money is older money: New York's federal donors are 49.9% over 65 against
-39.3% of its state donors, Idaho's 66.8% against 51.3%, and Washington's Silent Generation
-multiplier runs 2.67× federal against 1.72× state. In Idaho, the one state where the
-windows differ, restricting both panels to the shared 2023–2025 window **widens** the gap
-to 67.1% against 51.1%, so period misalignment is not what produces it.*
+The differences *between* the panels are informative but are **descriptive differences between
+two datasets**, not identified effects of federal versus state regulation. Four confounds run
+alongside the regulatory one, each quantified: the panels have different
+disclosure triggers (a $50 Idaho floor reaches far deeper into small-dollar giving than a
+$200 federal floor), they can cover different years (Idaho Sunshine holds 2023–2025 against a
+2017–2026 federal layer), they are largely **different people** — the federal and state
+matched sets overlap by a Jaccard coefficient of only 0.14–0.16 in all three states — and the
+linkage reaches them unequally, matching 39.1% to 56.9% of resident donor identities depending
+on the panel. With that
+stated, the most robust panel difference is that federal money is older money: New York's
+federal donors are 49.9% over 65 against 39.3% of its state donors, Idaho's 66.8% against
+51.3%, and Washington's Silent Generation multiplier runs 2.67× federal against 1.72× state.
+In Idaho, the one state where the windows differ, restricting both panels to the shared
+2023–2025 window **widens** the gap to 68.5% against 51.3%, so period misalignment is not what
+produces it.
 
 ## Abstract
 
-Campaign money is usually described by how much is raised. This paper asks whose money it
-is, and whether the people who fund elections resemble the people who vote in them. Three
-state voter-registration files — Washington (5.51M registrants), New York (13.54M, with
-individual party enrollment and date of birth), and Idaho (1.03M, with party affiliation
-and age) — are linked person by person to itemized campaign contributions under a
-conservative uniqueness rule. Because American donors give into two separately regulated
-money systems, every result is computed twice and never pooled: a federal panel (147,745
-matched donors in Washington, 269,218 in New York, 23,303 in Idaho) and a state panel
-(217,114, 378,383, and 23,613). Where an outcome is observable it is estimated in both,
-and the principal directional patterns replicate across the available combinations. The
-matched donor class is substantially older than the electorate that elects the officials
-it funds: 49.9% of New York's federal donors and 66.8% of Idaho's are 65 or older, against
-a quarter and a third of their rolls, and Washington's Silent Generation gives at 2.6 times
-its share of the roll while Generation Z gives at one-tenth of its own. Dollars are highly
-concentrated, with the top 1% of matched donors supplying 41.2% of federal dollars in
-Washington, 50.7% in New York, and 37.2% in Idaho, and a single metropolitan area
-supplying a fifth to a half of each state's total. Where party of record is observable, the
-donor class over-represents registered Democrats and under-represents the unaffiliated by
-double digits — in deep-blue New York (+16.1 points Democratic federally, +9.6 in state
-money) and in deep-red Idaho (+8.6) alike, so the result is not mechanically attributable
-to which party holds the statewide registration plurality. The same individuals also vote
-at far higher rates than non-donors, stacking financial and electoral voice rather than
-offsetting them. Blinded validation of 480 matched records found precision to be a property
-of the match key: **no detectable false match** on the full-first-name key the paper now
-uses as its primary specification (120/120; Wilson 95% CI 96.9–100), against 47.9–71.7% on
-the three initial-based keys it excludes, which carried 11–19% of matches and every
-household false merge. An independent human rater re-rated 150 of those records blind and
-**agreed on all 75 drawn from the full-name key** (Cohen's kappa 0.815 on the collapsed
-binary overall); every one of the 18 disagreements was on an initial-based key and in the
-direction of the human being more permissive, so the reported weak-tier rates are the
-conservative ones. The superseded all-tier specification's population-weighted
-precision was 93.0%. Adopting the clean key moved every headline away from the null, so the
-previously published figures were the conservative ones; it also discards a younger and
-less Democratic set of donors, so part of the sharpened skew is selection rather than
-precision, and both specifications are reported. The age skew survives inverse-propensity
-re-weighting for match bias. Simple mechanical truncation of gifts at
-state cap levels does not reproduce the observed ordering of the concentration estimates.
-The paper measures itemized giving and registration records, not policy influence, and its
-causal claims are limited to association.
+Campaign money is usually described by how much is raised; this paper asks whose it is. Three
+state voter-registration files — Washington (5.51M registrants), New York (13.54M, with party
+enrollment and date of birth) and Idaho (1.03M, with party and age) — are linked person by
+person to itemized campaign contributions under a conservative deterministic uniqueness rule.
+The baseline is the **registered electorate**, each state's active roll, not the
+voting-eligible population. Because American donors give into two separately regulated money
+systems, every result is computed twice — a federal and a state panel per state — never pooled.
+Matched donors are much older than the roll: 49.9% of New York's federal donors and 66.8% of
+Idaho's are 65 or older, against a quarter and a third of their registrants. Matched dollars
+are concentrated: the top 1% of donors supply 41.2% of federal dollars in Washington, 50.7% in
+New York and 37.2% in Idaho; one county per state supplies a fifth to three-fifths of a panel's
+total. Where party of record is published, registered Democrats are over-represented and
+unaffiliated registrants under-represented relative to registration in both deep-blue New York
+and deep-red Idaho. Both persist after joint standardization on the roll's age and county
+distribution, and party-specific matchability under the strict key differs by about one
+percentage point, so neither age, geography, nor differential identifiability accounts for
+them. Matched donors also vote more often than non-donors — by 25 to 29 points with both groups
+restricted to registrants eligible for every election in the window and standardized on age. A
+blinded rating of 480 matched records found precision differed sharply by match tier; the paper
+reports the tier with no detected false match, narrowing the donor population as it sharpens
+it. All findings describe itemized, matched donors; every association is descriptive.
 
 **Keywords:** campaign finance; political donors; voter files; record linkage; party of
 record; contribution limits; donor concentration; Washington; New York; Idaho.
@@ -155,8 +115,17 @@ consequential question for representation is *whose* money it is — and whether
 the people who fund elections look anything like the people who vote in them. If
 the donor class is a representative cross-section of the electorate, money is
 just amplified participation. If it is a narrow, self-selected slice, then a
-distinct population is setting the financial terms of every race before the
-first ballot is cast.
+distinct population supplies the money that campaigns run on, before the
+first ballot is cast. What that buys is a separate question this paper does not
+reach; who supplies it is the question here.
+
+**What "electorate" means here.** The comparison baseline throughout is the **registered
+electorate** — each state's active registration roll — with supplementary comparisons to
+2024 general-election voters where participation is observable. It is never the
+voting-eligible population, the census population, or the electorate of a particular
+future contest. Nothing below establishes that donors differ from every conception of the
+electorate; the claim is the narrower and measurable one, that matched itemized donors are
+not representative of the registered electorate.
 
 This question can be answered at the individual level in three states, by matching the
 registered-voter roll to itemized donors, person by person (a conservative name + ZIP
@@ -166,8 +135,8 @@ the dimension WA cannot: who the donor class is *partisan*-ly, and where its mon
 And they bracket the political spectrum: New York is ~48% registered Democratic, Idaho
 ~63% registered Republican.
 
-The short answer, consistent across all three states: **the donor class is not the
-electorate.** It is substantially older, financially and geographically concentrated in a
+The short answer, consistent across all three states: **matched itemized donors are not
+representative of the registered electorate.** They are substantially older, financially and geographically concentrated in a
 small top tier, and — where party is observable — tilted toward registered Democrats while
 substantially under-representing the largest non-partisan bloc. The notable part is that
 the Democratic tilt of the donor class relative to registration appears in deep-blue New
@@ -176,19 +145,288 @@ the statewide registration plurality.
 
 ---
 
-## Finding 1 — The donor class is substantially older than the electorate
+## Data, linkage, and validation
 
-In all three states matched donors are far older than the voters they fund.
+The measurement instrument is the contribution, so it is described before the results rather
+than after them. Full construction detail, the per-source coverage tests and the complete
+validation tables are in Appendices C and F; what follows is what a reader needs in order to
+know what the findings are estimates *of*.
 
-**New York** (`match_ny_voters_to_donors.py`) — age-band share, age as of
-2024-11-05:
+**Three populations, kept distinct.** The **registered electorate** is each state's active
+registration roll — Washington 5.51M, New York 13.54M, Idaho 1.03M — and it is the baseline
+for every comparison unless stated otherwise. **2024 general-election voters** are a second,
+narrower baseline, used where participation is observable. The analytical population is
+**matched itemized donors**: contributors whose disclosed record links to exactly one
+registrant. That is neither all contributors nor all donors. Giving below a disclosure trigger
+need not be itemized at all, and the linkage drops every ambiguous record rather than guessing,
+so the matched set is a **floor on identifiable donor–voter matches**. Every estimate below is
+therefore a statement about itemized, successfully matched donors, and the word "donors" is
+short for that throughout.
+
+**Why these three states.** Washington supplies the demographic and behavioral cut — the
+largest roll here paired with 27.1M individual vote records — but does not publish party of
+record, so the partisan question cannot be asked there at all. New York and Idaho do publish
+it, which is the whole reason they are in the design. They also bracket the spectrum: New York
+is roughly 48% registered Democratic, Idaho roughly 63% registered Republican. That bracketing
+is load-bearing rather than decorative. A donor class tilted toward registered Democrats in a
+deep-blue state is consistent with the trivial explanation that the plurality party gives most;
+the same tilt *relative to registration* in a state where Republicans outnumber Democrats better
+than five to one is not. Texas appears once, in a statewide aggregate table that needs no voter
+file, and nowhere in the linked results.
+
+**Two panels, never pooled.** American donors give into two separately regulated systems, and a
+roll can be matched to either. The **federal** panel is FEC itemized individual contributions,
+mandatory itemization trigger above a $200 aggregate. The **state** panel is the Washington
+Public Disclosure Commission, the New York State Board of Elections and Idaho Sunshine, with
+triggers of $25 rising to $100 in April 2023, $99, and $50 respectively. The match runs **once
+per source**, and no figure mixes them. Pooling is not merely untidy: one person's federal and
+state giving stacks into a single donor total while a one-system donor's does not, which
+mechanically inflates measured concentration — on Washington's data, top-1% reads 46.6% pooled
+against 41.2% federal and 43.5% state.
+
+What the two panels do and do not license is worth fixing early. They provide **replication**:
+where an outcome is observable it is estimated twice, and the principal directional patterns
+recur. They do **not** constitute a controlled comparison of federal against state regulation.
+Four things differ between the panels besides the regulatory regime. The two matched sets overlap
+by a Jaccard coefficient of only **0.14–0.16** — they are largely different people; the
+disclosure triggers differ; the periods differ in Idaho; and, as the recall table below shows,
+**the linkage itself reaches the panels unequally**, from 39.1% to 56.9% of resident donor
+identities. Differences *between* panels are therefore described as differences between two
+constructed datasets, and the mechanism behind them is not identified.
+
+**The linkage rule.** Matching is deterministic and proceeds in four tiers, strictest first, on
+active registrants only. Every tier carries the same guard: the key must resolve to **exactly
+one** voter on the roll and one donor identity, or the record is dropped rather than guessed.
+No probabilistic score is assigned and no clerical review resolves near-misses, which is what
+makes the matched set a floor and also what makes the tiers unequal:
+
+| tier | key | share of matches |
+|---|---|---|
+| `STRICT_ZIP5_FULL` *(primary)* | surname + **full** first name + ZIP5 | 80.7–89.2% |
+| `STRICT_ZIP5_MID` | surname + first initial + middle initial + ZIP5 | 0.4–2.0% |
+| `STRICT_ZIP5` | surname + first initial + ZIP5 | 9.5–12.6% |
+| `RELAXED_ZIP3_MID` | surname + first initial + middle initial + **ZIP3** | 0.3–5.0% |
+
+**Where this design sits in the linkage literature.** It is deliberately not the standard one.
+Fellegi & Sunter (1969) formalised linkage as a decision problem over match probabilities, and
+the current political-science implementation — Enamorado, Fifield & Imai (2019) — scales that
+model to millions of records and is demonstrated on precisely this problem, merging contribution
+records to voter files. This paper uses a deterministic key with a uniqueness requirement
+instead, and it has **not** been calibrated against a probabilistic model; what supports it is
+the direct validation below, not an equivalence argument. The consequence is specific and worth
+naming: a deterministic rule moves the uncertainty out of the estimator and into the sample
+definition, so match error here can be **bounded by validation but not propagated** through the
+results. That is this design's most substantial methodological limitation. The key is also
+weaker than the address–DOB–gender–name benchmark of Ansolabehere & Hersh (2017) by statute
+rather than by choice — the donor side of a contribution filing carries no date of birth, no
+gender and no verified address, only a name and a ZIP. Appendix D develops all of this, together
+with Bailey et al.'s (2020) finding that link errors in common algorithms run 15–37% and are
+systematically related to record characteristics rather than random — a result this paper
+reproduces twice, in which tiers its false merges landed on and in who its clean-key restriction
+discards.
+
+**Why the full-name tier alone is the specification.** A stratified blinded rating of **480**
+matched records — 120 per tier, each rated without knowing which tier produced it — found that
+detected precision is a property of the **key**, not of the match as a whole.
+`STRICT_ZIP5_FULL` returned **100.0%** with a 95% Wilson interval of **[96.9–100.0]**, against
+**47.9–71.7%** for the three initial-based keys, which are nearer coin flips. Every one of the
+129 household and relative false merges the rating found landed on an initial-based key and
+none on the full-name key. The tiers are therefore not interchangeable, and treating the
+matched set as one population would import roughly a coin-flip's error on the **11–19%** of
+it those keys carry — the same share the restriction discards, below. Each
+panel is built from the first tier alone; the superseded all-tier panels are retained and
+reported alongside rather than discarded.
+
+**What the validation establishes, and what it cannot.** "No false match detected in 120
+records" bounds the error rate at roughly **3%** — the Wilson lower bound — and does **not**
+establish that it is zero. A true namesake at the same ZIP5 would be invisible to this design
+at any sample size, because there is no field left to separate them. Precision is also reported
+population-weighted per panel, since the sample deliberately oversamples the weak tiers by
+30–300× and its raw mean is not a panel estimate. The first rating pass was AI-assisted and is
+published at row level so it can be re-scored; an independent human rater re-rated a subset,
+and both passes and their disagreements are reported.
+
+**Spending the whole error budget against each finding.** A bound that is stated but never
+applied is not much of a bound, so it is applied. Two facts frame it.
+
+First, the **observed** failure mode is structurally unavailable on this key. All 129
+confirmed household or relative merges landed on an initial-based key. That is not luck: a
+household merge requires the contributor's name to equal the matched registrant's, which on the
+primary key means the same surname *and* the same full first name at the same ZIP5 — a Jr./Sr.
+collision. The uniqueness guard **drops** those keys rather than resolving them, so they yield
+non-matches, never false matches. Measured on the rolls, the registrants sitting in such colliding
+keys are **3.03%** of Washington's active roll, **5.11%** of New York's and **2.75%** of Idaho's,
+and all of them are unreachable by the primary key. By contrast the pool the initial-based keys
+were exposed to — registrants sharing a surname and ZIP5 with someone whose first name differs —
+is **76.7%, 77.0% and 82.6%** of those rolls. That ratio is the quantitative form of "129 of 129
+landed on the weaker keys."
+
+Second, whatever residual remains therefore cannot be that mechanism. It has to be a namesake who
+is not the matched registrant and not on the roll, so the right model is **removal**: the record
+should not have been in the panel. The budget is 3.1% — the Wilson bound — and it is spent
+adversarially, deleting the records whose loss moves each statistic furthest against the finding:
+
+| panel | 65+ share | registered-Democratic share | top 1% of dollars |
+|---|--:|--:|--:|
+| WA federal | 55.7 → **54.2** | *party unpublished* | 41.2 → **33.8** |
+| WA state | 39.0 → **37.1** | *party unpublished* | 43.5 → **36.9** |
+| NY federal | 49.9 → **48.2** | 63.6 → **62.5** | 50.7 → **42.4** |
+| NY state | 39.3 → **37.3** | 57.1 → **55.8** | 48.6 → **41.2** |
+| ID federal | 66.8 → **65.7** | 20.4 → **17.9** | 37.2 → **30.5** |
+| ID state | 51.3 → **49.7** | 21.6 → **19.1** | 40.0 → **33.9** |
+
+*`diag_match_error_sensitivity.py`. Each cell is a worst case, not an estimate. The age and party
+columns delete 3.1% of the panel entirely from the bucket that supports the finding. **The
+concentration column uses a different model, and the reason is worth stating:** adversarial
+removal is degenerate for a top-share statistic, because deleting the largest 3.1% of donors
+deletes three times the top-1% population by construction and the surviving top 1% is a different,
+far smaller set — it reads 41.2% → 9.2% on Washington's federal panel, which is arithmetic about
+the estimator rather than a statement about match error. The informative model is the household
+mechanism run backwards: **de-merge** the largest 3.1% of donors into two equal halves each, which
+leaves total dollars unchanged and only reorders the ranking. Re-derived by
+`verify_donor_class.py`.*
+
+The age and party findings are insensitive to match error at the validation ceiling: the 65+ share
+moves by 1.1 to 2.0 points against baselines 20 to 35 points below it, and the Democratic share by
+1.1 to 2.5 points. **Concentration is the exception and is reported as such** — the top-1% share
+falls by 6.1 to 8.3 points under an adversarial de-merge, which does not disturb the finding that
+matched dollars are extremely top-heavy but does mean the *level* carries meaningfully more
+match-error uncertainty than the compositional findings do. That ordering is expected rather than
+surprising: concentration is a statistic about the top of the distribution, so it is the one most
+exposed to error in a handful of records. Turnout is omitted because a 3.1% deletion cannot close a
+25-to-29-point gap between groups of 269,218 and 12.2 million.
+
+**How far below the ceiling that floor sits.** A floor is only informative with a distance
+attached, so the linkage's reach is reported rather than left to the word. Counting distinct
+donor identities in each contribution layer on the primary specification's own key —
+`(surname, full first name, ZIP5)`, parsed exactly as the matcher parses it — and the dollars
+those identities gave:
+
+| panel | in-state donor identities | matched | **recall** | in-state itemized $ | matched $ | **$ coverage** |
+|---|--:|--:|--:|--:|--:|--:|
+| WA federal | 298,645 | 147,745 | **49.5%** | $646.1M | $346.3M | **53.6%** |
+| WA state | 555,922 | 217,114 | **39.1%** | $330.0M | $122.5M | **37.1%** |
+| NY federal | 570,600 | 269,218 | **47.2%** | $2,066.2M | $1,015.7M | **49.2%** |
+| NY state | 786,372 | 378,383 | **48.1%** | $725.4M | $339.8M | **46.8%** |
+| ID federal | 43,194 | 23,303 | **53.9%** | $76.2M | $42.1M | **55.3%** |
+| ID state | 41,497 | 23,613 | **56.9%** | $22.3M | $13.6M | **61.1%** |
+
+*Both denominators are restricted to **in-state** identities and in-state dollars, and they must
+be: the per-state FEC loads filter on donor residence and are 100% in-state, while the
+state-disclosure loads do not — the NYSBOE layer is **23.6%** out-of-state, WA PDC 5.9% and
+Idaho Sunshine 6.1%, measured over rows carrying a contributor name, which is the only
+universe a linkage could reach. An out-of-state identity cannot match the state's own roll, so an
+unrestricted denominator would charge the state panels for identities no linkage could reach.
+Identities and dollars are restricted the same way so the two columns share a basis. Script:
+`diag_match_rate.py`; re-derived by `verify_donor_class.py`.*
+
+So the panels capture **39.1–56.9%** of resident donor identities and **37.1–61.1%** of resident
+itemized dollars. Coverage exceeds recall in four of the six panels, the expected direction: the
+identities that fail to resolve are disproportionately small givers.
+
+**What the shortfall is, and what it is not.** A single recall figure invites the reading that
+the rule discards half the donors it could reach. It does not. Every eligible identity falls into
+one of three states against the active roll, and only one of them is the rule's doing:
+
+| panel | matched (exactly one registrant) | **2+ registrants — dropped by the guard** | no registrant under that name and ZIP |
+|---|--:|--:|--:|
+| WA federal | 147,745 | 4,875 (**1.6%**) | 146,025 |
+| WA state | 217,114 | 6,973 (**1.1%**) | 397,547 |
+| NY federal | 269,218 | 12,872 (**2.3%**) | 288,510 |
+| NY state | 378,383 | 21,407 (**1.9%**) | 726,329 |
+| ID federal | 23,303 | 779 (**1.8%**) | 19,112 |
+| ID state | 23,613 | 670 (**1.5%**) | 21,676 |
+
+*Shares are of all eligible identities in the layer, unrestricted by residence so the three
+columns sum. `diag_match_rate.py`.*
+
+The **uniqueness guard costs 1.1–2.3%** of eligible identities — donors almost certainly on the
+roll, dropped rather than guessed between namesakes. That is the price of the design, and it is
+small.
+
+**What the rest of the residual is.** The "no active registrant" column is heterogeneous, and
+leaving it undecomposed invites the reading that half of all donors are simply unregistered. They
+are not. Relaxing exactly one condition at a time, as a priority cascade so the buckets partition
+the residual:
+
+| panel | matched | 2+ on roll (guard) | inactive or removed | same name, different ZIP | name-form mismatch | no roll counterpart |
+|---|--:|--:|--:|--:|--:|--:|
+| WA federal | 49.5% | 1.6% | 1.2% | **25.2%** | 6.7% | 15.7% |
+| WA state | 34.9% | 1.1% | 0.9% | **26.0%** | 6.2% | 30.9% |
+| NY federal | 47.2% | 2.3% | 2.3% | **26.8%** | 4.9% | 16.5% |
+| NY state | 33.6% | 1.9% | 1.0% | **30.1%** | 4.5% | 28.9% |
+| ID federal | 53.9% | 1.8% | — | **17.7%** | 9.0% | 17.5% |
+| ID state | 51.4% | 1.5% | — | **15.1%** | 11.2% | 20.9% |
+
+*`diag_residual_decomposition.py`; re-derived by `verify_donor_class.py`. Each identity is assigned
+to the first bucket it satisfies, so rows sum to 100%. "Inactive or removed" means the same key
+matches a registrant whose status is not active — unavailable in Idaho, whose export carries no
+status flag, so those identities fall through to later buckets. "Same name, different ZIP" means
+surname and full first name match an active registrant at another ZIP5. "Name-form mismatch" means
+surname, first *initial* and ZIP5 match but the full first names differ. Denominators are
+unrestricted by residence so the rows sum, which inflates the state panels' final column: an
+out-of-state identity has no counterpart on that state's roll by construction, and the NYSBOE layer
+is 23.6% out-of-state.*
+
+**The largest single cause of non-match is not non-registration — it is geography.** In every panel
+the biggest bucket after matching is an identity whose surname *and* full first name do sit on the
+active roll, at a different ZIP5: **15.1% to 30.1%** of all eligible identities. Those are movers
+who gave before a move and donors who filed a work address, and they are recoverable in principle
+by relaxing geography — which this paper declines to do, because the fourth match tier that widens
+the radius to a ZIP3 measured 50.4% precision. Name-form mismatches, nicknames against legal names,
+account for a further 4.5% to 11.2%.
+
+What is left — **15.7% to 30.9%** — has no counterpart on the roll under any of those relaxations,
+and that, not the raw non-match rate, is the real floor on what a name-and-ZIP key can reach here.
+It remains heterogeneous: not registered in the state, registered under a materially different
+name, or resident elsewhere. The distinction that matters is that most of the shortfall is a
+consequence of choices the specification makes and could in principle be traded against precision,
+while this last column could not.
+
+Washington's state panel is the low outlier on both measures, and the reason is identifiable
+rather than behavioural: the PDC files **99.9%** of its contributor names *without* a comma, so
+the parser takes the first token as the surname and fails on every filer who wrote their name
+first-name-first. That is a source-format defect in one layer, and it is why the WA state row
+should not be read as Washington's donors being harder to reach than New York's.
+
+**What the restriction costs, stated rather than buried.** Restricting to the clean key
+discards **11–19%** of matched donors, and the discarded set is **younger and less Democratic**
+than the retained set. So part of the sharpening this specification produces is selection, not
+measurement. Both directions are reported: the primary panels are the headline, the all-tier
+panels sit beside them, and no figure is copied between specifications.
+
+**What generalizes.** Within each state and panel where an outcome is observable, the direction
+and approximate magnitude of the age, party and turnout gaps are the findings. Three things do
+**not** generalize, and are not claimed. Levels are not a census of donors, for the coverage and
+floor reasons above. Idaho's turnout figures are reported as **composition rather than rates**,
+because current-roll denominators make rates unreliable there. And nothing here is causal:
+donors are pre-selected for engagement, reverse causation is fully live on the turnout result,
+and every association reported is descriptive.
+
+---
+
+## Finding 1 — The donor class is substantially older than the registered electorate
+
+In all three states matched donors are far older than the registration and voting
+baselines against which they are measured.
+
+**New York** (`match_ny_voters_to_donors.py`) — age-band share. **Age is 2024 minus birth
+year**, not age on a particular day, and the distinction is stated because it is not what an
+earlier draft of this line implied. Washington's public file releases **year of birth only**
+(RCW 29A.08.710), so a day-exact age was never available there; New York's day and month have
+now been generalised as a data-minimisation control (Appendix B). The measure is therefore
+uniform across all three states. It runs up to one year high for the **14.9%** of registrants
+whose birthday falls after early November, and it does so on **both sides of every comparison**:
+New York's roll 65+ share is 25.25% on this measure against 25.00% on completed age, its federal
+donors 49.85% against 49.51%, so the donor–roll gap moves by **0.09 points**. No band boundary
+or finding turns on it:
 
 | age band | federal donors | state donors | all active voters | 2024 GE voters |
 |---|--:|--:|--:|--:|
 | 18–29 | **1.6%** | 3.9% | 18.0% | 14.1% |
-| 30–44 | 13.0% | 17.2% | 25.6% | 23.1% |
+| 30–44 | 13.0% | 17.2% | 25.5% | 23.1% |
 | 45–64 | 35.5% | 39.6% | 31.2% | 34.6% |
-| 65+ | **49.9%** | 39.3% | 25.2% | 28.2% |
+| 65+ | **49.9%** | 39.3% | 25.3% | 28.2% |
 
 *Source: `data/ny_statewide.duckdb` (`voter_donor_affiliation_fec` / `_state`) joined to
 `data/ny_vrdb.duckdb`; NYSVOTER FOIL production **dated 2026-06-29**; FEC bulk individual
@@ -197,7 +435,7 @@ files and NYSBOE `4j2b-6a2j`, both 2017–2026; reference population = active re
 `verify_donor_class.py`.*
 
 Nearly **half of NY's federal donors are 65 or older**, versus a quarter of the active
-roll; its state donors are younger but still tilted, at 38.4%. **Washington** shows the
+roll; its state donors are younger but still tilted, at 39.3%. **Washington** shows the
 same shape as generation multipliers (donor share ÷ roll share), and the skew is sharper
 in federal money than in state:
 
@@ -233,14 +471,14 @@ construction rather than as a fact about the roll. Script:
 `match_id_voters_to_donors.py`; re-derived by `verify_donor_class.py`.*
 
 **Nearly two-thirds of Idaho's federal donors are 65+**, and more than half of its state
-donors — against a third of the roll, with the under-30 share reduced to 1.4% and 2.6%
+donors — against a third of the roll, with the under-30 share reduced to 0.5% and 2.1%
 respectively. The donor class is substantially older than the registration baseline in
 blue and red states alike.
 
 **The panel gap, and what it is not.** In all three states, federal money is older money:
 New York's 65+ donor share falls from 49.9% federal to 39.3% state, Idaho's from 66.8% to
-51.3%, and Washington's state giving reaches Gen X and Millennials at roughly twice the
-rate federal giving does (Gen X 1.26× vs 0.98×, Millennial 0.68× vs 0.39×). Three
+51.3%, and Washington's state giving reaches Gen X and Millennials more readily than its
+federal giving does (Gen X 1.31× vs 0.98×, Millennial 0.61× vs 0.35×). Three
 alternative explanations were tested, and the gap survives the one that could be tested
 directly while remaining exposed to the other two:
 
@@ -248,20 +486,51 @@ directly while remaining exposed to the other two:
   cover different years (Sunshine 2023–2025 against a 2017–2026 federal layer). Rebuilding
   both panels on the shared 2023–2025 window (`diag_donor_class_revisions.py
   --build-aligned`) *widens* the gap: aligned federal 65+ is **68.5%** on 14,848 donors,
-  against the state panel's 51.3%. WA and NY carry both systems over the same years
-  already.
-- **Disclosure thresholds — not ruled out.** The state panels itemize from a much lower
-  floor ($50 in Idaho, $99 in New York, $100 in Washington) than the federal $200, so they
-  reach deeper into small-dollar giving, which is younger. Part of the panel gap is very
-  likely this, and nothing here separates it from a behavioral difference.
+  against the state panel's 51.3%. New York's two layers cover exactly the same years;
+  Washington's overlap substantially but are not identical — FEC 2017–2026 against PDC
+  2016–2026, so the PDC layer carries one extra year at the front. Neither is the Idaho
+  mismatch, which is a three-year window against a ten-year one.
+- **Small-dollar reach — probed by a common donor-total restriction, which the gap
+  survives.** The state panels itemize from a much lower floor ($50 in Idaho, $99 in New
+  York, $25 then $100 in Washington) than the federal $200, so they reach deeper into
+  small-dollar giving, which is younger. Restricting every panel to donors with **more than
+  $200 in total observed giving** (`diag_panel_harmonized.py`) probes that, and it costs
+  60–69% of each state panel against 26–27% of each federal one:
+
+  | state | 65+ gap as built | restricted to > $200 total | change under the restriction |
+  |---|--:|--:|--:|
+  | WA | +16.6 pts | **+9.8** | 41% smaller |
+  | NY | +10.6 pts | **+11.7** | the gap *widens* |
+  | ID | +15.5 pts | **+12.2** | 21% smaller |
+
+  So the direction survives in all three states — but **the Washington gap is 41% smaller
+  under the common donor-total restriction**, so a reader comparing the raw WA panels is
+  reading something other than a pure behavioral difference to that extent. Reported
+  alongside the as-built figures rather than either alone. **What this restriction is not:**
+  it does not isolate a statutory disclosure floor. See the note in Appendix C — it changes
+  the analysis population to donors above a common observed total, and at least four
+  mechanisms move together when it does.
 - **Different people — not ruled out.** The two panels are not the same donors observed
   under two rule sets. They overlap by a Jaccard coefficient of 0.159 in WA, 0.161 in NY,
   and 0.141 in ID; only 23–34% of either panel appears in the other. A within-person read
-  makes the point sharply: the 65+ share runs 31.3% among WA state-only donors, 51.3%
-  among federal-only, and **57.5% among those in both** — the both-systems group sits
+  makes the point sharply: the 65+ share runs 32.9% among WA state-only donors, 53.6%
+  among federal-only, and **59.6% among those in both** — the both-systems group sits
   *outside* the range spanned by the single-system groups, which a pure property of the
-  regulatory layer would not produce. NY (33.7 / 45.2 / 53.4) and ID (45.9 / 63.9 / 67.2)
+  regulatory layer would not produce. NY (34.4 / 47.3 / 55.0) and ID (46.0 / 66.5 / 67.6)
   behave the same way. Giving in more than one system is itself an age-graded behavior.
+
+  **Two limits on that read, both from the common donor-total cut**
+  (`diag_panel_harmonized.py`).
+  First, note what a within-person design can and cannot do here: age is a property of the
+  person, so for a donor present in both systems the federal and state values are *identical
+  by construction*. There is no paired within-person test of an age difference to run — the
+  comparison above is between groups of people, and the panel-level age gap is inherently a
+  between-person comparison. Second, among donors above a common $200 observed total the
+  pattern holds in Washington (38.4 / 54.7 / **58.9**) and New York (32.0 / 48.6 / **50.8**)
+  but **not in Idaho**, where the both-systems group falls *inside* the range
+  (48.5 / 66.3 / 63.9) on 2,805 donors. So "outside the range in all three states" is a
+  property of the panels as built and does not hold on a common donor-total restriction;
+  Idaho is the state where it fails.
 
 **The skew is not explained by age variation in matchability.** The obvious objection is
 that the match key (surname + first name + ZIP5, required to be *unique* on the roll)
@@ -308,48 +577,166 @@ and in both money systems:
 *Source: the six panel tables named in the header. Estimator: donors ranked by total
 matched dollars, split into 100 equal-count buckets (`NTILE(100)`) over donors with
 `total_donated > 0`; "top 1% / 10%" is the top 1 / 10 buckets' dollars ÷ all matched
-dollars. Windows: WA FEC 2017–2026 / PDC 2016–2026; NY FEC and NYSBOE both 2017–2026; ID
+dollars. **The "matched donors" column is not in every case the estimator's denominator.**
+The estimator excludes donors whose net total is zero or below after refunds and
+reattributions; in five of the six panels there are none, and in Washington's state panel
+there are **382** (0.176%), so the concentration figures there run on **216,732** donors
+rather than 217,114. Appendix E's interval table reports the positive-total count directly
+for each panel. Windows: WA FEC 2017–2026 / PDC 2016–2026; NY FEC and NYSBOE both 2017–2026; ID
 FEC 2017–2026 / Sunshine 2023–2025. These are **itemized** dollars only, from panels with
 different disclosure floors (header table). Appendix C gives the full estimator
 definition; Appendix E the bootstrap intervals. Scripts: the per-state match scripts;
 re-derived by `verify_donor_class.py`.*
 
-Two readings. First, the ordering **New York > Washington > Idaho** holds in *both*
-panels, and matches the statewide all-donor figures — so it is a property of these states'
-donor economies, not of who the matcher can find or which money system is examined.
+Two readings. The **point estimates** order New York > Washington > Idaho in both panels, and
+that ordering matches the statewide all-donor figures. But the ordering is not stable under a
+donor-level resampling exercise, which is reported here as a stability check rather than as
+inference:
 
-Second, the state-versus-federal comparison does **not** run one way. State money is
-slightly *more* concentrated in Washington (43.5% vs 41.2%) and Idaho (40.0% vs 37.2%),
-but *less* so in New York (48.6% vs 50.7%) — even though state contributions are capped
-far lower than federal ones in all three. In Idaho, period-aligning the two panels leaves
-the direction intact (aligned federal 34.7% against state 40.0%). Whatever caps do, they
-do not produce a consistent ordering between the two layers. Appendix G takes that up.
+| pair | federal panel | state panel |
+|---|---|---|
+| NY − WA | **+9.50** pts [+6.30, +12.73] — consistently positive | +5.11 [−0.94, +10.93] — not |
+| WA − ID | +4.03 [−3.03, +10.83] — not | +3.51 [−7.07, +13.83] — not |
+| NY − ID | **+13.54** pts [+6.09, +20.05] — consistently positive | +8.62 [−0.68, +17.48] — not |
 
-A geographic corollary everywhere — and the sharpest panel difference in the paper.
-In WA, **63.4%** of federal matched-donor dollars come from two Seattle-metro ZIP3s
-(981xx 37.3% + 980xx 26.1%); the state panel is broader at 55.1% (32.3% + 22.8%).
+*B=1,000 draws per side, donors resampled with replacement within each panel independently;
+`diag_donor_concentration_bootstrap.py`. **What this exercise is.** These panels are not
+probability samples — subject to linkage and disclosure limits they are the whole constructed
+panel for each state and window — so the difference between two of them is an exact
+difference between two datasets, not an estimate with sampling error. The intervals therefore
+measure one thing only: how much a difference moves when the donors composing it are
+resampled, which is informative because the contribution distribution is extremely
+heavy-tailed and a handful of donors can carry a top-1% share. They are **not** confidence
+intervals for the study's actual sources of error — record-linkage mistakes, donors who could
+not be matched, unitemized giving, current-roll survivorship, variation in disclosure
+practice, and recipient-party classification are all outside them, and every one of those is
+plausibly larger than the width shown. Interval width also tracks n: Idaho's 23K-donor panels
+give a top-1% interval roughly 18 points wide against 5 for Washington's.*
 
-New York is the extreme case. **Manhattan (New York County) supplies 50.3%** of the
-state's *federal* matched-donor dollars — top three ZIP3s **63.4%** — but only **20.6%**
-of its *state* dollars, where the top three ZIP3s take just **38.1%**. Manhattan remains
-the single largest county in the state panel too; what changes is that suburban **Nassau
-(15.1%)** and **Suffolk (11.1%)** together exceed it, which they do not come close to
-doing federally. Any account of "the New York donor class" resting on the federal file
-alone is describing one island.
+So what the matched panels support is narrow: **New York's federal donors are more
+concentrated than Washington's or Idaho's** — the only two gaps that stay positive across
+resamples — and no gap in the state panel does. That the full ordering is a property of these
+states' donor economies may well be true; the statewide all-donor figures in Appendix E point
+the same way on far larger n, and those are not resampled here. But the matched panels do not
+establish it.
 
-Idaho shows single-metro dominance from a state with no large city: **Ada County (Boise)
-supplies 49.2%** of state matched-donor dollars from 10,037 donors, and 36.4% of federal
-dollars from 10,338. Idaho's federal money is the one case where a second center appears:
-resort-county **Blaine (Sun Valley) supplies 11.7%** of federal dollars from 1,097
-donors — 4.0% of Idaho's federal donors carrying nearly three times their weight.
+Second, the state-versus-federal comparison does not run one way **as the panels are
+built**, and does run one way **among donors above a common total**. As built, state money
+is slightly *more* concentrated in Washington (43.5% vs 41.2%) and Idaho (40.0% vs 37.2%)
+but *less* so in New York (48.6% vs 50.7%). Restricting every panel to donors with
+more than **$200 in total observed giving** — so the state panels no longer reach further
+into small-dollar giving than the federal ones do — makes the ordering consistent:
 
-(Idaho is the least concentrated of the three in both panels, and its statutory
-per-election caps do visibly bind — 6,797 itemized state gifts land on exactly $1,000,
-against 448 at $750. The caps are nonetheless not what makes Idaho less concentrated:
-Idaho is the least top-heavy inside the *federal* layer too, under the same federal
-limits as Washington and New York, and its far more tightly capped state layer is *more*
-top-heavy than its federal one, not less. Appendix G runs the test; Appendix D carries
-the statutes and the literature.)
+| state | as built | restricted to > $200 total |
+|---|---|---|
+| WA | +2.4 pts, state more concentrated | **−2.0 pts, federal more** — flips |
+| NY | −2.0 pts, federal more | −6.7 pts, federal more |
+| ID | +2.9 pts, state more concentrated | **−0.7 pts, federal more** — flips |
+
+*`diag_panel_harmonized.py`. The restriction drops 26–27% of each federal panel but 60–69%
+of each state panel — the difference in small-dollar reach, made visible rather than
+assumed.*
+
+Among donors above a common observed total, **federal money is the more concentrated layer
+in all three states**. The as-built inconsistency comes from the state panels containing a
+mass of small donors that the federal panels never see. Period-alignment is a separate cut
+and does not do the same work: on Idaho's aligned panels, unrestricted, state money is still
+the more concentrated of the two (aligned federal 34.7% against state 40.0%), so it is the
+composition of the donor pool and not the window that produced the as-built inconsistency.
+**This is a robustness test, not an identified threshold effect.** Restricting on a donor's
+observed total is not the same as applying a statutory itemization rule (Appendix C), and it
+changes which donors are in the pool rather than how the law treated them, so it cannot
+attribute the difference to disclosure law — still less to contribution caps, which Appendix
+G takes up separately.
+
+A geographic corollary everywhere. Money concentrates in one county in each state. Because a
+county is a comparable administrative unit across all three, the cut is reported on counties
+throughout, and normalized by each county's share of the active roll so that a large county is
+not mistaken for a concentrated one:
+
+| panel | largest donor county | share of matched $ | share of active roll | **multiplier** | top 3 counties |
+|---|---|--:|--:|--:|--:|
+| WA federal | King (Seattle) | 58.2% | 28.3% | **2.06×** | 68.7% |
+| WA state | King | 52.0% | 28.3% | **1.84×** | 65.3% |
+| NY federal | New York (Manhattan) | 48.5% | 8.1% | **5.96×** | 68.6% |
+| NY state | New York | 19.9% | 8.1% | **2.45×** | 46.7% |
+| ID federal | Ada (Boise) | 36.8% | 29.3% | **1.26×** | 60.1% |
+| ID state | Ada | 50.3% | 29.3% | **1.72×** | 64.4% |
+
+*Source: the six panel tables joined to each roll's county of registration; multiplier =
+dollar share ÷ active-roll share, the same estimator form as Finding 1's generation
+multipliers. Re-derived by `verify_donor_class.py`.*
+
+**Raw share and disproportion are different questions, and they order the states
+differently.** On raw share Washington looks most concentrated (King 58.2% of federal
+dollars); on the multiplier it is unremarkable, because King already holds 28.3% of the
+state's registered voters. **New York is the extreme case on the measure that controls for
+that**: Manhattan holds one voter in twelve and supplies nearly half of all federal matched
+dollars, **5.96×** its share of the roll. Any account of "the New York donor class" resting
+on the federal file alone is describing one island.
+
+The same normalization changes which Idaho county the finding is about. Ada looks like
+single-metro dominance on raw share, but it holds **29.3%** of Idaho's roll, so its 36.8% of
+federal dollars is only **1.26×** — barely disproportionate, and mostly population rather than
+concentration. Idaho's genuinely disproportionate money is somewhere else entirely:
+resort-county **Blaine (Sun Valley)** has
+**1.5%** of the roll and supplies **11.4%** of federal dollars, a multiplier of **7.83×** —
+the highest of any county in any panel in this paper — from 909 donors.
+
+**And the multiplier itself decomposes, exactly.** A county can be disproportionate because an
+unusual share of its residents give at all, or because the ones who give write unusually large
+cheques. Those are different claims about a place, and the multiplier is their product:
+
+> multiplier = (county donors ÷ county roll) ÷ (all donors ÷ all roll) **×** (county $ per donor ÷
+> all $ per donor) = **participation × intensity**
+
+| panel · county | multiplier | participation | intensity | reads as |
+|---|--:|--:|--:|---|
+| NY federal · New York (Manhattan) | 5.96 | **2.53** | **2.35** | both, almost equally |
+| NY state · New York | 2.45 | 1.22 | **2.00** | mostly intensity |
+| WA federal · King | 2.06 | **1.44** | **1.43** | both, evenly |
+| WA state · King | 1.84 | **1.52** | 1.21 | mostly participation |
+| ID federal · Blaine | 7.83 | **2.67** | **2.93** | both, almost equally |
+| ID state · Blaine | 3.48 | **2.59** | 1.34 | mostly participation |
+| ID federal · Bonneville | 1.91 | 0.77 | **2.47** | intensity alone — below-average participation |
+| WA federal · San Juan | 2.57 | **2.41** | 1.07 | participation alone |
+| NY federal · Tompkins | 1.76 | **2.26** | 0.78 | participation alone |
+
+*`diag_county_decomposition.py`; counties with at least 100 matched donors. The two factors
+multiply to the published multiplier exactly, so the decomposition adds no assumption — it only
+says which half of a county's disproportion it comes from. Re-derived by `verify_donor_class.py`.*
+
+The concentrated metropolitan counties are disproportionate on **both** margins at once, which is
+a stronger statement than the multiplier alone makes: Manhattan has two and a half times the
+national-panel donor incidence *and* its donors give more than twice as much each. Blaine is the
+same shape rather than the pure wealth effect a resort county might suggest — 2.67 × 2.93 — so
+"rich people in Sun Valley" understates it: an unusual share of Blaine's registrants are donors as
+well. The clean counter-examples run in both directions. **Bonneville** reaches 1.91× on intensity
+alone, with donor incidence *below* the state average. **San Juan** and **Tompkins** — an island
+county and a university county — are almost pure participation, with donors giving less per head
+than average. A multiplier of roughly 2 therefore describes at least three different places, and
+the two-factor form says which.
+
+The panel difference runs the same way as the rest of Finding 2 and is largest in New York:
+Manhattan's multiplier falls **5.96× → 2.45×** between the federal and state panels, as
+suburban **Nassau (15.5%, 1.93×)** and **Suffolk (11.3%, 1.30×)** together overtake it,
+which they do not come close to doing federally. Washington's King barely moves
+(2.06× → 1.84×) and Idaho's Ada moves the *other* way (1.26× → 1.72×). The top-three-county
+share is nearly identical in the two federal panels — WA **68.7%**, NY **68.6%** — and
+collapses to **46.7%** in New York's state panel.
+
+(Idaho is the least concentrated of the three in both panels, and its state filings bunch
+hard on round statutory values — 6,797 itemized state gifts land on exactly $1,000, against 448
+at $750 — which is consistent with some donors responding to a salient limit, though these rows
+carry neither the recipient's type nor the election designation and so cannot identify which
+gifts were legally constrained. Caps are in any case not what makes Idaho less concentrated, and the
+reason is a within-layer comparison rather than a cross-layer one: **Idaho is the least
+top-heavy of the three inside the *federal* layer, under the identical federal limits that
+apply in Washington and New York**, so a limit common to all three cannot explain what
+distinguishes Idaho. The cross-layer comparison is deliberately *not* used here — its sign
+depends on the small-dollar reach of the state panels and reverses under the common-total
+restriction above, so it cannot bear on caps in either direction. Appendix G runs the
+mechanical test; Appendix D carries the statutes and the literature.)
 
 At the statewide level (all itemized donors, not only those matched to a voter), the
 same top-heaviness appears across all four states loaded — the top 1% of donors supply
@@ -378,20 +765,19 @@ and substantially under-represents the unaffiliated — in both money systems:
 *Source: `data/ny_vrdb.duckdb` `voters.party`, measured at the NYSVOTER extract date,
 against the two NY panel tables. **Baseline = active registrants** (`status_code='A'`;
 12,448,081 of 13,540,558 records), which is the universe the matcher itself draws from.
-On an all-records baseline every skew moves by at most 0.4 points (`DEM +15.0`,
-`REP −0.9`, `NOPARTY −13.0`) — earlier drafts reported those figures. Scripts:
+On an all-records baseline every skew moves by at most 0.4 points. Scripts:
 `match_ny_voters_to_donors.py`, `diag_donor_class_revisions.py`; re-derived by
 `verify_donor_class.py`.*
 
-Registered Democrats are +15 points over their share of the active roll in federal money
-and supply **71% of federal matched dollars**; Republicans give roughly in proportion. The
+Registered Democrats are +16.1 points over their share of the active roll in federal money
+and supply **72.5% of federal matched dollars**; Republicans give roughly in proportion. The
 constant across both panels is the under-representation of the unaffiliated: NY's "blank"
 enrollees are a quarter of all registrants and only an eighth of federal donors, barely
 better at a seventh of state donors.
 
-The Democratic tilt itself is substantially a *federal* phenomenon. It falls by a third in
-state money (+16.1 → +9.6), where Republicans move from slightly under-represented to
-slightly over (−1.2 → +2.8). New York's donor class leans Democratic most sharply where
+The Democratic tilt itself is substantially a *federal* phenomenon. It falls by roughly
+two-fifths in state money (+16.1 → +9.6), where Republicans move from slightly
+under-represented to slightly over (−1.1 → +3.2). New York's donor class leans Democratic most sharply where
 the money is nationalized; its state-level donor pool is closer to — though still not —
 the electorate. The unaffiliated bloc is under-represented either way.
 
@@ -419,7 +805,7 @@ carry a party, and the committee→candidate→roster chain.
 
 **New York.**
 
-| own party | matched | resolved | res. rate | D-only | R-only | Mixed | \| | $ to D |
+| own party | matched | resolved | res. rate | D-only *of resolved* | R-only *of resolved* | Mixed *of resolved* | \| | $ to D |
 |---|--:|--:|--:|--:|--:|--:|---|--:|
 | *federal panel* | | | | | | | | |
 | DEM | 171,349 | 156,142 | 91.1% | **95.3%** | 3.2% | 1.5% | | 95.5% |
@@ -437,33 +823,28 @@ party is reconstructed from the Secretary of State candidate roster plus party/c
 name patterns (`backfill_id_recipient_party.py`). The federal panel needs no
 reconstruction — the FEC masters carry party directly.
 
-| own party | matched | resolved | res. rate | D-only | R-only | Mixed | \| | $ to D |
+Idaho's **minor-party (OTHER) rows are withheld** from the two tables below and from the bound
+table that follows, as a disclosure control. Those blocs resolved to 102 and 44 donors, and a
+percentage printed over a base that small lets a reader recover a count of a handful of
+individuals by arithmetic. No claim in this section rests on them; New York's OTHER rows, over
+bases of 7,122 and 5,410, are retained.
+
+| own party | matched | resolved | res. rate | D-only *of resolved* | R-only *of resolved* | Mixed *of resolved* | \| | $ to D |
 |---|--:|--:|--:|--:|--:|--:|---|--:|
 | *federal panel* | | | | | | | | |
 | REP | 15,621 | 13,545 | 86.7% | 17.1% | **82.1%** | 0.8% | | 18.1% |
 | DEM | 4,764 | 4,473 | 93.9% | **98.5%** | 0.9% | 0.6% | | 99.1% |
 | UNAFF | 2,754 | 2,286 | 83.0% | **78.3%** | 20.6% | 1.1% | | 77.7% |
-| OTHER | 164 | 102 | 62.2% | 16.7% | 81.4% | 2.0% | | 7.5% |
 | *state panel* | | | | | | | | |
 | REP | 15,645 | 7,962 | 50.9% | 19.1% | **79.0%** | 1.9% | | 17.6% |
 | DEM | 5,097 | 2,985 | 58.6% | **94.6%** | 3.0% | 2.3% | | 97.9% |
 | UNAFF | 2,735 | 1,066 | 39.0% | **77.1%** | 20.5% | 2.3% | | 74.3% |
-| OTHER | 136 | 44 | 32.4% | 18.2% | 81.8% | 0.0% | | 36.5% |
-
-> **Both state blocks were recomputed 2026-07-27.** They had been left on the all-tier
-> match when the panels were rebuilt on the primary specification, while the two federal
-> blocks above them were updated — so the table silently set one specification beside
-> another and invited exactly the federal-vs-state comparison that mismatch corrupts. The
-> state rows now sum to the published panels (NY 378,383; ID 23,613), not to the retired
-> all-tier totals (424,020; 27,250). No conclusion in this section changes: Democratic
-> loyalty and the unaffiliated Democratic tilt both hold, and the Idaho unaffiliated lean
-> strengthens from ~3:1 to nearly 4:1.
 
 *Source: the four panel tables' `donor_party` classification and `d_amount` / `r_amount`
-columns, joined to each state's party of record. Aggregate resolution: NY federal **88.8%**,
-NY state 37.7%, ID federal **87.6%**, ID state 51.1% of matched donors. *(This line
-previously gave 87.8% and 86.7% for the two federal panels; both are the **Republican
-row's** resolution rate, not the panel aggregate — read straight off the wrong cell.)*
+columns, joined to each state's party of record. All four blocks are on the primary
+specification; the state rows sum to the published panels (NY 378,383; ID 23,613). Two
+corrections to earlier versions of this table are recorded in the corrections ledger. Aggregate resolution: NY federal **88.8%**,
+NY state 37.7%, ID federal **87.6%**, ID state 51.1% of matched donors.
 Script:
 `diag_donor_class_revisions.py`. Not covered by `verify_donor_class.py` — the crossover
 cut depends on the recipient-resolution logic in the backfill scripts.*
@@ -475,36 +856,89 @@ against 26.9% for the unaffiliated. Whatever is unresolved is disproportionately
 unaffiliated bloc's giving, in the very rows the reader most wants. At 37.7% aggregate
 resolution the NY state column should be read as indicative only.
 
-Read against those limits, two patterns are stable in both panels and both states:
+**How much the unresolved pool could change this — a worst-case bound.** Because the
+percentages above are of *resolved* donors, they do not tell a reader whether the unresolved
+pool is large enough to reverse a row. The test is to assign **every** unresolved donor in a
+row to whichever side would overturn it — an adversarial assignment, not a plausible one —
+and ask whether the ordering survives. Shares below are of **matched** donors, so they are
+comparable across rows (`diag_donor_class_revisions.py`):
+
+| panel · own party | unresolved | D-only (of matched) | R-only (of matched) | adversarial rival | ordering survives? |
+|---|--:|--:|--:|--:|:--|
+| *NY federal* | | | | | |
+| DEM | 8.9% | **86.9%** | 2.9% | 11.7% | **yes** |
+| REP | 12.2% | 10.7% | **74.5%** | 22.9% | **yes** |
+| NOPARTY | 19.9% | **52.1%** | 25.2% | 45.1% | **yes** |
+| OTHER | 18.1% | 32.0% | 48.2% | 50.1% | no |
+| *NY state* | | | | | |
+| DEM | 63.0% | 32.9% | 3.0% | 66.0% | **no** |
+| REP | 54.5% | 4.9% | 39.2% | 59.4% | **no** |
+| NOPARTY | 73.1% | 14.2% | 11.7% | 84.8% | **no** |
+| OTHER | 67.2% | 11.8% | 19.6% | 78.9% | no |
+| *ID federal* | | | | | |
+| REP | 13.3% | 14.8% | **71.2%** | 28.1% | **yes** |
+| DEM | 6.1% | **92.5%** | 0.9% | 7.0% | **yes** |
+| UNAFF | 17.0% | **65.0%** | 17.1% | 34.1% | **yes** |
+| *ID state* | | | | | |
+| REP | 49.1% | 9.7% | 40.2% | 58.8% | **no** |
+| DEM | 41.4% | **55.4%** | 1.8% | 43.2% | **yes** |
+| UNAFF | 61.0% | 30.1% | 8.0% | 69.0% | **no** |
+
+**The bound divides the evidence sharply.** It holds for the **federal** panels and fails for
+the **state** panels:
+
+- **Federal panels — the primary evidence.** Every headline row survives the extreme bound,
+  including the one a reader will care most about: among New York's unaffiliated federal
+  donors, D-only donors are 52.1% of all matched donors in the row, more than the 45.1% that
+  R-only would reach if *all* 19.9% unresolved were Republican. In Idaho the margin is far
+  wider (65.0% against 34.1%). Registered Democrats are near-monolithic on the same basis
+  (86.9% and 92.5% D-only of all matched). The one federal row that fails is NY's small
+  minor-party bloc, which is not a claim the paper makes.
+- **State panels — suggestive among resolved recipients only.** At 37.7% (NY) and 51.1% (ID)
+  aggregate resolution, the unresolved pool is large enough to reverse every state row but
+  Idaho's registered Democrats. New York's unaffiliated state row is the clearest case: 14.2%
+  D-only against 11.7% R-only, with 73.1% unresolved — a modest reallocation of that pool
+  overturns the ordering, and no assumption in this paper rules it out. These rows are
+  reported because they are what the data contains, and they are not evidence for the
+  patterns above.
+
+Read against those limits, and treating the federal panels as the evidence:
 
 - **Among donors whose recipients can be assigned a party, D-only donors outnumber R-only
-  donors within the registered-Democratic and unaffiliated blocs, by wide margins.**
-  Registered Democrats are near-monolithic (95.3% D-only federally in NY, 98.5% in ID).
-- **Among unaffiliated donors, D-only donors outnumber R-only donors roughly 2:1 in New
-  York and nearly 4:1 in Idaho**, and the dollar-flow measure agrees (75.7% and 77.7% of
-  resolved dollars to Democrats). This says the unaffiliated bloc's *party-directed giving* leans
+  donors within the registered-Democratic and unaffiliated blocs, by wide margins, and this
+  survives the worst case in both federal panels.** Registered Democrats are near-monolithic
+  (95.3% D-only among resolved recipients federally in NY, 98.5% in ID).
+- **Among unaffiliated federal donors, D-only donors outnumber R-only donors roughly 2:1 in
+  New York and nearly 4:1 in Idaho** among resolved recipients, and the dollar-flow measure
+  agrees (75.7% and 77.7% of resolved dollars to Democrats). The state panels point the same
+  way but cannot support it. This says the unaffiliated bloc's *party-directed giving* leans
   Democratic. It does not establish that these donors are non-centrist ideologically:
   party-directed giving is one behavior, not a measure of ideological position.
 
-The comparison earlier drafts drew — "Republicans fund Democrats at 3.6× the rate
-Democrats fund Republicans" — is withdrawn as stated. It compared two donor
-*classification* shares (14.2% R-only-party-Republicans classified D-only against 3.9% of
-Democrats classified R-only) and read as a dollar-flow statistic. On the dollar-flow
-measure the same rows read 20.2% of resolved Republican dollars to Democrats against 5.5%
-of Democratic dollars to Republicans. Both are legitimate quantities; neither supports the
-compact "3.6×" framing, and the underlying asymmetry is not the paper's claim.
+**One asymmetry the paper does not claim.** On the NY federal panel, 12.2% of registered
+Republicans with a resolved recipient classify D-only against 3.2% of Democrats classifying
+R-only; on the dollar-flow measure the same rows read 18.3% of resolved Republican dollars to
+Democrats against 4.5% of Democratic dollars to Republicans. Both are legitimate quantities and
+they are not interchangeable — a ratio of the first pair is not a statement about money. Neither
+is offered here as a finding.
 
 The Idaho state panel's Republican→Democratic figure carries one further caveat: the
 unresolved pool there (local Republican candidates and R-aligned PACs absent from the
 roster) skews Republican, so Republican donors' Republican-side giving is
-disproportionately the untraced part, making the 18.8% D-only rate an **upper bound**. On
-the federal panel, at 86.7% resolution from authoritative party labels, the 17.6% figure
-carries no such hedge — and it lands within a point and a half of the state panel's upper
-bound.
+disproportionately the untraced part, making the **19.1%** D-only share of resolved
+recipients an **upper bound** on the crossover rate. On the federal panel, at 87.6%
+resolution from authoritative party labels, the **17.1%** figure carries no such hedge — and
+it lands two points below the state panel's upper bound. Note the interaction with the
+worst-case table above: that table's adversarial assignment for this row pushes all 49.1%
+unresolved to the *Democratic* side, which is the opposite of the direction the unresolved
+pool is documented to skew. So the "no" verdict for ID state REP is the correct verdict for
+an assumption-free bound, and the documented skew of that particular pool runs the other
+way. The two statements are consistent, and neither licenses treating the state row as
+evidence.
 
 ### Idaho — the same skew, in the reddest state, in both money systems
 
-The decisive test of whether the Democratic tilt of the donor class is a blue-state
+A particularly informative test of whether the Democratic tilt of the donor class is a blue-state
 artifact is to run it where Republicans hold a 5:1 registration edge. Using each donor's
 own Idaho affiliation, in each panel separately:
 
@@ -517,19 +951,21 @@ own Idaho affiliation, in each panel separately:
 
 *Source: `data/id_vrdb.duckdb` `voters.party` at extract date against the two ID panels.
 All 1,029,938 ID records are active, so the active and all-records baselines are
-identical. Re-derived by `verify_donor_class.py`.*
+identical. Re-derived by `verify_donor_class.py`. **These skews are unadjusted for age.** The
+Republican row does not survive age standardization — see the subsection below, where the
+federal +4.2 becomes −0.1 and is withdrawn. The Democratic and unaffiliated rows do survive.*
 
-Dollar shares track the same way — Republicans supply 68.1% of federal and 71.1% of state
-matched dollars, Democrats 21.1% and 20.6%, the unaffiliated 10.3% and 8.0%.
+Dollar shares track the same way — Republicans supply 68.5% of federal and 72.2% of state
+matched dollars, Democrats 21.8% and 20.0%, the unaffiliated 9.3% and 7.6%.
 
 Republicans supply the plurality of Idaho's money, as a 63%-Republican state must — and
 Idaho's donors remain predominantly Republican in absolute terms. The finding is
 relational: measured against their share of registration, the **most over-represented
 donors are registered Democrats** (+8.6 federal, +9.8 state, well over half again their
 share of the roll), and the unaffiliated quarter is the most *under*-represented in both
-(−11.2, −11.8). Period-aligning the two panels to 2023–2025 does not soften this; on the
-aligned federal panel the Democratic share is 21.4% (+9.6) and the unaffiliated 11.7%
-(−12.2). The same directional finding as New York, from the opposite end of the spectrum,
+(−12.1, −12.3). Period-aligning the two panels to 2023–2025 does not soften this; on the
+aligned federal panel the Democratic share is 21.9% (+10.1) and the unaffiliated 11.1%
+(−12.7). The same directional finding as New York, from the opposite end of the spectrum,
 in both money systems.
 
 **In-state vs out-of-state, by party.** Money flowing *into* NY's federal races
@@ -543,52 +979,255 @@ candidates of both parties. So the donor class is skewed in *who it is* (above) 
 in *how far its money travels* — except at the marquee Senate tier.
 
 **The skew holds in every kind of district.** Mapping matched donors to their
-congressional district's competitiveness (`diag_ny_electorate_extras.py`), the
-donor pool's Democratic share **exceeds the registered Democratic share in every
-band** — Tossup 57.7% donor vs ~40% registrant, Solid 71.6% vs ~56% — so the
-donor class is more Democratic than the registration baseline not just statewide but
-locally, regardless of how contested the seat is. And **two-thirds of donors
-(205K of 308K) live in Solid districts** (mostly Solid-D Manhattan): the money
+congressional district's competitiveness (`diag_ny_electorate_extras.py`, recomputed per
+panel — that script reads the pooled match), the donor pool's Democratic share **exceeds
+the registered Democratic share in every band, in both panels** — federal Tossup 58.7%
+donor vs 40.4% registrant and Solid 72.6% vs 56.1%, state 51.3% and 66.9% against the same
+baselines — so the donor class is more Democratic than the registration baseline not just
+statewide but locally, regardless of how contested the seat is. And **two-thirds of federal
+matched donors (177,918 of 269,218) live in Solid districts** — 62% of state ones (233,275
+of 378,383) — mostly Solid-D Manhattan: the money
 originates in safe seats, consistent with the cross-state finding that safe
-seats supply most of it. Idaho shows the same safe-seat origin from the red side:
-the great bulk of matched Idaho donors sit in Solid-R legislative districts (where
-the donor pool is 71% Republican), while the handful of more competitive districts
-carry a far more balanced donor mix (~46% Republican / ~34% Democratic)
+seats supply most of it. Idaho shows the same safe-seat origin from the red side, on its
+state panel: 14,594 matched donors sit in the 27 Solid-R legislative districts (where
+the donor pool runs 78% Republican to 13% Democratic), while the 8 more competitive
+districts carry a far more balanced 47% Republican / 35% Democratic across 9,019 donors
 (`diag_id_electorate_extras.py`) — the money, in both states, originates
 overwhelmingly in the seats that are not in doubt.
 
+### Is this the age skew restated? — party composition standardized on age
+
+Every figure above is unadjusted for age, and Finding 1 establishes that matched donors
+are far older than the roll. Party registration is not age-neutral, so a donor class that
+old could differ in party composition partly *because* it is old. The question is whether
+registered Democrats are still over-represented among donors compared with registrants
+**of the same age**. Three cuts, all from
+`diag_donor_age_standardization.py`, on active registrants with a usable age of 18 or over
+(NY 12,292,685; ID 1,029,938 — slightly narrower than Finding 3's baseline, which does not
+require an age, so the skews here are not numerically identical to the table above):
+
+| panel · party | raw skew | age-standardized skew | age share of raw skew |
+|---|--:|--:|--:|
+| *New York, federal* | | | |
+| DEM | +15.9 | **+16.5** | −3.9% |
+| REP | −1.2 | −3.7 | −208.3% |
+| NOPARTY (blank) | −13.4 | **−11.5** | 14.4% |
+| OTHER | −1.3 | −1.4 | −7.1% |
+| *New York, state* | | | |
+| DEM | +9.4 | **+10.6** | −12.7% |
+| REP | +3.1 | +1.0 | 67.3% |
+| NOPARTY | −12.4 | **−11.4** | 8.3% |
+| OTHER | −0.1 | −0.3 | −81.0% |
+| *Idaho, federal* | | | |
+| REP | +4.2 | **−0.1** | **103.3%** |
+| DEM | +8.6 | **+8.4** | 2.3% |
+| UNAFF | −12.1 | **−8.1** | 33.0% |
+| OTHER | −0.7 | −0.2 | 69.7% |
+| *Idaho, state* | | | |
+| REP | +3.4 | +3.5 | −3.2% |
+| DEM | +9.8 | **+8.2** | 16.5% |
+| UNAFF | −12.3 | **−11.2** | 9.0% |
+| OTHER | −0.9 | −0.5 | 45.6% |
+
+*Direct standardization: seven age bands (18–24 / 25–34 / 35–44 / 45–54 / 55–64 / 65–74 /
+75+), standard population = that state's active roll, standardized share =
+Σ<sub>band</sub> w<sub>band</sub> × (party's share of that band's donors). "Age share of raw
+skew" = (raw − standardized) ÷ raw, so **100% means the raw skew was entirely age
+composition** and a **negative value means standardization moved the skew further from
+zero** — age was working against the raw figure, not producing it. Read those negatives as
+"none of it," not as a magnitude: the ratio is unstable when the raw skew is near zero, which
+is why NY federal REP reads −208.3% on a raw skew of −1.2. The coarser four-band version
+moves every figure by less than a point except Idaho federal REP (+4.2 → −1.1) and is printed
+alongside in the script.*
+
+**Two of this section's three claims survive age adjustment; the third is destroyed.** The
+Democratic over-representation is not an age artifact in either
+state or either panel: it is unchanged or slightly larger after standardization (NY federal
++15.9 → +16.5; ID federal +8.6 → +8.4). The unaffiliated under-representation is genuinely
+part age — a third of Idaho's federal figure and about a tenth of the rest — but survives at
+−8.1 to −11.5 everywhere. What does *not* survive is the Republican over-representation in
+Idaho's federal panel: **+4.2 raw becomes −0.1 standardized**, meaning Idaho's federal
+donors are Republican in exactly the proportion their age distribution predicts, and the
+raw figure was the age skew restated. The raw figure should not be cited as Republican
+over-representation.
+
+The cleanest form of the cut needs no share-of-donors denominator at all — **raw
+matched-donor incidence by party**, matched donors per 1,000 registrants of the same party,
+which asks directly how often each party's registrants appear as donors:
+
+| panel | DEM | REP | unaffiliated / blank | other |
+|---|--:|--:|--:|--:|
+| NY federal | **29.2** | 20.8 | 10.2 | 15.7 |
+| NY state | **36.8** | 35.0 | 15.6 | 29.8 |
+| ID federal | **39.2** | 24.1 | 11.2 | 11.1 |
+| ID state | **41.9** | 24.2 | 11.1 | 9.2 |
+
+*Same script and universe. These are **raw** rates, and the ordering holds inside every one of
+the seven age bands in all four panels: registered Democrats highest, the unaffiliated at
+26.5–42.3% of the Democratic rate. Two things could produce a party difference in this
+statistic besides donation behavior — differential matchability and geography — and both are
+tested below.*
+
+**Could a party simply be easier to match?** The rate above divides by *all* registrants of a
+party, so it confounds donation incidence with the probability that a party's registrants are
+uniquely identifiable under the full-name + ZIP5 rule. Measured directly, it does not:
+P(matchable) spans just **1.0 point** across New York's parties and **0.8** across Idaho's,
+which is a multiplicative difference of about 1.01× against incidence ratios running 1.05× to
+1.73×. Re-basing the rate on *uniquely matchable* registrants raises every figure by 3–4% and
+changes no ordering. Appendix F reports the table, the within-age-band and within-county
+spreads, and the re-based figures.
+
+**And geography?** Giving is geographically concentrated (Finding 2) and party registration is
+geographically structured, so age standardization alone does not show the party result is
+independent of Manhattan or Ada County. Standardizing incidence directly onto the roll's joint
+age × county distribution:
+
+| panel | DEM | REP | unaffiliated | other |
+|---|--:|--:|--:|--:|
+| NY federal | **27.8** | 19.8 | 12.1 | 16.4 |
+| NY state | **38.1** | 29.7 | 16.7 | 26.7 |
+| ID federal | **35.1** | 23.0 | 12.5 | 20.0 |
+| ID state | **36.9** | 23.7 | 11.5 | 10.2 |
+
+*Direct standardization on the joint stratum, 100% of the standard population retained except
+Idaho's small OTHER bloc (99.7%). The Democratic > Republican > unaffiliated ordering survives
+in all four panels.*
+
+So in Idaho a registered Democrat appears as a matched donor at **1.62× (federal) and 1.73×
+(state)** the Republican rate unadjusted, and at **1.53× and 1.56×** after standardizing on age
+and county jointly — in a state where Republicans outnumber Democrats better than five to one
+on the roll. The unadjusted ratios are raw rates and are labelled as such; the adjusted ones
+are the figures to cite. Age and geography attenuate the gap modestly and do not close it.
+
+Age is the one composition variable adjusted for here. Income, education and turnout
+history are not observable on any of these voter files, so this addresses "is the party
+skew merely the age skew?" and nothing broader.
+
 ---
 
-## Finding 4 — Financial voice and electoral voice stack on the same people
+## Finding 4 — Donors vote at far higher rates than non-donors, and not only because they are older
 
 In both states with the necessary history, the people who give are the people who
 reliably vote, and it holds in both money systems — this is the finding least sensitive to
-the panel split. In Washington, federal matched donors are **85.5% super-voters versus
-51.4%** of non-donors (mean turnout propensity 0.966 vs 0.754); the state panel is nearly
-identical at **84.9% versus 50.8%** (0.950 vs 0.751). In New York, federal matched donors
-voted in **3.00 of the last four federal generals on average versus 1.85** for non-donors,
-and **72.9% are super-voters (≥3 of 4) versus 39.3%**; the state panel lands within a
-tenth of a point of that on every measure (2.99 vs 1.84; **73.0% versus 38.9%**), despite
-drawing on 116,000 more people.
+the panel split. New York carries the cleaner measure and is therefore reported first: its
+federal matched donors
+voted in **3.10 of the last four federal generals on average versus 1.85** for non-donors,
+and **75.7% are super-voters (≥3 of 4) versus 39.3%**; the state panel lands within half a
+point of that on every measure (3.07 vs 1.84; **75.3% versus 39.0%**), despite
+drawing on 109,000 more people. That is a pure count of generals voted.
+
+Washington's export supports only a coarser measure, and **its figures are not comparable
+with New York's** — a limitation stated here at first use rather than after the fact.
+In Washington, federal matched donors are **88.0% super-voters versus
+52.0%** of non-donors (mean turnout propensity 0.977 vs 0.755); the state panel is nearly
+identical at **88.9% versus 51.5%** (0.966 vs 0.753). `voter_scores.is_super_voter` carries an
+eight-year registration requirement inside its own definition, so it cannot take the tenure
+adjustment below and is not a count of elections; the full statement of that defect closes this
+section, and the tenure-free Washington substitute used in the adjusted tables is *voted both
+the 2022 and 2024 generals*.
 
 *Source: WA `voter_scores` (`ld`-scope) and NY `vrdb.voter_participation`, generals
 2018/2020/2022/2024. Non-donor denominators are **active registrants**, matching the
-matcher's universe; earlier drafts used all retained NY records and read 3.03 vs 1.78 and
-73.0% vs 37.1%. Re-derived for both panels of both states by `verify_donor_class.py`.*
+matcher's universe. Re-derived for both panels of both states by `verify_donor_class.py`.*
 
-The same individuals concentrate *both* forms of influence rather than one offsetting the
-other. (Association only — donors are pre-selected for engagement, so reverse causation is
-equally plausible; the benign "donating as a gateway to participation" reading is fully
-live, and is treated as objection 3 in Appendix A.)
+The observed donor population also has much higher recorded turnout than the observed
+non-donor population — but a large part of that raw gap is age and registration tenure,
+not giving. Donors are far older (Finding 1), older registrants vote more, and a recently
+registered voter cannot have accumulated a long participation record at all. Standardizing
+both groups onto the same age distribution, then onto the same joint age × tenure
+distribution (`diag_donor_age_standardization.py`; universe = registrants with a usable age
+of 18+, so the raw figures below differ by under a point from the headline ones above):
+
+| measure | raw gap | age-standardized | age × tenure |
+|---|--:|--:|--:|
+| NY, federal panel — super-voter (≥3 of 4 generals) | +35.9 | **+23.8** | **+20.8** |
+| NY, state panel | +35.8 | **+26.8** | **+22.7** |
+| WA, federal panel — voted both 2022 and 2024 generals | +42.8 | **+32.0** | **+24.7** |
+| WA, state panel | +39.5 | **+30.3** | **+21.3** |
+
+*Direct standardization onto the pooled comparison universe, seven age bands crossed with
+five tenure bands (<2 / 2–5 / 6–10 / 11–20 / 20+ years registered as of 5 Nov 2024); 100%
+of the standard population is retained in every cell, so no weight is silently dropped. The
+non-donor rate barely moves under either adjustment — non-donors are nearly the whole roll —
+so the adjustment falls almost entirely on the donor side.*
+
+**Composition explains part of the raw gap and not most of it — how large a part depends on
+which adjustment, and the better one attributes less.** On these tenure-band figures age and
+tenure account for roughly two-fifths of the raw gap (NY federal 42%, WA federal 42%); on the
+exact-eligibility restriction below, which the next subsection shows is the sounder adjustment,
+they account for only **14–20%**. The larger attribution is an artifact of over-adjustment, so
+the two-fifths figure should not be cited as the composition share. The
+figures above are standardized for age and for **broad registration-tenure category**, and that
+qualifier is load-bearing: a 2–5-year band mixes registrants who could have voted in three of
+New York's four elections with registrants who could have voted in one, and donors and
+non-donors need not have the same registration dates inside a band. The gap is positive in
+every one of the seven age bands in all four panels (widest in the middle bands — NY federal
++28.9 at 35–44 against +23.2 at 65–74).
+
+**Equalizing opportunity exactly — and it moves the estimate up, not down.** The clean version
+of the adjustment is not to standardize on tenure but to remove the opportunity difference by
+construction: restrict to registrants who existed *before the first election in the window*, so
+every retained person could have voted in all of them. That keeps 69.0% of New York's active
+roll (8,484,176 of 12,292,685, the 2018 general as the cutoff) and 85.9% of Washington's
+(4,623,624 of 5,382,313, the 2022 general):
+
+| panel | raw gap, eligible-for-all | age-standardized | voted ÷ eligible, donors | non-donors |
+|---|--:|--:|--:|--:|
+| NY federal | +29.3 | **+25.1** | 84.0% | 58.7% |
+| NY state | +29.0 | **+26.3** | 82.8% | 58.5% |
+| WA federal | +36.7 | **+29.3** | 96.1% | 67.7% |
+| WA state | +32.6 | **+26.1** | 93.1% | 67.4% |
+
+*`diag_donor_review3.py`. The last two columns are an alternative that keeps late registrants:
+elections voted ÷ elections for which the registrant existed, computed on the unrestricted
+roll.*
+
+**On an exact eligibility restriction the adjusted gaps are larger than the tenure-band
+figures — +25.1 to +29.3 against +20.8 to +24.7.** The broad bands were over-adjusting, by
+pooling registrants whose opportunity sets differed. Both versions are reported; the
+eligible-for-all column is the one that equalizes opportunity, and it is the one to cite. Under
+either, the descriptive claim holds: the population that gives votes at substantially higher
+rates than comparable registrants who do not.
+
+**One caveat on the tenure variable itself.** `registration_date` is the registration date as
+each state publishes it, and neither state documents it as an original-registration date immune
+to a county transfer or a re-registration. A mover can therefore appear as a short-tenure
+registrant. That cuts two ways and neither is resolved here: it makes the tenure-band
+standardization noisier than it looks, and it means the eligible-for-all restriction **excludes**
+some voters who were in fact continuously registered — so the restricted sample is a subset of
+the truly eligible, which is conservative for eligibility while losing movers. The published
+ranges span both treatments for that reason.
+
+**Washington's headline super-voter figures cannot carry the tenure adjustment, and this is
+a defect in the measure rather than a result.** `voter_scores.is_super_voter` is defined as
+*last voted on or after 1 Jan 2022 **and** registered at least eight years* — registration
+tenure is inside the outcome definition, so every registrant of under eight years' standing
+is false by construction. Standardizing that variable on tenure conditions on a component
+of itself and is not an adjustment (it reads +8.3 / +8.1, and those numbers should not be
+quoted as adjusted estimates). Two consequences are stated rather than buried: the WA
+88.0% / 88.9% figures above are **not** measure-comparable with New York's 75.7% / 75.3%,
+which is a pure count of generals voted; and the WA row of the table above therefore uses a
+tenure-free substitute — voted both the 2022 and 2024 generals — because the WA voter-file
+export carries only those two generals in its rolling history window, so a four-general
+count is unavailable for Washington at any tenure. That substitute is a different measure
+from New York's and is never compared to it.
+
+Association only, in every form above. Donors are pre-selected for engagement, so reverse
+causation is equally plausible; the benign "donating as a gateway to participation" reading
+is fully live, and is treated as objection 3 in Appendix A. Age and tenure are the two
+composition variables adjusted for; current-roll survivorship, income and education are
+not, and the standardization does not address them.
 
 **A nominating-stage corollary, in both party-of-record states.** NY's **closed**
 primaries restrict each party's primary to enrollees, so the **25.3% enrolled "blank" are
 excluded by law** (≈0.1–0.6% primary participation), and in blue NY the Democratic primary
 is frequently the decisive contest (2021 odd-year DEM 16.9% vs REP 5.0%).
 
-Idaho is the mirror image — its **closed Republican primary is the decisive contest** in
-nearly every seat — but Idaho's mechanism is different from New York's and is reported
-here as composition rather than as a participation rate:
+Idaho is the mirror image. Republicans hold a 62.9% registration plurality, and its
+**closed Republican primary is where the field is effectively settled in most seats** — a
+descriptive statement about Republican dominance and the weight of that primary, not a tested
+claim that it is decisive in some specified share of them. Idaho's mechanism differs from New
+York's, and is reported here as composition rather than as a participation rate:
 
 | population | people | REP | DEM | UNAFF |
 |---|--:|--:|--:|--:|
@@ -608,10 +1247,9 @@ remain unaffiliated — but **an unaffiliated voter may affiliate with a party u
 including election day and then vote in that primary.** A voter who does so appears as a
 Republican in the later voter-file extract, so part of the 23.9% → 5.9% fall is category
 migration rather than non-participation, and the residual 5.9% reflects the unaffiliated
-and nonpartisan ballots that remain available. Earlier drafts reported a "6.6% primary
-versus 83% general" rate pair; those are withdrawn, both because current-roll denominators
-make Idaho rates unreliable (Appendix C) and because a rate cannot distinguish
-non-participation from affiliation change.
+and nonpartisan ballots that remain available. Idaho *rates* are not reported here at all:
+current-roll denominators make them unreliable (Appendix C), and a rate could not distinguish
+non-participation from affiliation change in any case.
 
 The population that nominates is small and party-gated in both states — and, per Finding
 3, funded by a donor class narrower and more skewed still.
@@ -623,8 +1261,12 @@ The population that nominates is small and party-gated in both states — and, p
 - **The match is a proxy, and a floor.** Voter↔donor identity rests on name + ZIP
   uniqueness across four tiers (Appendix C), not on a shared identifier. It is
   conservative by design (ambiguous keys are dropped, not guessed), so the matched set is
-  a **floor**, not a census, of the donor population. A stratified blinded rating of 480
-  matched records (Appendix F) found precision to be a property of the match KEY, so the
+  a **floor on the number of identifiable donor–voter matches**, not a census of donors.
+  **"Floor" refers to that count and to nothing else** — it is not a lower bound on donor age,
+  on concentration, on party skew, or on any other statistic computed over the matched set,
+  each of which can move in either direction as coverage improves. A stratified blinded rating
+  of 480 matched records (Appendix F) found that **detected precision differed sharply by
+  match tier**, so the
   paper now reports the full-first-name key alone: **no detectable false match** there
   (120/120, Wilson [96.9–100]) against **47.9–71.7%** on the three initial-based keys, whose
   failure mode is the household/relative merge. An independent human re-rating of 150 of
@@ -634,25 +1276,40 @@ The population that nominates is small and party-gated in both states — and, p
   *detectable* error — a true namesake is invisible to the rating — and the restriction
   discards 11–19% of matched donors who are **younger and less Democratic** than those
   retained, so part of the sharpened skew is selection rather than precision.
-- **Itemized giving only, from panels with different disclosure floors.** Each panel omits
-  giving below its own itemization threshold — federal aggregate **> $200**, Washington
-  **> $100**, New York **> $99**, Idaho **> $50** (Appendix C). Two consequences run in
+- **Itemized giving only — but the panels are not truncated at their statutory floors.** Each
+  source's floor sets when a contributor's identity *must* be itemized: federal aggregate
+  **> $200** per cycle, Washington **> $25** rising to **> $100** on 1 April 2023, New York
+  **> $99**, Idaho **> $50** (Appendix C). Those floors do **not** describe where each panel
+  actually begins. Two mechanisms put identified giving below the floor: the floors
+  are per-donor **aggregates**, so every gift from a donor who crosses the floor is itemized
+  including the small ones; and committees disclose well below what is required. Measured:
+  89.9% of the federal layer's gifts are ≤$200, 62.6% of New York's are ≤$99, and 68.4% of
+  Idaho's are ≤$50. At the *donor* level — the level this paper's estimator works at —
+  **53.5% of Washington's matched state donors have totals at or below $100 and 17.9% at or
+  below $25**, with the smallest at one cent. So the matched panels reach far deeper into
+  small-dollar giving than their floors imply. Two consequences run in
   different directions and are separated here: on **dollar concentration**, itemized-only
-  top shares are higher than the corresponding share of *all* receipts would be, since
-  adding the missing small-dollar mass to the denominator would lower every top-1% figure;
+  top shares are likely higher than the corresponding share of *all* receipts would be,
+  since the omitted contributors are expected to be predominantly small-dollar — though
+  this is an expectation and not a formal bound, because adding donors moves the top-1%
+  cutoff as well as the denominator (Appendix A, objection 5);
   on **donor composition**, excluding small donors makes the observed donor population
   older and narrower than the population of all contributors. Both cut against reading
-  these figures as describing all giving. Because the federal floor is 2–4× the state
-  floors, part of every federal-vs-state panel difference is a disclosure-regime artifact
-  rather than a behavioral one.
+  these figures as describing all giving. Part of every federal-vs-state panel difference is
+  a disclosure-regime artifact rather than a behavioral one — but because the binding
+  constraint is below-floor disclosure practice rather than the floors themselves, that
+  artifact cannot be removed by comparing the panels at their nominal thresholds, and
+  restricting every panel to donors above a common observed total is a choice about the
+  analysis universe rather than a correction that makes the panels equivalent, and it does
+  not identify the effect of any threshold.
 - **Panel comparisons are descriptive, not identified.** Federal and state panels differ
-  in disclosure threshold, in years covered (Idaho only), and in *who is in them* — they
-  overlap by a Jaccard coefficient of 0.14–0.16. "Federal money is older money" is a
+  in disclosure trigger, in years covered (Idaho only), in *who is in them* — they
+  overlap by a Jaccard coefficient of 0.14–0.16 — and in how far the linkage reaches into each,
+  from 39.1% to 56.9% of resident donor identities. "Federal money is older money" is a
   robust difference between two datasets that survives period alignment; it is not an
-  established effect of federal versus state regulation. The apparent Idaho exception in
-  earlier drafts — that state money did *not* reach more donors there — was a window
-  artifact: period-aligned, Idaho's state panel reaches 23,613 donors against the federal
-  panel's 14,848 — 59% more — the same direction as WA and NY.
+  established effect of federal versus state regulation. State money reaches more donors in all
+  three states once the windows are aligned: Idaho's state panel reaches 23,613 against the
+  federal panel's 14,848 — 59% more — the same direction as WA and NY.
 - **Composition, not rates.** All three matches use the current roll, so turnout *rates*
   for older cycles are biased by survivorship. Share-of-population figures, which need no
   denominator, carry the findings. Idaho's age is a current-roll integer, so its bands are
@@ -661,12 +1318,17 @@ The population that nominates is small and party-gated in both states — and, p
   and age baselines use `status_code='A'`, the universe the matcher draws from. These are
   registration shares, not shares of the eligible or voting population, and party of
   record is not necessarily a donor's party when they gave.
-- **Recipient party is partial, differentially missing, and the crossover tables are
-  exploratory.** It resolves for **87.8%** of NY federal and **86.7%** of ID federal
-  matched donors, where the FEC masters carry party outright, but only **51.9%** of ID
-  state and **37.7%** of NY state donors, where it must be reconstructed. Resolution rates
-  differ by donor group, so the unresolved pool is not missing at random. Own-party and
-  age cuts use the 100%-present party of record and are unaffected.
+- **Recipient party is partial, differentially missing, and only the federal crossover
+  results are load-bearing.** It resolves for **88.8%** of NY federal and **87.6%** of ID
+  federal matched donors, where the FEC masters carry party outright, but only **51.1%** of
+  ID state and **37.7%** of NY state donors, where it must be reconstructed. Resolution rates
+  differ by donor group, so the unresolved pool is not missing at random. A worst-case bound
+  (Finding 3) assigns every unresolved donor in a row to the side that would overturn it:
+  **every headline federal row survives that assignment, and every state row but Idaho's
+  registered Democrats fails it.** The state-panel crossover figures are therefore reported as
+  suggestive among resolved recipients and are not treated as evidence for the patterns the
+  paper claims. Own-party and age cuts use the 100%-present party of record and are
+  unaffected.
 - **No policy-influence claim.** This paper measures who gives and who votes. It does not
   measure whether money changes votes, wins elections, or moves policy, and the
   giving↔turnout relationship in Finding 4 is reported as association only.
@@ -701,8 +1363,9 @@ attributable to which party holds the statewide registration plurality. Whether 
 reflects something more general about who gives, this design cannot say.
 
 Combined with the turnout and safe-seat papers, the picture is a series of narrowing
-filters between the registered population and actual influence — who votes, who votes in
-the decisive primary, and who pays — each one older and less representative than the last.
+filters between the registered population and the population that acts — who votes, who
+votes in the decisive primary, and who pays — each one older and less representative than
+the last. Whether acting translates into influence is not measured here.
 This is the evidentiary core of the electoral-health series' "donor class ≠ electorate"
 finding, now resolved by party across the spectrum.
 
@@ -724,8 +1387,11 @@ matchability rather than giving. This is testable head-on, and it fails: the pro
 that a voter is uniquely matchable is nearly flat across age (NY 94.5–95.4% across four
 bands; WA 96.3–97.6% across five generations), so inverse-propensity re-weighting does not
 move the distribution — NY's 65+ donor share is unchanged at 47.9%, and every Washington
-generation multiplier is unchanged to two decimal places in both panels. A selection
-gradient that flat cannot produce a 2.5× senior over-representation. What this test covers
+generation multiplier is unchanged to two decimal places in both panels. (Those two figures
+are on the superseded all-tier panels, which is why the 47.9% differs from the 49.9% the
+primary specification reports; the test is a property of the roll and the match key, not of
+which contributions are used, so it carries over unchanged. Finding 1 states this too.) A
+selection gradient that flat cannot produce senior over-representation of 2.7×. What this test covers
 is precisely age variation in *unique-key availability*; it does not address false-match
 rates, mobility, or survivorship, which are objections 2 and the Appendix F residual.
 Full tables in Appendix F.
@@ -736,12 +1402,10 @@ attributing a spouse's giving to their partner. Hand rating of a 150-record samp
 (2026-07-10), and a stratified blinded re-rating of 480 records (2026-07-27), both found
 this the dominant error mode — and the re-rating localised it precisely: **129 of 152
 confirmed false matches are household/relative merges, every one of them on an
-initial-based key, none on the full-name key**. Earlier drafts
-asserted that the effect on the findings is "small by construction" because spouses share
-household, ZIP and approximate age. **That argument is withdrawn**: spouses can differ in
-age, party enrollment and turnout history, and merging two people's contributions into one
-donor total directly increases measured concentration. It is replaced by a bounding
-exclusion. Dropping every matched donor who shares a surname and ZIP5 with any other
+initial-based key, none on the full-name key**. The effect is **not** small by
+construction, and a shared household does not make it so: spouses can differ in age, party
+enrollment and turnout history, and merging two people's contributions into one donor total
+directly increases measured concentration. It is bounded instead by an exclusion. Dropping every matched donor who shares a surname and ZIP5 with any other
 active registrant — a deliberate over-exclusion that removes 75–83% of matched donors,
 most of them correctly matched — moves the top-1% share by at most 4.7 points in either
 direction and *raises* the senior share in all six panels. A tighter surname+address
@@ -754,30 +1418,50 @@ same elite holds both forms of voice.** Finding 4 is an association, and the cau
 is genuinely ambiguous: donors are pre-selected for engagement, and a first contribution
 plausibly *increases* subsequent turnout. Nothing here distinguishes the two readings,
 and the benign one is fully live. What survives either reading is the descriptive point,
-which is all Finding 4 claims: the two forms of influence sit on the same people rather
-than on complementary populations.
+which is all Finding 4 claims: giving and voting are observed on the same people rather
+than on complementary populations, and the association survives standardizing both groups
+on age and registration tenure.
 
 **4. The crossover tables' unresolved pool is not missing at random.** Recipient party is
-reconstructed rather than published on both state panels, resolving 51.9% of ID and 37.7%
+reconstructed rather than published on both state panels, resolving 51.1% of ID and 37.7%
 of NY state matched donors, and resolution rates differ by donor group by up to 18 points.
 The unresolved Idaho pool — local Republican candidates and R-aligned PACs absent from the
 Secretary of State roster — skews Republican, so Republican donors' Republican-side giving
-is disproportionately untraced and the 18.8% D-only figure is an upper bound. The tables
-are presented as exploratory for this reason. The two patterns that *are* claimed
-(near-monolithic Democratic loyalty; unaffiliated donors' resolved giving leaning
-Democratic) are robust to the unresolved pool because it cannot plausibly reverse them,
-and they hold on the federal panels where resolution is 86.7–87.8%.
+is disproportionately untraced and the 19.1% D-only share of resolved recipients is an
+upper bound on that crossover rate. The tables are presented as exploratory for this reason.
+**On the strength of the two patterns the paper does claim, this objection is partly
+sustained.** Those patterns — near-monolithic
+Democratic loyalty, and unaffiliated donors' resolved giving leaning Democratic — survive an
+extreme bound on the **federal** panels, where resolution is 87.6–88.8% and where assigning
+the entire unresolved pool to the rival side still leaves D-only ahead (NY unaffiliated 52.1%
+against 45.1%; ID unaffiliated 65.0% against 34.1%, as shares of matched donors). They do
+**not** survive it on the state panels, where 54–73% of a row can be unresolved. An earlier
+draft said the unresolved pool "cannot plausibly reverse them" without distinguishing the two
+cases; on the state panels it plainly can, and the bound table in Finding 3 now shows exactly
+where.
 
-**5. Itemization hides the small-dollar end, so concentration is overstated.** Correct,
-and the paper now says so rather than arguing the objection runs the other way. Each panel
-omits giving below its own threshold (federal > $200; WA > $100; NY > $99; ID > $50).
-Adding the missing small-dollar mass to the denominator would **lower** every top-1%
-share, so the reported figures describe the *itemized* universe and are upper bounds on
-concentration among all givers. Separately, and in the same direction as the paper's
+**5. Itemization hides the small-dollar end, so concentration is overstated.** Correct in
+direction, and the paper now says so rather than arguing the objection runs the other way —
+but the size of the hidden mass is smaller than the statutory floors suggest, and an earlier
+draft of this appendix overstated it. The floors (federal > $200 aggregate per cycle; WA
+> $25, > $100 from April 2023; NY > $99; ID > $50) govern when identity must be *reported*,
+not where the published data begins: because they are per-donor aggregates and because
+committees disclose below what is required, 89.9% of federal gifts are ≤$200 and **53.5% of
+Washington's matched state donors have totals at or below $100**. What is genuinely missing
+is giving by donors whose aggregate never crosses their floor, plus whatever is reported
+without an attributable identity. Because those contributors are expected to be
+predominantly small-dollar, the itemized-only estimates **likely overstate** concentration
+relative to all contributors — but that is an expectation, **not a formal mathematical
+bound**. Adding donors changes the
+top-1% *cutoff* as well as the denominator: if the number of donors doubles, so does the
+headcount inside the top 1%, and the additional ranked donors entering the numerator can in
+principle outweigh the small-dollar mass added to the denominator. A genuine bound would
+need the aggregate amount of unitemized receipts together with assumptions about how many
+omitted contributors there are and where they rank — none of which the disclosed data
+supplies. Separately, and in the same direction as the paper's
 argument, excluding small donors makes the observed donor population older and narrower
-than the population of all contributors. Earlier drafts said the omission "understates"
-concentration; that was wrong, and Appendix A and the limitations section previously
-contradicted each other on it.
+than the population of all contributors. Both consequences run against reading these figures
+as describing all giving, and neither runs the other way.
 
 **6. State contribution caps, not donor behavior, explain Idaho's flatter distribution.**
 This was the paper's own earlier explanation, and Appendix G shows a mechanical truncation
@@ -787,14 +1471,47 @@ behavioral one.
 
 ## Appendix B — Data access and privacy
 
+- **Data minimisation applied to the New York file.** The NYSVOTER FOIL production carries a
+  full date of birth. Because every age figure in this paper is a birth-year difference, the day
+  and month are **generalised to 1 July of the birth year in the analytical copy** — the same
+  representation Washington's file has always had, since RCW 29A.08.710 releases year of birth
+  only. The migration was verified lossless: all twelve New York age-band figures are identical
+  to six decimal places. The raw production is retained only as the restricted source of record.
+
 - **Washington.** The standard statewide **VRDB extract**, the single public extract the
   Secretary of State publishes. By statute the public file carries name, address,
   political jurisdiction, gender, **year of birth**, voting record, registration date,
   and registration number, and no other registration information is available for public
   inspection (RCW 29A.08.710) — the statutory reason this series uses year of birth
-  rather than full date of birth. Use is restricted to elections and political purposes
-  and **may not be commercial** (RCW 29A.08.720); the file is **not redistributable**,
-  with penalties at RCW 29A.08.740. Washington further strengthened voter-data
+  rather than full date of birth.
+
+  **Permitted use, in the statute's own terms.** The provision is stated here as written,
+  because a summary of the form "use is restricted to elections and political purposes and may
+  not be commercial" is both broader than the statute and structurally backwards. The section
+  **prohibits** using the lists or labels "for the
+  purpose of mailing or delivering any advertisement or offer for any property,
+  establishment, organization, product, or service or for the purpose of mailing or
+  delivering any solicitation for money, services, or anything of value." It then
+  **affirmatively permits** use "for any political purpose," which it defines to include
+  activity concerned with support of or opposition to any candidate for partisan or
+  nonpartisan office or to any ballot proposition or issue — expressly including "advertising
+  for or against any candidate or ballot measure or the solicitation of financial support"
+  for such purposes. So the operative test is not commerciality in the abstract: commercial
+  *advertising and solicitation* are barred, while political solicitation of financial
+  support is permitted.
+
+  **The basis this work relies on is therefore documented rather than assumed.** This series'
+  use of the file is analysis of electoral participation and campaign finance, published as
+  aggregate research; the author is associated with a political consulting company, so the
+  distinction matters and is stated rather than left implicit. No advertisement, offer, or
+  solicitation for property, product, or service is mailed or delivered from these data, no
+  individual-level record is published, and the file is **not redistributable** (penalties at
+  RCW 29A.08.740). The full reasoning, the human-subjects determination and the disclosure
+  controls are set out in
+  [`data-use-and-research-ethics-assessment.md`](data-use-and-research-ethics-assessment.md) — a **self-assessment,
+  not an IRB determination**, since the author is not affiliated with an institution that
+  operates one; that document states its own limits and the two open items remaining before it
+  is signed. Washington further strengthened voter-data
   protections in 2026 (SB 5892 / Ch. 213, Laws of 2026, eff. Mar. 25, 2026).
 - **New York.** The NYSVOTER statewide file, obtained by public-records request under
   New York's Freedom of Information Law (N.Y. Pub. Off. Law art. 6), subject to the
@@ -813,15 +1530,38 @@ behavioral one.
   roll. Protected registration-card information (including date of birth and
   driver's-license data) is governed separately. **Idaho Code § 74-120** is a distinct
   provision: it restricts distribution or sale of agency lists for use as mailing or
-  telephone-number lists. Earlier drafts cited § 74-120 as the source of the age-not-DOB
-  release and stated that address detail is withheld; both were wrong — the public list
-  includes address, subject to separate protections for confidential-address registrants.
-- **Contribution data are public records in every layer used.** FEC bulk individual
-  contribution files; Idaho Sunshine state contribution filings; Washington PDC filings;
-  the NYSBOE contribution disclosure feed. No access restriction applies to them, and
-  none are voter-file derived.
-- **What is released.** Aggregate counts and shares only, with cell sizes in the
-  thousands to millions. No individual-level records, names, or addresses appear in this
+  telephone-number lists. It is **not** the source of the age-not-DOB release, and the public
+  list **does** include address, subject to separate protections for confidential-address
+  registrants.
+- **Contribution data are publicly disclosed in every layer used** — FEC bulk individual
+  contribution files; Idaho Sunshine state contribution filings; Washington PDC filings; the
+  NYSBOE contribution disclosure feed — and none are voter-file derived. **Public disclosure is
+  not the same as unrestricted use, and the federal layer carries a use restriction this paper
+  relies on a safe harbour for.** 11 C.F.R. § 104.15, implementing 52 U.S.C. § 30111(a)(4),
+  provides that information copied from a report filed under the Act "shall not be sold or used
+  by any person for the purpose of soliciting contributions or for any commercial purpose,"
+  with a narrow exception for using a political committee's own name and address to solicit
+  that committee; § 104.15(b) reads "soliciting contributions" to cover any contribution or
+  donation. **§ 104.15(c) is the provision this research sits under**: use of such information
+  in "newspapers, magazines, books or other similar communications" is permitted so long as the
+  principal purpose of the communication is not to convey contributor information for
+  solicitation or other commercial purposes. This paper reports aggregates and names no
+  contributor, so that test is met. FEC-derived individual records and donor–voter matches are
+  not exposed to any solicitation or prospecting function: the tooling that once did so was
+  removed on 29 July 2026. The full record of what existed and what went is
+  `fec-contributor-data-use-memo.md`, an internal compliance record retained by the author. It is **not published**: it sets out a compliance exposure in the author's commercial tooling and the questions put to counsel, neither of which is research material. The removal itself is verifiable in the
+  published code.
+- **What is released, and the smallest cell in it.** Aggregate counts and shares only. Most
+  published cells describe thousands to millions of people. Because a percentage printed over a
+  small base lets a reader recover a count by arithmetic, the binding figure is not the smallest
+  printed *base* but the smallest *derivable* cell: after withholding Idaho's minor-party
+  crossover rows (Finding 3), that is **25 individuals** — the mixed-recipient share of Idaho's
+  unaffiliated donors. Two smaller numbers appear and are not population cells. Appendix F's
+  validation tables count **rated sample records**, not people, and those records are already
+  published at row level, stripped of every name and voter id. Appendix G's bunching table
+  prints a count of **1**, which is one *contribution* at a dollar amount — already public, by
+  name, in the Idaho Sunshine filing it comes from. No individual-level records,
+  names, or addresses appear in this
   paper, in the verification scripts' output, or in the repository. The one artifact that
   contains individual rows — the match-validation samples used in Appendix F — lives
   under gitignored `data/` and is not committed. The 480 blinded **verdicts** are
@@ -844,18 +1584,26 @@ behavioral one.
   separate panel table each time, and no figure in this paper mixes them. This matters
   quantitatively: pooling lets one person's federal and state giving stack into a single
   donor total while a one-system donor's does not, which mechanically raises measured
-  concentration — Washington reads top-1% 46.6% pooled against 42.4% federal and 43.8%
-  state. It also matters conceptually, since the two systems are capped and administered
+  concentration — on the primary specification Washington reads top-1% 46.6% pooled against
+  41.2% federal and 43.5% state, a 3.0-point overstatement against the higher panel. (The
+  corresponding all-tier trio is 47.7 / 42.4 / 43.8; a pooled figure and a panel figure must be
+  read on the same specification, and Appendix F keeps the all-tier set separate for that
+  reason.) It also matters conceptually, since the two systems are capped and administered
   differently (Appendix G).
-- **Disclosure thresholds, per panel.** Contributions below a threshold are reported only
-  in aggregate and cannot be attributed to a person, so each panel's small-dollar floor is
-  a property of its own statute — the $200 federal figure is **not** a uniform rule and
-  earlier drafts wrongly applied it to all six panels:
+- **Disclosure triggers, per panel.** These are **triggers, not floors**, and the paper calls
+  them triggers for that reason. A contribution below one *need not* be itemized; it is not
+  thereby invisible. Two routes put identified transactions underneath: a contributor's
+  **aggregate** crossing the trigger makes the earlier small gifts itemizable, and many
+  committees itemize voluntarily from the first dollar. The bullet on below-floor disclosure
+  below shows that practice is common, so a contributor beneath the nominal figure may or may
+  not be identifiable depending on the committee. Each panel's trigger is
+  a property of its own statute. The $200 federal figure is **not** a uniform rule and does
+  not apply to the state panels:
 
-  | panel | itemization threshold | authority |
+  | panel | mandatory itemization trigger | authority |
   |---|---|---|
   | Federal (FEC), all three states | contributor aggregate **> $200** per cycle/year | 52 U.S.C. § 30104(b)(3)(A) |
-  | Washington (PDC) | contributor identity required above **$100** aggregate; occupation/employer above $250; **mini-reporting** committees exempt (≤$7,000 raised, ≤$500 per contributor) | RCW 29B (formerly RCW 42.17A.240); PDC threshold effective Jan. 8, 2024 |
+  | Washington (PDC) | contributor identity required above **$25** aggregate through 31 Mar. 2023, above **$100** from 1 Apr. 2023; occupation/employer above $100 then $250; **mini-reporting** committees exempt (≤$7,000 raised, ≤$500 per contributor) | RCW 29B.25.090(5) / .100(2) (formerly RCW 42.17A.235(5) / .240(2)); adjusted by WAC 390-05-400, WSR 23-07-004, eff. **1 Apr. 2023**; occupation/employer by WAC 390-16-034 |
   | New York (NYSBOE) | aggregate **> $99** must be itemized; $99 or less reportable in the aggregate | N.Y. Elec. Law § 14-102 |
   | Idaho (Sunshine) | aggregate **> $50** itemized by name and address; $50 or less reportable as a single item | Idaho Code § 67-6607 |
 
@@ -864,24 +1612,106 @@ behavioral one.
   and lower concentration — the direction of two of the three observed panel differences.
   This is a confound on the panel *comparison*; it does not affect any within-panel
   finding.
+
+  **What the floors do and do not describe, measured (2026-07-28).** A statutory reporting
+  threshold is not the same thing as the contents of the downloaded file, and this paper
+  previously conflated them. Every floor above is a per-donor **aggregate**, so a donor who
+  crosses it has *all* their gifts itemized including the sub-floor ones; and committees in
+  practice disclose below what is required. The result is that none of the four layers is
+  truncated at its floor:
+
+  | layer | nominal floor | gifts at or below it | donor-aggregates at or below it |
+  |---|---|--:|--:|
+  | Federal (FEC) | > $200 / cycle | 89.9% | — |
+  | Washington (PDC) | > $25, then > $100 | 84.5% (≤$100) | **53.5%** of matched panel donors (17.9% ≤ $25) |
+  | New York (NYSBOE) | > $99 | 62.6% | — |
+  | Idaho (Sunshine) | > $50 | 68.4% | — |
+
+  The smallest matched Washington state donor total is one cent. So the honest statement is
+  that this analysis **accepts every itemized record each agency publishes** and does not
+  filter by any threshold; what the floors exclude is donors whose aggregate never crosses
+  them, not gifts below them. This tightens the itemization bound on concentration (Appendix
+  A, objection 5) and it complicates the panel comparison rather than the within-panel
+  findings: the federal-vs-state difference cannot be attributed to a clean $200-vs-$100 gap,
+  because the binding constraint is disclosure *practice* below the floor, which is not
+  characterized by any statute and differs by layer.
+
+  **Washington's floor is not constant across its own panel.** The $100 figure is current,
+  but it dates only from 1 April 2023. The
+  statutory threshold is **$25** (RCW 29B.25.090(5), the 1982 value), and WAC 390-05-400
+  records **no intervening adjustment** — its "previous adjusted value, last set in 2016"
+  cell for this row reads *n/a*. So across the WA PDC layer's 2016–2026 span the itemization
+  floor was **$25 for roughly the first seven years and $100 for the last three**, and a
+  single flat "> $100" describes neither. Three consequences, stated rather than buried.
+  (i) The direction runs *toward* the paper's argument, not against it: a $25 floor reaches
+  further into small-dollar giving than $100, so the WA state panel reaches deeper than the
+  header table implies and the federal-vs-state disclosure gap for most of the period is
+  $25-vs-$200, not $100-vs-$200. (ii) It makes the WA disclosure confound **time-varying**,
+  which is a further reason the panel comparison is reported as descriptive rather than
+  identified — the confound is not a constant offset that a fixed threshold correction could
+  absorb. (iii) It is a reason to prefer New York for any panel comparison that has to be
+  clean, since NY is the only state whose two layers are both exactly period-aligned and
+  governed by one unchanged floor across the window.
+
+  *(The amendment that set this threshold is WSR 23-07-004, effective 1 April 2023. WAC
+  390-05-400 has since been amended again, WSR 26-01-209 effective 1 January 2026, without
+  changing this row.)*
+- **The common donor-total restriction, and what it does and does not identify
+  (`diag_panel_harmonized.py`).** Every panel is also cut to donors with **more than $200 in
+  total observed giving** — the highest of the four nominal floors — and both headline panel
+  differences are re-read on it. This costs 60–69% of each state panel against 26–27% of each
+  federal one. Two results, reported in Findings 1 and 2: the **age** gap survives in all
+  three states (+9.8 / +11.7 / +12.2 points), 41% smaller in Washington; and the
+  **concentration** ordering between layers **flips** in Washington and Idaho, so that federal
+  money is the more concentrated layer in all three states among donors above a common total.
+
+  **This restriction does not identify a statutory disclosure-floor effect, and the paper does
+  not claim it does.** The cut is on a donor's total across the assembled panel, whereas
+  itemization duties attach at the level of a committee, an election cycle, a calendar
+  reporting period, or some combination — a person who gave $50 to each of five committees can
+  clear $200 in this panel without having crossed the applicable threshold for any single one,
+  and committees routinely itemize donors who never crossed it at all (the bullet above
+  measures how routinely). At least four mechanisms therefore move together when the
+  restriction is applied:
+
+  1. statutory itemization rules;
+  2. voluntary below-threshold disclosure, which the sources show is extensive;
+  3. differences in how many committees or recipients a donor supports; and
+  4. differences in cumulative giving over the panel's window.
+
+  What the cut does supply is a robustness test on a common analysis population, which is how
+  it is labelled at both use sites. A closer statutory simulation would build contributor
+  totals separately per committee and per applicable reporting period, apply the rule in force
+  at that time, and only then assemble the donor panel; even that would remain incomplete,
+  because voluntary itemization practice varies by committee and is not recoverable from the
+  disclosed data. That simulation is not run here.
+
+  It is also worth stating what *cannot* be equalized this way. For an age difference there is
+  no paired within-person comparison to run: age is a property of the person, so a donor present
+  in both panels has the same age in both by construction. The panel age gap is inherently between-person. What the both-systems group
+  supports is a between-group comparison, and Finding 1 reports it — including that it does
+  not survive the restriction in Idaho.
 - **Temporal alignment.** Panel comparisons are only identified if both panels cover the
   same years. Contribution-date coverage, by source:
 
   | state | federal layer | state layer | aligned as built? |
   |---|---|---|---|
-  | Washington | FEC 2017–2026 | PDC 2016–2026 | yes |
+  | Washington | FEC 2017–2026 | PDC 2016–2026 | **substantially overlapping, not identical — PDC carries 2016 as well** |
   | New York | FEC 2017–2026 | NYSBOE 2017–2026 | yes |
   | Idaho | FEC 2017–2026 | Sunshine **2023–2025** | **no** |
 
-  Idaho's Sunshine layer holds three years against the federal layer's ten (earlier drafts
-  said 2022–2025; the earliest Sunshine contribution date is 2023-01-01). Both Idaho panels
+  Washington's PDC layer opens a year earlier than its FEC layer, so a small part of any WA
+  panel difference is that extra 2016 cycle rather than a difference between the money systems.
+  Only New York is exactly aligned as built.
+
+  Idaho's Sunshine layer holds three years against the federal layer's ten (the earliest
+  Sunshine contribution date is 2023-01-01). Both Idaho panels
   are therefore also rebuilt on the shared 2023–2025 window by
   `diag_donor_class_revisions.py --build-aligned`, which passes `date_min` / `date_max` to
   the matcher. Aligned, the federal panel falls from 23,303 to 14,848 donors and $42.1M to
   $18.4M; the state panel is unchanged, confirming Sunshine lies entirely inside the
-  window. Every direction reported for Idaho survives alignment, and two strengthen (the
-  age gap widens; the state panel's donor-count advantage appears, removing what earlier
-  drafts described as an Idaho inversion).
+  window. Every direction reported for Idaho survives alignment, and two strengthen: the age
+  gap widens, and the state panel's donor-count advantage appears.
 - **Panel overlap.** The two panels are not the same people under two rule sets:
 
   | state | federal | state | in both | Jaccard | 65+ state-only / fed-only / both |
@@ -893,19 +1723,21 @@ behavioral one.
   In all three the both-systems group is *older than either single-system group*, so
   multi-system giving is itself age-graded and the age difference between panels is not a
   clean property of the regulatory layer. Idaho's near-equal panel counts (23,303 and
-  23,613) reflect two largely disjoint populations of similar size, not a fixed donor
-  pool; earlier drafts read them as evidence the donor population is "nearly fixed," which
-  the 0.140 Jaccard contradicts.
+  23,613) reflect two largely disjoint populations of similar size, not a fixed donor pool —
+  the 0.141 Jaccard rules that reading out.
 - **The New York state panel.** NYSBOE publishes contributions as a transaction-level
   feed (data.ny.gov `4j2b-6a2j`, 12.6M rows back to 1999) carrying contributor last name,
-  first name, and ZIP — everything the match key needs. Earlier drafts reported that New
-  York had no state panel; that was a tooling gap, not a data gap, and the claim survived
-  in one limitation bullet after the panel was built. The repo's NY adapter read the same
-  feed but kept only roll-up columns for `candidate_finance` and discarded contributor
-  identity. `scripts/load_ny_contributions.py` now loads the per-contribution rows. Scope:
+  first name, and ZIP — everything the match key needs. `scripts/load_ny_contributions.py`
+  loads the per-contribution rows; the repo's older NY adapter read the same feed but kept only
+  roll-up columns and discarded contributor identity, which is why a New York state panel was
+  once thought unavailable. Scope:
   individual contributors (`CNTRBR_TYPE_DESC = 'Individual'`) on Schedule A (monetary
-  receipts, the direct analog of the FEC itemized individual file), cycles 2018–2026 to
-  align with the WA PDC window — 3,954,090 contributions totalling $880.3M, of which
+  receipts, the direct analog of the FEC itemized individual file), NYSBOE **election
+  cycles** 2018–2026 to align with the WA PDC window. **Cycle labels and transaction dates
+  are not the same thing, and the paper uses both:** NYSBOE labels a cycle by the year of the
+  election it funds, so the 2018 cycle carries transaction dates from 2017, which is why the
+  panel's *date* coverage is described as 2017–2026 while its *cycle* coverage is 2018–2026.
+  The two are the same records. That gives 3,954,090 contributions totalling $880.3M, of which
   $379.5M matches to a registered New York voter. Out-of-state donors are retained, as they
   are in the WA and ID state panels; the voter-roll join drops them. Odd cycles are
   included deliberately: New York runs odd-year municipal and county elections, and the
@@ -929,14 +1761,17 @@ behavioral one.
 
   | tier | key | share of matches (federal / state, pooled across states) |
   |---|---|---|
-  | `STRICT_ZIP5_FULL` | surname + **full** first name + ZIP5 | 85–89% |
-  | `STRICT_ZIP5_MID` | surname + first initial + middle initial + ZIP5 | 0.4–2% |
-  | `STRICT_ZIP5` | surname + first initial + ZIP5 | 9–13% |
-  | `RELAXED_ZIP3_MID` | surname + first initial + middle initial + **ZIP3** | 0.3–5% |
+  | `STRICT_ZIP5_FULL` | surname + **full** first name + ZIP5 | 80.7–89.2% |
+  | `STRICT_ZIP5_MID` | surname + first initial + middle initial + ZIP5 | 0.4–2.0% |
+  | `STRICT_ZIP5` | surname + first initial + ZIP5 | 9.5–12.6% |
+  | `RELAXED_ZIP3_MID` | surname + first initial + middle initial + **ZIP3** | 0.3–5.0% |
 
-  Blinded validation (Appendix F) measures precision at **100%** for the first tier and
-  **47.9-71.7%** for the other three, so the tiers are not interchangeable and the paper
-  reports a full-name-only sensitivity for every headline number. The fourth tier is the
+  Blinded validation (Appendix F) detected **no false match** in the 120 reviewed records
+  drawn from the first tier — an estimated precision of 100% with a 95% Wilson interval of
+  **96.9–100%** — against **47.9–71.7%** for the other three. The tiers are therefore not
+  interchangeable, and the first tier alone is the paper's **primary specification**: every
+  panel is built from it, and the all-tier figures are reported alongside as the superseded
+  comparison rather than as the headline. The fourth tier is the
   weakest — it widens the geography from a ZIP5 to a ZIP3 and leans on the middle initial
   alone to disambiguate — and it fires only when both sides carry a middle initial.
   Two further defects are **panel-specific and follow from file format**: WA PDC and Idaho
@@ -953,30 +1788,44 @@ behavioral one.
   have matched on the full-first-name key, so the primary specification never contained the
   contamination. It remains in the retained all-tier panels, which is where the validation
   found it. The WA PDC name-order mode measures **1.85% of comma-less rows / 2.08% of its
-  dollars** — not the 0.1% / 0.8% organisation figure an earlier draft cited as its
-  analogue, which measures a different defect. Earlier drafts described the key as "last name + first name +
-  ZIP5" without disclosing the initial-based or ZIP3 tiers. Adding the full-first-name
-  tier raised Washington's matched count from 320K to 382K (+19%) and it is now dominant.
-  Appendix F reports every headline estimate with the weaker tiers removed. Because
-  ambiguity is dropped, the matched set is a floor.
+  dollars**, which is a different defect from the 0.1% / 0.8% organisation figure and should
+  not be read as its analogue. The key is four tiers, not the single "last name + first name +
+  ZIP5" it is sometimes described as: adding the full-first-name tier raised Washington's
+  all-tier matched count from 320K to 382K (+19%), and that tier is now the sole primary
+  specification. Appendix F reports every headline estimate with the weaker tiers removed.
+  Because ambiguity is dropped, the matched set is a floor.
 - **Registration baselines.** Party and age baselines use **active registrants**
   (`status_code='A'`) throughout — the same universe the matcher draws from. NY is 91.9%
   active (12,448,081 of 13,540,558). Idaho's statewide export carries **no
   active/inactive flag** — it is a current-roll extract, and the loader sets every row
   active so the shared matcher works — so for Idaho the two baselines coincide by
-  construction and no active-only test is possible there. An earlier version used
-  all retained records for the party baseline and active-only for age; standardising moves
-  no NY party skew by more than 0.4 points and no ID figure at all. Party of record is
+  construction and no active-only test is possible there. Using one baseline for both cuts
+  rather than a different baseline for each moves no NY party skew by more than 0.4 points and no
+  ID figure at all. Party of record is
   measured at the voter-file extract date, while contributions span prior years, so it is
   not necessarily the donor's party at the time of the gift.
 - **Concentration estimator.** Donors are ranked by total matched dollars and split into
   100 **equal-count** buckets (`NTILE(100)`) over donors with `total_donated > 0`; the
   top-1% and top-10% figures are the top 1 and top 10 buckets' dollars divided by all
   matched dollars. Equal-count buckets are used deliberately: capped and round-number
-  giving produces heavy ties, and an earlier draft using `PERCENT_RANK` drifted from an
-  exact decile at small N, reading Idaho's top-10% as 69.0% rather than 70.8%. Gini is
+  giving produces heavy ties, and `PERCENT_RANK` drifts from an exact decile at small N —
+  it reads Idaho's top-10% as 69.0% rather than 70.8%. Gini is
   computed on the same donor totals by the rank-weighted formula. Appendix G reuses this
   identical estimator so its layer comparisons are commensurable with Finding 2.
+
+  Two properties of `NTILE` are worth stating rather than leaving implicit. First, when the
+  donor count is not divisible by 100 the first bucket
+  holds ⌈n/100⌉ donors, so "top 1%" is *approximately* 1% — for Idaho's 23,303 federal
+  donors, 234 rather than 233.03. Second, `NTILE` breaks ties on `total_donated`
+  arbitrarily. Both were quantified rather than argued: against an exact cutoff that takes
+  precisely n/100 donors' worth of weight, pro-rating the donor straddling the boundary, the
+  top-1% figures move **−0.001 to −0.046 points** — largest in Idaho, where n is smallest,
+  and below the one-decimal precision this paper prints at in all six panels. The number of
+  donors sharing the boundary value is 1 to 26 depending on the panel, so tie order cannot
+  move the estimate materially either. Both comparisons are recomputed and asserted on every
+  run of `verify_donor_class.py`, which **fails** if any panel's two estimators ever diverge
+  by more than 0.05 points. The published figures are the `NTILE` ones; the point is that the
+  choice does not currently matter, not that it could never.
 - **Reconstructing recipient party on the state panels.** Neither NYSBOE nor Idaho
   Sunshine publishes the recipient's party, so the crossover cut needs it inferred.
   `backfill_ny_recipient_party.py` works in four uniqueness-guarded tiers — an explicit
@@ -988,16 +1837,23 @@ behavioral one.
   committee names, so searching for a surname inside a phrase misfires — it read "FRIENDS
   OF DAVID KNAPP" as Republican via the surname *David* and "SARATOGA COUNTY GREEN PARTY"
   as Republican via *Green*. It would have added roughly $67M of apparently-resolved money
-  at the cost of silent misassignment. Corporate, labor and trade PACs are left unresolved
-  by design in both states: they are genuinely non-partisan recipients and a large share
-  of state money, and giving them a party would manufacture a crossover result rather than
+  at the cost of silent misassignment. Corporate, labor and trade PACs are left **unclassified**
+  by design in both states, and they are a large share of state money. Unclassified is not
+  the same as non-partisan: some such committees are strongly and consistently aligned, so
+  calling them "genuinely non-partisan" would assert more than the coding supports. What the
+  coding establishes is only that
+  these recipients carry no party the sources publish and none this design can assign
+  without guessing, and that assigning one would manufacture a crossover result rather than
   measure one. The consequence is that the unresolved pool is large and not missing at
   random, which is why the crossover tables are labelled exploratory.
 - **The crossover classification, stated exactly.** `donor_party` classifies a *donor* by
   the set of their party-resolved recipients: `D_DONOR` (every resolved recipient
   Democratic), `R_DONOR` (every one Republican), `MIXED` (both), `OTHER` (none resolved).
-  The Finding 3 tables report these as D-only / R-only / Mixed shares of *resolved donors*,
-  and report the resolution rate separately. They are **not** dollar flows; the dollar-flow
+  The Finding 3 tables report these as D-only / R-only / Mixed shares **of resolved
+  donors** — the column headers say so, since a bare "D-only" invites reading the figure as
+  a share of the whole row — and report the resolution rate separately. Finding 3 also
+  carries a worst-case bound restating every row as a share of *matched* donors, which is
+  the form comparable across rows. They are **not** dollar flows; the dollar-flow
   column is computed separately from the panels' `d_amount` / `r_amount` sums. Earlier
   drafts printed the classification shares under "→ D" / "→ R" headers, omitted the Mixed
   column that is part of the base, and described the result in dollar-flow language.
@@ -1017,8 +1873,11 @@ behavioral one.
 - **Known data-quality residue.** `ny_vrdb.voters` contains 53 duplicated
   `state_voter_id` values out of 13.54M records (0.0004%); joins on that key can therefore
   fan out by a handful of rows, which is why the NY state panel reads 378,383 rows
-  standalone and 424,025 after a roll join. No reported figure is sensitive at that
-  magnitude.
+  standalone and **378,388** after a roll join — 5 extra rows, the 5 duplicated ids that
+  actually reach that panel. No reported figure is sensitive at that magnitude. *(An earlier
+  draft gave the post-join count as 424,025, which is the retired all-tier panel total plus
+  5 — an obsolete figure mistakenly written as fan-out. 53 duplicate ids cannot expand a
+  join by 45,642 rows, and the arithmetic was the tell.)*
 - **Reproduction.** `scripts/verify_donor_class.py` re-derives Findings 1, 2 and 4 for
   both panels of all three states, Finding 3 for both panels of NY and ID (Washington
   publishes no party), the Idaho primary-composition corollary, and the period-aligned
@@ -1038,37 +1897,103 @@ contribution here is the *voter-file-matched* view — linking individual donors
 registration roll across three states to show the donor class's age, concentration,
 partisan tilt, and turnout overlap on the same records. It sits in these literatures:
 
-- **The shape of the donor class.** Bonica, "Mapping the Ideological Marketplace,"
-  *American Journal of Political Science* 58(2) (2014): 367–386, doi:10.1111/ajps.12062,
-  and the DIME database; Schlozman, Verba & Brady, *The Unheavenly Chorus: Unequal
-  Political Voice and the Broken Promise of American Democracy* (Princeton, 2012); Hill &
-  Huber, "Representativeness and Motivations of the Contemporary Donorate: Results from
-  Merged Survey and Administrative Records," *Political Behavior* 39(1) (2017): 3–29,
-  doi:10.1007/s11109-016-9343-y — the donors-skew-old finding (Finding 1), and the closest
-  methodological analog to the match used here. Bonica, McCarty, Poole & Rosenthal, "Why
-  Hasn't Democracy Slowed Rising Inequality?" *Journal of Economic Perspectives* 27(3)
-  (2013): 103–124, doi:10.1257/jep.27.3.103 — the concentration result (Finding 2).
-- **Unequal voice and its consequences.** Verba, Schlozman & Brady, *Voice and
-  Equality: Civic Voluntarism in American Politics* (Harvard, 1995); Gilens, *Affluence
-  and Influence: Economic Inequality and Political Power in America* (Princeton, 2012);
-  Gilens & Page, "Testing Theories of American Politics: Elites, Interest Groups, and
-  Average Citizens," *Perspectives on Politics* 12(3) (2014): 564–581,
-  doi:10.1017/S1537592714001595 — the normative stakes of a participation-and-money elite.
-- **Party and the donorate.** Grumbach & Sahn, "Race and Representation in Campaign
-  Finance," *American Political Science Review* 114(1) (2020): 206–221,
-  doi:10.1017/S0003055419000637; Grumbach, Sahn & Staszak, "Gender, Race, and
-  Intersectionality in Campaign Finance," *Political Behavior* 44 (2022): 319–340,
-  doi:10.1007/s11109-020-09619-0 — donor-pool composition by party and group, the frame
-  for Finding 3 (New York *and* Idaho).
-- **Giving and voting as stacked participation.** Verba, Schlozman & Brady (1995) again,
-  on the co-occurrence of participatory acts; the giving↔turnout overlap (Finding 4) is
-  the individual-record instance, framed strictly as association.
-- **Voter-file / individual-level method.** Ansolabehere & Hersh, "Validation: What Big
-  Data Reveal About Survey Misreporting and the Real Electorate," *Political Analysis*
-  20(4) (2012): 437–459, doi:10.1093/pan/mps023; Hersh, *Hacking the Electorate: How
-  Campaigns Perceive Voters* (Cambridge, 2015). On match bias and the current-roll caveat,
-  the tier and household sensitivities and the inverse-propensity re-weighting in
-  Appendix F address the older/stable-address/uncommon-name skew directly.
+- **The shape of the donor class.** Bonica (2014) and the DIME database; Schlozman, Verba &
+  Brady (2012); Hill & Huber (2017) — the donors-skew-old finding (Finding 1), and the closest
+  methodological analog to the match used here. Bonica, McCarty, Poole & Rosenthal (2013) — the
+  concentration result (Finding 2).
+- **Unequal voice and its consequences.** Verba, Schlozman & Brady (1995); Gilens (2012);
+  Gilens & Page (2014) — the normative stakes of a participation-and-money elite.
+- **Party and the donorate.** Grumbach & Sahn (2020); Grumbach, Sahn & Staszak (2022) —
+  donor-pool composition by party and group, the frame for Finding 3 (New York *and* Idaho).
+  That article carries a published correction, Grumbach, Sahn & Staszak (2021), which was
+  checked before relying on the original; it repairs a mangled character string in the
+  introduction and changes no result.
+- **Giving and voting as stacked participation.** Verba, Schlozman & Brady (1995) again, on the
+  co-occurrence of participatory acts; the giving↔turnout overlap (Finding 4) is the
+  individual-record instance, framed strictly as association.
+- **Voter-file / individual-level method.** Ansolabehere & Hersh (2012); Hersh (2015). On match
+  bias and the current-roll caveat, the tier and household sensitivities and the
+  inverse-propensity re-weighting in Appendix F address the
+  older/stable-address/uncommon-name skew directly.
+
+### Record linkage as a method, and where this paper's design sits in it
+
+*Every finding here depends on the validity of a person-level match, so the design is located
+against the record-linkage literature rather than described on its own terms. The relevant point
+is not that linkage is hard, but that the field has established results about **which** design
+choices bias **which** downstream quantities — and this paper's choices should be placed against
+them rather than defended in isolation.*
+
+- **The probabilistic framework, and this paper's departure from it.** Fellegi & Sunter (1969)
+  formalised linkage as a decision problem: estimate, for each candidate pair, the probability
+  that it is a true match, and choose thresholds that trade false links against missed ones.
+  Herzog, Scheuren & Winkler (2007) is the standard practitioner treatment. In political science
+  the current standard implementation is Enamorado, Fifield & Imai (2019), which scales the
+  Fellegi–Sunter model to millions of records, handles missing fields, and — most directly
+  relevant here — is demonstrated on exactly this problem: **merging campaign-contribution
+  records to nationwide voter files.**
+
+  This paper does **not** use that approach. It uses a **deterministic** key (surname + full
+  first name + ZIP5) with a **uniqueness requirement** on the roll side. The rule is intended
+  to retain a high-specificity subset and to discard the ambiguous middle rather than assign
+  it a match probability, but **it has not been calibrated against a probabilistic model**,
+  and it should not be assumed to coincide with one: a Fellegi–Sunter-style model could score
+  some full-name-plus-ZIP pairs well below certainty on account of common names, address
+  mobility, data quality, or the composition of the blocking unit. What supports the rule here
+  is the direct validation in Appendix F, not an equivalence argument. Two consequences follow,
+  and the paper should be read with both in view. Recall is sacrificed — the matched set is a
+  floor, which the paper states — and, more importantly, **the uncertainty is moved out of the
+  estimator and into the sample definition.** Probabilistic methods *can* carry match
+  probabilities forward into the analysis, though in practice analysts frequently threshold
+  them into hard links and so give up the same thing; a deterministic rule forecloses the
+  option, producing a set treated as certain whose error cannot be propagated, only bounded by
+  validation. That is why Appendix F's hand-rating is load-bearing rather than decorative, and
+  it is the most substantial methodological limitation of this design.
+
+- **What linkage keys are available is set by statute, not by method.** Ansolabehere & Hersh
+  (2017) show that address, date of birth, gender and name — any three of the four — link voter
+  records at a rate close to nine-digit Social Security linkage, with roughly **2–2.5%
+  discordance** in the reported comparison (about 98% of SSN-linked records also match on ADGN
+  combinations, and the paper's later figures read ~97.5% against ~97.8%). That is the benchmark
+  this paper cannot reach, and the reason is legal rather than technical: **the donor side has no date of birth, no gender and no verified address**, only
+  a name and a ZIP from the contribution filing. Even on the roll side, Washington releases
+  year of birth and not full date of birth (RCW 29A.08.710; Appendix B). So the key here is
+  weaker than ADGN by construction, and the gap is a property of what disclosure regimes
+  publish about donors.
+
+- **Measured false-match rates, and the direction of their bias.** Bailey, Cole, Henderson &
+  Massey (2020) is the most useful external calibration available. Hand-checking links from
+  widely used algorithms, they find **15–37% are errors**; false links are **systematically related to
+  the characteristics of the records being linked**, not random; and in their application the
+  combined effect attenuates an intergenerational elasticity by up to **29%**.
+
+  Both halves of that map onto this paper's own results and are the reason its numbers are
+  reported the way they are. The measured precision of this paper's three initial-based keys
+  (47.9–71.7%, Appendix F) sits at and beyond the bad end of Bailey et al.'s range, which is
+  why they were dropped rather than reported alongside. And their finding that error is
+  *systematic* is precisely what this paper observes twice over: every one of its 129
+  confirmed household/relative false merges landed on an initial-based key, and the donors
+  the clean-key restriction discards are **younger and less Democratic** than those it
+  retains. That second fact is a selection effect on the estimand, not a measurement error,
+  and it is why the paper reports both specifications instead of only the cleaner one.
+
+- **Downstream bias, and what this design does not attempt.** Lahiri & Larsen (2005) show that
+  naively analysing a linked file as though it were error-free biases regression estimates, and
+  give an unbiased estimator conditional on known link probabilities. That correction is unavailable here by
+  construction — a deterministic key produces no per-link probabilities to condition on.
+  **Their specific regression correction is not directly applicable to these estimands, but
+  the broader downstream-error problem is not thereby escaped.** Linkage error can bias shares,
+  means, distributions and concentration measures just as it can bias slopes; descriptive
+  quantities are not exempt.
+  What differs is the available remedy. Since every finding here is a **descriptive share,
+  mean or concentration statistic** on the matched set rather than a coefficient from a model
+  fitted to linked data, this paper addresses the problem through validation of the match key,
+  restriction to the key that validated, and sensitivity analysis — the blinded rating and
+  by-tier precision estimates, the household-exclusion bounds, and the inverse-propensity
+  re-weighting with its flat P(matchable) result, all in Appendix F — rather than through
+  probability-weighted estimation. A future version of this design that fitted models to the
+  linked file would need the Lahiri–Larsen machinery, and would therefore need probabilistic
+  rather than deterministic linkage.
 - **Contribution limits and the shape of the donor pool.** The statutory regimes tested in
   Appendix G, with individual per-election limits for the 2025–26 cycle:
   Idaho Code § 67-6610A (**$1,000** per election to legislative, judicial, and local
@@ -1078,46 +2003,122 @@ partisan tilt, and turnout overlap on the same records. It sits in these literat
   RCW 42.17A.405, recodified as RCW 29B.40.020 effective Jan. 1, 2026 — Washington's caps,
   indexed and administered by the Public Disclosure Commission, currently **$1,200** per
   contest to a legislative candidate and **$2,400** to a state executive candidate;
-  N.Y. Elec. Law §§ 14-114 and 14-116 — New York's non-family individual limits per
-  contest, **$3,000** Assembly, **$5,000** Senate, **$9,000** statewide, alongside an
-  extensive separate family-limit schedule (earlier drafts characterised these as
-  "comparatively high" without stating them);
+  **N.Y. Elec. Law § 14-114** ("Contribution and receipt limitations") — the provision that
+  establishes New York's limits. Its non-family individual ceilings are stated as
+  cycle totals divided equally between the primary and the general, so **per contest** they
+  are **$3,000** Assembly, **$5,000** Senate and **$9,000** statewide (from cycle limits of
+  $6,000, $10,000 and $18,000), alongside an extensive separate family-limit schedule
+  computed on voter-enrolment multipliers, and a cost-of-living adjustment every four years.
+  **§ 14-114(8)** separately provides that "[n]o person may contribute, loan or guarantee in
+  excess of one hundred fifty thousand dollars within the state … in any one calendar year" —
+  a **$150,000 annual aggregate ceiling that remains on the books but is not enforced**. Two
+  things establish that, and they are not the same thing.
+
+  *The judicial holdings are narrow.* The Second Circuit directed a preliminary injunction
+  against §§ 14-114(8) and 14-126 as applied to an independent-expenditure-only committee and
+  its donors in *New York Progress and Protection PAC v. Walsh*, 733 F.3d 483, 489 (2d Cir.
+  2013), which the District Court then made permanent on the same as-applied basis, 17
+  F. Supp. 3d 319, 323 (S.D.N.Y. 2014). A second court enjoined §§ 14-114(8) and 14-116(2) as
+  applied to a 501(c)(4) and a recipient independent-expenditure committee in *Hispanic
+  Leadership Fund v. Walsh*, 42 F. Supp. 3d 365 (N.D.N.Y. 2014). Neither reaches ordinary
+  contributions to candidates.
+
+  *The Board's non-enforcement is broader.* **NYSBOE Formal Opinion 2016 #1** (12 July 2016)
+  presents as its first question whether the § 14-114(8) $150,000 aggregate limit is
+  enforceable and concludes that it is not, recording that the Board "could no longer enforce"
+  it "for contributions from individuals to independent expenditure committees, **candidates or
+  other political committees**" — memorialising two directives of 22 May 2014, the second of
+  which covers candidates and other political committees expressly. The Board's stated basis
+  for reaching past the injunctions is its own forecast rather than a holding: the § 14-114(8)
+  ceiling is "similar in function" to the federal aggregate limit invalidated in *McCutcheon
+  v. FEC*, 572 U.S. 185 (2014), and "would likely be determined unconstitutional if
+  challenged."
+
+  So the ceiling is unenforced across the board as a matter of administrative practice, while
+  the judicial invalidation is confined to independent-expenditure applications. Appendix G's
+  table records it as **statutory but not operative in practice** on that basis, rather than as
+  absent or as struck.
+  **N.Y. Elec. Law § 14-116** is cited separately and for what it actually does — "Political
+  contributions by certain organizations". It is **not** a categorical prohibition:
+  § 14-116(2) permits a corporation, or an organization
+  financially supported by one, to make political expenditures including contributions "in an
+  amount not to exceed five thousand dollars" in the aggregate per calendar year, and
+  § 14-116(1) names **limited liability companies** alongside corporations within the same
+  section. So the New York rule is a $5,000 annual corporate ceiling plus an LLC
+  ownership-disclosure requirement, not the state analogue of 52 U.S.C. § 30118. It is also not
+  a source of the individual limits, which § 14-114 alone establishes;
   Tex. Elec. Code § 253.094, which bars corporate and labor-organization contributions —
   and, separately, the absence of any dollar limit on individual gifts to **non-judicial**
   Texas candidates, which § 253.094 does not address and which rests instead on the Texas
   Ethics Commission's *Campaign Finance Guide for Candidates and Officeholders*; the
   Judicial Campaign Fairness Act, §§ 253.151–253.176, is the exception that does impose
   limits;
-  52 U.S.C. § 30116 (the federal per-election individual limit, **$3,500** for 2025–26,
-  indexed); and 52 U.S.C. § 30118 (federal prohibition on corporate contributions, which
-  the Idaho and Texas state systems do not share). On the constitutional architecture that
+  52 U.S.C. § 30116 (the federal per-election individual limit, **indexed biennially** —
+  **$3,500** for 2025–26, and $3,300 / $2,900 / $2,800 / $2,700 for 2023–24 / 2021–22 /
+  2019–20 / 2017–18, the earlier cycles this paper's federal layer also covers; Appendix G's
+  truncation test uses the cycle-specific values as well as flat counterfactual ones); and
+  52 U.S.C. § 30118 (federal prohibition on corporate contributions). **The three state
+  systems relate to that prohibition in three different ways.** Federal law generally prohibits
+  corporate treasury contributions to federal
+  candidates. **Texas** generally prohibits corporate candidate contributions, as a
+  third-degree felony under Tex. Elec. Code § 253.094 (with narrow exceptions for a
+  general-purpose committee's administrative costs and for ballot-measure giving). **New York
+  does not prohibit them — it limits them**, to $5,000 in the aggregate per calendar year
+  under § 14-116(2), subject to the non-enforcement noted above for independent-expenditure
+  committees. **Idaho permits** direct corporate contributions to candidates, subject to its
+  candidate limits. New York in particular must not be grouped with Texas as a prohibition
+  state; the § 14-116(2) text does not support it. On the constitutional architecture that
   leaves per-gift caps standing while removing any ceiling on a donor's total giving:
   *Buckley v. Valeo*, 424 U.S. 1 (1976) (contribution limits upheld, expenditure limits
   struck), and *McCutcheon v. FEC*, 572 U.S. 185 (2014) (invalidating the biennial
   aggregate limit). On the empirical consequence — that limits redistribute large-donor
-  influence across vehicles rather than removing it: Barber, "Ideological Donors,
-  Contribution Limits, and the Polarization of American Legislatures," *Journal of
-  Politics* 78(1) (2016): 296–310, doi:10.1086/683453; La Raja & Schaffner, *Campaign
-  Finance and Political Polarization: When Purists Prevail* (Michigan, 2015). Appendix G's
-  result is consistent with that literature.
+  influence across vehicles rather than removing it: Barber (2016); La Raja & Schaffner
+  (2015). Appendix G's result is consistent with that literature.
 
 ## Appendix E — Full distribution tables
 
-**Matched-donor concentration, with bootstrap intervals.** Both Washington panels were
-bootstrapped at B=1,000 resamples (`diag_donor_concentration_bootstrap.py`). The
-intervals are tight enough that the concentration finding does not rest on a handful of
-top donors, and the two panels' intervals overlap — the state layer's higher point
-estimate is not separable from the federal layer's at this precision:
+**Matched-donor concentration, with bootstrap intervals — all six panels.** B=1,000
+resamples per panel (`diag_donor_concentration_bootstrap.py`). All six panels are resampled;
+quantifying only Washington's two would leave the paper's most prominent result with
+uncertainty characterized for a third of the evidence, and the full set changes a claim — see
+Finding 2's ordering test.
 
-| Washington, matched donors | federal panel | 95% interval | state panel | 95% interval |
-|---|--:|---|--:|---|
-| top 1% → share of matched $ | 41.2% | [38.6–43.4] | 43.5% | [38.7–48.9] |
-| top 10% → share of matched $ | 74.2% | [73.0–75.2] | 75.3% | [73.2–77.7] |
-| Gini | 0.815 | [0.806–0.822] | 0.821 | [0.806–0.838] |
+| panel | n resampled | top 1% | 95% interval | top 10% | 95% interval | Gini | 95% interval |
+|---|--:|--:|---|--:|---|--:|---|
+| WA federal | 147,745 | 41.2% | [38.6–43.4] | 74.2% | [73.0–75.2] | 0.815 | [0.806–0.822] |
+| WA state | 216,732 | 43.5% | [38.7–48.9] | 75.3% | [73.2–77.7] | 0.821 | [0.806–0.838] |
+| NY federal | 269,218 | 50.7% | [49.0–52.4] | 81.2% | [80.5–81.9] | 0.865 | [0.860–0.870] |
+| NY state | 378,383 | 48.6% | [46.0–51.8] | 78.2% | [77.0–79.5] | 0.845 | [0.837–0.855] |
+| ID federal | 23,303 | 37.2% | [30.7–43.8] | 70.8% | [67.7–74.0] | 0.789 | [0.767–0.812] |
+| ID state | 23,613 | 40.0% | [31.7–49.4] | 71.0% | [66.8–75.4] | 0.799 | [0.770–0.829] |
+
+*Two bookkeeping notes, both of which the verifier caught rather than an eyeball. **"n
+resampled" is donors with a positive total**, which is why Washington's state panel reads
+216,732 against the 217,114 in Finding 2: 382 PDC rows net to zero or below after refunds,
+and the concentration estimator excludes them in both places. And the **point estimates in
+this table are Finding 2's**, computed with `NTILE(100)`; the resampling routine uses a
+rounded rank cutoff instead, which differs by at most 0.05 points (Appendix C quantifies the
+estimator choice) — Idaho's federal top-1% is the one cell where that difference is visible
+at one decimal, 37.16% against 37.12%. The intervals are the resampling routine's.*
+
+Two things to read off this. **The concentration finding itself is robust everywhere** — the
+lowest lower bound on any top-1% interval is 30.7%, so "a thin top stratum supplies a large
+minority of matched dollars" holds in all six panels and **remains large under donor-level
+resampling**. That is all resampling shows: the top 1% is itself a thin group, and an earlier
+draft's gloss that the result "does not rest on a handful of top donors" does not follow from
+these intervals, which say nothing about whether particular extreme donors matter. But **interval width tracks n**, and Idaho's panels are an order of magnitude
+smaller than New York's: Idaho's state top-1% interval spans 17.7 points against 4.8 for
+Washington's federal. That is why the cross-state *ordering* is testable only in part, and
+why Idaho's point estimates should not be compared to the others as though they carried
+equal precision. Within-panel comparisons and the two panels of a single state are
+unaffected — Washington's state layer sits above its federal layer by less than the width of
+either resampling interval, so that gap is not one this exercise can distinguish from
+resampling noise. As in Finding 2, these intervals bound sensitivity to donor composition
+under resampling and not linkage, coverage or disclosure error.
 
 **Statewide (all itemized donors, not only matched), four states.** From
 `cross_state_fec_money.py` over each state's FEC individual layer, donor-residence
-filtered, FEC bulk files 2017–2026, itemization threshold > $200 throughout. This is the
+filtered, FEC bulk files 2017–2026, mandatory itemization trigger > $200 throughout. This is the
 one table in the paper where Texas appears, since aggregate donor figures need no voter
 file:
 
@@ -1143,25 +2144,28 @@ committees, and PACs (`cross-state-fec-money.md` §I).
 
 | state / panel | leading geography | share of matched $ | next |
 |---|---|--:|---|
-| WA federal | ZIP3 981xx (Seattle) | 37.3% | 980xx 26.1% → two ZIP3s = **63.4%** |
-| WA state | ZIP3 981xx (Seattle) | 32.3% | 980xx 22.8% → two ZIP3s = **55.1%** |
-| NY federal | New York County (Manhattan) | 50.3% | Westchester 12.4%, Kings 6.6%; top-3 ZIP3 = **63.4%** |
-| NY state | New York County (Manhattan) | 20.6% | Nassau 15.1%, Suffolk 11.1%; top-3 ZIP3 = **38.1%** |
-| ID federal | Ada County (Boise), 10,338 donors | 36.4% | Blaine 11.7%, Bonneville 11.2% |
-| ID state | Ada County (Boise), 10,037 donors | 49.2% | Kootenai 9.0%, Canyon 5.5% |
+| WA federal | King (Seattle), 60,004 donors | 58.2% | Snohomish 5.3% (0.50×), Pierce 5.2% (0.45×); top 3 = **68.7%** |
+| WA state | King, 92,886 donors | 52.0% | Pierce 7.8% (0.68×), Snohomish 5.4% (0.51×); top 3 = **65.3%** |
+| NY federal | New York (Manhattan), 55,515 donors | 48.5% | Westchester 13.2% (2.59×), Kings 6.9% (0.56×); top 3 = **68.6%** |
+| NY state | New York, 37,665 donors | 19.9% | Nassau 15.5% (1.93×), Suffolk 11.3% (1.30×); top 3 = **46.7%** |
+| ID federal | Ada (Boise), 8,865 donors | 36.8% | Bonneville 11.9% (1.91×), Blaine 11.4% (**7.83×**); top 3 = **60.1%** |
+| ID state | Ada, 8,812 donors | 50.3% | Kootenai 9.0% (0.84×), Canyon 5.1% (0.45×); top 3 = **64.4%** |
 
-*Source: the six panel tables joined to each roll's ZIP or county of registration.
-Scripts: the per-state match and `diag_*_donor_extras` scripts; WA federal ZIP3s
-re-derived by `verify_donor_class.py`.*
+*Source: the six panel tables joined to each roll's county of registration; parenthesised
+multipliers are dollar share ÷ active-roll share. Counties are used for all three states so
+the comparison is between like units.
+Re-derived by `verify_donor_class.py`.*
 
 Two of the three states put federal money in a tighter geographic box than state money,
-and in New York the gap is enormous — Manhattan's share of matched dollars falls by
-**30 points**, from half of the federal layer to a fifth of the state one, with suburban
+and in New York the gap is enormous — Manhattan's share of matched dollars falls by nearly
+**29 points**, from about half of the federal layer to a fifth of the state one, with suburban
 Nassau and Suffolk together overtaking it. Manhattan nonetheless remains the largest
 single county in the state panel. Idaho inverts the pattern — Ada County's grip *loosens*
-from 49.2% of state dollars to 36.4% of federal — not because Idaho's federal money is
-broadly spread, but because it relocates to wealthy enclaves outside the capital, above
-all resort-county Blaine at 11.7% from 1,097 donors. Concentration is the constant; which
+from 50.3% of state dollars to 36.8% of federal — not because Idaho's federal money is
+broadly spread, but because it relocates to a second tier of counties outside the capital:
+Bonneville (Idaho Falls) at 11.9% and resort-county Blaine at 11.4% from 909 donors, whose
+**7.83×** multiplier is the largest single-county disproportion anywhere in this paper.
+Concentration is the constant; which
 geography does the concentrating depends on the money system. A plausible mechanism is
 that state legislative seats are contested across far more of a state's territory than
 its federal seats, so state money is raised more widely while federal money pools where
@@ -1170,18 +2174,25 @@ that state legislative races are meaningfully contested everywhere — many are 
 [`safe-seat-washington.md`](safe-seat-washington.md)).
 
 **Donor pool versus registration, by district competitiveness (NY).** The Democratic
-share of the donor pool exceeds the Democratic share of registrants in every band, and
-two-thirds of all matched donors (205K of 308K) live in Solid districts:
+share of the donor pool exceeds the Democratic share of registrants in every band, in
+*both* panels, and two-thirds of federal matched donors (177,918 of 269,218) — 62% of
+state ones (233,275 of 378,383) — live in Solid districts:
 
-| band | donor pool, D share | registrants, D share |
-|---|--:|--:|
-| Tossup | 57.7% | ~40% |
-| Solid | 71.6% | ~56% |
+| band | federal donor pool, D share | state donor pool, D share | registrants, D share |
+|---|--:|--:|--:|
+| Tossup | 58.7% | 51.3% | 40.4% |
+| Solid | 72.6% | 66.9% | 56.1% |
 
-Idaho shows the mirror image from the red side: the bulk of matched donors sit in Solid-R
-legislative districts, where the donor pool is ~71% Republican, while the few more
-competitive districts carry a far more balanced mix (~46% R / ~34% D)
-(`diag_id_electorate_extras.py`).
+*Bands are |predicted margin| over `forecast_predictions` NY CDs (Tossup <5, Solid ≥20),
+registrant baseline = active registrants. Script: `diag_ny_electorate_extras.py`, which
+reads the pooled match; the figures above are recomputed per panel, since a pooled read
+would mix the two money systems this paper keeps separate everywhere else.*
+
+Idaho shows the mirror image from the red side, on its state panel: 27 Solid-R legislative
+districts hold 14,594 matched donors whose pool is **78% Republican to 13% Democratic**,
+while the 8 Likely/Lean-R districts carry a far more balanced 47% R / 35% D across 9,019
+donors (`diag_id_electorate_extras.py`; bands are Section V's registration bands, and the
+same cut is asserted by `verify_donor_class.py`).
 
 **Giving and turnout, side by side.** Non-donor denominators are active registrants.
 
@@ -1197,8 +2208,9 @@ competitive districts carry a far more balanced mix (~46% R / ~34% D)
 | NY super-voter share (≥3 of 4), state panel | 75.3% | 39.0% |
 
 The give↔vote overlap is the finding least sensitive to which money system is examined:
-Washington's two panels differ by half a point, and New York's by a tenth of one — even
-though New York's state panel draws on 116,000 more people than its federal panel.
+on the super-voter share Washington's two panels differ by nine-tenths of a point and New
+York's by four-tenths — even though New York's state panel draws on 109,000 more people
+than its federal panel.
 
 ## Appendix F — Match validation and robustness
 
@@ -1211,7 +2223,12 @@ its inverse:
 | NY, four age bands | **94.5%–95.4%** (0.9-pt spread) | 65+ donor share 47.9% → **47.9%** |
 | WA, five generations | **96.3%–97.6%** (1.4-pt spread) | every multiplier unchanged to 2 d.p., **both panels** (federal Silent 2.48 → 2.48×, Gen Z 0.10 → 0.10×; state Silent 1.59 → 1.59×) |
 
-A selection gradient that flat cannot generate the observed senior over-representation.
+A selection gradient that flat cannot generate the observed senior over-representation
+**through this mechanism** — the claim is bounded, not categorical. What the test rules out is
+age variation in *roll-side unique-key availability*. It does not rule out donor-side name completeness (how a contributor writes
+their own name on a filing), residential mobility between the filing and the extract,
+current-roll survivorship, or any other age-related selection operating outside the roll-side
+key.
 Two notes on the Washington row. First, P(uniquely matchable) is a property of the *roll*
 and the match key, not of which contributions are used, so the same propensities re-weight
 both panels; only the multipliers they act on are panel-specific. Second, the WA test uses
@@ -1229,7 +2246,7 @@ current roll.
 **Match-tier composition and the inverted sensitivity.** This table is computed on the
 **retained `_alltier` snapshots** — the pre-switch panels, kept precisely so this comparison
 remains possible once the primaries became single-tier. `STRICT_ZIP5_FULL` carries
-**80.7–89.2%** of matches there; the weakest ZIP3 tier carries 0.3–5%.
+**80.7–89.2%** of matches there; the weakest ZIP3 tier carries 0.3–5.0%.
 
 Read it in the direction the paper now runs: the `full-first-name only` row **is** the
 primary specification, and the rows above it show what **adding the weak tiers back** would
@@ -1270,17 +2287,52 @@ skews *away* from the null in all six panels: the weaker tiers are slightly youn
 slightly less Democratic than the strict tier, so including them is conservative.
 Concentration moves by at most 1.3 points (Idaho federal, where N is smallest).
 
-**Household false-merge sensitivity.** A bounding exclusion, replacing the withdrawn
-"small by construction" argument. Like the tier table above, this is computed on the
-**retained `_alltier` snapshots**, so it bounds the effect for the *superseded* all-tier
-specification — which is the conservative place to measure it. On the primary
-specification the household risk is lower by construction: all 129 household/relative false
-merges in the 480-record validation landed on an initial-based key, and the primary
-specification contains none of those keys. A matched donor is flagged when another active
-registrant shares their surname and ZIP5 — the configuration in which a spouse's gift
-could be attributed to the wrong person. The exclusion is deliberately severe: because the
-match key already required a unique first name, most flagged matches are correct, so these
-rows bound the false-merge effect rather than correcting for it.
+**Household false-merge sensitivity — run on both specifications.** A bounding exclusion,
+replacing the withdrawn "small by construction" argument. A matched donor is flagged when
+another active registrant shares their surname and ZIP5 — the configuration in which a
+spouse's gift could be attributed to the wrong person. The exclusion is deliberately severe:
+because the match key already required a unique first name, most flagged matches are correct,
+so these rows bound the false-merge effect rather than correcting for it.
+
+It is run on the **primary full-name panels** as well as the retained `_alltier` snapshots.
+Household risk is lower on the primary specification by construction — all 129
+household/relative false merges in the 480-record validation landed on an initial-based key, and
+the primary specification contains none of those keys. But *no detected household error in a
+480-record sample* does not establish that the sensitivity is unnecessary on the panels the
+paper actually publishes, so both are reported.
+
+**Primary specification (full-name key) — the published panels.**
+
+| panel | variant | donors | top 1% | 65+ |
+|---|---|--:|--:|--:|
+| WA federal | all matched | 147,745 | 41.2% | 55.7% |
+| | excl. surname+ZIP5 shared | 33,571 | 40.0% | 55.9% |
+| | excl. surname+address shared | 69,336 | 39.2% | 56.1% |
+| WA state | all matched | 217,114 | 43.5% | 39.0% |
+| | excl. surname+ZIP5 shared | 42,333 | 43.6% | 41.3% |
+| | excl. surname+address shared | 92,963 | 41.4% | 40.6% |
+| NY federal | all matched | 269,218 | 50.7% | 49.9% |
+| | excl. surname+ZIP5 shared | 70,770 | 48.3% | 50.2% |
+| | excl. surname+address shared | 135,987 | 50.5% | 49.1% |
+| NY state | all matched | 378,383 | 48.6% | 39.3% |
+| | excl. surname+ZIP5 shared | 80,580 | 52.5% | 42.4% |
+| | excl. surname+address shared | 165,145 | 49.2% | 40.4% |
+| ID federal | all matched | 23,303 | 37.2% | 66.8% |
+| | excl. surname+ZIP5 shared | 4,184 | 29.8% | 71.7% |
+| | excl. surname+address shared | 9,025 | 33.0% | 70.7% |
+| ID state | all matched | 23,613 | 40.0% | 51.3% |
+| | excl. surname+ZIP5 shared | 4,037 | 37.2% | 58.9% |
+| | excl. surname+address shared | 8,647 | 47.7% | 57.4% |
+
+**On the primary panels the conclusion is the same as on the snapshots, and slightly
+stronger for the age finding.** The senior share **rises** in all six panels under the
+surname+ZIP5 exclusion — by up to 7.6 points (ID state) — so the age skew is not a household
+artifact; excluding the at-risk configuration sharpens it. The top-1% share moves by at most
+7.4 points (ID federal, the smallest panel) and rises in one of six. Every direction survives
+in every panel.
+
+**Superseded all-tier specification, for comparison.** Computed on the retained `_alltier`
+snapshots, so it bounds the effect for the specification the paper no longer reports.
 
 | panel | variant | donors | top 1% | 65+ |
 |---|---|--:|--:|--:|
@@ -1312,6 +2364,31 @@ measured concentration is panel-specific in both sign and size rather than unifo
 which is why the earlier "small by construction" claim was withdrawn rather than restated
 with a smaller number.
 
+**Matchability by party, and why the party finding does not rest on it.** Finding 3's
+incidence rates divide by all registrants of a party, so they confound donation behavior with
+the chance that a party's registrants are uniquely identifiable under the full-name + ZIP5
+rule. Parties differ in surname concentration, ZIP concentration and county distribution, and
+age standardization does nothing about that. Measured directly (`diag_donor_review3.py`),
+P(matchable) = P(record carries a first name, last name and ZIP) × P(that key is unique on the
+roll):
+
+| state | DEM | REP | unaffiliated | other | spread |
+|---|--:|--:|--:|--:|--:|
+| New York | 94.9% | 94.5% | 95.5% | 94.6% | **1.0 pt** |
+| Idaho | 97.7% | 97.0% | 97.3% | 96.9% | **0.8 pt** |
+
+*Active roll, age 18+. Name-and-ZIP completeness is ≥99.9% in every party of both states, so
+the variation is almost entirely key uniqueness. The widest party gap inside any single age
+band is 2.8 points in New York and 1.2 in Idaho; across the eight largest counties of each
+state the party gap never exceeds 2.4 points.*
+
+A 1.0-point spread is a multiplicative difference of about 1.01×, against
+Democratic-to-Republican incidence ratios running 1.05× (NY state) to 1.73× (ID state) — so
+differential matchability is roughly two orders of magnitude too small to account for them.
+Re-basing the rate on *uniquely matchable* registrants rather than all registrants confirms it:
+every figure rises by 3–4% and the ordering is untouched (NY federal DEM 29.2 → 30.8, REP
+20.8 → 22.0; ID federal DEM 39.2 → 40.1, REP 24.1 → 24.9).
+
 **Per-tier false-merge risk on the donor side.** Two indicators computed over every
 matched donor, needing no human step:
 
@@ -1335,7 +2412,7 @@ match key also pulls contributions carrying a *different* full first name. On th
 tier that is 7–9% of matches. That is the residual risk the blinded rating below cannot
 see — a same-name namesake — and it is the reason the full-name tier's measured 100% is a
 ceiling on detectable error rather than proof of zero error. The `STRICT_ZIP5_MID` tier is the riskiest at 17–23%, and it is
-also the smallest (0.4–2% of matches). Row counts here sit a few dozen below the tier
+also the smallest (0.4–2.0% of matches). Row counts here sit a few dozen below the tier
 composition in the table above because this query additionally requires a non-null roll
 name and ZIP. Note that 100% full-name agreement on `STRICT_ZIP5_FULL` is true by
 construction — that tier *is* the full-name key — so the informative column is the
@@ -1366,29 +2443,32 @@ The scoring script was written *before* the verdicts, so the analysis was fixed 
 advance. Verdicts are published, PII-free, at
 [`reference/match_validation_verdicts_2026-07-27.csv`](reference/match_validation_verdicts_2026-07-27.csv).
 
-**Result — precision is entirely a function of match tier.**
+**Result — detected precision differs sharply by match tier in the validation sample.**
 
 | tier | share of matches | n | Y | NC | NP | U | precision | Wilson 95% CI |
 |---|--:|--:|--:|--:|--:|--:|--:|---|
-| `STRICT_ZIP5_FULL` | 81–89% | 120 | 120 | 0 | 0 | 0 | **100.0%** | [96.9–100.0] |
-| `STRICT_ZIP5_MID` | 0.4–2% | 120 | 86 | 33 | 1 | 0 | 71.7% | [63.0–79.0] |
-| `STRICT_ZIP5` | 9–13% | 120 | 57 | 61 | 1 | 1 | **47.9%** | [39.1–56.8] |
-| `RELAXED_ZIP3_MID` | 0.3–5% | 120 | 60 | 58 | 1 | 1 | **50.4%** | [41.6–59.2] |
+| `STRICT_ZIP5_FULL` | 80.7–89.2% | 120 | 120 | 0 | 0 | 0 | **100.0%** | [96.9–100.0] |
+| `STRICT_ZIP5_MID` | 0.4–2.0% | 120 | 86 | 33 | 1 | 0 | 71.7% | [63.0–79.0] |
+| `STRICT_ZIP5` | 9.5–12.6% | 120 | 57 | 61 | 1 | 1 | **47.9%** | [39.1–56.8] |
+| `RELAXED_ZIP3_MID` | 0.3–5.0% | 120 | 60 | 58 | 1 | 1 | **50.4%** | [41.6–59.2] |
 
 *Y = same person; NC = confirmed different person; NP = probably different;
 U = indeterminate. `precision` = Y/(Y+NC+NP); the sensitivity bound treating every
 U as an error moves each tier by ≤0.5 points, because only 2 of 480 records were
 indeterminate.*
 
-The full-name key is clean and the initial-based keys are close to coin flips. Requiring
-the complete first name, the surname, the ZIP5 and roll-uniqueness leaves essentially no
-room for error; dropping to a first initial does not.
+No false match was detected on the full-name key, while the initial-based keys are closer to
+coin flips. Requiring the complete first name, the surname, the ZIP5 and roll-uniqueness is
+a far more restrictive identity condition than a first initial — but "none detected in 120
+records" bounds the error rate at roughly 3% (Wilson 95% lower bound 96.9%); it does not
+establish that the rate is zero, and a true namesake would be invisible to this design
+regardless of sample size.
 
 **Population-weighted precision, per panel.** The sample deliberately oversamples the weak
 tiers by 30–300×, so its raw mean (67.6%) is *not* a panel estimate. Reweighting each
 tier's precision by that tier's actual share of the panel:
 
-| panel | matched donors | weighted precision | bound (all U wrong) |
+| panel | donors with a positive total | weighted precision | bound (all U wrong) |
 |---|--:|--:|--:|
 | WA federal | 172,998 | **93.3%** | 93.3% |
 | WA state | 268,741 | 90.4% | 90.4% |
@@ -1398,15 +2478,26 @@ tier's precision by that tier's actual share of the panel:
 | ID state | 27,250 | 96.5% | 96.5% |
 | **donor-weighted, all six** | | **93.0%** | **92.9%** |
 
+*One denominator note. The all-tier WA **state** panel appears in this appendix as
+**269,204** in the tier and household tables and as **268,741** here, a difference of **463**.
+These are two different denominators, not a discrepancy: 269,204 is the row count, and 268,741
+is the count of donors with a **positive** net total, which is what the weighting runs over —
+the all-tier analogue of the 382 non-positive rows disclosed at Finding 2's table for the
+primary WA state panel. `diag_donor_review3.py` reproduces both. No other panel differs; the
+remaining five have no non-positive rows.*
+
 So the ≈90% figure the earlier pass reported was, at the panel level, roughly right — and
-slightly conservative. But it concealed the structure that matters: **all of the error sits
-in the ~11–19% of matches made on a first initial**, and none of it in the full-name tier.
+slightly conservative. But it concealed the structure that matters: **all detected errors in
+the validation sample were on the ~11–19% of matches made on a first initial; none was detected
+in the full-name tier.**
 
 **By dollar band, precision is *lower* at the top.** 63.0% in the top decile of matched
 dollars against 72.1% in deciles 2–10 (raw sample, tier-confounded). The gap runs the
-direction the reviewer worried about — false matches are commoner among the largest
-attributed totals — which is a further reason to prefer the full-name specification, where
-the top decile is also 100%.
+direction that matters most — false matches are commoner among the largest
+attributed totals — which is a further reason to prefer the full-name specification, in whose
+top decile **no error was detected among the 60 records sampled there** (60 of 60 rated Y). As everywhere in this
+appendix, that is a statement about detection in a sample, not an estimate of literal
+population precision.
 
 **Three distinct error modes, separately identified.** Of the 152 confirmed false matches:
 
@@ -1425,19 +2516,29 @@ from name shapes — organisations and committees are **8.1% of Idaho Sunshine r
 of its dollars** ($28.70M of $53.26M). That is well above the 32.6% a name heuristic had
 estimated, and it is consistent with Appendix G's all-filer vs persons-only gap for the
 Idaho state layer. The equivalent name-order figure for WA PDC is 1.85% of comma-less rows
-/ 2.08% of its dollars.
+/ 2.08% of its dollars — **the one figure in this appendix the verification pass could not
+independently confirm.** A from-scratch heuristic (first token absent from the roll's surname
+vocabulary, last token present) measures 4.7% of rows and 4.1% of dollars, which is a different
+instrument rather than a check of this one and is expected to over-detect, since a genuinely rare
+surname is absent from the roll's vocabulary too. The published pair comes from the originating
+script's own parser and should be re-derived from it before release; nothing else in the paper
+depends on either figure.
 
-**What follows for the paper.** On this evidence the **full-first-name tier should be the
-primary specification**: it carries 81–89% of every panel, has no detectable false match in
-120 blinded records, and — per the tier-sensitivity table above — moves every headline
-finding *away* from the null rather than toward it (65+ share rises in all six panels, the
+**What follows for the paper, and what was done.** On this evidence the full-first-name tier
+**was adopted as the primary specification**, and every panel in this paper was rebuilt on
+it: it carries 80.7–89.2% of every panel, had no detected false match in the 120 blinded records
+drawn from it, and — per the tier-sensitivity table above — moves every headline finding
+*away* from the null rather than toward it (65+ share rises in all six panels, the
 Democratic skew rises in all four party panels, concentration moves ≤1.3 points). The
-all-tier figures reported throughout this paper are therefore the **conservative** ones,
-and restricting to the clean tier would strengthen every claim while raising precision to
-≈100%. Two limitations on that recommendation are stated rather than buried: it discards
-11–19% of matched donors, and it does not fix the Idaho organisation contamination for the
-two middle-initial tiers, which needs a person/organisation filter on the Sunshine loader
-independently.
+superseded all-tier figures were therefore the ones closer to the null; they are retained as
+`*_alltier` snapshots and reported alongside throughout, and where this paper quotes one it
+says so. Two limitations are stated rather than buried, and the first is **not** a
+measurement-error argument: the restriction discards 11–19% of matched donors, and that
+discarded set is younger and less Democratic than the retained set, so **part of the movement
+away from the null is a change in the target population rather than removal of error**. The
+restriction also does not fix the Idaho organisation contamination for the two
+middle-initial tiers, which needed a person/organisation filter on the Sunshine loader
+independently (done 2026-07-27, from the source's own `Contributor Type` field).
 
 **What this design cannot detect.** The rating catches "the donor is a different person
 *with a different name*". It cannot catch a true namesake — a different person with the
@@ -1455,8 +2556,8 @@ adjudicated by the AI assistant under the blinding protocol above. It is seeded,
 and pre-specified, but it is a single-rater pass by the same system that produced the
 analysis, so an **independent human rater** re-rated a stratified subsample.
 
-*Protocol.* 150 of the 480 records, drawn to put **75 on the full-name key** " — the block
-the primary specification rests on " — and 25 on each initial-based key, with all 8
+*Protocol.* 150 of the 480 records, drawn to put **75 on the full-name key** — the block
+the primary specification rests on — and 25 on each initial-based key, with all 8
 partial-merge and all 5 NP/U judgment calls forced in and every state-and-panel represented.
 The human saw **fresh opaque ids**, not the published `S####` ids, so the AI's answer could
 not be looked up; no stratum label, no AI verdict; and evidence rows copied verbatim from
@@ -1465,7 +2566,7 @@ The scorer was committed before any rating. Verdicts published at
 [`reference/match_validation_human_verdicts_2026-07-27.csv`](reference/match_validation_human_verdicts_2026-07-27.csv).
 
 *Result on the primary specification: it holds.* **75 of 75 full-name-key records were rated
-Y by the human**, Wilson 95% [95.1" –100.0], in perfect agreement with the AI pass. Zero
+Y by the human**, Wilson 95% [95.1–100.0], in perfect agreement with the AI pass. Zero
 divergences in that block.
 
 *Agreement overall.*
@@ -1474,28 +2575,30 @@ divergences in that block.
 |---|--:|--:|--:|--:|
 | four categories | 150 | 88.0% | 0.656 | 0.760 |
 | collapsed binary (Y vs not) | 148 | 93.9% | **0.815** | 0.878 |
-| " — full-name key alone | 75 | **100.0%** | n/a (no variance) | 1.000 |
-| " — initial-based keys | 75 | 68" –80% | 0.457" –0.638 | 0.360" –0.600 |
+| — full-name key alone | 75 | **100.0%** | n/a (no variance) | 1.000 |
+| — initial-based keys | 75 | 68–80% | 0.457–0.638 | 0.360–0.600 |
 
-Kappa is undefined on the full-name block because both raters returned all-Y " — zero
+Kappa is undefined on the full-name block because both raters returned all-Y — zero
 variance, not zero agreement. That is exactly the prevalence artifact PABAK is reported for,
 and PABAK there is 1.000.
 
 *Every divergence runs in one direction.* All 18 disagreements are on initial-based keys,
-and in **every** one the human was the more permissive rater: 6 NC" → Y, 7 NC" → NP,
-3 NP" → Y, 2 U" → Y, and **zero** cases where the human called a record worse than the
+and in **every** one the human was the more permissive rater: 6 NC → Y, 7 NC → NP,
+3 NP → Y, 2 U → Y, and **zero** cases where the human called a record worse than the
 AI did. The AI never rated Y a record the human rejected. Two consequences follow. The
-full-name key's 100% is confirmed from both directions rather than merely reproduced. And on
+independent rater agreed with all 75 full-name-key classifications reviewed — which is
+useful inter-rater reliability evidence, not ground-truth confirmation, since both raters
+worked from the same evidence and a true namesake is invisible to either. And on
 the weak tiers the AI's figures are the **conservative** ones: reweighted on the same frozen
 shares, the human's donor-weighted precision is **95.7%** against the AI's 93.0%, and
-per-tier the human reads 64" –68% where the AI read 47.9" –71.7%. The qualitative
-finding " — initial-based keys are far less reliable than the full-name key " — is robust
+per-tier the human reads 64–68% where the AI read 47.9–71.7%. The qualitative
+finding — initial-based keys are far less reliable than the full-name key — is robust
 across raters; the exact weak-tier rates are not, and should be read as a range.
 
 *Two limitations, stated.* The human rated 150 of the 480, so 345 records carry a single
 rating; the 75 full-name rows are a subset of the AI's 120 rather than an addition, so the
 block stands at 120 rated with 75 independently confirmed and no disagreement. And the
-human ticked `partial_merge` on 1 record against the AI's 8 " — almost certainly under-use
+human ticked `partial_merge` on 1 record against the AI's 8 — almost certainly under-use
 of an unfamiliar column rather than substantive disagreement, but it means the
 partial-merge count rests on the AI pass alone.
 
@@ -1517,7 +2620,7 @@ run against the current roll, and two mechanisms push the observed age distribut
 *opposite* directions. A donor who moved between giving and the extract date fails the ZIP
 match, and mobility skews young — deflating the young donor share. But over a contribution
 window reaching back to 2017, older donors are also more likely to have died or been
-removed from the roll — deflating the old donor share. Earlier drafts called the raw age
+removed from the roll — deflating the old donor share. Calling the raw age
 skew an "upper bound" on this basis; that assigned a direction the evidence does not
 support. Without a historical-roll or address-history analysis the net sign is unknown, so
 the skew is described here as potentially biased by current-roll survivorship in an
@@ -1527,17 +2630,17 @@ addresses.
 
 ## Appendix G — Contribution limits and the top of the distribution
 
-Earlier drafts of Finding 2 explained Idaho's lower matched top-1% share by asserting that
-state contribution limits "compress the very top of the state-money distribution." This
-appendix tests the mechanical version of that claim (`diag_contribution_limits.py`) and
-reports what replaces it. The conclusion is narrower than earlier drafts stated, and the
-narrowing is set out at the end.
+A natural explanation for Idaho's lower matched top-1% share is that state contribution
+limits compress the very top of the state-money distribution. This appendix tests the
+mechanical version of that claim (`diag_contribution_limits.py`), finds it does not hold, and
+sets out at the end how narrow the surviving conclusion is.
 
 The test does not require new data. Idaho residents appear in **two money systems at
-once**, under two different rule sets, so the regime can be varied while holding the donor
-population approximately fixed. Washington supplies the same pair. (Approximately, not
-exactly: the two panels overlap by a Jaccard coefficient of only 0.14–0.16, per Appendix
-C — a limitation on this design that earlier drafts did not state.)
+once**, under two different rule sets, so the regime can be varied while the state context
+is held broadly fixed. **It does not hold the donor population fixed**, even approximately:
+the two panels overlap by a Jaccard coefficient of only 0.14–0.16 (Appendix C), so they are
+predominantly different people. What is common to the two layers is the state, not the
+donors.
 
 **G1 — the statutory regimes.** Individual contributions to a candidate, per election,
 2025–26 cycle:
@@ -1546,19 +2649,41 @@ C — a limitation on this design that earlier drafts did not state.)
 |---|---|---|---|
 | Idaho state (Sunshine) | **$1,000** | **$5,000** | none |
 | Washington state (PDC) | **$1,200** | **$2,400** (state exec.) | none |
-| New York state (BOE) | **$3,000** Assembly / **$5,000** Senate | **$9,000** | none |
+| New York state (BOE) | **$3,000** Assembly / **$5,000** Senate | **$9,000** | **$150,000/yr on the books** — N.Y. Elec. Law § 14-114(8), enforcement preliminarily enjoined as applied (below) |
 | Texas state (TEC) | **no dollar limit** | **no dollar limit** | none |
-| Federal (FEC) | **$3,500** | $3,500 | none since 2014 |
+| Federal (FEC) | **$3,500** (2025–26; $2,700–$3,300 in earlier cycles of this layer) | same | none since 2014 |
 
 Note the direction of the caps: Idaho's and Washington's legislative limits are *lower*
-than the federal per-election limit, but **no** system caps a donor's total, the federal
-aggregate ceiling having been struck in *McCutcheon v. FEC*, 572 U.S. 185 (2014). Idaho
-and Texas also permit direct corporate and PAC contributions to candidates, which federal
-law forbids, and Idaho caps nothing at all on ballot-measure committees. Statutes and
-authorities in Appendix D.
+than the federal per-election limit. The federal aggregate ceiling was struck in
+*McCutcheon v. FEC*, 572 U.S. 185 (2014). **New York's aggregate limit is the one row that
+needs care, and reads neither as a plain figure nor as "none".** N.Y. Elec. Law
+§ 14-114(8) still provides that "[n]o person may contribute, loan or guarantee in excess of
+one hundred fifty thousand dollars within the state … in any one calendar year," but the
+Second Circuit reversed the denial of a preliminary injunction against it as applied to
+contributions to an independent-expenditure-only committee in *New York Progress and
+Protection PAC v. Walsh*, 733 F.3d 483 (2d Cir. 2013). So the ceiling is statutory and
+partly unenforced; the paper treats New York as having no *operative* ceiling on a donor's
+total for the purposes of this appendix, and says so rather than describing the statute as
+absent.
 
-**G2 — the cap binds.** Bunching on the round statutory value is unmistakable in Idaho's
-state filings:
+**Corporate treatment.** The three systems differ, and New York is the one most often
+described wrongly. Federal law generally prohibits corporate treasury contributions to federal
+candidates (52 U.S.C. § 30118). **New
+York instead imposes a limit**: § 14-116(2) permits a corporation, or an organization
+financially supported by one, to make political expenditures including contributions "in an
+amount not to exceed five thousand dollars" in the aggregate in a calendar year — a ceiling,
+not a ban. **Limited liability companies are named in § 14-116(1) alongside corporations**
+and are treated within that section rather than under a separate categorical rule; the
+statutory treatment of LLCs is stated here separately from the corporate rule because the two
+have been amended on different tracks. Texas generally prohibits corporate candidate
+contributions, as a third-degree felony under Tex. Elec. Code § 253.094. **Idaho permits
+corporate candidate contributions subject to its candidate limits**, and caps nothing at all
+on ballot-measure committees. (Federal law does **not** forbid *PAC* contributions to
+candidates — multicandidate committees may give, subject to their own per-election limit. The
+corporate rule is the real distinction.) Statutes and authorities in Appendix D.
+
+**G2 — bunching at statutory values.** Bunching on the round statutory value is unmistakable
+in Idaho's state filings:
 
 | gift amount | itemized gifts |
 |---|--:|
@@ -1571,9 +2696,14 @@ state filings:
 | **$5,000** (statewide cap) | **734** |
 | $5,001 | 0 |
 
-A 15× spike on the cap value and a cliff immediately above it is what a binding constraint
-looks like. So the premise of the original explanation holds: the cap is real and donors
-hit it.
+A 15× spike on the round value and a cliff immediately above it is what a binding constraint
+looks like, and the premise of the original explanation holds to that extent: **some** cap is
+real and donors hit it. **What the table does not establish is which cap.** Idaho's $1,000
+figure is the limit for legislative, judicial and local candidates; a $1,000 gift to a PAC or
+a state party committee is not governed by it, and the Sunshine rows carried here do not
+identify the recipient's type or the election designation. So the spike is evidence of
+bunching on a round statutory value, not proof that every one of those 6,797 gifts sat against
+a binding *legislative* cap, and the row is not labelled that way.
 
 **G3 — and yet capped layers are not less concentrated.** Applying Finding 2's estimator to
 each layer separately (donor = name + ZIP5):
@@ -1587,9 +2717,15 @@ each layer separately (donor = name + ZIP5):
 | WA state (capped), all filers | 2,816,398 | $348.3M | 728,255 | **44.4%** | 75.5% | 0.823 |
 | WA federal, persons only | 5,578,905 | $645.6M | 361,184 | **39.3%** | 72.3% | 0.800 |
 
-Two readings, both against the original explanation. First, in **both** states the capped
-*state* layer is **more** top-heavy than the *federal* layer — Idaho 39.7% vs 36.1% among
-persons, and 56.4% vs 36.1% with committees included; Washington 44.4% vs 39.3%. Second,
+Two readings, both against the original explanation. First, the capped *state* layer is
+**more** top-heavy than the *federal* layer — but the two states' comparisons are not
+equivalent units and are no longer presented as equal evidence. **Idaho supports a
+persons-only comparison: 39.7% state against 36.1% federal**, like for like. **Washington does
+not**: its PDC file names people as "LAST FIRST", so no reliable persons-only cut exists, and
+its 44.4% is an **all-filer** figure including organizations set against a persons-only federal
+39.3%. So: *Idaho's persons-only comparison and Washington's all-filer comparison both point
+the same way, although the Washington units are not equivalent.* Idaho's all-filer figure
+(56.4% against 36.1%) points the same way again, on the same non-equivalence caveat. Second,
 the persons-only Idaho state figure (39.7%, Gini 0.800) sits close to Finding 2's matched
 **40.0% / 0.799**, a reasonable check that these layer definitions match the paper's. The
 two are no longer expected to coincide exactly: this appendix's layer cut spans every
@@ -1597,26 +2733,53 @@ itemized filer, while the matched panel is now restricted to the full-first-name
 Restricting the Idaho federal layer to Sunshine's 2023–2025 window leaves the direction
 intact (matched federal aligned top-1% **34.7%** against state **40.0%**).
 
-**G4 — what a per-gift cap would do, mechanically.** Trimming every gift in Washington's
-federal layer to Idaho's caps isolates pure truncation, holding the donor population and
-every other behavior fixed:
+**G4 — a stylized clipping exercise, and why it carries no statutory label.** This section
+trims dollar amounts in Washington's federal layer at a series of thresholds. **It is a
+winsorization exercise on an unchanged transaction file, not a simulation of any contribution
+limit**, and its rows therefore carry no statutory label. The reason is structural: a statutory limit caps a donor's **aggregate** giving to one recipient committee
+**per election**, not each transaction independently, and the FEC individual file pools
+recipients — candidate committees, PACs, state party committees and national party committees
+— that are governed by **different** limits. Two fields needed to respect any of that are
+absent from the loaded data: the recipient's **type**, and the primary/general **election
+designation**. So no row below is "the law as it stood", and the cycle-varying row in
+particular is not historically exact.
 
-| per-gift cap | top 1% | top 10% | $ retained |
-|---|--:|--:|--:|
-| uncapped (actual) | 39.3% | 72.3% | $646M |
-| $5,000 (ID statewide cap) | 32.2% | 68.7% | $571M |
-| $3,500 (federal limit) | 31.2% | 67.7% | $554M |
-| $1,000 (ID legislative cap) | **26.4%** | 62.9% | $454M |
+| threshold | per-transaction top 1% | per-aggregate top 1% | top 10% (per-tx) | $ retained (per-tx) |
+|---|--:|--:|--:|--:|
+| unclipped (actual) | 39.3% | 39.3% | 72.3% | $646M |
+| $5,000 | 32.2% | **30.1%** | 68.7% | $571M |
+| $3,500 (flat) | 31.2% | **28.4%** | 67.7% | $554M |
+| cycle-varying federal amount | 30.9% | — | 67.4% | $548M |
+| $1,000 | 26.4% | **22.0%** | 62.9% | $454M |
 
-So mechanical truncation is *not* a small effect: an Idaho-style legislative cap applied
-to an unchanged transaction file would cut the top-1% share by 12.9 points. That sharpens
-the puzzle rather than resolving it. Idaho's actually-capped state layer sits at 39.7%,
-**13.3 points above** what pure truncation predicts.
+*`diag_contribution_limits.py` G4/G4b/G4c. **Per-aggregate** clips donor × recipient-committee
+× cycle totals before summing, which is materially closer to how a limit attaches; it is the
+column that matters for reading the exercise at all. Clipping the aggregate bites **2.1 to 4.3 points
+harder** than clipping transactions, because a donor who splits a large sum into several gifts
+to the same committee is untouched by per-transaction clipping. Even the aggregate column is
+stylized: it clips per **cycle**, whereas a candidate committee's primary and general count
+separately (so it overstates the bite there), and it applies one number to every recipient type
+(so it misstates the bite for PACs and party committees). The cycle-varying row uses the federal
+individual per-election amount in force in each cycle — $2,700 in 2017–18, $2,800 in 2019–20,
+$2,900 in 2021–22, $3,300 in 2023–24, $3,500 in 2025–26, from the FEC's archived charts — which
+corrects a flat-$3,500 anachronism but does **not** make the row a legal counterfactual, for the
+aggregation and recipient-type reasons above.*
 
-**What replaces the original explanation.** The cap binds at the moment of the gift, and
-its compression is then undone downstream. Nothing limits a donor's *total*, so the same
-people reach the cap again and again across many recipients; and the tail displaces into
-vehicles the state does not cap — 41.9% of Idaho's state dollars sit in gifts above $5,000,
+Read only as arithmetic, clipping is not a small operation: at a $1,000 threshold the top-1%
+share falls from 39.3% to 22.0–26.4% depending on the level at which the clip is applied.
+**What that number cannot be used for.** Comparing Idaho's observed 39.7% against Washington's
+clipped federal figure, and reporting the difference as points "above what pure truncation
+predicts", would treat the clipped figure as a legally matched counterfactual for Idaho's
+regime. It is not: the threshold is not Idaho's law applied to Idaho's recipients, the two
+layers are different people in different years under different disclosure floors, and the clip
+level itself moves the answer by four points. No difference between an observed layer and a
+clipped layer is quoted in this paper.
+
+**What replaces the original explanation.** The account below is offered as a reading
+consistent with the evidence, not as something G4 demonstrates. A cap binds at the moment of
+the gift, and its compression can be undone downstream. Nothing in Idaho limits a donor's
+*total*, so the same people can reach the cap again and again across many recipients; and the
+tail can displace into vehicles the state does not cap — 41.9% of Idaho's state dollars sit in gifts above $5,000,
 the largest single Sunshine contribution is $1,245,000, and with committees included the
 state layer reaches 56.4%. This is the displacement the limits literature describes (Barber
 2016; La Raja & Schaffner 2015), and it matches the rest of the series: Idaho's state
@@ -1631,13 +2794,13 @@ too** (36.0% statewide, against WA 39.3% and NY 47.5%), under identical federal 
 retail donor base than of its state caps.
 
 **What this design supports, stated narrowly.** The defensible conclusion is that **simple
-mechanical per-gift truncation does not reproduce the observed ordering of the state and
-federal concentration estimates.** G4 varies a per-gift ceiling on an unchanged
-transaction file; it therefore identifies the mechanical channel only. Real contribution
-limits also change how many recipients a donor gives to, when, through which vehicle, and
-in what amounts, and none of that is held fixed in the world G4 simulates. The stronger
-claim in earlier drafts — that "contribution caps do not explain the cross-state
-differences" — is more than the design supports and is withdrawn.
+mechanical clipping of dollar amounts does not reproduce the observed ordering of the state and
+federal concentration estimates.** G4 varies a ceiling on an unchanged transaction file; it
+therefore speaks to arithmetic, not to law or to behavior. Real contribution limits also change
+how many recipients a donor gives to, when, through which vehicle, and in what amounts, and
+none of that is held fixed in the world G4 describes. Two stronger claims are **not** made:
+that contribution caps do not explain the cross-state differences, and that G4 quantifies what
+a cap would do. Neither follows from this design.
 
 **Caveats.** The Sunshine layer covers 2023–2025 while the federal layers cover 2017–2026,
 so the unwindowed rows above are not period-aligned; the aligned matched-panel comparison
@@ -1654,91 +2817,183 @@ smaller gifts than the federal ones, which pushes their measured concentration d
 than up and therefore cuts against G3's finding rather than producing it. No causal claim
 is made about what caps do to a donor pool.
 
-## End note — data, reproduction, and series
+## Data, code, and reproduction
 
-Reproduction, in dependency order. Each match script builds ONE panel per run, selected
-with `--source`; the two panels are written to `voter_donor_affiliation_fec` and
-`voter_donor_affiliation_state` and are never pooled (Appendix C).
+`scripts/verify_donor_class.py` re-derives the designated results in this paper from the built
+panel tables, reaching the databases with from-scratch SQL and importing no analysis code, and
+runs a numeric coverage audit over the sections it designates. A small number of expressly
+identified tables — Appendix G's layer and clipping cuts — depend on a person/organisation name
+heuristic and a residence filter that belong to their originating script; reimplementing those
+inside the verifier would copy the instrument rather than check it, so they are reproduced by
+that script and marked as such in the supplement.
 
-```
-# Washington — both panels:
-python scripts/match_wa_voters_to_donors.py --source fec
-python scripts/match_wa_voters_to_donors.py --source state
-python scripts/diag_wa_individual_findings.py
+The panels are rebuildable from the raw voter files and contribution files by an **authorised
+user who independently obtains the restricted inputs** and follows the full dependency-ordered
+recipe; `scripts/donor_matcher.py` is a standalone extract of the record-linkage stage of that
+recipe, not a one-command reconstruction. Rebuilding the Idaho federal panel through it
+reproduces the published panel exactly — 0 differing rows across all 9 columns of all 23,303
+rows. Independent *public* replication is not possible: the voter files cannot be
+redistributed.
 
-# New York — both panels:
-python scripts/load_ny_voters.py                  # NYSVOTER FOIL -> ny_vrdb.duckdb
-python scripts/diag_ny_turnout_party.py --rebuild # voter_participation table
-python scripts/backfill_ny_committee_party.py     # bulk FEC committee/candidate party -> 87.8%
-python scripts/load_ny_contributions.py           # NYSBOE per-contribution rows (state layer)
-python scripts/backfill_ny_recipient_party.py     # state recipient party -> 37.7%
-STATE=NY python scripts/match_ny_voters_to_donors.py --source fec
-STATE=NY python scripts/match_ny_voters_to_donors.py --source state
-STATE=NY python scripts/diag_ny_match_bias.py           # age-skew validation
-STATE=NY python scripts/diag_ny_primary_participation.py
-STATE=NY python scripts/diag_ny_donor_extras.py         # geography, giving<->turnout, in/out-of-state x party
+The companion [methods and provenance supplement](donor-class-methods-supplement.md) carries
+the per-figure script provenance, the full reproduction recipe in dependency order, the
+verification apparatus and its coverage limits, and a ledger of every claim withdrawn or
+narrowed during review. The source ledger for the underlying data is
+[`data-sources-and-reproducibility.md`](data-sources-and-reproducibility.md).
 
-# Idaho — both panels (party of record + current-roll age):
-python scripts/load_id_voters.py                       # ID SoS voter file -> id_vrdb.duckdb
-STATE=ID python scripts/backfill_id_recipient_party.py # state recipient party from SoS roster + patterns
-STATE=ID python scripts/match_id_voters_to_donors.py --source fec
-STATE=ID python scripts/match_id_voters_to_donors.py --source state
-python scripts/diag_id_electorate_extras.py            # donor-mix x LD competitiveness
+## References
 
-# Cross-state dollar concentration, and the appendices:
-python scripts/cross_state_fec_money.py                # Appendix E statewide table
-python scripts/diag_donor_concentration_bootstrap.py   # Appendix E intervals (both WA panels)
-python scripts/diag_donor_match_ceiling.py             # Appendix F ceilings
-python scripts/diag_contribution_limits.py             # Appendix G
+### Scholarly works
 
-# Review-response recomputations: denominators, crossover labels + MIXED + dollar flow,
-# match-tier and household sensitivities, panel overlap, Idaho composition shares.
-python scripts/diag_donor_class_revisions.py
-python scripts/diag_donor_class_revisions.py --build-aligned   # period-aligned ID panels
+Ansolabehere, Stephen, and Eitan Hersh. 2012. "Validation: What Big Data Reveal About Survey
+Misreporting and the Real Electorate." *Political Analysis* 20 (4): 437–459.
+doi:10.1093/pan/mps023.
 
-# Match-precision validation (Appendix F). The sampler writes a BLINDED evidence file
-# (no state / panel / tier / decile) plus a separate stratum key; the scorer joins them
-# only after verdicts are recorded. Both files are PII-bearing and gitignored; the
-# verdicts alone are published at docs/reference/match_validation_verdicts_2026-07-27.csv.
-python scripts/diag_match_validation_stratified.py     # 480 records, 20 per stratum
-python scripts/score_match_validation.py               # per-tier precision + reweighting
+Ansolabehere, Stephen, and Eitan Hersh. 2017. "ADGN: An Algorithm for Record Linkage Using
+Address, Date of Birth, Gender, and Name." *Statistics and Public Policy* 4 (1): 1–10.
+doi:10.1080/2330443X.2017.1389620.
 
-# Independent re-derivation of Findings 1-4 across both panels of all three states
-# (from-scratch SQL, imports no analysis code):
-python scripts/verify_donor_class.py
-```
+Bailey, Martha J., Connor Cole, Morgan Henderson, and Catherine Massey. 2020. "How Well Do
+Automated Linking Methods Perform? Lessons from US Historical Data." *Journal of Economic
+Literature* 58 (4): 997–1044. doi:10.1257/jel.20191526.
 
-The verifier reaches the databases directly and imports no analysis code, so it re-derives
-the aggregates independently of the build path. Rebuilding the panel tables from raw voter
-files is covered separately, by the extracted matcher the release ships as
-`scripts/donor_matcher.py`:
+Barber, Michael J. 2016. "Ideological Donors, Contribution Limits, and the Polarization of
+American Legislatures." *Journal of Politics* 78 (1): 296–310. doi:10.1086/683453.
 
-```bash
-# Rebuild a panel from the raw inputs (needs the voter file ATTACHable as vrdb).
-# --tiers full is the default and is the primary specification; --tiers all reproduces
-# the superseded all-tier specification.
-python scripts/match_id_voters_to_donors.py --source fec --tiers full
-```
+Bonica, Adam. 2014. "Mapping the Ideological Marketplace." *American Journal of Political
+Science* 58 (2): 367–386. doi:10.1111/ajps.12062.
 
-Two cautions for a replicator. `--tiers` restricts which tier joins fire, so a
-contribution reachable only by a weaker key is dropped; filtering an all-tier panel on
-`match_quality` instead keeps a full-name donor's entire dollar total. The two give
-identical donor counts but dollar totals differing by 3.8–9.4% (Appendix F6), so a figure
-must not be moved between them. And the ranks are absolute: renumbering them for a
-restricted call would label a `RELAXED_ZIP3_MID` panel `STRICT_ZIP5_FULL`.
+Bonica, Adam, Nolan McCarty, Keith T. Poole, and Howard Rosenthal. 2013. "Why Hasn't Democracy
+Slowed Rising Inequality?" *Journal of Economic Perspectives* 27 (3): 103–124.
+doi:10.1257/jep.27.3.103.
 
-All inputs are public records (FEC bulk files; Idaho Sunshine, Washington PDC and NYSBOE
-filings; state voter files obtained under each state's lawful-use terms — NY NYSVOTER
-FOIL, WA VRDB, ID SoS statewide list under Idaho Code § 34-437A(3)). See
-[`data-sources-and-reproducibility.md`](data-sources-and-reproducibility.md) for the full
-source ledger and the matcher/competitiveness method notes, and
-[`publication-checklist.md`](publication-checklist.md) for the verification ledger of
-expected values and the outstanding pre-submission items (tagged release + archival DOI;
-stratified match-precision re-rating).
+Enamorado, Ted, Benjamin Fifield, and Kosuke Imai. 2019. "Using a Probabilistic Model to Assist
+Merging of Large-Scale Administrative Records." *American Political Science Review* 113 (2):
+353–371. doi:10.1017/S0003055418000783.
 
-This is Paper #3 of the electoral-health series:
-[`who-decides-washington.md`](who-decides-washington.md) (the gray off-year electorate),
-[`who-decides-new-york.md`](who-decides-new-york.md) and
-[`who-decides-idaho.md`](who-decides-idaho.md) (party-resolved electorates),
-[`safe-seat-washington.md`](safe-seat-washington.md) (observed competitiveness), and
-[`cross-state-fec-money.md`](cross-state-fec-money.md) (the four-state money layer).
+Fellegi, Ivan P., and Alan B. Sunter. 1969. "A Theory for Record Linkage." *Journal of the
+American Statistical Association* 64 (328): 1183–1210. doi:10.1080/01621459.1969.10501049.
+
+Gilens, Martin. 2012. *Affluence and Influence: Economic Inequality and Political Power in
+America*. Princeton, NJ: Princeton University Press.
+
+Gilens, Martin, and Benjamin I. Page. 2014. "Testing Theories of American Politics: Elites,
+Interest Groups, and Average Citizens." *Perspectives on Politics* 12 (3): 564–581.
+doi:10.1017/S1537592714001595.
+
+Grumbach, Jacob M., and Alexander Sahn. 2020. "Race and Representation in Campaign Finance."
+*American Political Science Review* 114 (1): 206–221. doi:10.1017/S0003055419000637.
+
+Grumbach, Jacob M., Alexander Sahn, and Sarah Staszak. 2021. "Correction to: Gender, Race, and
+Intersectionality in Campaign Finance." *Political Behavior* 43: 905.
+doi:10.1007/s11109-021-09693-y.
+
+Grumbach, Jacob M., Alexander Sahn, and Sarah Staszak. 2022. "Gender, Race, and
+Intersectionality in Campaign Finance." *Political Behavior* 44: 319–340.
+doi:10.1007/s11109-020-09619-0.
+
+Hersh, Eitan D. 2015. *Hacking the Electorate: How Campaigns Perceive Voters*. New York:
+Cambridge University Press.
+
+Herzog, Thomas N., Fritz J. Scheuren, and William E. Winkler. 2007. *Data Quality and Record
+Linkage Techniques*. New York: Springer. ISBN 978-0-387-69502-0.
+
+Hill, Seth J., and Gregory A. Huber. 2017. "Representativeness and Motivations of the
+Contemporary Donorate: Results from Merged Survey and Administrative Records." *Political
+Behavior* 39 (1): 3–29. doi:10.1007/s11109-016-9343-y.
+
+Lahiri, Partha, and Michael D. Larsen. 2005. "Regression Analysis with Linked Data." *Journal
+of the American Statistical Association* 100 (469): 222–230. doi:10.1198/016214504000001277.
+
+La Raja, Raymond J., and Brian F. Schaffner. 2015. *Campaign Finance and Political
+Polarization: When Purists Prevail*. Ann Arbor: University of Michigan Press.
+
+Schlozman, Kay Lehman, Sidney Verba, and Henry E. Brady. 2012. *The Unheavenly Chorus: Unequal
+Political Voice and the Broken Promise of American Democracy*. Princeton, NJ: Princeton
+University Press.
+
+Verba, Sidney, Kay Lehman Schlozman, and Henry E. Brady. 1995. *Voice and Equality: Civic
+Voluntarism in American Politics*. Cambridge, MA: Harvard University Press.
+
+### Cases
+
+*Buckley v. Valeo*, 424 U.S. 1 (1976).
+
+*Hispanic Leadership Fund, Inc. v. Walsh*, 42 F. Supp. 3d 365 (N.D.N.Y. 2014).
+
+*McCutcheon v. Federal Election Commission*, 572 U.S. 185 (2014).
+
+*New York Progress and Protection PAC v. Walsh*, 17 F. Supp. 3d 319 (S.D.N.Y. 2014).
+
+*New York Progress and Protection PAC v. Walsh*, 733 F.3d 483 (2d Cir. 2013).
+
+### Statutes and regulations
+
+52 U.S.C. § 30116 (federal contribution limits, indexed biennially).
+
+52 U.S.C. § 30118 (prohibition on corporate and labor-organization contributions).
+
+Idaho Code § 34-437A (statewide voter-list release and permitted use).
+
+Idaho Code § 67-6610A (individual contribution limits).
+
+Idaho Code § 74-120 (restriction on agency lists used as mailing or telephone lists).
+
+N.Y. Elec. Law § 14-114 (contribution and receipt limitations; § 14-114(8), annual aggregate
+limit).
+
+N.Y. Elec. Law § 14-116 (political contributions by certain organizations; § 14-116(1), LLCs;
+§ 14-116(2), $5,000 annual corporate ceiling).
+
+Tex. Elec. Code § 253.094 (corporate and labor-organization contributions prohibited).
+
+Tex. Elec. Code §§ 253.151–253.176 (Judicial Campaign Fairness Act).
+
+Wash. Rev. Code § 29A.08.710 (voter-registration records; year of birth).
+
+Wash. Rev. Code § 29A.08.720 (permitted and prohibited use of voter lists).
+
+Wash. Rev. Code § 29B.25.090 (contribution itemization threshold; § 29B.25.090(5)).
+
+Wash. Rev. Code § 42.17A.405, recodified as § 29B.40.020 effective Jan. 1, 2026 (contribution
+limits).
+
+Wash. Admin. Code § 390-05-400 (adjusted dollar amounts). Amendments: WSR 23-07-004 (eff.
+Apr. 1, 2023, setting the $100 itemization threshold); WSR 24-01-028 (filed Dec. 8, 2023);
+WSR 26-01-209 (eff. Jan. 1, 2026).
+
+### Agency datasets and administrative sources
+
+Federal Election Commission. *Bulk Data: Contributions by Individuals (`indiv{yy}`), Committee
+Master (`cm`), Candidate Master (`cn`)*, cycles 2018–2026.
+<https://www.fec.gov/data/browse-data/?tab=bulk-data>.
+
+Federal Election Commission. *Contribution Limits*, archived charts for cycles 2017–18 through
+2025–26. <https://www.fec.gov/help-candidates-and-committees/candidate-taking-receipts/contribution-limits/>.
+
+Idaho Secretary of State. *Sunshine Portal campaign-finance contribution filings*, 2023–2025.
+
+Idaho Secretary of State. *Statewide voter registration list*, released under Idaho Code
+§ 34-437A(3).
+
+New York State Board of Elections. *Campaign Financial Disclosure — Schedule A monetary
+contributions received*, data.ny.gov dataset `4j2b-6a2j`, election cycles 2018–2026.
+
+New York State Board of Elections. *NYSVOTER statewide voter registration file*, obtained by
+FOIL request.
+
+New York State Board of Elections. *Contribution Limits* schedule.
+<https://elections.ny.gov/contribution-limits>.
+
+Washington Public Disclosure Commission. *Contributions to candidates and political
+committees*, 2016–2026.
+
+Washington Secretary of State. *Voter Registration Database (VRDB) statewide extract*.
+
+### Software and code
+
+DuckDB (in-process analytical database). <https://duckdb.org>.
+
+Kirby, Stephen. 2026. *who-decides: analysis code and reproduction recipe for the
+electoral-health series*. <https://github.com/skirby359/who-decides>. *A tagged release and
+archival DOI must replace this branch reference before submission.*

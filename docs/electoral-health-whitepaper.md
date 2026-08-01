@@ -392,7 +392,7 @@ closed:**
 
 With both data gaps closed, the remaining work is human-owned: independent verification
 of the headline numbers and posting to SSRN/SocArXiv
-([`publication-checklist.md`](publication-checklist.md)).
+([`electoral-health-audit-log.md`](electoral-health-audit-log.md)).
 
 ---
 

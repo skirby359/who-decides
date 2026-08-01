@@ -15,7 +15,7 @@ chamber size. The paper source, code, and data-acquisition recipe are public at
 [electoral-health white paper](electoral-health-whitepaper.md) (Finding 2). Where the
 lead paper showed *who* turns out, this one asks what their ballot actually offered.*
 **DRAFT — pending the independent-verification gate in
-[`publication-checklist.md`](publication-checklist.md).**
+[`electoral-health-audit-log.md`](electoral-health-audit-log.md).**
 
 > **Revision note (2026-07-27).** This paper was substantially rebuilt after an
 > adversarial review. Three defects were confirmed and corrected: the seat universe was
@@ -26,6 +26,17 @@ lead paper showed *who* turns out, this one asks what their ballot actually offe
 > — were collapsed into one number. Headline figures have changed and Appendix G records
 > the before/after. The claim that seats were "decided before November" has been
 > withdrawn as unsupported by this design.
+
+> **Revision note (2026-07-28).** A second internal pass, this one auditing the paper
+> against its own scripts rather than its argument, corrected five figures and closed one
+> reproducibility gap. The 2020 partisan-availability share moves 27.6% → **26.9%** (a
+> misspelled party string in the certified file had made a real Democrat-versus-Republican
+> race read as no-choice); the 2020 primary/general median moves 61.6% → **61.5%**; New
+> York's ≥12-point cell moves 85.2% → **85.9%**; and Appendix E's exploratory seat/vote gaps
+> move to **WA +2.1 / TX +3.3**, the Texas figure having been computed on the same imputed
+> party split Appendix F retires. The five-cycle primary/general table now has a derivation
+> in `diag_seat_competition.py` instead of resting on an unrecorded computation. No headline
+> figure changed. Appendix G records the detail.
 
 ## Abstract
 
@@ -138,7 +149,7 @@ candidate, or a margin of ten points or more.
 |---|--:|--:|--:|--:|--:|--:|--:|--:|
 | 2016 | 134 | 69 | 4 | 5 | 15 | 14 | 27 | **48.5%** |
 | 2018 | 133 | 97 | 6 | 0 | 14 | 1 | 15 | **27.1%** |
-| 2020 | 134 | 97 | 8 | 1 | 9 | 5 | 14 | **27.6%** |
+| 2020 | 134 | 98 | 8 | 1 | 9 | 4 | 14 | **26.9%** |
 | 2022 | 133 | 86 | 10 | 6 | 2 | 5 | 24 | **35.3%** |
 | 2024 | 133 | 86 | 8 | 7 | 6 | 3 | 23 | **35.3%** |
 
@@ -150,8 +161,10 @@ candidate, or a margin of ten points or more.
 - **The single-candidate count is the hardest number in the paper.** Twenty-three seats in
   2024 presented voters with exactly one name. That is not a judgment about competitiveness;
   it is a headcount.
-- 2016 is the outlier at 48.5%, and partly for a definitional reason — six different
-  Independent-flavoured party-preference strings appeared that year. See the sensitivity
+- 2016 is the outlier at 48.5%, and partly for a definitional reason — seven distinct
+  non-major party strings appeared on that year's ballot, six of them Independent-flavoured
+  ("Indep't Democrat", "Independent Dem", "Independent Dem.", "Independent GOP",
+  "Independent", "Independent Rep") plus one "GOP/Independent" hybrid. See the sensitivity
   test below.
 
 ### The two dimensions are not the same question
@@ -177,18 +190,31 @@ without a partisan choice, and the two-dimension design is what makes it visible
 
 Washington's top-two system has no nominees, only stated preferences. The published figures
 count only "Prefers Democratic/Democrat Party" and "Prefers Republican/GOP Party" as major;
-"Independent Dem.", "Ind. Republican", "Culture Republican" and "MAGA Republican" are
-counted as other. Folding those into the major parties moves the no-D-v-R share by:
+"Independent Dem.", "Ind. Republican", "GOP/Independent", "Culture Republican" and "MAGA
+Republican" are counted as other. Folding those into the major parties moves the no-D-v-R
+share by:
 
 | year | strict (published) | loose | delta |
 |---|--:|--:|--:|
 | 2016 | 48.5% | 45.5% | 3.0 |
 | 2018 | 27.1% | 25.6% | 1.5 |
-| 2020 | 27.6% | 25.4% | 2.2 |
+| 2020 | 26.9% | 25.4% | 1.5 |
 | 2022 | 35.3% | 35.3% | 0.0 |
 | 2024 | 35.3% | 34.6% | 0.8 |
 
-The rule matters in 2016 and is close to immaterial elsewhere.
+The rule matters in 2016 and is close to immaterial elsewhere. Deltas are computed on
+unrounded shares, so they need not equal the difference of the two printed columns (2024:
+35.338 − 34.586 = 0.752).
+
+One string is handled as a data error rather than a judgment. The 2020 certified file
+records the Democratic candidate in Legislative District 8, Position 1 as preferring the
+"Democractic" party — a misspelling, not a distinct preference. Read literally it made a
+genuine Democrat-versus-Republican general (Klippert 51,981, Regev 26,979) classify as
+Republican-versus-other and put the 2020 no-D-v-R share at 27.6% instead of 26.9%. It is
+corrected in **both** the strict and the loose specification, because the sensitivity test
+is only informative if it varies the interpretive rule while holding the transcription
+constant. Hybrids like 2016's "GOP/Independent" are real stated preferences and are left
+in the *other* bucket, where the loose column prices them.
 
 ---
 
@@ -202,7 +228,7 @@ rather than assumed.
 |---|---|--:|--:|
 | WA House 2024 | 98 / 98 | **87.8%** | 39.8% (39) |
 | NY Assembly 2022 | 149 / 150 | **88.6%** | 32.2% (48) |
-| TX House 2024 | 96 / 150 + 54 backfilled | **94.0%** | 40.7% (61) |
+| TX House 2024 | 96 canvass + 54 certified single-candidate | **94.0%** | 40.7% (61) |
 | ID House 2024 | 70 / 70 | **92.9%** | 28.6% (20) |
 
 - **Defensible claim.** Foreclosure is **not a Washington peculiarity** — in every state
@@ -219,6 +245,16 @@ rather than assumed.
   against the Secretary of State's certified results**, which independently show exactly
   those 54 districts as single-candidate, and supply the observed winning party for each
   (Appendix F). Its not-close seats split **56 D / 85 R**.
+- **The comparison states are scored by a shortcut, and it was checked rather than
+  assumed.** Washington's "not close" comes from the top-two margin, so a *contested*
+  same-party general under ten points counts as close — the WA-04 case above. The
+  comparison-state code takes any seat with no D-vs-R option as not close whatever its
+  margin, which would inflate their figures if such a seat were ever competitive.
+  Re-scoring every no-major-choice seat in the three states on its top-two margin finds
+  **none under ten points** — 0 of 48 in New York, 0 of 61 in Texas, 0 of 20 in Idaho — so
+  the three percentages are identical under either rule and the comparison is like-for-like
+  in fact and not merely in intent. This is a measured result, not a property of the
+  definitions, and `diag_safe_seat_robustness.py` re-measures it on every run.
 - Most recent loaded general: WA/TX/ID 2024, NY 2022.
 
 ---
@@ -238,7 +274,7 @@ general:
 
 | 2016 | 2018 | 2020 | 2022 | 2024 |
 |--:|--:|--:|--:|--:|
-| 42.1% | 55.9% | 61.6% | 61.2% | **51.2%** |
+| 42.1% | 55.9% | 61.5% | 61.2% | **51.2%** |
 
 Read this as a ratio of **votes cast in a contest**, not of distinct voters: roll-off and
 undervoting mean a race's vote total is not a headcount of participants. So in 2024 the
@@ -283,7 +319,9 @@ choice is a question these findings motivate, not one they answer.
 - **New York is a cycle behind** (2022) and missing Assembly District 23, which bounds its
   figure to 88.0–88.7%.
 - **Margins are between candidates, not parties**, in Dimension 1. Third-party votes count
-  toward the margin when a minor-party candidate is one of the top two.
+  toward the margin when a minor-party candidate is one of the top two, and are excluded
+  from the denominator otherwise — which can only arise in the comparison states, since a
+  Washington general carries exactly two candidates.
 - **Primary participation is measured in race votes, not voters** — see Appendix C.
 
 ---
@@ -301,7 +339,7 @@ agree or disagree with. The two-dimension design exists so that these cases are 
 separately instead of averaged together.
 
 **2. The ten-point threshold is a knob.** True, and Appendix E tests the whole plausible
-range: the not-close share moves between 79% and 98% across cuts from 15 points to 5, and
+range: the not-close share moves between 74% and 98% across cuts from 15 points to 5, and
 never approaches "competitive" at any setting. Dimension 2 is threshold-free entirely.
 
 **3. Same-party generals are a Washington artifact of top-two.** In states with party
@@ -312,8 +350,9 @@ version, and is now measured directly. One of Washington's fifteen same-party ge
 2024 was decided by six points.
 
 **4. The safe-seat split proves a gerrymander.** It does not, and the paper declines the
-claim. Washington's not-close seats split 68 D to 43 R against a 59.5% Democratic
-presidential vote — close to proportionate. Chen & Rodden (2013) is the standing
+claim. Washington's not-close seats split 68 D to 43 R — 61.3% Democratic — against a 59.5%
+Democratic share of the two-party presidential vote, a gap of 1.8 points, close to
+proportionate. Chen & Rodden (2013) is the standing
 demonstration that residential geography produces seat/vote bias with nobody drawing it,
 and single-member districts have no proportionality expectation to begin with. Appendix E
 reports the comparison descriptively and draws no inference about intent.
@@ -366,13 +405,21 @@ why, rather than quietly restating.
   `scripts/diag_seat_competition.py` exits non-zero on any mismatch. Write-ins are excluded;
   candidates with zero votes are excluded.
 - **Party.** Taken from the certified "Prefers ___ Party" string. Only
-  Democratic/Democrat and Republican/GOP count as major; Independent-, Culture- and
-  MAGA-prefixed strings are counted as other, with a sensitivity test reported in the body.
-  Because top-two has no nominees, this is a statement about stated preference, not
+  Democratic/Democrat and Republican/GOP count as major; Independent-, GOP/Independent-,
+  Culture- and MAGA-prefixed strings are counted as other, with a sensitivity test reported
+  in the body. Outright misspellings of a major party's own name are normalized first, in
+  both specifications — one such string exists, "Democractic" in 2020, and the body explains
+  it. Because top-two has no nominees, this is a statement about stated preference, not
   nomination.
+- **"Safe seat"** is used throughout as shorthand for *a seat that was not close in the
+  observed result*. It carries no forward-looking claim; nothing here projects a future
+  margin, which is the point of the design.
 - **Dimension 1, candidate competition.** Margin between the top two candidates by votes,
   regardless of party: |first − second| / (first + second). Bands: Tossup <5, Lean 5–10,
-  Likely 10–20, Solid 20+. "Not close" = single candidate or margin ≥10.
+  Likely 10–20, Solid 20+. "Not close" = single candidate or margin ≥10. In Washington the
+  general has exactly two candidates, so this is the whole field; in the comparison states,
+  where three or more can appear, votes for candidates below second place are outside the
+  denominator and margins are correspondingly slightly wider.
 - **Dimension 2, partisan availability.** Classified from the set of parties actually on
   the ballot: D-v-R, D-v-D, R-v-R, D-v-other, R-v-other, other-only, single candidate.
 - **Winner party** is the party of the leading candidate. An earlier version inferred it by
@@ -382,15 +429,25 @@ why, rather than quietly restating.
   same-district August primary, and the reported figure is the **median ratio of primary
   race votes to general race votes** — a comparison of votes cast in a contest, *not* of
   distinct voters. Roll-off and undervoting affect race totals, so the two are not
-  interchangeable. Recomputed on the corrected universe (all five cycles, every seat
-  matched): 42.1 / 55.9 / 61.6 / 61.2 / 51.2% for 2016–2024. The 2024 and 2022 figures
-  are within a point of the previously published ~51% and ~62%, so the correction to the
-  seat universe did not move this measure.
+  interchangeable. Recomputed on the corrected universe by
+  `scripts/diag_seat_competition.py`, which reports the matched-seat count alongside each
+  median and fails the run if any seat is unmatched (all five cycles match completely):
+  42.1 / 55.9 / 61.5 / 61.2 / 51.2% for 2016–2024. The 2024 and 2022 figures are within a
+  point of the previously published ~51% and ~62%, so the correction to the seat universe
+  did not move this measure.
 - **Reproduction.** `scripts/diag_seat_competition.py` builds the classification and writes
   `reports/seat_competition.csv` (one row per seat, both dimensions). Supporting scripts:
   `diag_safe_seat_states.py` (four-state), `diag_tx_safe_seat_backfill.py` (Appendix F),
   `diag_safe_seat_robustness.py` (Appendix E), `diag_safe_seat_party_ratio.py` and
   `diag_efficiency_gap.py` (Appendix E's exploratory cuts).
+- **Where the scripts disagree with each other, and why.** Two of the supporting scripts
+  predate the universe rebuild and still print their old Washington cell:
+  `diag_safe_seat_states.py` reads the precinct table under the retired conflated definition
+  and reports WA House at 88.8%. Every Washington figure in this paper comes from
+  `diag_seat_competition.py` on the certified universe (87.8%), which is authoritative; the
+  superseded cells are labelled as such in those scripts' own output rather than removed, so
+  the earlier published numbers remain reproducible for audit. `diag_safe_seat_party_ratio.py`
+  was corrected in place, since the paper quotes it directly.
 
 ## Appendix D — Related work
 
@@ -436,7 +493,7 @@ chambers come from `scripts/diag_safe_seat_robustness.py`.
 |---|--:|--:|--:|--:|--:|--:|
 | WA all seats | 92.5% | 88.0% | **83.5%** | 77.4% | 73.7% | 133 |
 | WA House | 95.9% | 91.8% | **87.8%** | 80.6% | 76.5% | 98 |
-| NY Assembly | 94.6% | 92.6% | 88.6% | 85.2% | 82.6% | 149 |
+| NY Assembly | 94.6% | 92.6% | 88.6% | 85.9% | 82.6% | 149 |
 | TX House | 98.0% | 96.0% | 94.0% | 91.3% | 86.0% | 150 |
 | ID House | 95.7% | 92.9% | 92.9% | 91.4% | 90.0% | 70 |
 
@@ -462,18 +519,30 @@ tested: its loaded presidential data predates the 2022 Assembly lines.)
 **Exploratory: seat/vote ratio and partisan symmetry.** *This section is descriptive and
 should be read as a prompt for further work rather than a finding.* Measured against each
 state's 2024 presidential two-party vote, not-close seats over-represent the locally
-dominant party, and the gap widens with the state's lopsidedness: Washington +2.6 points,
-Texas +6.9, Idaho +18.9. That pattern is **consistent with** packing, and equally
-consistent with residential geography, district-boundary effects, turnout differences, and
-the definition of "safe" used here; single-member districts carry no proportionality
-expectation, and this comparison examines only safe seats rather than the whole
-distribution. It cannot distinguish those mechanisms or establish a counterfactual seat
-distribution. Under the efficiency-gap specifications reported by
+dominant party, and the gap widens with the state's lopsidedness: Washington **+2.1**
+points, Texas **+3.3**, Idaho **+18.9**. Two basis notes, because the same comparison has
+been stated two ways. These are **lower-chamber** figures, so Washington is its House (53
+D / 33 R of 86 not-close seats = 61.6% D against a 59.5% Democratic presidential share); on
+the all-seats universe Appendix A quotes, the split is 68 D / 43 R = 61.3% D, a **+1.8**
+gap. Texas's holding party is the **observed** party from certified returns, not the
+retired presidential-lean imputation — that imputation gave 51 D / 90 R and a +6.9 gap, and
+was additionally circular, since it derived party *from* presidential lean and then
+compared it *against* presidential lean. That pattern is **consistent with** packing, and
+equally consistent with residential geography, district-boundary effects, turnout
+differences, and the definition of "safe" used here; single-member districts carry no
+proportionality expectation, and this comparison examines only safe seats rather than the
+whole distribution. It cannot distinguish those mechanisms or establish a counterfactual
+seat distribution. New York is omitted from the series: its only loaded presidential vote
+is 2020, against 2022 Assembly lines. Under the efficiency-gap specifications reported by
 `scripts/diag_efficiency_gap.py`, no state exceeds the ~8-point level Stephanopoulos &
-McGhee (2015) discuss; the script computes more than one formulation and the values differ,
-the metric is sensitive to turnout distribution, and none of this determines whether a map
-is an outlier against neutral ensembles or was drawn with intent. Establishing that
-requires map-simulation work this paper does not attempt.
+McGhee (2015) discuss (the largest is Texas at 6.5% on the wasted-vote form). Those values
+are computed from **district-level presidential two-party vote**, as a measure of asymmetry
+in the map, rather than from each chamber's own legislative returns as in the original
+specification; the script computes more than one formulation and the values differ (Texas
+is 6.5% wasted-vote against 0.1% simple), the metric is sensitive to turnout distribution,
+New York's row again crosses a redistricting, and none of this determines whether a map is
+an outlier against neutral ensembles or was drawn with intent. Establishing that requires
+map-simulation work this paper does not attempt.
 
 **Exploratory: comparison with the project's forecast.** This project's forecast bands 53
 of 59 Washington districts (90%) as ≥10-point safe for 2026, against 83.5% of seats
@@ -493,10 +562,12 @@ carried **96 of 150** TX House districts, and the missing 54 were missing *becau
 were uncontested — exactly the category this paper counts. Left alone, the omission biases
 Texas toward looking more competitive than it is.
 
-**The construction.** The 54 absent districts are backfilled as *no major-party choice*,
-with holding party assigned from each district's 2024 presidential lean using the on-disk
-TLC r206 report (`planh2316_r206_election24g.xls`). Script:
-`scripts/diag_tx_safe_seat_backfill.py`. The results database was not mutated.
+**The original construction, now retired.** The 54 absent districts were backfilled as *no
+major-party choice*, with holding party assigned from each district's 2024 presidential lean
+using the on-disk TLC r206 report (`planh2316_r206_election24g.xls`). Script:
+`scripts/diag_tx_safe_seat_backfill.py`. The results database was not mutated. The
+uncontested classification from that step survives verification below; the imputed party
+does not, and no figure in this paper now depends on it.
 
 **Verified against a certified source.** The backfill was checked seat by seat against the
 Texas Secretary of State's election-night results service, which publishes every race
@@ -580,14 +651,62 @@ November margins cannot establish; and the assertion that the safe-seat ratio is
 "packing signature," now reported as a descriptive comparison consistent with several
 mechanisms.
 
+### The second pass, 2026-07-28
+
+The rebuild above fixed the argument. A later pass audited every printed figure against the
+script that claims to produce it — a different exercise, and it found five numbers that no
+longer matched their own derivation, plus one table that had none.
+
+**1. A misspelled party string made a real two-party race read as no-choice.** The 2020
+certified file records Legislative District 8's Position 1 Democrat as preferring the
+"Democractic" party. The strict rule matches "Democratic" and "Democrat", so the string fell
+through to *other* and a Klippert-versus-Regev general — 51,981 to 26,979, a Republican
+against a Democrat — was classified Republican-versus-other. The 2020 no-D-v-R share moves
+**27.6% → 26.9%**, D-v-R from 97 to 98, R-v-other from 5 to 4, and the loose-rule delta from
+2.2 to 1.5. Dimension 1 is untouched: the seat was a 31.7-point blowout either way. The fix
+is applied in both specifications, because a transcription error is not the kind of thing a
+strict-versus-loose sensitivity test is meant to be sensitive to.
+
+**2. The primary/general table had no derivation.** The five-cycle series was reported as
+"recomputed on the corrected universe," but the recomputation lived in no script:
+`diag_seat_competition.py` had no primary logic at all, and the only script that computed the
+ratio was the superseded pre-rebuild one, which covered two cycles on the old universe. The
+computation is now part of `diag_seat_competition.py`, which also reports how many seats
+matched and fails the run if any did not. Four of the five cycles reproduce the published
+figures exactly; 2020 comes out **61.5%** rather than 61.6%.
+
+**3. Appendix E carried two stale exploratory gaps.** Washington's +2.6 came from the retired
+88.8% universe; on the certified one it is **+2.1** (House basis) or **+1.8** (all seats),
+and the paper now states which basis each figure uses, because Appendix A quotes the
+all-seats split against the same presidential share. Texas's +6.9 was computed on the 51 D /
+90 R imputation that Appendix F retires as wrong in 5 of 54 seats; on observed party it is
+**+3.3**. The ordering the section describes — the gap widening with a state's lopsidedness —
+survives both corrections.
+
+**4. New York's ≥12-point cell was mistranscribed**, 85.2% for 85.9% (127 seats for 128).
+
+**5. The comparison states are scored by a shortcut that had not been checked.** Their code
+treats any seat lacking a D-vs-R option as not close regardless of margin — the conflation
+defect #3 removes for Washington. Re-scoring all 129 such seats on their top-two margin finds
+**none under ten points**, so every comparison-state percentage is identical under either
+rule. The check now runs as part of `diag_safe_seat_robustness.py` rather than being assumed,
+and the four-state section states the result.
+
+Nothing in the abstract changed. The 2016–2024 not-close series, the 2024 headline of 111 of
+133 seats, the 47-seat no-choice count, the cross-tab, and Appendix F's Texas verification
+all reproduce unchanged.
+
 ## End note — data, reproduction, and series
 
 ```
-# The rebuilt classification — universe assertion + both dimensions + sensitivity:
+# The rebuilt classification — universe assertion, both dimensions, sensitivity,
+# and the primary/general medians. Every Washington figure in the paper comes from here.
 python scripts/diag_seat_competition.py        # writes reports/seat_competition.csv
 
 # Four-state lower-chamber count and the Texas completion:
-python scripts/diag_safe_seat_states.py
+python scripts/diag_safe_seat_states.py        # NB: its WA cell (88.8%) and TX safe split
+                                               # (51/90) are SUPERSEDED and labelled so in
+                                               # its output; see Appendix C
 python scripts/diag_tx_safe_seat_backfill.py       # Appendix F backfill
 python scripts/build_tx_house_candidates.py        # certified TX candidate list (all 150)
 python scripts/diag_tx_backfill_verification.py    # Appendix F seat-by-seat verification
@@ -601,7 +720,7 @@ python scripts/diag_efficiency_gap.py          # partisan-symmetry diagnostic
 
 All inputs are published election returns. See
 [`data-sources-and-reproducibility.md`](data-sources-and-reproducibility.md) for the source
-ledger and [`publication-checklist.md`](publication-checklist.md) for the verification
+ledger and [`electoral-health-audit-log.md`](electoral-health-audit-log.md) for the verification
 ledger of expected values.
 
 Companion to the electoral-health series lead,

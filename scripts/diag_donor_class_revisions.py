@@ -191,6 +191,54 @@ def report_crossover(con, state: str, party_case: str, order: list[str],
                   f"{f(d1):7.1f}%{f(r1):7.1f}%{f(mx):7.1f}%{'  |':>4}"
                   f"{dollar_d:8.1f}%")
 
+        # Extreme bound on the unresolved pool. The percentages above are of RESOLVED
+        # donors, so a reader cannot tell from them whether the unresolved pool is large
+        # enough to reverse the D-vs-R ordering. This assigns EVERY unresolved donor in
+        # the row to the side that would overturn it — the adversarial assignment, not a
+        # plausible one — and reports whether the ordering survives.
+        print(f"\n  {label} panel — worst-case bound: all unresolved donors assigned to")
+        print("    the side that would reverse the row's D-vs-R ordering. Shares are of")
+        print("    MATCHED donors, so they are comparable across rows.")
+        print(f"    {'own party':10}{'unres%':>8}{'D-only':>8}{'R-only':>8}"
+              f"{'adverse':>9}{'  survives?':>12}")
+        for b in order:
+            if b not in by:
+                continue
+            _, matched, resolved, d1, r1, mx, _damt, _ramt = by[b]
+            if not matched:
+                continue
+            unres = matched - resolved
+            d_m, r_m = 100.0 * d1 / matched, 100.0 * r1 / matched
+            u_m = 100.0 * unres / matched
+            if d1 >= r1:                    # D leads: push all unresolved to R
+                adverse, survives = r_m + u_m, d_m > r_m + u_m
+            else:                           # R leads: push all unresolved to D
+                adverse, survives = d_m + u_m, r_m > d_m + u_m
+            print(f"    {b:10}{u_m:7.1f}%{d_m:7.1f}%{r_m:7.1f}%"
+                  f"{adverse:8.1f}%{('   YES' if survives else '   NO'):>12}")
+
+
+# --------------------------------------------------------------------------
+# R10 — the exact denominator behind the concentration estimator
+# --------------------------------------------------------------------------
+def report_positive_denominator(con, state: str, panels: dict[str, str]) -> None:
+    """Matched donors vs donors with a POSITIVE net total.
+
+    Finding 2's NTILE(100) estimator runs over `total_donated > 0`, while the table's
+    displayed donor count is the whole matched panel. Refunds and reattributions can net
+    a donor to zero or below, so the two need not be equal and the paper should not imply
+    the displayed count is the estimator's denominator.
+    """
+    rule(f"R10  {state}: concentration denominator — matched vs positive-total donors")
+    print(f"    {'panel':10}{'matched':>11}{'positive':>11}{'zero/neg':>10}{'diff%':>8}")
+    for label, panel in panels.items():
+        n, pos = con.execute(
+            f"SELECT COUNT(*), COUNT(*) FILTER (WHERE total_donated > 0) FROM {panel}"
+        ).fetchone()
+        gap = n - pos
+        print(f"    {label:10}{n:>11,}{pos:>11,}{gap:>10,}"
+              f"{(100.0*gap/n if n else float('nan')):7.3f}%")
+
 
 # --------------------------------------------------------------------------
 # R7 — match-tier sensitivity
@@ -230,8 +278,9 @@ def report_tiers(con, state: str, panels: dict[str, str], age_expr: str | None,
 # R7 — household false-merge sensitivity
 # --------------------------------------------------------------------------
 def report_households(con, state: str, panels: dict[str, str],
-                      age_expr: str | None, has_street: bool) -> None:
-    rule(f"R7  {state}: household false-merge sensitivity (bounding exclusion)")
+                      age_expr: str | None, has_street: bool,
+                      spec: str = "all-tier") -> None:
+    rule(f"R7  {state}: household false-merge sensitivity ({spec} panels)")
     print("  A matched donor is flagged HOUSEHOLD-RISK when another ACTIVE registrant")
     print("  shares their surname and ZIP5 — the configuration in which a spouse's")
     print("  gift can be attributed to the wrong person. This deliberately")
@@ -449,11 +498,13 @@ def build_aligned_panels() -> int:
     difference in election portfolio (reviewer point 9). Sunshine is re-matched on
     the same window too, so both panels come from the identical code path.
     """
-    # The matcher ships beside this file as donor_matcher.py — a standalone extract of
-    # the private product's match_voters_to_donors, function body verbatim.
-    sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from donor_matcher import (
-        PRIMARY_TIERS, ensure_schema, match_voters_to_donors,
+    root = Path(__file__).resolve().parent.parent
+    # `config` sits at the repo root and `wa_analyzer` under src/; the analysis
+    # package's __init__ imports config, so both need to be importable.
+    sys.path.insert(0, str(root))
+    sys.path.insert(0, str(root / "src"))
+    from wa_analyzer.analysis.donor_analysis import (
+        PRIMARY_TIERS, match_voters_to_donors,
     )
 
     for state, db, vrdb, prefix, (dmin, dmax), out in ALIGNED:
@@ -461,7 +512,6 @@ def build_aligned_panels() -> int:
               f"tiers={list(PRIMARY_TIERS)}")
         con = duckdb.connect(str(DATA / f"{db}.duckdb"))
         con.execute(f"ATTACH '{DATA / f'{vrdb}.duckdb'}' AS vrdb (READ_ONLY)")
-        ensure_schema(con)
         # These are paper panels, so they take the primary specification like the rest.
         res = match_voters_to_donors(
             con, source_prefixes=[prefix], output_table=out,
@@ -526,9 +576,11 @@ def main() -> int:
     ny = duckdb.connect(str(DATA / "ny_statewide.duckdb"), read_only=True)
     ny.execute(f"ATTACH '{DATA / 'ny_vrdb.duckdb'}' AS vrdb (READ_ONLY)")
     report_denominators(ny, "NY", NY_PARTY_REG, NY_ORDER, PANELS)
+    report_positive_denominator(ny, "NY", PANELS)
     report_crossover(ny, "NY", NY_PARTY, NY_ORDER, PANELS)
     report_tiers(ny, "NY", PANELS_ALL, NY_AGE, NY_PARTY, NY_ORDER)
-    report_households(ny, "NY", PANELS_ALL, NY_AGE, has_street=True)
+    report_households(ny, "NY", PANELS, NY_AGE, has_street=True, spec="PRIMARY full-name")
+    report_households(ny, "NY", PANELS_ALL, NY_AGE, has_street=True, spec="all-tier")
     report_donorside_risk(ny, "NY", PANELS_ALL, {"federal": "FEC", "state": "NY"})
     report_overlap(ny, "NY", NY_AGE)
     ny.close()
@@ -538,9 +590,11 @@ def main() -> int:
     idc = duckdb.connect(str(DATA / "id_statewide.duckdb"), read_only=True)
     idc.execute(f"ATTACH '{DATA / 'id_vrdb.duckdb'}' AS vrdb (READ_ONLY)")
     report_denominators(idc, "ID", ID_PARTY, ID_ORDER, PANELS)
+    report_positive_denominator(idc, "ID", PANELS)
     report_crossover(idc, "ID", ID_PARTY, ID_ORDER, PANELS)
     report_tiers(idc, "ID", PANELS_ALL, "v.age", ID_PARTY, ID_ORDER)
-    report_households(idc, "ID", PANELS_ALL, "v.age", has_street=True)
+    report_households(idc, "ID", PANELS, "v.age", has_street=True, spec="PRIMARY full-name")
+    report_households(idc, "ID", PANELS_ALL, "v.age", has_street=True, spec="all-tier")
     report_donorside_risk(idc, "ID", PANELS_ALL, {"federal": "FEC", "state": "SUNSHINE"})
     report_overlap(idc, "ID", "v.age")
     report_idaho_composition(idc)
@@ -554,8 +608,10 @@ def main() -> int:
     WA_AGE = "date_diff('year', v.birthdate, DATE '2024-11-05')"
     print("\n  (WA publishes no party of record, so there is no denominator or")
     print("   crossover cut here — only the tier, household and overlap tests.)")
+    report_positive_denominator(wa, "WA", PANELS)
     report_tiers(wa, "WA", PANELS_ALL, WA_AGE, None, None)
-    report_households(wa, "WA", PANELS_ALL, WA_AGE, has_street=True)
+    report_households(wa, "WA", PANELS, WA_AGE, has_street=True, spec="PRIMARY full-name")
+    report_households(wa, "WA", PANELS_ALL, WA_AGE, has_street=True, spec="all-tier")
     report_donorside_risk(wa, "WA", PANELS_ALL, {"federal": "FEC", "state": "PDC"})
     report_overlap(wa, "WA", WA_AGE)
     wa.close()

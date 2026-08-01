@@ -16,7 +16,7 @@ Washington showed the off-year electorate is **older**; New York publishes each
 voter's **party enrollment**, so here we can ask the question Washington could
 not — *whose* electorate ages, who is locked out, and where the real decision is
 made. **DRAFT — AI-side reproduction verified (all `verify_*` scripts re-run, exit 0; see
-[`publication-checklist.md`](publication-checklist.md)); pending human/editorial sign-off.***
+[`electoral-health-audit-log.md`](electoral-health-audit-log.md)); pending human/editorial sign-off.***
 
 *Provenance. All figures from `data/ny_vrdb.duckdb` — New York's NYSVOTER
 statewide file (13.54M registrants; individual party enrollment + full DOB +

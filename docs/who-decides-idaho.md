@@ -17,7 +17,7 @@ ages and who is locked out. Idaho completes the set from the other pole: a state
 where the November general is a formality and the **closed Republican primary is
 the real election** — so the question "who decides" has a sharper, more literal
 answer than in any two-party state. **DRAFT — AI-side reproduction verified (all `verify_*`
-scripts re-run, exit 0; see [`publication-checklist.md`](publication-checklist.md)); pending
+scripts re-run, exit 0; see [`electoral-health-audit-log.md`](electoral-health-audit-log.md)); pending
 human/editorial sign-off.***
 
 *Provenance. All figures from `data/id_vrdb.duckdb` — Idaho's statewide voter

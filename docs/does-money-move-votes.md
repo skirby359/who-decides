@@ -14,7 +14,7 @@ Contact: kirby@tikorconsulting.com.*
 [`safe-seat-washington.md`](safe-seat-washington.md),
 [`donor-class-and-the-electorate.md`](donor-class-and-the-electorate.md), and
 [`cross-state-fec-money.md`](cross-state-fec-money.md)). **DRAFT — pending the
-independent-verification gate in [`publication-checklist.md`](publication-checklist.md).***
+independent-verification gate in [`electoral-health-audit-log.md`](electoral-health-audit-log.md).***
 
 ## Abstract
 
