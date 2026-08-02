@@ -303,14 +303,14 @@ def main() -> int:
     print("\n  (WA publishes no party of record, so R3 has no WA cut.)")
     WA_AGE = "date_diff('year', v.birthdate, DATE '2024-11-05')"
     wa_roll = f"""
-        WITH roll AS (SELECT DISTINCT state_voter_id, is_super_voter
-                      FROM voter_scores WHERE LEFT(district_id,2)='ld')
+        WITH roll AS (SELECT state_voter_id, is_super_voter
+                      FROM donor_paper_wa_roll)
         SELECT r.state_voter_id,
                {band_sql(WA_AGE, True)} band,
                {tenure_sql('v.registration_date')} tenure,
                CASE WHEN r.is_super_voter THEN 1.0 ELSE 0.0 END super
         FROM roll r JOIN vrdb.voters v USING (state_voter_id)
-        WHERE {WA_AGE} IS NOT NULL AND {WA_AGE} >= 18"""
+        WHERE {WA_AGE} IS NOT NULL AND {WA_AGE} >= 18 AND v.status_code = 'A'"""
     report_turnout_standardized(wa, "WA", wa_roll, PANELS,
                                 measure="voter_scores.is_super_voter (published)",
                                 tenure_is_endogenous=True)
@@ -325,8 +325,8 @@ def main() -> int:
     print("  3-of-4 super-voter rate; it exists so that a tenure standardization can be")
     print("  run on an outcome that does not already contain tenure.")
     wa_roll2 = f"""
-        WITH roll AS (SELECT DISTINCT state_voter_id
-                      FROM voter_scores WHERE LEFT(district_id,2)='ld'),
+        WITH roll AS (SELECT state_voter_id
+                      FROM donor_paper_wa_roll),
         gen AS (SELECT state_voter_id, COUNT(DISTINCT YEAR(election_date)) g
                 FROM vrdb.voting_history
                 WHERE MONTH(election_date)=11 AND YEAR(election_date) IN (2022, 2024)
@@ -337,7 +337,7 @@ def main() -> int:
                CASE WHEN COALESCE(gen.g,0) >= 2 THEN 1.0 ELSE 0.0 END super
         FROM roll r JOIN vrdb.voters v USING (state_voter_id)
         LEFT JOIN gen ON gen.state_voter_id = r.state_voter_id
-        WHERE {WA_AGE} IS NOT NULL AND {WA_AGE} >= 18"""
+        WHERE {WA_AGE} IS NOT NULL AND {WA_AGE} >= 18 AND v.status_code = 'A'"""
     report_turnout_standardized(wa, "WA", wa_roll2, PANELS,
                                 measure="voted both 2022 and 2024 generals (tenure-free)")
     wa.close()

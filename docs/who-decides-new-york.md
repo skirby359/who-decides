@@ -15,8 +15,15 @@ and [`who-decides-idaho.md`](who-decides-idaho.md) (the deep-red counterpart).
 Washington showed the off-year electorate is **older**; New York publishes each
 voter's **party enrollment**, so here we can ask the question Washington could
 not — *whose* electorate ages, who is locked out, and where the real decision is
-made. **DRAFT — AI-side reproduction verified (all `verify_*` scripts re-run, exit 0; see
-[`electoral-health-audit-log.md`](electoral-health-audit-log.md)); pending human/editorial sign-off.***
+made. **DRAFT — pending human/editorial sign-off. `scripts/verify_who_decides_ny.py` scrapes
+this paper and asserts every figure below against the voter file; see
+[`electoral-health-audit-log.md`](electoral-health-audit-log.md).***
+
+*An earlier version of this line said the paper had been verified because "all `verify_*`
+scripts re-run, exit 0". That was worth nothing: until 2026-08-01 this paper's verifier had
+no assertions and no failing exit path, so it printed values for a human to compare and
+returned 0 whatever the data said. When it was converted to assert, §III and §IV did not
+reproduce and have been recomputed — see the note under §IV.*
 
 *Provenance. All figures from `data/ny_vrdb.duckdb` — New York's NYSVOTER
 statewide file (13.54M registrants; individual party enrollment + full DOB +
@@ -59,7 +66,7 @@ Share of the general-election electorate by age band:
 | Nov 2024 | Presidential | **14.1%** | 23.1% | 34.6% | 28.2% | 53 |
 | Nov 2022 | Midterm | 9.8% | 21.1% | 38.5% | 30.6% | 56 |
 | Nov 2025 | Off-year | 11.5% | 21.0% | 33.1% | 34.4% | 56 |
-| Nov 2023 | Off-year | **6.0%** | 15.8% | 36.5% | **41.6%** | 61 |
+| Nov 2023 | Off-year | **6.0%** | 15.9% | 36.5% | **41.6%** | 61 |
 
 As the contest shrinks (presidential → midterm → odd-year), the under-30 share
 collapses (14% → 6% by 2023) and the 65+ share swells (28% → 42%); median age
@@ -124,9 +131,9 @@ They are not high-information independents holding the balance:
 
 | | median age | %65+ | %18–29 | 2024 turnout | donors / 1k |
 |---|--:|--:|--:|--:|--:|
-| DEM | 49 | 26.7% | 17.3% | 58.4% | 33.0 |
-| REP | 55 | 30.6% | 14.0% | **69.5%** | 23.6 |
-| NOPARTY | **42** | 17.7% | **24.0%** | **50.4%** | **12.5** |
+| DEM | 49 | 26.5% | 18.0% | 57.8% | 55.3 |
+| REP | 55 | 30.4% | 14.9% | **68.7%** | 48.5 |
+| NOPARTY | **42** | 17.4% | **25.6%** | **49.3%** | **22.7** |
 
 The blank bloc is the **youngest, least likely to vote, and least likely to
 donate** group in the state. And under New York's **closed** primaries they are
@@ -142,17 +149,61 @@ may vote in. Participation rate by enrollment:
 
 | Primary | DEM | REP | NOPARTY | OTHER |
 |---|--:|--:|--:|--:|
-| 2024 Presidential | 4.8% | 4.9% | 0.1% | 0.2% |
-| 2024 State/Congress | 7.7% | 1.7% | 0.1% | 0.6% |
-| 2022 State/Congress | 17.9% | 18.4% | 0.6% | 2.0% |
-| 2021 (odd-year) | 16.9% | 5.0% | 0.5% | 1.5% |
+| 2024 Presidential | 4.4% | 4.5% | 0.1% | 0.2% |
+| 2024 State/Congress | 7.0% | 1.6% | 0.1% | 0.6% |
+| 2022 State/Congress | 15.6% | 16.0% | 0.5% | 1.9% |
+| 2021 (odd-year) | 14.3% | 4.2% | 0.4% | 1.4% |
 
 Two facts: primary turnout runs from single digits to the high teens — the
 electorate that *nominates* is a small fraction of the one that *elects* — and
-the **25.3% enrolled "blank" are structurally absent** (≈0.1–0.6%, the residual
+the **25.3% enrolled "blank" are structurally absent** (≈0.1–0.5%, the residual
 being nonpartisan/special races). In blue New York the **Democratic primary is
-frequently the decisive contest** (2021 odd-year DEM 16.9% vs REP 5.0%; 2024
-state DEM 7.7% vs REP 1.7%).
+frequently the decisive contest** (2021 odd-year DEM 14.3% vs REP 4.2%; 2024
+state DEM 7.0% vs REP 1.6%).
+
+> **§III and §IV were recomputed on 2026-08-01, and the reason is worth stating.** Both
+> tables are **roll-denominated** — a rate or a share whose denominator is the registration
+> file — and the file has grown since they were first written. Recent registrants are 39.7%
+> Democratic and 35.6% unaffiliated against a roll at 47.6% and 25.3% (§VI), they are
+> younger, and none of them voted in 2024, so a larger roll mechanically lowers every
+> participation rate and raises every youth share. Every deviation ran that way. Sections I
+> and II are **electorate**-denominated — the set of people who actually voted in a past
+> election cannot change when new registrants arrive — and every one of their thirty-nine
+> cells reproduced unchanged, which is what identifies the denominator as the cause.
+>
+> Direction and size: turnout rates fell 0.6–1.1 points, youth shares rose 0.7–1.6, and the
+> primary-participation rates fell most in 2021 and 2022 (16.9 → 14.3 and 17.9 → 15.6),
+> which are the oldest cycles and therefore the ones with the most subsequent registration
+> behind them. **No finding changes.** The blank bloc is still the youngest, least
+> participating and least donating group by a wide margin; the Democratic primary is still
+> the decisive contest; the ordering within every column is unchanged.
+>
+> The donors-per-thousand column moved for a second and unrelated reason: it was still built
+> on the pre-2026-07-27 New York match (308,032 voters) rather than the full-name-key
+> specification now used throughout the series (558,017). It is rebuilt on the current panel
+> here. That change raises all three figures and leaves their ordering and the ratio between
+> them substantially intact.
+>
+> **The roll is now pinned, so this cannot recur silently.** New York had no snapshot on the
+> reasoning that a static FOIL extract cannot move; it moved, and a reload is invisible to a
+> paper that names no snapshot. `scripts/pin_ny_roll.py` freezes it the way Washington's is:
+> **`ny_paper_roll`, taken 2026-08-01 at 13,540,505 registrants, of whom 12,448,034 are
+> active.** Every roll-denominated figure in §III and §IV is computed against that snapshot,
+> and `scripts/verify_who_decides_ny.py` fails rather than falling back if it is absent.
+> Sections I and II continue to read the file directly, correctly: an electorate is a set of
+> people who already voted, and it does not move. Re-pinning requires an explicit `--force`.
+>
+> Pinning changed no figure — all 96 asserted values reproduced against the snapshot on the
+> day it was taken, which is the check that distinguishes freezing a number from altering one.
+>
+> One data-quality note the pin surfaced, disclosed because it is checkable: the NYSVOTER
+> extract carries **53 registration identifiers twice** (36 of them among active registrants),
+> and these are not duplicate copies — 8 of the pairs disagree on party, 25 on congressional
+> district, 1 on birth year. The snapshot keeps one record per identifier, chosen
+> deterministically, so it holds 13,540,505 registrants against the file's 13,540,558 rows.
+> The difference is four orders of magnitude below anything this paper prints and moves no
+> figure in it; it is reported rather than absorbed because a roll ought to be one row per
+> registrant and the raw file is not.
 
 ---
 

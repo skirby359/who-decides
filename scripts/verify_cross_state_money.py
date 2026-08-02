@@ -34,10 +34,11 @@ import sys
 
 import duckdb
 
-try:
-    sys.stdout.reconfigure(encoding="utf-8")
-except Exception:  # noqa: BLE001
-    pass
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _verify_prose as vp  # noqa: E402
+
+vp.stdout_utf8()
+PAPER = Path(__file__).resolve().parent.parent / "docs" / "cross-state-fec-money.md"
 
 DATA = Path(__file__).resolve().parent.parent / "data"
 # paper §Headline (all cycles pooled): <200 / >=5000 / retired $ share; top1 / top10 / Gini
@@ -54,7 +55,7 @@ PAPER_INFLOW = {"rows": "5.48M", "dollars": "$1.20B",
 # inflow blocks above, which tolerate documented sub-0.5pt grouping drift.
 #
 # Added 2026-07-27 after an adversarial review found both of these tables had gone stale
-# against the very scripts they cite (publication-checklist.md §7, R1-R4). The failure was
+# against the very scripts they cite (electoral-health-audit-log.md §7, R1-R4). The failure was
 # not arithmetic: the primary-specification switch rebuilt all three POOLED matches, the WA
 # cells were refreshed and the NY and ID cells were not, and the resulting mixed table still
 # looked reasonable. Two published claims had to be withdrawn as a result. So this block
@@ -88,11 +89,23 @@ PAPER_F5_PARTY = {
     "ID": {"roll": {"DEM": 11.8, "REP": 62.9, "OTHER": 25.3},
            "donor": {"DEM": 19.7, "REP": 67.4, "OTHER": 13.0}},
 }
+# Both counts in each row are asserted. The non-donor one was NOT, until 2026-08-01, and that
+# gap is why the WA row drifted with only half of it caught: the roll grew, `n_donor` failed at
+# 312,337 vs 312,530, and `5.14M` -> `5.15M` went unnoticed beside it. A table cell nobody
+# asserts is a cell that goes stale silently. The paper prints these rounded (312.5K, 5.15M),
+# so the tolerance is the rounding half-width, not zero — see F6_COUNT_TOL.
 PAPER_F6 = {
-    "WA": dict(n_donor=312_337, super_d=87.6, super_n=50.9, ratio=1.72, prop_d=0.967, prop_n=0.749),
-    "NY": dict(n_donor=558_017, super_d=83.1, super_n=45.0, ratio=1.85, prop_d=0.892, prop_n=0.653),
-    "ID": dict(n_donor=41_136, super_d=50.0, super_n=30.1, ratio=1.66, prop_d=0.892, prop_n=0.851),
+    "WA": dict(n_donor=312_530, n_non=5_147_485,
+               super_d=87.6, super_n=50.9, ratio=1.72, prop_d=0.967, prop_n=0.749),
+    "NY": dict(n_donor=558_017, n_non=12_982_480,
+               super_d=83.1, super_n=45.0, ratio=1.85, prop_d=0.892, prop_n=0.653),
+    "ID": dict(n_donor=41_136, n_non=988_802,
+               super_d=50.0, super_n=30.1, ratio=1.66, prop_d=0.892, prop_n=0.851),
 }
+# The paper's counts are printed to 3-4 significant figures ("312.5K", "5.15M"). Asserting the
+# unrounded integer would fail on a change too small for the paper to show, so each count is
+# checked at the half-width of its own printed precision.
+F6_COUNT_TOL = {"WA": (50, 5_000), "NY": (50, 5_000), "ID": (50, 50)}
 # The claims the prose makes ON TOP of the tables. These are the ones that went stale.
 PAPER_CLAIMS = dict(
     silent_lo=1.50, silent_hi=2.08,     # "1.50-2.08x" — was wrongly "~1.9-2.0x"
@@ -104,11 +117,16 @@ _FAILURES: list[str] = []
 
 
 def check(rows):
-    """Assert derived vs published. rows = (label, derived, paper, tol). tol=0 -> exact int."""
+    """Assert derived vs published. rows = (label, derived, paper, tol).
+
+    tol = 0 is an exact integer match; tol >= 1 is a count checked at the half-width of the
+    precision the paper prints it to (so "312.5K" is not failed by a one-voter change it
+    cannot show); anything smaller is a rate or a ratio.
+    """
     out = []
     for label, derived, paper, tol in rows:
         ok = abs(float(derived) - float(paper)) <= tol
-        fmt = (lambda v: f"{v:,.0f}") if tol == 0 else (
+        fmt = (lambda v: f"{v:,.0f}") if tol == 0 or tol >= 1 else (
             (lambda v: f"{v:.3f}") if tol < 0.005 else (lambda v: f"{v:.2f}"))
         print(f"    {'ok  ' if ok else 'FAIL'} {label:46} {fmt(derived):>10}   (paper: {fmt(paper)})")
         if not ok:
@@ -191,15 +209,38 @@ def f5(state):
 def f6(state):
     """§F6 — donor vs non-donor super-voter rate and turnout propensity.
 
-    WA's voter_scores carries each voter in both a cd and an ld scope, so it MUST be
-    filtered to one or every WA voter is counted twice; the ld scope is the complete one.
-    NY and ID hold a single scope. Getting this wrong would silently double WA's roll.
+    WASHINGTON READS THE PINNED ROLL, not `voter_scores` (2026-08-01). `voter_scores` is
+    live: `refresh-gotv` rebuilds it on every ballot load and each precinct-crosswalk
+    improvement pulls previously unscoped voters into district scope, so the WA denominator
+    grows by a few thousand every few days. That is exactly how this section's WA row went
+    stale — 5,456,444 -> 5,460,015 moved both of its counts while every percentage held.
+    `donor_paper_wa_roll` is the dated snapshot the donor-class paper pins for the same
+    reason (2026-07-31, 5,460,015 rows, one per ld-scope voter), and it carries the two
+    columns this cut needs. Verified equal to the live derivation to six decimals on the day
+    of the switch, so the pin froze the figures rather than changing them.
+
+    Falls back to the live ld scope if the snapshot is absent, and says so — a checkout that
+    has never run `pin_wa_donor_roll.py` should still be able to run this, but it must not
+    quietly report a drifting number as if it were the pinned one.
+
+    NY and ID hold a single scope and static rolls, so they read `voter_scores` directly. The
+    `ld%` filter mattered for WA because its voters appear in BOTH a cd and an ld scope;
+    dropping it would silently double the roll.
     """
     con = duckdb.connect(str(DATA / f"{state.lower()}_statewide.duckdb"), read_only=True)
-    where = "WHERE district_id LIKE 'ld%'" if state == "WA" else ""
+    src = "SELECT DISTINCT state_voter_id, is_super_voter, turnout_propensity FROM voter_scores"
+    pinned = False
+    if state == "WA":
+        have, = con.execute("""SELECT COUNT(*) FROM information_schema.tables
+                               WHERE table_name = 'donor_paper_wa_roll'""").fetchone()
+        if have:
+            src = ("SELECT state_voter_id, is_super_voter, turnout_propensity "
+                   "FROM donor_paper_wa_roll")
+            pinned = True
+        else:
+            src += " WHERE district_id LIKE 'ld%'"
     rows = con.execute(f"""
-        WITH roll AS (SELECT DISTINCT state_voter_id, is_super_voter, turnout_propensity
-                      FROM voter_scores {where}),
+        WITH roll AS ({src}),
         f AS (SELECT r.*, (a.state_voter_id IS NOT NULL) donor
               FROM roll r LEFT JOIN voter_donor_affiliation a USING (state_voter_id))
         SELECT donor, COUNT(*), 100.0*AVG(CASE WHEN is_super_voter THEN 1.0 ELSE 0 END),
@@ -207,92 +248,171 @@ def f6(state):
         FROM f GROUP BY donor""").fetchall()
     con.close()
     d = {("donor" if dn else "non"): (int(n), float(s), float(p)) for dn, n, s, p in rows}
-    return dict(n_donor=d["donor"][0], super_d=d["donor"][1], super_n=d["non"][1],
+    return dict(n_donor=d["donor"][0], n_non=d["non"][0],
+                super_d=d["donor"][1], super_n=d["non"][1],
                 prop_d=d["donor"][2], prop_n=d["non"][2],
-                ratio=d["donor"][1] / d["non"][1])
+                ratio=d["donor"][1] / d["non"][1],
+                pinned=pinned if state == "WA" else None)
+
+
+def _collect(d: dict) -> bool:
+    """Derive every F5/F6 value the paper states. Returns False if a state is unavailable."""
+    ok = True
+    gens = {}
+    for st in F5_STATES:
+        try:
+            r5 = f5(st)
+        except Exception as ex:  # noqa: BLE001
+            print(f"  {st}: SKIPPED ({ex})")
+            ok = False
+            continue
+        gens[st] = r5["gens"]
+        d[f"{st}_n"] = r5["n"]
+        d[f"{st}_gini"] = r5["gini"]
+        for g in GEN_ORDER:
+            key = g.replace(" ", "")
+            d[f"{st}_{key}_raw"], d[f"{st}_{key}_rwt"] = r5["gens"][g]
+        if r5["party"]:
+            for k in ("DEM", "REP", "OTHER"):
+                d[f"{st}_roll_{k}"] = r5["party"]["roll"].get(k, 0.0)
+                d[f"{st}_donor_{k}"] = r5["party"]["donor"].get(k, 0.0)
+
+        r6 = f6(st)
+        if st == "WA" and r6.get("pinned") is False:
+            print("    NOTE  WA read the LIVE ld scope - donor_paper_wa_roll is absent, so "
+                  "its two counts can drift. Run scripts/pin_wa_donor_roll.py.")
+        for k in ("n_donor", "n_non", "super_d", "super_n", "ratio", "prop_d", "prop_n"):
+            d[f"{st}_{k}"] = r6[k]
+        # The paper prints these counts abbreviated, so the probe compares what it prints.
+        d[f"{st}_n_donor_k"] = r6["n_donor"] / 1e3
+        d[f"{st}_n_non_m"] = r6["n_non"] / 1e6
+        d[f"{st}_n_non_k"] = r6["n_non"] / 1e3
+
+    if not ok or len(gens) != len(F5_STATES):
+        return False
+
+    # The DERIVED CLAIMS. Cell-level checks alone would not have caught R2/R4: every cell can
+    # be individually right while the sentence summarising them is wrong.
+    sil = [gens[s]["Silent"][0] for s in F5_STATES]
+    gz = [gens[s]["Gen Z"][0] for s in F5_STATES]
+    d["silent_lo"], d["silent_hi"] = min(sil), max(sil)
+    d["genz_lo"], d["genz_hi"] = min(gz), max(gz)
+    d["ipw_max_shift"] = max(abs(gens[s][g][0] - gens[s][g][1])
+                             for s in F5_STATES for g in GEN_ORDER)
+    for s in F5_STATES:
+        d[f"{s}_gradient"] = gens[s]["Silent"][0] / gens[s]["Gen Z"][0]
+    ratios = [d[f"{s}_ratio"] for s in F5_STATES]
+    d["ratio_lo"], d["ratio_hi"] = min(ratios), max(ratios)
+    return True
+
+
+# Prose probes for F5/F6. CONVERTED FROM CONSTANTS 2026-08-01: the old table held e.g.
+# `n_donor=312_337` for a figure the paper prints as "312.3K", so nothing tied the assertion
+# to the document and the "(paper: ...)" column was an unverifiable claim about a file the
+# script never opened. These read the paper.
+F_PROBES = [
+    ("F5 pooled match sizes, in the recompute note",
+     r"pooled matches \(NY (\d[\d,]*) \u2192 (\d[\d,]*), ID (\d[\d,]*) \u2192 (\d[\d,]*), "
+     r"WA\s+(\d[\d,]*) \u2192 (\d[\d,]*)\)",
+     ("_ny_prev", "NY_n", "_id_prev", "ID_n", "_wa_prev", "WA_n"), 0),
+    ("F5 multipliers - Silent",
+     r"\| Silent \| ([\d.]+)\u00d7 / ([\d.]+)\u00d7 \| ([\d.]+)\u00d7 / ([\d.]+)\u00d7 \| "
+     r"([\d.]+)\u00d7 / ([\d.]+)\u00d7 \|",
+     ("WA_Silent_raw", "WA_Silent_rwt", "NY_Silent_raw", "NY_Silent_rwt",
+      "ID_Silent_raw", "ID_Silent_rwt"), 0.005),
+    ("F5 multipliers - Boomer",
+     r"\| Boomer \| ([\d.]+)\u00d7 / ([\d.]+)\u00d7 \| ([\d.]+)\u00d7 / ([\d.]+)\u00d7 \| "
+     r"([\d.]+)\u00d7 / ([\d.]+)\u00d7 \|",
+     ("WA_Boomer_raw", "WA_Boomer_rwt", "NY_Boomer_raw", "NY_Boomer_rwt",
+      "ID_Boomer_raw", "ID_Boomer_rwt"), 0.005),
+    ("F5 multipliers - Gen X",
+     r"\| Gen X \| ([\d.]+)\u00d7 / ([\d.]+)\u00d7 \| ([\d.]+)\u00d7 / ([\d.]+)\u00d7 \| "
+     r"([\d.]+)\u00d7 / ([\d.]+)\u00d7 \|",
+     ("WA_GenX_raw", "WA_GenX_rwt", "NY_GenX_raw", "NY_GenX_rwt",
+      "ID_GenX_raw", "ID_GenX_rwt"), 0.005),
+    ("F5 multipliers - Millennial",
+     r"\| Millennial \| ([\d.]+)\u00d7 / ([\d.]+)\u00d7 \| ([\d.]+)\u00d7 / ([\d.]+)\u00d7 \| "
+     r"([\d.]+)\u00d7 / ([\d.]+)\u00d7 \|",
+     ("WA_Millennial_raw", "WA_Millennial_rwt", "NY_Millennial_raw", "NY_Millennial_rwt",
+      "ID_Millennial_raw", "ID_Millennial_rwt"), 0.005),
+    ("F5 multipliers - Gen Z",
+     r"\| Gen Z \| ([\d.]+)\u00d7 / ([\d.]+)\u00d7 \| ([\d.]+)\u00d7 / ([\d.]+)\u00d7 \| "
+     r"([\d.]+)\u00d7 / ([\d.]+)\u00d7 \|",
+     ("WA_GenZ_raw", "WA_GenZ_rwt", "NY_GenZ_raw", "NY_GenZ_rwt",
+      "ID_GenZ_raw", "ID_GenZ_rwt"), 0.005),
+    ("F5 claim - Silent and Gen Z ranges across states",
+     r"over-represented among matched donors \(\*\*([\d.]+)\u2013([\d.]+)\u00d7\*\*\) and the "
+     r"youngest \(Gen Z\) is sharply\s+under-represented \(\*\*([\d.]+)\u2013([\d.]+)\u00d7\*\*\)",
+     ("silent_lo", "silent_hi", "genz_lo", "genz_hi"), 0.005),
+    ("F5 claim - the old-to-young gradient per state",
+     r"gradient is \*\*([\d.]+)\u00d7 in WA and ([\d.]+)\u00d7 in ID but only "
+     r"([\d.]+)\u00d7 in NY\*\*",
+     ("WA_gradient", "ID_gradient", "NY_gradient"), 0.05),
+    ("F5 claim - the IPW reweight moves every ratio by at most this",
+     r"reweight moves every ratio by \u2264([\d.]+)", "ipw_max_shift", 0.005),
+    ("F5 pooled Gini, all three states",
+     r"Gini \*\*WA ([\d.]+) / NY\s+([\d.]+) / ID ([\d.]+)\*\*",
+     ("WA_gini", "NY_gini", "ID_gini"), 0.0005),
+    ("F5 Idaho pooled donor count, in prose",
+     r"POOLED voter\u2194donor match\*\* \(FEC \+ Sunshine, (\d[\d,]*) donors\)", "ID_n", 0),
+    ("F5 party skew - New York",
+     r"\*\*NY:\*\* electorate \*\*D (\d+)% / R (\d+)% / unaffiliated-or-other (\d+)%\*\* \u2192 "
+     r"donors \*\*D (\d+)% / R (\d+)% /\s+O (\d+)%\.\*\*",
+     ("NY_roll_DEM", "NY_roll_REP", "NY_roll_OTHER",
+      "NY_donor_DEM", "NY_donor_REP", "NY_donor_OTHER"), 0.5),
+    ("F5 party skew - Idaho",
+     r"\*\*ID:\*\* electorate \*\*D (\d+)% / R (\d+)% / O (\d+)%\*\* \u2192 donors "
+     r"\*\*D (\d+)% / R (\d+)% / O (\d+)%\.\*\*",
+     ("ID_roll_DEM", "ID_roll_REP", "ID_roll_OTHER",
+      "ID_donor_DEM", "ID_donor_REP", "ID_donor_OTHER"), 0.5),
+    ("F6 table - Washington",
+     r"\| WA \| ([\d.]+)% \(([\d.]+)K\) \| ([\d.]+)% \(([\d.]+)M\) \| \*\*([\d.]+)\u00d7\*\* \| "
+     r"([\d.]+) / ([\d.]+) \|",
+     ("WA_super_d", "WA_n_donor_k", "WA_super_n", "WA_n_non_m", "WA_ratio",
+      "WA_prop_d", "WA_prop_n"), 0.05),
+    ("F6 table - New York",
+     r"\| NY \| ([\d.]+)% \(([\d.]+)K\) \| ([\d.]+)% \(([\d.]+)M\) \| \*\*([\d.]+)\u00d7\*\* \| "
+     r"([\d.]+) / ([\d.]+) \|",
+     ("NY_super_d", "NY_n_donor_k", "NY_super_n", "NY_n_non_m", "NY_ratio",
+      "NY_prop_d", "NY_prop_n"), 0.05),
+    ("F6 table - Idaho",
+     r"\| ID \| ([\d.]+)% \(([\d.]+)K\) \| ([\d.]+)% \(([\d.]+)K\) \| \*\*([\d.]+)\u00d7\*\* \| "
+     r"([\d.]+) / ([\d.]+) \|",
+     ("ID_super_d", "ID_n_donor_k", "ID_super_n", "ID_n_non_k", "ID_ratio",
+      "ID_prop_d", "ID_prop_n"), 0.05),
+    ("F6 claim - the super-voter ratio band",
+     r"donor/non-donor super-voter ratio runs \*\*([\d.]+)\u2013([\d.]+)\u00d7\*\*",
+     ("ratio_lo", "ratio_hi"), 0.005),
+    ("F6 recompute note - the pinned WA counts",
+     r"moved the scored-donor count 312\.3K \u2192 \*\*([\d.]+)K\*\* and the\s+"
+     r"non-donor count 5\.14M \u2192 \*\*([\d.]+)M\*\*",
+     ("WA_n_donor_k", "WA_n_non_m"), 0.05),
+]
+
+F_UNCHECKED = [
+    "The OUTFLOW and INFLOW blocks print derived-vs-paper and never fail the run. Their donor "
+    "key is a name+zip proxy with documented sub-0.5pt grouping drift, so an exact assertion "
+    "would be noise rather than a check. That is a deliberate exemption, not an oversight, "
+    "and it is the only part of this script that cannot fail",
+    "The appendix precision figures (the 100.0% strict-key rate, the 93.0% "
+    "population-weighted precision, the 152/129 error-mode counts) belong to "
+    "verify_donor_class.py, which asserts them against the frozen verdict CSVs",
+]
 
 
 def verify_individual_layer():
-    """Run the §F5/§F6 assertions and return failures."""
-    fails = []
-    print("\n" + "=" * 82)
-    print("§F5 — donor age skew (raw / IPW-reweighted), pooled match")
-    print("=" * 82)
-    derived5 = {}
-    for st in F5_STATES:
-        try:
-            derived5[st] = f5(st)
-        except Exception as ex:  # noqa: BLE001
-            print(f"  {st}: SKIPPED ({ex})")
-            continue
-        d, rows = derived5[st], []
-        rows.append((f"{st} pooled matched donors", d["n"], PAPER_F5_POOLED_N[st], 0))
-        for g in GEN_ORDER:
-            praw, prwt = PAPER_F5[st][g]
-            rows.append((f"{st} {g} over-rep (raw)", d["gens"][g][0], praw, 0.005))
-            rows.append((f"{st} {g} over-rep (IPW)", d["gens"][g][1], prwt, 0.005))
-        rows.append((f"{st} pooled Gini", d["gini"], PAPER_F5_GINI[st], 0.0005))
-        if d["party"]:
-            for k in ("DEM", "REP", "OTHER"):
-                rows.append((f"{st} roll {k} %", d["party"]["roll"].get(k, 0),
-                             PAPER_F5_PARTY[st]["roll"][k], 0.05))
-                rows.append((f"{st} donor {k} %", d["party"]["donor"].get(k, 0),
-                             PAPER_F5_PARTY[st]["donor"][k], 0.05))
-        fails += check(rows)
-
-    # The DERIVED CLAIMS. Cell-level checks alone would not have caught R2/R4: every cell
-    # can be individually right while the sentence summarising them is wrong.
-    if len(derived5) == len(F5_STATES):
-        print("\n  claims the prose makes about the table:")
-        sil = [derived5[s]["gens"]["Silent"][0] for s in F5_STATES]
-        gz = [derived5[s]["gens"]["Gen Z"][0] for s in F5_STATES]
-        shift = max(abs(derived5[s]["gens"][g][0] - derived5[s]["gens"][g][1])
-                    for s in F5_STATES for g in GEN_ORDER)
-        fails += check([
-            ("Silent over-rep, min across states", min(sil), PAPER_CLAIMS["silent_lo"], 0.005),
-            ("Silent over-rep, max across states", max(sil), PAPER_CLAIMS["silent_hi"], 0.005),
-            ("Gen Z over-rep, min across states", min(gz), PAPER_CLAIMS["genz_lo"], 0.005),
-            ("Gen Z over-rep, max across states", max(gz), PAPER_CLAIMS["genz_hi"], 0.005),
-            ("max |raw - IPW| shift, any cell", shift, PAPER_CLAIMS["ipw_max_shift"], 0.005),
-        ])
-        # The gradient is the claim that was overstated as "essentially identical".
-        grad = {s: derived5[s]["gens"]["Silent"][0] / derived5[s]["gens"]["Gen Z"][0]
-                for s in F5_STATES}
-        fails += check([(f"{s} old-to-young gradient (Silent/Gen Z)", grad[s], p, 0.1)
-                        for s, p in (("WA", 21.6), ("NY", 10.5), ("ID", 21.8))])
-        if max(grad.values()) / min(grad.values()) < 1.5:
-            fails.append("F5: gradients are within 1.5x of each other — the withdrawn "
-                         "'essentially identical' claim may be reinstatable; re-check the prose")
-        else:
-            print(f"    ok   gradient spread {max(grad.values())/min(grad.values()):.2f}x "
-                  f"— 'essentially identical' stays withdrawn")
-
-    print("\n" + "=" * 82)
-    print("§F6 — giving↔turnout, donor vs non-donor")
-    print("=" * 82)
-    ratios = {}
-    for st in F5_STATES:
-        try:
-            d = f6(st)
-        except Exception as ex:  # noqa: BLE001
-            print(f"  {st}: SKIPPED ({ex})")
-            continue
-        ratios[st], p = d["ratio"], PAPER_F6[st]
-        fails += check([
-            (f"{st} donors scored", d["n_donor"], p["n_donor"], 0),
-            (f"{st} donor super-voter %", d["super_d"], p["super_d"], 0.05),
-            (f"{st} non-donor super-voter %", d["super_n"], p["super_n"], 0.05),
-            (f"{st} super-voter ratio", d["ratio"], p["ratio"], 0.005),
-            (f"{st} donor avg propensity", d["prop_d"], p["prop_d"], 0.0005),
-            (f"{st} non-donor avg propensity", d["prop_n"], p["prop_n"], 0.0005),
-        ])
-    if len(ratios) == len(F5_STATES):
-        print("\n  claims the prose makes about the table:")
-        fails += check([
-            ("super-voter ratio, min across states", min(ratios.values()), PAPER_CLAIMS["ratio_lo"], 0.005),
-            ("super-voter ratio, max across states", max(ratios.values()), PAPER_CLAIMS["ratio_hi"], 0.005),
-        ])
-    return fails
+    """Derive F5/F6 and assert it against the paper's own prose. Returns failures."""
+    d = {
+        # Historical figures the recompute note quotes. They are what the RETIRED panels
+        # gave, so they are literals by construction and must keep saying so.
+        "_ny_prev": 308_032, "_id_prev": 47_762, "_wa_prev": 382_408,
+    }
+    if not _collect(d):
+        return ["F5/F6: a state's data was unavailable, so the block could not be asserted"]
+    rc = vp.run("F5/F6 - the individual money-linked layer, scraped from the paper",
+                vp.normalise(PAPER.read_text(encoding="utf-8")),
+                F_PROBES, d, F_UNCHECKED, vp.wants_coverage())
+    return [] if rc == 0 else ["see the F5/F6 failures above"]
 
 
 def outflow(state):

@@ -112,7 +112,7 @@ Share of each party's 2024 general-election voters by age, plus median age:
 | Republican | 31.7% | 12.7% | 54 |
 | Democratic | 31.5% | 19.4% | 50 |
 | **Unaffiliated** | **21.3%** | **19.6%** | **46** |
-| Other (Lib/Con) | 10.0% | 23.0% | 38 |
+| Other (Lib/Con) | 10.0% | 23.0% | 39 |
 
 The Republican and Democratic electorates are within a fraction of a point on the
 65+ share and only four years apart on median age. Idaho's **youth lives outside
@@ -172,13 +172,18 @@ composition of each contest, as R-minus-D margin:
 |---|--:|--:|--:|--:|
 | Nov 2024 general | 64.5% | 11.6% | 22.6% | +52.9 |
 | Nov 2022 general | 68.6% | 12.1% | 18.2% | +56.5 |
-| **May 2024 primary** | **85.2%** | 8.3% | 5.9% | **+76.9** |
+| **May 2024 primary** | **85.2%** | 8.3% | 5.9% | **+76.8** |
 | **May 2022 primary** | **85.9%** | 8.2% | 5.3% | **+77.7** |
 | — Registration baseline | 62.9% | 11.8% | 23.9% | +51.1 |
 
 The unaffiliated share of the electorate falls from ~24% of the roll to roughly
 **5–7%** of the primary; the R−D skew widens from ~+51 in November to ~+77 in the
-primary. **80–86% of every primary ballot cast in Idaho is a Republican ballot.**
+primary. **80–86% of every primary ballot cast in Idaho is a Republican ballot** — the
+range spans every primary cycle in the file, from 79.6% in 2026 to 86.5% in 2022.
+
+The R−D column is computed on **unrounded** shares, so it need not equal the difference of
+the two printed columns. The May 2024 row is the one where that shows: 85.17 − 8.34 = 76.82,
+against 85.2 − 8.3 = 76.9 read off the table. The unrounded figure is the one printed.
 
 **But "the primary decides" only where the primary is *contested* — and often it
 isn't.** Of the 105 legislative seats, **99 drew a Republican primary in 2024** (the other

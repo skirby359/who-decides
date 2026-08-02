@@ -1,0 +1,236 @@
+"""Shared prose-scraping assertion harness for the paper verifiers.
+
+WHY THIS EXISTS. Two designs were in use in `scripts/` and only one of them worked.
+
+The constants design — hold the published figure as a Python literal and compare it to a
+fresh derivation — never reads the paper. It cannot see a sentence edited out from under it,
+it cannot see a paper contradicting itself, and its "paper:" column is an unverifiable claim
+about a document the script never opened. `verify_cross_state_money.py` carried
+`n_donor=312_337` for a figure the paper prints as "312.3K"; nothing tied the two together.
+
+Worse, four of the paper verifiers had no assertions at all: `verify_who_decides_wa.py`,
+`_ny.py`, `_id.py` and `verify_safe_seat.py` printed derived values beside a hand-typed
+"(paper: ...)" for a human to eyeball, and always exited 0. The release checklist ran them as
+`verify_$v.py || echo FAILED`, which could never print FAILED for any of them.
+
+`verify_whitepaper.py` solved this by SCRAPING THE PROSE: every probe is a regex anchored on
+the words around the figure, and every occurrence of that figure must equal the derived
+value. This module is that mechanism, factored out so the rest of the series can use it.
+
+THE THREE RULES IT ENFORCES, each earned:
+
+1. **A probe whose anchor matches nothing is a FAILURE, not a skip.** Rewording a sentence out
+   from under a check is the thing to catch; silence there is how the white paper drifted to
+   -0.42 against the money paper's -0.39.
+2. **Every occurrence is checked, not the first.** A figure stated in an abstract and again in
+   a table is checked twice, so a paper that contradicts itself fails on whichever occurrence
+   is wrong. Finding 5 once gave the same top-1% as 41.2% and 42.4% four lines apart.
+3. **Report what is NOT covered.** `--coverage` lists every numeric token no probe touched.
+   It is a report rather than a gate here: the donor paper's full coverage audit is worth its
+   friction across 48 sections of a journal submission, less so on a 1,800-word working paper.
+   But an unprobed figure should at least be visible, because unaudited sections are where
+   reviewers keep finding the defects.
+
+Not packaged — `scripts/` is a plain directory, so siblings import this directly. The same
+pattern the public repo already uses for `donor_matcher.py`.
+"""
+from __future__ import annotations
+
+import re
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+DOCS = ROOT / "docs"
+DATA = ROOT / "data"
+
+
+def stdout_utf8() -> None:
+    """Windows consoles default to cp1252 and die on the × and – these papers use."""
+    try:
+        sys.stdout.reconfigure(encoding="utf-8")
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def normalise(text: str) -> str:
+    """Strip blockquote markers and collapse whitespace.
+
+    Anchors then span line wraps, so re-flowing a paragraph does not silently disarm a probe
+    — which would otherwise turn rule 1 into a false pass.
+    """
+    return re.sub(r"\s+", " ", re.sub(r"(?m)^\s*>\s?", "", text))
+
+
+def section(text: str, start: str, end: str | None = None) -> str:
+    """Normalised slice from `start` to `end`, both plain substrings.
+
+    Guarded, because both traps have bitten in this repo: a start anchor that is absent
+    silently yields the whole document, and an end anchor that appears BEFORE the start
+    yields an empty slice that passes every probe by matching nothing. Raise instead.
+    """
+    i = text.find(start)
+    if i < 0:
+        raise LookupError(f"section start anchor not found: {start!r}")
+    j = len(text) if end is None else text.find(end, i + len(start))
+    if end is not None and j < 0:
+        raise LookupError(f"section end anchor not found after start: {end!r}")
+    return normalise(text[i:j])
+
+
+# Numeric tokens the coverage report should not nag about. Anything genuinely a RESULT must
+# NOT be here — over-reporting costs ten seconds of reading, under-reporting hides a figure.
+#
+# THIS LIST ONCE CONTAINED `^\d{1,2}\.\d$`, meant to skip "§3.1"-style section numbering. It
+# also skipped 41.2, 83.5, 26.5 and every other one-decimal percentage with one or two integer
+# digits — which is the single most common figure shape in these papers. The coverage report
+# was blind to most of what it existed to find, and said nothing while being so. Section
+# references are now recognised by their CONTEXT instead (see _SECTION_REF), which is what
+# distinguishes them from a result.
+_COVERAGE_SKIP = re.compile(
+    r"^(?:19|20)\d{2}$"          # years
+    r"|^\d{1,2}$"                # small integers: list ordinals, chamber ids, column counts
+)
+
+# A number is section numbering only if something immediately before it says so.
+_SECTION_REF = re.compile(
+    r"(?:§+\s*|[Ss]ections?\s+|[Aa]ppendix\s+|[Ff]inding\s+|[Tt]able\s+|[Ff]igure\s+"
+    r"|[Nn]ote\s+|C\.?F\.?R\.?\s*§?\s*|doi:[\d.]*|\d+\.)\s*$")
+# The trailing `(?<![,.])` matters: without it "$14,212, or 0.02%" tokenises as `14,212,`
+# WITH the sentence comma, whose span runs one character past the probe's capture span — so a
+# figure that IS asserted reports as unprobed. Over-reporting is the cheap failure here, but it
+# is still noise in a list whose whole job is to be read.
+_NUMBER = re.compile(r"\d[\d,]*(?:\.\d+)?(?<![,.])")
+
+
+def _coverage(norm: str, covered: list[tuple[int, int]]) -> list[str]:
+    """Numeric tokens in the scraped text that no probe's match span covered."""
+    out = []
+    for m in _NUMBER.finditer(norm):
+        if any(a <= m.start() and m.end() <= b for a, b in covered):
+            continue
+        tok = m.group(0)
+        if _COVERAGE_SKIP.match(tok):
+            continue
+        if _SECTION_REF.search(norm[max(0, m.start() - 24):m.start()]):
+            continue
+        lo, hi = max(0, m.start() - 45), min(len(norm), m.end() + 45)
+        out.append(f"{tok:>12}   …{norm[lo:hi]}…")
+    return out
+
+
+def run(title: str, norm: str, probes, derived: dict, unchecked=(),
+        show_coverage: bool = False, sections: dict[str, str] | None = None) -> int:
+    """Assert every probe against `derived`. Returns a process exit code.
+
+    probes: (label, regex, key | (keys...), tolerance[, section]). Each capture group in the
+    regex is compared to the correspondingly-positioned key. A tolerance of 0 demands an
+    exact match.
+
+    The optional 5th element names a slice in `sections` to search instead of the whole
+    document. Use it when a pattern is genuinely ambiguous document-wide rather than
+    contorting the regex: safe-seat's four-column universe row is indistinguishable from a
+    year-header row `| 2016 | 2018 | 2020 | 2022 | 2024 |` elsewhere in the paper, and no
+    amount of lookahead fixes that honestly.
+
+    Coverage spans are recorded per section, so a probe scoped to a slice does not mark
+    anything covered in the full text. Only whole-document probes feed the coverage report.
+    """
+    bar = "=" * 92
+    print(bar)
+    print(title)
+    print(bar)
+    fails: list[str] = []
+    covered: list[tuple[int, int]] = []
+    n_checked = 0
+    n_scoped = 0
+
+    for probe in probes:
+        label, rx, keys, tol = probe[:4]
+        sec = probe[4] if len(probe) > 4 else None
+        if sec is not None:
+            if not sections or sec not in sections:
+                print(f"  FAIL {label:56} SECTION {sec!r} NOT DEFINED")
+                fails.append(f"{label}: probe names section {sec!r}, which was not sliced")
+                continue
+            haystack, in_full = sections[sec], False
+            n_scoped += 1
+        else:
+            haystack, in_full = norm, True
+        keys = (keys,) if isinstance(keys, str) else keys
+        hits = list(re.finditer(rx, haystack))
+        if not hits:
+            print(f"  FAIL {label:56} ANCHOR NOT FOUND")
+            fails.append(f"{label}: anchor not found — the sentence was reworded or the "
+                         f"figure removed. Re-point the probe, or restore the text.")
+            continue
+        for m in hits:
+            groups = m.groups()
+            if len(groups) != len(keys):
+                print(f"  FAIL {label:56} {len(groups)} capture(s), {len(keys)} key(s)")
+                fails.append(f"{label}: regex captures {len(groups)} values but "
+                             f"{len(keys)} derived keys were given")
+                break
+            for gi, (got, key) in enumerate(zip(groups, keys)):
+                want = derived.get(key)
+                if want is None:
+                    print(f"  FAIL {label:56} no derived value for {key!r}")
+                    fails.append(f"{label}: derivation {key!r} unavailable")
+                    continue
+                try:
+                    val = float(got.replace(",", ""))
+                except ValueError:
+                    # An over-greedy `([\d.]+)` swallows the sentence's full stop, so the
+                    # capture reads "0.998." and float() raises mid-run, killing every probe
+                    # after it. Report it as the probe bug it is instead of crashing.
+                    print(f"  FAIL {label:56} captured {got!r}, not a number")
+                    fails.append(f"{label}: captured {got!r} — the regex is over-greedy, "
+                                 f"most likely a trailing '.' or '%'. Tighten it.")
+                    continue
+                ok = abs(val - float(want)) <= tol
+                big = abs(val) >= 10_000
+                shown = f"{val:,.0f}" if (tol == 0 or tol >= 1 or big) else f"{val:g}"
+                wshown = (f"{want:,.0f}" if (tol == 0 or tol >= 1 or big)
+                          else f"{want:.4g}")
+                print(f"  {'ok  ' if ok else 'FAIL'} {label:56} "
+                      f"paper {shown:>12}   derived {wshown}")
+                n_checked += 1
+                if not ok:
+                    fails.append(f"{label}: paper says {shown}, data says {wshown}")
+                if in_full:
+                    covered.append(m.span(gi + 1))
+        if len(hits) > 1:
+            print(f"       ({len(hits)} occurrences checked — a figure stated more than once "
+                  f"must agree with the data every time)")
+
+    if unchecked:
+        print("\n  NOT covered by this script, and why:")
+        for u in unchecked:
+            print(f"    - {u}")
+
+    if show_coverage:
+        gaps = _coverage(norm, covered)
+        print(f"\n  COVERAGE — {n_checked} figures asserted; "
+              f"{len(gaps)} numeric token(s) in the scraped text unprobed:")
+        if n_scoped:
+            print(f"    (NB {n_scoped} probe(s) were section-scoped. Their spans are recorded "
+                  f"against the slice, not the full text, so the figures they DO check can "
+                  f"still appear below. Check the list against the probe set before adding "
+                  f"a duplicate.)")
+        for g in gaps:
+            print(f"    {g}")
+
+    print("\n" + bar)
+    if fails:
+        print(f"{title.split(' —')[0]}: {len(fails)} FAILURE(S)")
+        print(bar)
+        for f in fails:
+            print(f"  - {f}")
+        return 1
+    print(f"{title.split(' —')[0]}: {n_checked} figures agree with the data")
+    print(bar)
+    return 0
+
+
+def wants_coverage(argv=None) -> bool:
+    return "--coverage" in (sys.argv[1:] if argv is None else argv)

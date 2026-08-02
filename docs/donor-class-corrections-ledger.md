@@ -1,6 +1,6 @@
 # Corrections and review ledger
 
-### Companion to *The Donor Class Is Not the Electorate*
+### Companion to *Who Gives? The Donor Class and the Registered Electorate*
 
 **Stephen Kirby** · Tikor Consulting · July 2026
 
@@ -125,3 +125,62 @@ resolution rates. Both are the **Republican row's** rate. The aggregates are 88.
 own change of position on Idaho's Republican over-representation (+4.2 raw becoming −0.1
 standardized). The withdrawal is recorded above under claims withdrawn outright; the paper now
 simply states the standardized result and the instruction not to cite the raw figure.
+
+---
+
+### Withdrawn or narrowed in round 17 (2026-08-01)
+
+Five formulations that outran their evidence, all introduced by the *previous* round's own
+robustness work — which is the pattern the reviewer named: a correction that generates new theory
+generates new overclaims with it.
+
+**"The observed failure mode is structurally unavailable on this key."** Too strong. The
+uniqueness guard drops a colliding key only when both people appear distinctly on the **current
+active roll**. It does not reach a same-name relative who is inactive, has moved, or is absent
+from the roll; a jointly reported gift; a misreported name; or a namesake who never registered.
+The paper's own evidence contains the counter-example — one partial merge on the primary key in
+the 120 rated records, and a jointly filed gift needs no name difference at all. Now stated as
+elimination of the observed mechanism *within that boundary*.
+
+**"Whatever residual remains therefore cannot be that mechanism."** Does not follow. A same-name
+relative absent from the active roll is still a household mechanism; it is simply one the guard
+cannot detect. Narrowed to: the residual is not necessarily a different mechanism, only one the
+guard cannot see, and what it cannot be is a merge between two people both distinctly on the roll.
+
+**"Donors almost certainly on the roll."** A key matching two or more registrants is ambiguous; it
+does not establish that the contributor is one of them. Now "keys plausibly corresponding to a
+registrant but dropped because the roll holds more than one candidate."
+
+**"Only one of them is the rule's doing."** Contradicted by the paper's own residual table four
+paragraphs below it. Full-name exactness, ZIP5 exactness, the active-status restriction and the
+name parse all produce non-matches; the uniqueness guard is one of four, not the only one.
+
+**"The real floor on what a name-and-ZIP key can reach."** Not a floor. That residual still
+contains out-of-state records, name forms the limited relaxation misses, parse failures,
+incomplete roll records, identities split across keys, and people a probabilistic linkage would
+recover. Now "the residual not resolved by the specific deterministic relaxations tested here."
+
+**One factual claim corrected rather than narrowed.** "In every panel the biggest bucket after
+matching is a key at a different ZIP5" was false in the displayed Washington state row (26.0%
+against 30.9%) and in Idaho's. The decomposition is now computed on resident keys — which is also
+what puts it on the same denominator as the table immediately above it — and the prose says "the
+largest identified nonmatch category in **most** panels", naming the two exceptions.
+
+### Superseded measurements, round 17
+
+**The Washington PDC name-order estimates are withdrawn.** The retired values, recorded here
+because the paper no longer restates them: **1.85% of comma-less rows / 2.08% of dollars** from
+the originating script's own parser, and **4.7% of rows / 4.1% of dollars** from a
+surname-vocabulary heuristic. They disagreed with each other, the
+first was labelled in the paper as the one figure the verification pass could not independently
+confirm, and neither was the quantity that matters. Replaced by a direct measurement — rebuild the
+primary key both ways against the active roll — which puts the defect at **7.6% of comma-less
+resident keys and 8.4% of their dollars**, against a **0.18%** coincidence baseline measured on
+the comma-formatted FEC layer where the true name order is known.
+
+The measurement also settles the direction, which neither estimate addressed: the donors the
+defect loses are *older* than those matched (44.0% aged 65+ against 39.0%), so a repaired parser
+would move that panel's 65+ share from 39.0% to 39.8%. The defect understates Finding 1 in the
+Washington state panel rather than producing it. The panel is labelled coverage-compromised and
+read as a sensitivity panel; the parser is not repaired for this paper, because accepting reversed
+keys would add 42,787 matches from a population the blinded validation never rated.

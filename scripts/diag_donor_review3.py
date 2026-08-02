@@ -307,8 +307,8 @@ def main() -> int:
     wa.execute(f"ATTACH '{DATA / 'wa_vrdb.duckdb'}' AS vrdb (READ_ONLY)")
     WA_AGE = "date_diff('year', v.birthdate, DATE '2024-11-05')"
     wa_roll = f"""
-        WITH roll AS (SELECT DISTINCT state_voter_id
-                      FROM voter_scores WHERE LEFT(district_id,2)='ld'),
+        WITH roll AS (SELECT state_voter_id
+                      FROM donor_paper_wa_roll),
         gen AS (SELECT state_voter_id, COUNT(DISTINCT YEAR(election_date)) g
                 FROM vrdb.voting_history
                 WHERE MONTH(election_date)=11 AND YEAR(election_date) IN (2022,2024)
@@ -323,7 +323,7 @@ def main() -> int:
                      ELSE 0 END) n_eligible
         FROM roll r JOIN vrdb.voters v USING (state_voter_id)
         LEFT JOIN gen ON gen.state_voter_id = r.state_voter_id
-        WHERE {WA_AGE} IS NOT NULL AND {WA_AGE} >= 18"""
+        WHERE {WA_AGE} IS NOT NULL AND {WA_AGE} >= 18 AND v.status_code = 'A'"""
     report_eligibility_turnout(wa, "WA", PANELS, "t.age", wa_roll, "2022-11-08", 2)
     report_alltier_denominator(wa, "WA")
     wa.close()

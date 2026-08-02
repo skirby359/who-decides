@@ -1,14 +1,34 @@
-# Publication checklist — electoral-health lead paper
+# Audit log — electoral-health series
 
-*Assembled 2026-06-29. Turns the human-owned items in
-`electoral-health-TODO.md` (private repo) (#3 verify numbers, #4 hand-rate
-matches, #5 re-check cites, #6 publish) into a tick-through list. The work is
+*Assembled 2026-06-29 as a publication checklist; now a historical record. The work is
 AI-assisted; **you must independently re-derive the headline numbers before posting
 under your name** — this file makes that fast, it does not substitute for it.*
 
-Lead paper for submission: [`who-decides-washington.md`](who-decides-washington.md)
-("Who Decides Washington State? The gray off-year electorate"). Companion, post second:
-[`safe-seat-washington.md`](safe-seat-washington.md).
+> **⚠ Read the hierarchy here as historical.** This file opened by naming
+> [`who-decides-washington.md`](who-decides-washington.md) as the lead paper for submission,
+> and entries written before 2026-07-29 assume that. **The lead paper is now the donor-class
+> article**, *Who Gives? The Donor Class and the Registered Electorate in Washington, New York,
+> and Idaho* ([`donor-class-and-the-electorate.md`](donor-class-and-the-electorate.md)). Older
+> entries are preserved unedited because they are the record of how the analysis got here, but
+> **their ordering does not govern current release decisions** — the binary gates are in
+> [`donor-class-release-checklist.md`](donor-class-release-checklist.md) and the live
+> submission state is in
+> [`donor-class-submission-memo.md`](donor-class-submission-memo.md).
+
+## Series index — what each paper is for
+
+| paper | role | question it answers |
+|---|---|---|
+| [`donor-class-and-the-electorate.md`](donor-class-and-the-electorate.md) | **Lead article.** Journal submission in preparation | Who funds campaigns, measured person-by-person against the registered electorate in three states |
+| [`who-decides-washington.md`](who-decides-washington.md) | Companion | Composition of Washington's off-year electorate |
+| [`who-decides-new-york.md`](who-decides-new-york.md) | Companion | New York's registration, party and primary electorate structure |
+| [`who-decides-idaho.md`](who-decides-idaho.md) | Companion | Idaho's closed-primary electorate, the deep-red pole |
+| [`safe-seat-washington.md`](safe-seat-washington.md) | Companion | Seat competitiveness and where uncontested outcomes concentrate |
+| [`cross-state-fec-money.md`](cross-state-fec-money.md) | Companion | Interstate money flows and aggregate concentration, four states |
+| [`electoral-health-whitepaper.md`](electoral-health-whitepaper.md) | Synthesis | The series-level "stress, not failure" argument |
+
+Each companion cites the lead article for the donor-linkage instrument rather than restating
+it, and the lead article summarizes rather than reproduces their analyses.
 
 ---
 
@@ -1308,7 +1328,7 @@ contributor and no named matched donor appears in any report, export or analysis
 | R85 | Corrections ledger inside the submitted supplement | Split to `donor-class-corrections-ledger.md`; the supplement is now a clean online methods appendix |
 | R86 | This file used as an operational checklist | Renamed **`electoral-health-audit-log.md`**; a new two-page `donor-class-release-checklist.md` holds current binary gates with owners |
 | R87 | Overstated submission-note positions | Retired: "every finding replicated across both systems"; "same matched individuals" (Jaccard 0.14–0.16); the absolute novelty claim; "lead with Appendix G"; "caps bind but do not compress"; Appendix G as a direct contribution on limits. Venue ranking becomes ELJ, SPPQ, Political Behavior; Interest Groups & Advocacy dropped |
-| R88 | AI disclosure read "AI-assisted drafting and analysis review" | Expanded to SAGE's standard in the paper, the metadata and the title page: systems named; code, methods, citation-checking and analysis-proposal uses disclosed; **no PII-bearing record submitted to any hosted service**; AI not an author or autonomous adjudicator |
+| R88 | AI disclosure read "AI-assisted drafting and analysis review" | Expanded to SAGE's standard in the paper, the metadata and the title page: systems named; code, methods, citation-checking and analysis-proposal uses disclosed; AI not an author. **Twice-corrected (round 16, 2026-07-30): the clause "no PII-bearing record submitted to any hosted service" is CORRECT and was wrongly retracted in round 15.** That retraction assumed the 480-record validation had been AI-adjudicated, on the strength of this paper's own wording; the author confirms every verdict is theirs. The disclosure now also drops the false claim in the other direction — that AI performed a first rating pass. It performed none |
 | R89 | Article and appendices in one 27,800-word file | Split by `scripts/build_elj_submission.py` — anonymised manuscript (**body 8,565 words excluding tables**, against ELJ's 15,000 preferred), supplementary appendices, and a title page carrying all four declarations. Counts are derived, not hardcoded. Abstract trimmed to **297** against the 300 cap, and its turnout range corrected to the exact-eligibility figures the paper says to cite |
 | R90 | Ethics doc emphasised `.gitignore` as governance | Replaced with a status table naming **five unimplemented controls** — NY full-DOB minimisation, encryption at rest, controlled backups, retention/destruction dates, audit logging — because an aspirational list is worse than a short honest one. COI expanded with six explicit unanswered financial and operational questions, left visible |
 
@@ -1581,3 +1601,350 @@ Also this round: the county decomposition moved to the online appendix as **H4**
 detail, and the article was already carrying too much), and **A3b closed by counsel**.
 
 Tests **1,775**. Six public verifiers green. Public repo re-staged, still uncommitted.
+
+### Round 14 (2026-07-30) — reviewer read of the two generated ELJ files
+
+Read `donor-class-elj-manuscript.md` and `-supplementary.md` end to end as a referee would, then
+checked every suspect against the databases. Every headline finding reproduced; six defects.
+
+**The substantive one: Washington's baselines are not active registrants, and four places said
+they were.** The manuscript's Finding 4 source note and limitations bullet, Appendix C's
+"Registration baselines" and Appendix E's turnout table all asserted `status_code='A'`. True for
+New York. Washington's age and turnout cuts run on the `voter_scores` `ld`-scope roll — 5,456,444
+rows, of which **411,935 are inactive** — because that is the roll this series' WA tooling is
+built on. Inactive registrants vote less, so leaving them in the non-donor denominator depresses
+the WA non-donor rate and **widens** every WA gap:
+
+| WA figure | published | active-only |
+|---|--:|--:|
+| federal super-voter, donors vs non-donors | 88.0 / 52.0 → +36.0 | 88.0 / 54.7 → **+33.3** |
+| state super-voter | 88.9 / 51.5 → +37.3 | 88.9 / 54.2 → **+34.6** |
+| federal eligible-for-all raw gap | +36.7 | **+33.1** |
+| state eligible-for-all raw gap | +32.6 | **+29.0** |
+
+**The `ld`-scope universe was kept and the direction disclosed**, rather than re-running WA on
+`status_code='A'`. It is the roll the WA panels were matched through and the one the rest of the
+series uses; switching it would change four published figures and three ranges to strengthen
+nothing. All four sites now state the exception, Finding 4 carries the size, and the active-only
+comparison is **derived** by `verify_donor_class.py` rather than asserted. The WA age multipliers
+are barely affected — largest move 0.09, federal Silent 2.67 against 2.58.
+
+**Five more.**
+
+1. **The paragraph that defines the baseline gave the all-records counts.** "The registered
+   electorate is each state's *active* registration roll — Washington 5.51M, New York 13.54M" —
+   NY's active roll is 12,448,081, which Appendix C states correctly 1,600 lines later, and WA's
+   is 5,098,276. The literal exemption `"5.51M": "WA roll size, same"` is exactly why it survived:
+   **an exemption cannot catch a mislabelled figure.** All three roll sizes are now probed.
+2. **Appendix F's reconciliation of the WA multipliers named the wrong cause.** It attributed the
+   gap to a narrower denominator, "a few hundredths below Finding 1's". Computed on all four
+   bases, the driver is the **panel**: that block runs on the retained all-tier snapshots, which
+   take federal Silent from 2.67 to 2.56 and federal Gen Z from 0.04 *up* to 0.10; the denominator
+   adds 0.08 more on Silent, giving 2.48. So the gap reaches 0.19 on one generation and runs
+   upward on two. Gen Z was the tell — a denominator change cannot move one generation up and
+   another down. This block is `appf_head`, one of the four sections closed by written reason, and
+   **that reason already said "computed on the RETAINED all-tier snapshots"** — the correct
+   explanation was in the verifier and not in the paper.
+3. **A sheared sentence** in Appendix F's survivorship note: "Calling the raw age skew an 'upper
+   bound' on this basis; that assigned a direction the evidence does not support." No main clause —
+   collateral from round 8's removal of drafting history.
+4. **H1's footnote claimed the NY state rows "sum to the published panels (NY 378,383)".** They
+   sum to **378,388** — the five-row duplicate-`state_voter_id` fan-out on a roll join that
+   Appendix C documents. The probe on that sentence asserted the panel count and passed, because
+   the panel count is real; what was wrong was the claim that the rows sum to it.
+5. **The article's reference list carries 20 works of which the article cites five**; the rest are
+   cited in the appendices, which the split moves to a file with no reference list of its own. Now
+   labelled in the builder as one list serving both artifacts, with a pointer in the supplement.
+   Also fixed there: the supplement header said Appendix H holds three analyses; it holds four.
+
+**Bookkeeping that did not reproduce.** The verifier reports **45** audited sections (41 by
+derivation, 4 by written reason); A10 recorded 40, D7 recorded 44, `CLAUDE.md` recorded 44. The
+suite collects **1,783**, not the 1,775 recorded — on the same commit, so that was already stale.
+The memo still listed D7 as open after it closed.
+
+**A10 is reopened.** The sign-off was given on a document this round changed. It needs one fresh
+`--refresh` run and a re-signature before A14.
+
+Verifier **1,220** figures over 45 sections, cold `--refresh`, exit 0. Tests **1,783**. Six public
+verifiers green. Ruff clean on both edited scripts.
+
+### Round 15 (2026-07-30) — external reviewer #5: the validation bound, and the submission package
+
+Verdict: keep donor-class as the series lead, do not split it, no new robustness cycle — but one
+targeted validation issue, one disclosure contradiction, and a submission package that was still
+an internal draft. Every checkable claim in the letter was verified before acting; all held.
+
+**1. A pooled error bound was being spent panel-by-panel.** The blinded sample allocates **20**
+full-name records per panel, so 0/20 bounds a single panel's error at **16.1%**; the 3.1% figure
+is the Wilson bound on the pooled 120 and is a panel bound only under a common-error-rate
+assumption the paper never stated. Now stated, with both budgets reported. At 16.1% every 65+ row
+still clears its roll baseline and so do New York's party rows; **Idaho's do not** — 20.4 → 5.2
+against 11.8% registration. The insensitivity claim is withdrawn for Idaho and the unrun remedy
+named. Concentration left the budget table: equal two-person de-merging is a stylized stress
+test, not spent error budget. Partial merges are now split by tier, and **1 of the 8 is on the
+primary key** — unlike identity errors, this mode is not structurally absent there, because a
+jointly-filed gift does not require the two names to differ.
+
+**2. The "no PII to hosted AI" control was never in force.** Committed separately at `5f1f857`.
+The 480-record validation extract pairs registrant names with contributor names and was submitted
+for adjudication; five documents said otherwise, including the ethics assessment's control table.
+Corrected with its scale, new §5a, new counsel gate A15, R88 corrected in place.
+
+**3. Washington's baseline switched to the active roll**, reversing round 14. Committed at
+`616ba7a`. 46 figures moved; no direction changed. The round-14 disclosure survives only as a
+crosswalk for the companion papers.
+
+**4. "Recall" was never measured.** The denominator is parsed `(surname, first name, ZIP5)` keys,
+not verified identities. Renamed to **strict-key match rate** throughout. The residual
+decomposition stops asserting that the different-ZIP bucket is movers and work addresses and
+lists the explanations the fields cannot separate.
+
+**5. The article had no literature.** All of it sat in Appendix D, so a referee could not judge
+novelty from the manuscript. New 809-word **Prior work, and what this paper adds** section,
+sliced and audited like everything else.
+
+**6. Five formulations pulled back**: replication → within-state repetition; the abstract's
+"account for"; purposive state selection stated in methods and limitations; the measurement
+instrument is the linkage procedure, not the contribution; precision is a property of the key →
+detected precision differed by key in the sample; and the conclusion's monotonic
+who-votes/who-nominates/who-pays ordering, which no companion set jointly demonstrates.
+
+**7. The submission package.** One formal title for both artifacts. Title page rebuilt to SAGE
+structure — Statements and Declarations, CRediT, consent headings, ethics statement no longer
+labelled "Incomplete", conflict disclosure cut to five lines, and the data statement's
+every-figure-re-derived claim corrected against the four written-reason sections. Eight detailed
+tables moved to a new **Appendix I** (article 19 → 13 tables). H2 and H3 dropped from the
+submission as companion-paper duplication; **Appendix G condensed to a stub rather than cut**,
+because fourteen cross-references point at it and orphaning all of them to save a referee some
+reading trades one defect for a worse one. Supplement relative links delinked — they resolve to
+nothing once SAGE hosts the file. New cover letter with the SAGE-required companion-study overlap
+matrix. Audit log re-headed: it still named the Washington paper as series lead.
+
+Three new tests guard the generated artifacts: relocated-table pointers resolve, dropped blocks
+name a companion rather than a missing appendix, and the supplement carries no relative links.
+
+Verifier **1,242** figures / 45 sections cold, exit 0. Tests **1,786**. Six public verifiers
+green. Ruff clean. Body 10,826 of 15,000; abstract 289 of 300.
+
+**Left for the author:** A10 re-signature (the paper changed again), A15 counsel question, the
+five title-page fields, three cover-letter status cells, then A14 → A13 → B9.
+
+### Round 16 (2026-07-30) — my round-15 correction was itself wrong
+
+**The author rated all 480 validation records, and every other pass. No adjudication in this
+project was ever AI-assisted, and no person-level record went to a hosted model.**
+
+Round 15 concluded the opposite. The chain was: Appendix F said "adjudicated by the AI
+assistant"; the AI-assistance disclosure said "AI-assisted verdicts constitute the first rating
+pass"; the sampler's docstring said the evidence file carries voter and donor names; no rating
+script exists, so a session must have filled the verdict column. Every link was real. The
+conclusion was false, because the paper's own wording about who rated was wrong and I treated a
+document as evidence of what a past session did instead of asking the person who was there.
+
+That error propagated into five documents, a new ethics assessment §5a, a counsel gate (A15) and
+a commit message, in the space of an hour. **A confident wrong correction costs more than the
+defect it corrects**, and the rule now recorded at project and user scope is: never state what a
+past session did as fact — ask.
+
+**Withdrawn:** ethics §5a in full; gate A15; Appendix B's processor-disclosure bullet; the
+"one PII-bearing artifact was submitted" paragraph in the paper front matter, the title page, the
+metadata, the memo and the cover letter. R88's original clause — *no PII-bearing record submitted
+to any hosted service* — was **correct all along** and is restored, now with the sharper point
+that no mechanism enforces it because an agent reading a file *is* submission.
+
+**Corrected in the other direction, which is the substantive part.** The paper had been claiming
+an AI first pass checked by an independent human. Neither is true. It is **one rater, twice** —
+an original pass and a blind re-rate with fresh opaque ids. So the agreement statistics are
+**test–retest, not inter-rater**: 88.0% four-category, 93.9% binary, kappa 0.815, 75/75 on the
+full-name block. That bounds how consistently one reader applies the criteria and cannot detect a
+criterion applied wrongly but applied the same way twice. Appendix F now says so, labels the
+coefficients, and names an independent rater as an open item rather than implying one exists.
+The same correction propagates to the methods supplement, the metadata abstract, the cross-state
+paper and both scoring scripts.
+
+Nothing numeric moved. The verdicts are the verdicts; what changed is who produced them and what
+the agreement between two passes can support.
+
+**New:** `docs/second-rater-instructions.md` — a self-contained brief for a genuinely independent
+rater, with the id-space trap called out (the `H####` ids are published *with their verdicts*, so
+a third rater handed them can look up both prior answers in a minute).
+
+Verifier **1,239** figures cold, exit 0. Tests **1,786**. Infrastructure 92.
+
+---
+
+### Round 17 (2026-08-01) — external reviewer #6: "not cycling yet, but very close"
+
+The letter's own verdict is the important part: the previous round's corrections were real, but
+the paper had grown to ~35,400 words with a 3,900-word methods section, and **each new robustness
+analysis was generating its own qualifications and, in three places, its own overclaims.** The
+recommendation was one targeted validation, one reconciliation pass, then freeze. That is what
+this round does. No new robustness analysis was added; one measurement replaced three estimates,
+and one sample was drawn.
+
+**The one new measurement — Washington's PDC name-order parser, settled rather than described.**
+The paper carried **three** competing figures for how badly the parser mis-reads comma-less names
+(1.85% of rows from the originating script's own parser, explicitly unconfirmable; 4.7% from a
+surname-vocabulary heuristic; a dollar analogue of the first), and a referee would reasonably ask
+why a panel ships with a known defect and no settled size. `diag_wa_pdc_name_order.py` answers it
+by rebuilding the primary key **both ways** against the active roll under the same uniqueness
+guard:
+
+| | measured |
+|---|--:|
+| comma-less keys resolving only when read first-name-first | **7.6%** (42,787 of 560,182) |
+| their dollars | **8.4%** ($27.1M) |
+| coincidence baseline, FEC layer where true order is known | **0.18%** (523 of 298,645) |
+| WA state strict-key match rate, either order accepted | 38.8% → **46.4%** |
+
+Two controls make it a measurement rather than a fourth estimate. The forward column reproduces
+the published panel exactly — 217,121 keys against 217,114 matched donors, 65+ share 39.0% against
+the published 39.0% — so the instrument is measuring the matcher. And the **placebo** rules out
+coincidence: swapping the halves of a name whose true order is known resolves uniquely only 0.18%
+of the time.
+
+**The parser was NOT repaired, and the reason is on the record.** Accepting reversed keys would
+add 42,787 matches from a population the blinded validation never rated, and the placebo shows
+some would be coincidental namesakes — so it needs a fresh validation round on a new
+specification, which is the cycling the reviewer warned against. Instead the WA **state** panel is
+labelled coverage-compromised, by a quantified 7.6 points, and the direction is measured too: the
+donors the defect loses are *older* (44.0% 65+ against 39.0%), so a repaired parser would move
+that panel's headline from 39.0% to **39.8%**. The defect understates Finding 1 there; it does not
+manufacture it. Both superseded estimates are withdrawn from Appendix C and Appendix F.
+
+**The one targeted validation — Idaho, drawn and outstanding.** Idaho's party rows are the single
+result that fails the panel-specific 16.1% bound. A fresh sample was drawn: **204 records, 102 per
+Idaho panel**, all on the primary full-name key, balanced across DEM/REP/UNA (68 each) and across
+the top dollar decile and the rest, excluding by voter id all 450 distinct registrants rated in
+the 480-record pass, in an unpublished `I####` id space. At zero detected errors that supports a
+per-panel ceiling of **3.6%** against the current 16.1%. Brief:
+`docs/idaho-validation-rater-instructions.md`. **No figure in the paper reflects it**, and the
+abstract now carries the qualification instead of resting silently on the pooled assumption.
+
+The exclusion list was *regenerated from the seed* rather than trusted: `--label priorids`
+reproduces the 2026-07-27 selection exactly (120 per tier, 80 per state x panel), which is the
+only way to prove a "fresh" draw is fresh.
+
+**Structure — the methods section stops being a paper inside the paper.** The error-budget table,
+the roll-collision measurements, the equal-halves de-merge, the uniqueness-guard split and the
+residual cascade moved out of the article body into new Appendix F **§F7** and **§F8**. The body
+keeps the linkage rule, the tier validation, the selection cost, the match-rate table, a concise
+error sensitivity and one sentence on the unresolved Idaho issue. The two relocated blocks fell
+from 1,208 and 867 words to 654 and 743. The ELJ builder's own I1–I3 relocations were deleted —
+the canonical paper now does that work — and I4–I8 renumbered.
+
+| id | defect | resolution |
+|---|---|---|
+| R114 | Dual-title paragraph survived the round-15 switch to one formal title, contradicting the line above it | Deleted |
+| R115 | Main methods still said "the first rating pass was AI-assisted", contradicting the front matter, Appendix F and round 16's correction | Removed; replaced with the accurate statement that every verdict is the author's and the second pass is a blinded author re-rate |
+| R116 | "Independent human re-rating" in the contribution list, limitations and memo, against Appendix F's own test–retest labelling | "Blinded author re-rate" throughout; "independent" reserved for the outside rater, who has not yet worked |
+| R117 | DIME-style work called "circular" | Recast: contribution behaviour is not an *independent* measure of affiliation for this question — the giving supplies both the behaviour and the yardstick |
+| R118 | "What none of it reads is a party the state itself records" — a systematic-search claim with no systematic search behind it | "The studies reviewed here generally do not compare…" |
+| R119 | Party registration claimed to make the result "falsifiable in a way an inferred position is not" | Replaced with the real advantage: the measure of the characteristic under analysis is not derived from contribution behaviour |
+| R120 | "The two-panel construction prevents a pooling error the literature is otherwise exposed to" — unevidenced claim about the literature | "…that would otherwise arise in this design" |
+| R121 | "The instrument's reach and its error are both measured" — true linkage error is not measured | "Its operational match rate is measured and its detectable error estimated and bounded", with the limit stated |
+| R122 | "The observed failure mode is **structurally unavailable** on this key" | Bounded to what the guard can actually see: it eliminates the observed mechanism where both people appear distinctly on the current active roll, and does not reach inactive or absent relatives, joint filings, misreported names or unregistered namesakes — the one partial merge on the primary key is the standing counter-example |
+| R123 | "Whatever residual remains therefore **cannot** be that mechanism" — does not follow; a same-name relative off the roll is still a household mechanism | "Not necessarily a different mechanism, only one the guard cannot see; what it cannot be is a merge between two people both distinctly on the active roll" |
+| R124 | Guard-dropped keys described as "donors **almost certainly on the roll**" | "Keys plausibly corresponding to a registrant but dropped because the roll holds more than one candidate" — an ambiguous key does not establish which, or any, of them gave |
+| R125 | "Only one of them is the rule's doing" — contradicted by the paper's own residual table four paragraphs later | Rewritten to name the four specification choices that produce non-matches, with the guard as one of them |
+| R126 | "In **every** panel the biggest bucket is same-name-different-ZIP" — false in the displayed WA state row (26.0% against 30.9%) | Two fixes. The decomposition is **recomputed on resident keys** in both the script and the verifier, which is the reviewer's preferred remedy and also removes a mixed-basis defect: the table sat on an unrestricted denominator directly below a residence-restricted one, and its matched column disagreed with the match-rate table by up to 14 points. It now reconciles to within 0.1. The prose becomes "the largest identified nonmatch category in most panels", naming the two where it is not |
+| R127 | "The **real floor** on what a name-and-ZIP key can reach" | "The residual not resolved by the specific deterministic relaxations tested here", with the six things it still contains listed |
+| R128 | Three competing WA PDC name-order estimates, one unconfirmable | One measurement with a placebo control; both estimates withdrawn (above) |
+| R129 | Abstract asserted the Idaho party result without the panel-specific qualification the methods disclose | Abstract states which bound each party result survives and that a fresh Idaho sample is outstanding. Re-trimmed to **300** words against the cap |
+| R130 | Methods section had become a treatise on deterministic linkage | Six blocks relocated to Appendix F §§F7–F8 (above) |
+
+**Verifier.** 1,305 figures / 48 sections, exit 0. Tests 1,791. Six probes retargeted from `sensitivity` and
+`matchrate` to the new `appf_budget` / `appf_reach` slices — a probe's section field records
+*where* a figure is asserted, so leaving them behind would have reported the same cells as
+unmapped in one section and unprobed in the other. Six "Guard cost" probes and one out-of-state
+restatement probe deleted with their table. Nine probes added for the name-order measurement and
+the Idaho ceiling, both **derived** rather than exempted, per the standing preference. One
+rounding defect caught by the tolerance and fixed in the paper, not the tolerance: the placebo
+excess prints 7.5, not 7.4.
+
+**A reserved word, for the list.** `by` fails in DuckDB alias position with a bare "syntax error
+at or near" — same class as `rows`, `returning`, `matched`, `resolved`, `nulls`. Now in CLAUDE.md.
+
+**What was NOT done, deliberately.** No new robustness analysis. The reviewer's closing stopping
+rule is adopted: from here, only cut, relocate, clarify and prepare the submission, and admit new
+analysis only if it could reverse a headline, answers a real editor or referee, closes a
+documented gate, or *replaces* a weaker analysis.
+
+---
+
+### Round 18 (2026-08-01) — external reviewer #7: release control, and one statistical error
+
+Verdict: "close — final validation and release-control, not major analytical revision." Two
+substantive findings, the rest synchronization and governance. The reviewer was reading the
+pre-correction copy for several items already fixed in round 17 (the five retired terms, the
+Idaho qualification in intro/Finding 3/conclusion, and the PDC figure, which they quote at 7.6%
+against the corrected 7.2%) — checked before acting rather than re-fixing.
+
+**The statistical error, and it was mine.** Round 17 said the drawn Idaho sample would support a
+**3.6%** panel bound from 102 records. That treats a deliberately **disproportionate stratified**
+sample as a simple random one. Correcting a pooled-bound error and then committing a second one
+in the same appendix would have been the worst available outcome of the previous round.
+
+What the design actually supports, at zero detected errors:
+
+| stratum | records | Wilson 95% ceiling |
+|---|--:|--:|
+| one party, one panel | 34 | **10.2%** |
+| one dollar band, one panel | 51 | 7.0% |
+| one panel, composition-reweighted | 102 | 3.6% — an estimate, not a binomial bound |
+| what the current evidence supports | 20 | 16.1% |
+
+**The party-stratum bound is the one the finding needs**, because the vulnerability is
+specifically whether error inflates the *Democratic* share. Applied as a worst case it takes
+Idaho federal 20.4% → **18.4%** and state 21.6% → **19.4%**, both far above the 11.8%
+registration share — a stronger and more directly relevant defence than a panel average. All of
+it is derived by `_d_idaho_sample` and probed, not written down.
+
+**Verdict handling is now pre-specified too**, which the reviewer flagged as a remaining gap:
+`NC`/`NP` count as errors, `U` leaves the denominator but is reported, `partial_merge` is a
+dollar-attribution issue rather than a misidentification, and **NC-only** and **NC+NP+U** are
+pre-committed as sensitivities. That mirrors `score_match_validation.py`, so the Idaho result
+stays comparable to the published 480.
+
+**The PDC denominators did not reconcile, and the cause was a defect in my own diagnostic.** The
+match-rate table said 555,922 keys; the name-order diagnostic said 560,182. The diagnostic was
+**collapsing runs of internal whitespace before splitting, which the matcher does not do** —
+40,400 PDC rows carry a doubled space. Removing the collapse aligned it to the matcher character
+for character and the reconciliation is now exact and printed: **555,107 comma-less + 846
+comma-bearing − 31 reachable from both = 555,922**. The corrected measurement moves several
+figures (7.6% → **7.2%**, 38.8% → **39.1%** which removes the second mismatch the reviewer
+flagged, recoverable 65+ 44.0% → **46.8%**, repaired headline 39.8% → **40.2%**), and the diag
+and the verifier now agree to four decimals on all nine shared metrics.
+
+**Scope narrowed on the parser defect.** The measured direction runs against the age finding, and
+that is the *only* outcome established: concentration, county geography, dollars per donor,
+turnout and the non-age federal–state comparisons were not measured, so the WA state panel stays
+a secondary sensitivity panel for those and the sign is unknown. Said in both the methods and the
+limitations bullet.
+
+| id | defect | resolution |
+|---|---|---|
+| R131 | 0/102 reported as a 3.6% panel-specific binomial bound on a stratified sample | Replaced with the per-stratum table above; the pooled figure survives only as a composition-reweighted precision estimate, explicitly labelled |
+| R132 | Verdict handling not pre-specified — `partial_merge`, `U`, `NP` undecided before rating | Fixed table in Appendix F §F7 and the rater brief, with two sensitivities pre-committed |
+| R133 | PDC 555,922 vs 560,182, and 39.1% vs 38.8%, presented as the same population | Diagnostic aligned to the matcher's parse; reconciliation derived, printed and probed |
+| R134 | Parser defect implied harmless in general | Direction established for age only; the other five outcomes named as unmeasured |
+| R135 | "the population that finances campaigns is the same kind of population" | "the observed matched donor populations share several recurring characteristics" — three purposive states do not support the stronger reading |
+| R136 | "strongest evidence that it describes donors rather than a quirk of one disclosure regime" | "evidence that the findings are not confined to a single state panel or disclosure system" — the two panels are not independent |
+| R137 | Deterministic linkage described as moving uncertainty "out of the estimator", too absolute | Recast: no record-level probabilities to propagate, so error is evaluated by validation and sensitivity — and false links are still measurement error inside the estimands, bounded rather than carried through |
+| R138 | "AI made no autonomous adjudication" — "autonomous" is ambiguous | "did not adjudicate any match-validation record" |
+| R139 | Memo said "Analysis frozen" while four gates including the Idaho rating were open | "Core analysis complete; final Idaho validation and release sign-off outstanding." Frozen is reserved for after A9x is scored and its consequences verified |
+| R140 | Memo §5 said A10 first, §7 began at A14 and asserted "the analysis is signed off" while A10 was reopened | §7 rewritten as a 13-step sequence beginning at A9x, with "do not sync, tag or mint a DOI before the Idaho analysis is resolved" stated |
+| R141 | The Idaho rating was described as outstanding but was not a formal gate | New gate **A9x**, preprint-blocking, with **A10 depending on it** |
+| R142 | "Nine gates" against six numbered categories | All ten listed individually with status and dependency |
+| R143 | Word-count table said Appendices A–I, artifact table said A–H | The generated supplement carries **nine** appendices, A–I; both tables corrected |
+| R144 | Memo blurred expected, last-observed and signed build outputs | Three-row table separating them; the signed row is empty because A10 is reopened |
+| R145 | Ethics declaration headed "Incomplete by design" | "Researcher assessment complete; no external determination obtained" — the old wording reads as knowingly filing an incomplete declaration |
+| R146 | Data-security items treated as parallel housekeeping | Free-space wipe, documented restore test and access review promoted to **preprint-blocking**; retention/destruction before submission. **Not** stated as "enable encryption": volume C: is already encrypted and the reviewer assumed otherwise — the real residual is the Used-Space-Only conversion leaving deleted content in free space |
+| R147 | 21,000-word supplement had no map | One-page roadmap, **generated from the assembled headings** so it cannot drift — the same package had already shipped an A–H range against an A–I file |
+
+**Verifier 1,305 figures / 48 sections.** Retitling F8 to carry the relocated match-rate table
+broke two section anchors at once — `appf_reach` starts at that heading and `appf_budget` *ends*
+at it — so twelve probes reported SECTION NOT FOUND and the budget slice swallowed all of F8,
+reporting 109 tokens unmapped in the wrong section. Both anchors fixed, with a comment on the
+bound. A section anchor is matched literally: **retitling a heading silently unmoors every probe
+scoped to it.**

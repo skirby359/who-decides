@@ -12,8 +12,13 @@ money moves margins.
 
 Every headline number in the papers is re-derived from scratch by the reproduction script
 listed against it below — read-only, aggregate-only, and printed next to the paper's value
-for a cell-for-cell check. Most are `verify_*.py`; two papers are reproduced by a `diag_*`
-script instead, for reasons given under the table.
+for a cell-for-cell check. Since 2026-08-01 every paper has a `verify_*.py`, and each of
+them SCRAPES ITS PAPER: the probes are regexes anchored on the surrounding words, so a
+figure is compared against the sentence that states it rather than against a constant a
+maintainer typed. Consequences worth knowing before you run one — a probe whose anchor
+matches nothing FAILS rather than skipping, and every occurrence of a figure is checked, so
+a paper that states the same number two different ways fails on whichever one is wrong.
+Pass `--coverage` to any of them to list numeric tokens in that paper no probe touches.
 
 ## The reproducibility model (read first)
 
@@ -84,23 +89,33 @@ Each paper has a reproduction entry point:
 | `verify_who_decides_wa.py` | Who Decides Washington State? |
 | `verify_who_decides_ny.py` | Who Decides New York? |
 | `verify_who_decides_id.py` | Who Decides Idaho? |
-| `diag_seat_competition.py` | Safe-Seat Washington |
+| `verify_safe_seat.py` | Safe-Seat Washington |
 | `verify_donor_class.py` | The Donor Class Is Not the Electorate |
 | `verify_cross_state_money.py` | Four States, Four Donor Economies |
-| `diag_ie_vs_margin.py` | Does Money Move Votes in Washington? |
+| `verify_money_votes.py` | Does Money Move Votes in Washington? |
+| `verify_whitepaper.py` | Electoral Health (Findings 4-6) |
 
-Three notes on that table, because two entries are not plain verifiers:
+Notes on that table:
 
-- **Safe-Seat Washington** is reproduced by `diag_seat_competition.py`, not by
-  `verify_safe_seat.py`. The latter is **superseded** and retained only so the paper's
-  Appendix G can reproduce its own superseded figures: it derived the seat universe from
-  the results table, which silently dropped 24 King County House seats per cycle in 2016
-  and 2018. The replacement builds the universe from certified statewide returns and
-  exits non-zero if any cycle fails to reconcile to the statutory chamber size.
-- **Does Money Move Votes** reports a null and a data ceiling, so what there is to
-  reproduce is that the tests come back empty and that `diag_ie_vs_margin.py` still
-  declines to report a slope at n=7. Its other two cuts are
-  `diag_overperformance_patterns.py` and `diag_expenditures_vs_residual.py`.
+- **Safe-Seat Washington.** `verify_safe_seat.py` was rebuilt on 2026-08-01. The version it
+  replaces derived the seat universe from the results table, which silently dropped 24 King
+  County House seats per cycle in 2016 and 2018; this one builds the universe from the
+  certified statewide summary returns and reconciles it against the statutory chamber size
+  before computing anything. It parses those returns in SQL, while
+  `diag_seat_competition.py` streams them through Python — same inputs, independent
+  implementations, so a slip in either would have to be reproduced in the other to survive.
+- **Two papers read a PINNED snapshot and fail loudly without it**, because their figures
+  are computed against a table that is rebuilt routinely and would otherwise drift out from
+  under the published number. `verify_who_decides_ny.py` needs `ny_paper_roll`
+  (`scripts/pin_ny_roll.py`); `verify_money_votes.py` needs the two frozen frames under
+  `docs/reference/`. Re-pinning either is a deliberate act behind an explicit flag and moves
+  published figures.
+- **Does Money Move Votes** reports a null and a data ceiling, so most of what there is to
+  reproduce is that the tests come back empty and that `diag_ie_vs_margin.py` still declines
+  to report a slope at n=7. `verify_money_votes.py` asserts the data-ceiling facts from
+  scratch and the correlations against the pinned frames; the cross-cycle holdout R² table
+  is the one block it does not check, because scoring that fit needs the candidate-quality
+  components and the frame does not carry them. The script says so in its own output.
 - **The donor paper's recomputations** — tier and household sensitivities, panel overlap,
   period alignment — are in `diag_donor_class_revisions.py`, alongside the verifier.
 

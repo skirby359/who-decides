@@ -23,7 +23,7 @@ anything, and who funds the candidates. This paper asks the question those invit
 the money change the result? — and reports that the available public record cannot answer
 it, while characterizing precisely how far short it falls. Across 163 Washington
 legislative and congressional races from 2018 to 2024, the ratio of Democratic to
-Republican fundraising correlates with candidate overperformance at **+0.55**, the
+Republican fundraising correlates with candidate overperformance at **+0.58**, the
 strongest of any measured factor, ahead of incumbency (+0.43) and candidate quality
 (+0.34). Three independent attempts to convert that correlation into a causal reading
 fail. Spending *allocation* — the field, media, and professional shares of itemized
@@ -81,16 +81,28 @@ fundraising ratio more strongly than with anything else measured:
 
 | factor | Pearson r with overperformance |
 |---|--:|
-| **fundraising, log2(D receipts / R receipts)** | **+0.55** |
+| **fundraising, log2(D receipts / R receipts)** | **+0.58** |
 | incumbency | +0.43 |
 | candidate quality index | +0.34 |
-| local trend | +0.32 |
+| local trend | +0.31 |
 | midterm year | ≈0 |
 
 The relationship is monotonic, not driven by a tail. Sorting races by who out-raised whom:
 where the Democrat out-raised the Republican, the Democrat beat the district baseline by an
-average of **+4.20** points; where funding was even, **+2.37**; where the Republican
-out-raised, **−1.93**.
+average of **+4.22** points; where funding was even, **+2.32**; where the Republican
+out-raised, **−1.77**.
+
+> **The cell frame is pinned, and these five figures moved when it was (2026-08-01).** The
+> fundraising feature is matched against `candidate_finance`, which is a live table: as local
+> and legislative filings are loaded, more cells acquire both-side finance and enter the
+> correlation. The frame behind an earlier draft of this section held **109** such cells and
+> gave +0.55, +4.20, +2.37 and −1.93; it now holds **129** and gives the figures above. The
+> universe is unchanged at 163 baseline-scorable cells, and so is every conclusion — the
+> correlation is slightly *stronger* and fundraising remains the largest measured factor,
+> ahead of incumbency at +0.43. The frame is now frozen at
+> `docs/reference/overperformance_cells_2026-08-01.csv`, which is what
+> `scripts/verify_money_votes.py` asserts against, so a reader re-running the derivation gets
+> the figures this paper prints rather than whatever the table holds that week.
 
 Taken alone this looks like a straightforward answer, and it is the number a campaign
 consultant would quote. The rest of this paper is about why it is not one.
@@ -113,19 +125,33 @@ each candidate's field, media, and professional *shares* of coded operational sp
 tests them against the residual.
 
 The shares correlate with the residual at essentially zero — field **+0.02**, media
-**+0.05**, professional **−0.03**. Total spend correlates at +0.26, but that is the
+**+0.04**, professional **−0.05**. Total spend correlates at +0.23, but that is the
 fundraising scale signal from Finding 1 arriving again, not allocation. The decisive test
 is cross-cycle holdout: fit on 2022, predict 2024.
 
 | model | holdout R² |
 |---|--:|
 | core candidate-quality features | 0.000 |
-| core + field share | 0.006 |
-| core + all allocation shares | 0.018 |
-| allocation shares alone | 0.041 *(r = −0.20, wrong-signed)* |
+| core + field share | 0.013 |
+| core + all allocation shares | 0.026 |
+| allocation shares alone | 0.022 *(r = −0.15, wrong-signed)* |
 
-In-sample R² rises from 0.049 to 0.144 as shares are added while holdout R² stays at the
-floor — the signature of overfitting, not signal. Notably, allocation *is* a real and
+In-sample R² rises from 0.039 to 0.105 as shares are added while holdout R² stays at the
+floor — the signature of overfitting, not signal.
+
+> **This block is pinned too, and eight of its figures moved when it was (2026-08-01).** The
+> allocation frame is derived against the forecast model's *residual*, so it shifts whenever
+> the model does — and the model has moved since this section was written, while the
+> fundamentals baseline behind Finding 1 has not. That is why the two figures computed
+> against `overperf` rather than `residual` are unchanged (field-vs-overperformance −0.24,
+> and both persistence coefficients) and every figure computed against the residual moved:
+> media +0.05 → +0.04, professional −0.03 → −0.05, total spend +0.26 → +0.23, and the four
+> holdout cells with the in-sample pair. **Nothing in the finding changes** — every holdout
+> R² is still at the floor, the allocation-alone model is still wrong-signed, and the shares
+> still carry no out-of-sample information; the allocation-alone cell in fact fell from 0.041
+> to 0.022. The frame is frozen at
+> `docs/reference/expenditures_vs_residual_2026-08-01.csv`, which is what
+> `scripts/verify_money_votes.py` asserts the correlations against. Notably, allocation *is* a real and
 stable candidate trait: field-share persistence across cycles runs r = 0.83 and media-share
 r = 0.998. It is a stable feature that carries no information about the outcome. And the
 one directional hint runs against the folk theory: field share correlates **−0.24** with
@@ -179,17 +205,23 @@ its own, but it is a striking one.
 The design in 2c is the right one. It is also not estimable, and that limitation is the
 paper's most citable result.
 
-**Directional independent-expenditure data exists on disk for exactly one cycle.** FEC
-Schedule E carries a support-or-oppose flag and a district, which is what makes a
-directional test possible at all — but only the 2024 cycle is loaded, yielding **seven
-scorable Washington House races**. Three further districts were uncontested and drop out;
-2026 has no national-environment data yet.
+**Directional independent-expenditure data exists on disk for exactly one *scorable*
+cycle.** FEC Schedule E carries a support-or-oppose flag and a district, which is what makes
+a directional test possible at all. Two cycles carry it, and only one of them can be scored:
+2024 holds **777 flagged rows across all ten districts** and $53.8M, while 2026 holds
+**14 rows across seven districts** and $165K — a partial current-cycle trickle with no
+national-environment data to net a residual against, and no result to net it from. So 2024
+is the estimable cycle, yielding **seven scorable Washington House races**; three further
+districts were uncontested and drop out.
 
 **The state-legislative money is worse.** Washington's PDC records **$70.6M** of
 independent expenditure in legislative races, which would multiply the sample severalfold.
-It carries a **null support/oppose flag**. The database records that money was spent
-regarding a race, not which side it was spent for. It therefore cannot enter a directional
-test at all without re-derivation from sponsor-level data.
+Its support/oppose flag is **empty on all but 5 of 4,456 rows — $14,212, or 0.02% of the
+dollars.** The database records that money was spent regarding a race, not which side it was
+spent for. It therefore cannot enter a directional test at all without re-derivation from
+sponsor-level data. (An earlier draft said the flag was simply null; five rows carry one,
+which changes nothing about the conclusion and is stated because the absolute form was
+checkable and wrong.)
 
 Seven cross-sectional observations cannot bear the analysis the question requires. The
 bootstrap confidence interval, the early-versus-late spending split, and the next-cycle
@@ -240,7 +272,7 @@ leave with the question open and a clear sense of what it would take to close it
 ## What this paper does not claim, and limits
 
 - **This is not a causal estimate, and no causal claim is made in either direction.** Every
-  cut is observational with no exogenous variation and no instrument. The +0.55 correlation
+  cut is observational with no exogenous variation and no instrument. The +0.58 correlation
   is exactly what a real causal effect would also produce; the nulls are consistent with a
   true zero *and* with an effect the data is too thin to detect.
 - **The allocation null is underpowered and tests the wrong thing twice over.** Coverage is
@@ -262,7 +294,7 @@ leave with the question open and a clear sense of what it would take to close it
 
 ## Appendix A — The objections, in full
 
-**1. "You found +0.55 and then explained it away."** The correlation is real and the paper
+**1. "You found +0.58 and then explained it away."** The correlation is real and the paper
 leads with it. The objection has force: the burden of proof for dismissing the largest
 correlation in the dataset should be high. What justifies not treating it as causal is not
 the correlation's size but the *pattern of everything around it* — allocation carrying no

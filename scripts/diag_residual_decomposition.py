@@ -39,7 +39,7 @@ from pathlib import Path
 import duckdb
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from diag_match_rate import ELIGIBLE, FIRST_SQL, LAST_SQL, PANELS, VRDB  # noqa: E402
+from diag_match_rate import ELIGIBLE, FIRST_SQL, LAST_SQL, PANELS, VRDB, in_state  # noqa: E402
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "data"
@@ -48,8 +48,17 @@ DATA = ROOT / "data"
 HAS_STATUS = {"wa_vrdb": True, "ny_vrdb": True, "id_vrdb": False}
 
 
-def decompose(con, prefix: str, has_status: bool) -> dict:
-    src = f"SPLIT_PART(contribution_id, ':', 1) = '{prefix}'"
+def decompose(con, prefix: str, has_status: bool, st: str) -> dict:
+    """Decompose the residual over **resident** keys.
+
+    The denominator is restricted to in-state contributor keys, matching
+    `diag_match_rate.py`'s match-rate table. Round 17 flagged the earlier unrestricted
+    basis: an out-of-state key has no counterpart on that state's roll by construction, so
+    it lands in bucket 4 and inflates it — the NYSBOE layer is 23.6% out-of-state — which
+    made bucket 4 the largest bucket in two panels and contradicted the prose above the
+    table. It also meant two adjacent tables used different denominators.
+    """
+    src = f"SPLIT_PART(contribution_id, ':', 1) = '{prefix}' AND {in_state(st)}"
     active = "status_code = 'A'"
     inactive = "status_code <> 'A'" if has_status else "1=0"
     # Built as separate lookups rather than one query: each relaxation needs its own
@@ -134,7 +143,7 @@ def main() -> None:
         con = duckdb.connect(str(p), read_only=True)
         try:
             con.execute(f"ATTACH '{DATA / (vrdb + '.duckdb')}' AS vrdb (READ_ONLY)")
-            r = decompose(con, prefix, HAS_STATUS[vrdb])
+            r = decompose(con, prefix, HAS_STATUS[vrdb], state)
         finally:
             con.close()
         key = f"{state} {'fed' if prefix == 'FEC' else 'state'}"

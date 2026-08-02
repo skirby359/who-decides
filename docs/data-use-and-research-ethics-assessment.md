@@ -253,19 +253,51 @@ honest one.
 |---|---|
 | Raw data outside the repository | **Implemented** — `.gitignore` excludes `data/` and `*.duckdb` wholesale |
 | Aggregate-only publication | **Implemented** — §4 above |
-| Single-operator access | **Implemented in effect** — the files exist on one workstation; no shared account, no server, no third-party analytics platform |
-| No PII to hosted AI services | **Implemented as a rule, not a technical control.** No voter, contribution, or linkage record has been submitted to any hosted model; the AI assistance described in the papers' disclosure operated on code and prose. There is no mechanism preventing it, so it rests on practice |
+| Single-operator access | **Implemented in effect** — the files exist on one workstation; no shared account, no server, no third-party analytics platform. **Considered and declined 2026-08-01:** relocating `data/` to the household network-attached storage volume, whose directory is shared inside the house, was evaluated and rejected. It would have falsified all three clauses above — adding a server, on a share, reachable by other household accounts — in exchange for removing a contractually bound processor, which is the wrong trade. Local full-volume encryption with the data resident on the workstation is the retained arrangement, and this row is the reason. **Enumerated 2026-08-01 rather than asserted** — one enabled local account of seven, one enabled administrator, no explicit SMB shares, Remote Desktop disabled, a private git remote with no data tracked, and the sync provider's devices and sessions reviewed clean. The two residuals, and why each is accepted rather than remediated, are recorded at gate B10c |
+| No PII to hosted AI services | **Implemented as practice, not as a technical control — and the distinction is the whole of it.** No voter, contribution or linkage record has been submitted to a hosted model: the matcher is deterministic local code, every match-validation verdict is the author's, and the PII-bearing evidence file was rated outside any assistant. What no mechanism prevents is an assistant *reading* such a file — an agentic coding session transmits the contents of the files it opens, so the risky operation does not look like an upload and cannot be enforced against by policy alone. Standing instruction added 2026-07-30 at both project and user scope: refuse person-level reads and hand the task back. Review round 15 briefly recorded a breach here on the strength of the paper's own wording; the author confirmed no AI adjudication ever occurred, and that entry is withdrawn |
 | NY full date of birth minimised | **Implemented 2026-07-30.** Day and month are generalised to 1 July of the birth year in the analytical copy — Washington's existing convention, since RCW 29A.08.710 releases year of birth only. Provably lossless: the analysis only ever read the year, because `date_diff('year', a, b)` returns the year difference rather than a completed age, and all twelve NY age-band figures are identical to six decimal places after the migration. `load_ny_voters.py` produces the generalised column, so a rebuild cannot reintroduce the exact date. The raw FOIL production remains in the restricted source enclave (`data/raw/`, digest recorded in the supplement) |
-| Encryption at rest | **Implemented — BitLocker is enabled on the workstation volume holding the data (author-attested 2026-07-30).** Recorded as attested rather than verified: a `manage-bde -status` capture from an elevated prompt is the evidence to file, and was not obtainable without elevation |
-| Encrypted backups | **Partially implemented, and the gap is specific.** The working tree sits in a consumer cloud-sync folder with a one-year version history, which gives an off-site versioned copy and rollback from accidental deletion or corruption — an adequate answer for `data/raw/` (14 GB of irreplaceable source files, including a voter file obtained by FOIL request). Three qualifications. **(1)** Sync is currently PAUSED to stop the client locking the DuckDB files during test runs, so there is no live backup at all right now; the correct resolution is *selective sync* excluding `*.duckdb` (13.1 GB, derived and rebuildable from `data/raw/` by the loaders, and the sole cause of the lock) rather than pausing the whole client. **(2)** The provider holds the encryption keys, so a third party holds restricted voter data at rest; that is a disclosure point rather than a prohibition, but it is named here rather than left implicit. **(3)** No restore has been tested. One documented restore of one source file closes the control |
-| Retention and destruction dates | **Not set.** No date is fixed for destroying the voter files or the validation evidence |
-| Audit logging | **Not implemented** — no access log exists for the local databases |
+| Encryption at rest | **Implemented and verified 2026-07-30** from a `manage-bde -status` capture, re-confirmed 2026-08-01: volume C:, which holds the working tree and every database, reports Protection On, XTS-AES 128, 100% encrypted, with TPM and numerical-password key protectors. **The residual point recorded here on 2026-07-30 was overstated, and is corrected rather than quietly dropped.** It said that because the conversion is *Used Space Only*, the 52 prospect CSVs deleted in the 2026-07-29 purge could persist as **plaintext** in free space. They cannot. BitLocker encrypts on write, so only free space that predates *enablement* can hold plaintext — and the System log records a V2 TPM protector unlocking C: at the earliest boot it retains, **2026-03-12**, four and a half months before the purge. Those files were written and deleted under encryption; their remnants are ciphertext. Both logs are full and wrapping (BitLocker Management at its 1 MB cap; System 20 MB of 20 MB, oldest record 2026-03-11), so 2026-03-12 is a **floor** on how long the volume has been protected, not the enablement date — which is all this comparison needs. What remains is pre-enablement free space of unknown age, for which a wipe was run on 2026-08-01 as belt-and-braces. **It is not tracked further and nothing depends on it**, since the artifact that motivated the concern was never in the clear. **The former second residual point is withdrawn 2026-08-01:** external volume E: was styled a backup drive and recorded here as needing encryption before use, but it is a recovery-only device being removed from the system, so it is not the backup target and the question does not arise |
+| Encrypted backups | **Partially implemented, and the scope is narrower than an earlier version of this row implied. Stated plainly here rather than left to inference.** The working tree syncs to a consumer cloud provider with a one-year version history, giving an off-site versioned copy of `data/raw/` — the irreplaceable part, including a voter file obtained by FOIL request. **Restricted source data is therefore held by a third party by deliberate decision, not by oversight.** The decision, taken 2026-08-01 and recorded so a reader need not reconstruct it: off-site survival of an irreplaceable FOIL production outweighs the custody cost of a provider holding it. **What the `*.duckdb` ignore rule does and does not do** is the part previously stated too broadly. It is a rule in the provider's `rules.dropboxignore` at the sync root; it correctly matches every `.duckdb` at any depth; and it keeps ~13 GB of *derived* data out of the sync path, which is a **file-locking and disk-space fix, not a disclosure control.** It does not reach `data/raw/` — the three raw voter productions — and it did not reach `data/validation/`, the PII-bearing evidence file and the `sample_id` → `state_voter_id` maps, which needed a rule of their own. And by the provider's own documentation the rule "will not apply to files already synced online", so any database uploaded before it took effect remained server-side, within one-year versioning, until manually removed there — which was done on 2026-08-01. Three things are named rather than glossed. The provider holds the encryption keys, so a third party holds restricted voter data at rest — and as of 2026-08-01 **there is no author-key-encrypted target and no candidate device**, external volume E: having been withdrawn as a recovery-only unit due off the system. That makes the provider copy the sole off-site copy rather than a redundant one, which is a disclosed limitation and not a pending step. **A restore has now been tested, 2026-08-01** — `vrdb/04.2026.WA/2025-2026_Voting_History.txt` pulled back from the provider's web interface and verified byte-identical (SHA-256 `ba9b28c5…eed901`, 185,678,211 bytes) against two independent references: a retained sibling copy unmodified since 2026-04-25, and a digest taken before the duplicate was deleted earlier that day. It establishes provider round-trip for a file **in** the sync path, and no more: not `*.duckdb` recovery, which the ignore rule excludes and the loaders can rebuild, and not version-history recovery of a long-deleted file. And `data/validation/` was **carved out of the sync path 2026-08-01** by a rule at the sync root, closing what this row previously listed as open — the reasoning is under *Retention* below, and it is that the class is regenerable, its ratings survive identifier-free in `docs/reference/`, and it is the only artifact here whose disclosure would retroactively de-anonymise already-published material |
+| Retention | **Policy adopted 2026-08-01 — see *Retention* below.** No destruction date is set, and the reasoning for not setting one is stated rather than left as an omission: no source term requires one, and a fixed date would conflict with a longitudinal design. Retention is condition-based on a three-year review cycle, next due 2029-08-01. The one class carrying a short life is the PII-bearing validation evidence, tracked at §8 item 5 |
+| Audit logging | **Not implemented, and accepted on the record 2026-07-30 rather than left open.** A per-file access log on a single-operator workstation with no shared account and no server would record one principal accessing their own files, which is not a control so much as a diary. The exposures it would detect — insider misuse and credential sharing — do not arise in this configuration, and the ones that do arise (device theft, provider compromise) are addressed by full-volume encryption and by what is excluded from sync. This row is a deliberate non-implementation with a stated reason, not an oversight |
 | Incident response | **Not documented** |
 | Human-rater confidentiality | **Informal.** The independent re-rating was performed on a blinded evidence extract; no written confidentiality undertaking was obtained, and §4's evidence file is PII-bearing |
 | Confidential-address registrants | **Relies on the source.** Each state withholds protected addresses before release; no additional screen is applied here |
 
-The five "not implemented" rows are the substance of what an external reviewer would ask about,
-and they are listed so the question is not left to be discovered.
+The four rows that remain unimplemented, informal, or dependent on the source are the substance
+of what an external reviewer would ask about, and they are listed so the question is not left to
+be discovered.
+
+### Retention
+
+**Adopted 2026-08-01, in place of the destruction dates this row previously said were owed.** No
+provision of RCW 29A.08.720–.740, Idaho Code § 34-437A, N.Y. Election Law § 3-103(5), or
+11 C.F.R. § 104.15 prescribes a retention period or a destruction deadline for a private
+recipient, and none of the three voter-file productions was obtained under a use agreement
+promising deletion. A fixed disposal date would therefore be an invention, and one that conflicts
+with a longitudinal design whose value depends on holding successive extracts of the same rolls.
+The policy is a condition and a review cycle instead:
+
+> Identifiable source files and linked research records are retained for longitudinal electoral
+> research for as long as they remain necessary for reproducibility, historical comparison, and
+> lawful follow-on analysis. **Retention is reviewed every three years** — next review due
+> 2029-08-01. Records are deleted when they are no longer required for those purposes, when
+> continued possession would no longer be lawful under the applicable source terms, or when the
+> project is permanently discontinued.
+
+Retention classes differ, and the working extracts are the ones with a short life:
+
+| class | treatment |
+|---|---|
+| Original voter-file productions (`data/raw/`) | Long-term restricted archive, with each production's use-restriction documentation retained alongside it — for Washington that is the `Washington Laws regarding use of VRDB data.pdf` shipped with the extract |
+| Original campaign-finance files | Long-term archive, subject to the § 104.15 use restriction analysed in §2a |
+| Linked voter–donor tables | Long-term, highest-security tier. Rebuildable from `data/raw/` by the loaders, so they are held for the cost of rebuilding rather than because they are irreplaceable |
+| PII-bearing validation evidence and the `sample_id` → `state_voter_id` maps (`data/validation/`) | **Shortest life of anything here.** Deleted once the rating pass each one supports is signed off. The ratings themselves survive identifier-free in `docs/reference/`, so deletion loses no published result — which is what makes this class safe to delete and is the reason it should be. §8 item 5 tracks it |
+| Published aggregate tables and figures | Retained permanently |
+
+**What this does not claim.** A review cycle is a commitment to revisit, not a technical control.
+Nothing in the workflow enforces the 2029 date; it is a diary entry, and following the
+distinction this document draws elsewhere, it is recorded as one rather than as a control.
 
 ## 5. Risks considered
 
@@ -412,10 +444,13 @@ Remaining items before signature, unchanged:
    under an identified protocol. Until that letter exists, the question is **unresolved**, and
    this document says so rather than predicting the answer.
 2. **Answer the §6 financial and operational disclosure rows.** They are blank on purpose.
-3. **Close the five unimplemented governance controls in §4**, or accept and record them: NY
-   full-DOB minimisation, encryption at rest, controlled backups, retention and destruction
-   dates, and audit logging. The DOB minimisation is the one with a concrete action already
-   specified.
+3. **Close the remaining governance controls in §4**, or accept and record them. Of the five
+   originally listed here, four are now closed or accepted on the record: NY full-DOB
+   minimisation (2026-07-30), encryption at rest (verified 2026-07-30), audit logging (accepted
+   with a stated reason 2026-07-30), and retention (condition-based policy adopted 2026-08-01,
+   in place of the destruction dates this item used to ask for). **Backups remain partially
+   implemented**, and the residue is not a missing step but a disclosed trade: a third party
+   holds restricted source data by deliberate decision, and no restore has been tested.
 4. **Resolve the two § 104.15 questions in §2a** — whether a paid brief falls inside
    § 104.15(c), and whether the surviving aggregate donor sections and the `donation_lean` signal
    are affected. These need counsel, not further self-assessment.

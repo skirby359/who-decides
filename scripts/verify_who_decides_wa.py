@@ -1,494 +1,351 @@
-"""Independent re-derivation of every headline number in docs/who-decides-washington.md.
+"""Independent re-derivation of docs/who-decides-washington.md, asserted against its prose.
 
-This is the human-owned verification the publication-checklist demands: it hits
-data/wa_vrdb.duckdb DIRECTLY with from-scratch SQL (not by importing the diag
-scripts), so a cell-for-cell match against the paper confirms the finding
-independently of the analysis code. Read-only; aggregate output only (the VRDB
-carries PII — never emit individual rows; RCW 29A.08.720).
+CONVERTED TO AN ASSERTING VERIFIER 2026-08-01. The previous version derived roughly a hundred
+values with from-scratch SQL and then PRINTED them, almost all with no paper value beside
+them at all — two of about a hundred cells carried a "(paper: ...)" annotation. It returned
+None, so it always exited 0, and the release checklist's `verify_who_decides_wa.py || echo
+FAILED` could never fire. In practice it asked a human to open the paper and compare a
+hundred cells by eye, every time, which is not a gate.
 
-Covers checklist ledger claims #1-#10:
-  - turnout rate + composition share by age cohort x cycle type   (#1-#7)
-  - Das-Gupta symmetric behavior-vs-rolls decomposition           (#8-#10)
+The derivations were sound — every cell spot-checked against the paper reproduced — so what
+changed is that the comparison is now performed by the machine and its failure is fatal.
 
-Run from anywhere:  python scripts/verify_who_decides_wa.py
+This paper is POSTED (SSRN abstract 7149263, 2026-07-26) and unmodified since. A failure here
+is therefore a correction to a public preprint rather than a pre-submission fix, which raises
+the bar for changing the paper and lowers it for suspecting the probe. Reproduce a mismatch
+by hand before editing anything.
+
+Hits data/wa_vrdb.duckdb DIRECTLY with from-scratch SQL, not by importing the diag scripts.
+Read-only; AGGREGATE OUTPUT ONLY — the VRDB carries personal data under RCW 29A.08.720 and
+this script must never emit a row.
+
+TWO THINGS THE DERIVATIONS DEPEND ON, both easy to get wrong:
+  * WA birthdates are stored as 1 July of the birth year, so `date_diff('year', ...)` gives
+    year-difference age. That is the paper's stated convention; it is not true age, and it
+    is one year high for anyone born after the election date in their birth year.
+  * The eligibility denominator is the CURRENT roll, registered on or before the election
+    and aged 18+ at it. Voters who have since left the roll are absent from it — which is
+    the survivorship hole the paper measures in its own §Coverage and bounds explicitly,
+    rather than a defect in this script.
+
+Run:  python scripts/verify_who_decides_wa.py [--coverage]
 """
+from __future__ import annotations
+
+import sys
 from pathlib import Path
+
 import duckdb
 
-VRDB = str(Path(__file__).resolve().parent.parent / "data" / "wa_vrdb.duckdb")
-BUCKETS = ["18-29", "30-44", "45-64", "65+"]
-ELECTIONS = [("2024-11-05", "presidential"), ("2022-11-08", "midterm"),
-             ("2021-11-02", "off-year"), ("2023-11-07", "off-year"), ("2025-11-04", "off-year")]
-PRES, OFF = "2024-11-05", "2025-11-04"
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _verify_prose as vp  # noqa: E402
+
+vp.stdout_utf8()
+
+VRDB = str(vp.DATA / "wa_vrdb.duckdb")
+PAPER = vp.DOCS / "who-decides-washington.md"
+
+BANDS = ["18-29", "30-44", "45-64", "65+"]
+ELECTIONS = [("2024-11-05", "e24"), ("2022-11-08", "e22"), ("2021-11-02", "e21"),
+             ("2023-11-07", "e23"), ("2025-11-04", "e25")]
+OFF_YEARS = ["e21", "e23", "e25"]
+
+# Certified statewide ballots counted, WA Secretary of State
+# (results.vote.wa.gov/results/<yyyymmdd>/turnout.html). An EXTERNAL benchmark: the point of
+# the coverage table is to compare the voter file against a number the file cannot produce.
+OFFICIAL = {"2021-11-02": 1_896_481, "2022-11-08": 3_067_686, "2023-11-07": 1_758_084,
+            "2024-11-05": 3_961_569, "2025-11-04": 2_001_425}
+
+# Metro counties, as the paper's geography cut defines them: the ten most populous.
+METRO = ("KING", "PIERCE", "SNOHOMISH", "SPOKANE", "CLARK", "THURSTON", "KITSAP",
+         "YAKIMA", "WHATCOM", "BENTON")
 
 
-def cohort_table(con, date):
-    """{cohort -> (eligible_registrants, voted)} on the current roll, age as of `date`.
-    Denominator = current-roll registrants age>=18 at the election, registered on/before it."""
-    rows = con.execute(f"""
-        WITH elig AS (
-            SELECT CASE WHEN date_diff('year', v.birthdate, DATE '{date}') < 30 THEN '18-29'
-                        WHEN date_diff('year', v.birthdate, DATE '{date}') < 45 THEN '30-44'
-                        WHEN date_diff('year', v.birthdate, DATE '{date}') < 65 THEN '45-64'
-                        ELSE '65+' END coh,
-                   CASE WHEN h.state_voter_id IS NOT NULL THEN 1 ELSE 0 END voted
-            FROM voters v
-            LEFT JOIN (SELECT DISTINCT state_voter_id FROM voting_history
-                       WHERE election_date = DATE '{date}') h ON h.state_voter_id = v.state_voter_id
-            WHERE v.birthdate IS NOT NULL
-              AND date_diff('year', v.birthdate, DATE '{date}') >= 18
-              AND v.registration_date IS NOT NULL AND v.registration_date <= DATE '{date}')
-        SELECT coh, COUNT(*) roll, SUM(voted) voted FROM elig GROUP BY 1
-    """).fetchall()
-    return {coh: (float(roll), float(voted)) for coh, roll, voted in rows}
+def _age(date: str) -> str:
+    return f"date_diff('year', v.birthdate, DATE '{date}')"
 
 
-def elect_share(roll, rate, target):
-    voters = {c: roll[c] * rate[c] for c in BUCKETS}
-    tot = sum(voters.values())
-    return voters[target] / tot if tot else float("nan")
+def _band(date: str) -> str:
+    a = _age(date)
+    return (f"CASE WHEN {a}<30 THEN '18-29' WHEN {a}<45 THEN '30-44' "
+            f"WHEN {a}<65 THEN '45-64' ELSE '65+' END")
 
 
-# Official certified statewide BALLOTS COUNTED, per WA Secretary of State
-# (results.vote.wa.gov/results/<yyyymmdd>/turnout.html). External benchmark.
-OFFICIAL_BALLOTS = {
-    "2021-11-02": 1_896_481, "2022-11-08": 3_067_686, "2023-11-07": 1_758_084,
-    "2024-11-05": 3_961_569, "2025-11-04": 2_001_425,
-}
+def _eligible(date: str) -> str:
+    """Current-roll registrants who could have voted on `date`."""
+    return (f"FROM voters v WHERE v.birthdate IS NOT NULL AND {_age(date)} >= 18 "
+            f"AND v.registration_date IS NOT NULL AND v.registration_date <= DATE '{date}'")
 
 
-def coverage_table(con):
-    """#11-#15: our observations vs official certified counts (survivorship check)."""
-    print("\n" + "=" * 92)
-    print("[#11-#15] DATA VALIDATION — coverage vs official certified counts (WA SoS)")
-    print(f"{'election':12}{'type':13}{'official':>12}{'in_file':>12}{'analyzable':>12}{'anlz/off':>10}")
-    for date, kind in ELECTIONS:
-        official = OFFICIAL_BALLOTS[date]
-        infile = con.execute(f"SELECT COUNT(DISTINCT state_voter_id) FROM voting_history "
-                             f"WHERE election_date = DATE '{date}'").fetchone()[0]
-        analyzable = con.execute(f"""
-            SELECT COUNT(*) FROM (SELECT DISTINCT state_voter_id FROM voting_history
-                                  WHERE election_date = DATE '{date}') h
-            JOIN voters v USING (state_voter_id) WHERE v.birthdate IS NOT NULL""").fetchone()[0]
-        print(f"{date:12}{kind:13}{official:>12,}{infile:>12,}{analyzable:>12,}"
-              f"{analyzable/official*100:>9.1f}%")
+def _voted(date: str) -> str:
+    return (f"LEFT JOIN (SELECT DISTINCT state_voter_id FROM voting_history "
+            f"WHERE election_date = DATE '{date}') h ON h.state_voter_id = v.state_voter_id")
 
 
-def survivorship(con):
-    """#16-#18: are the ballots we CAN'T see (voter since left the roll) older?"""
-    print("\n[#16-#18] SURVIVORSHIP HOLE — voters who cast a past ballot but are gone")
-    print("           from the current roll, aged via the 2023-09-01 snapshot")
-    for date, kind in [("2021-11-02", "off-year"), ("2022-11-08", "midterm"),
-                       ("2023-11-07", "off-year")]:
-        rows = con.execute(f"""
-            WITH miss AS (
-                SELECT DISTINCT h.state_voter_id
-                FROM (SELECT DISTINCT state_voter_id FROM voting_history
-                      WHERE election_date = DATE '{date}') h
-                LEFT JOIN voters v USING (state_voter_id) WHERE v.state_voter_id IS NULL),
-            aged AS (
-                SELECT CASE WHEN date_diff('year', s.birthdate, DATE '{date}') < 30 THEN '18-29'
-                            WHEN date_diff('year', s.birthdate, DATE '{date}') < 45 THEN '30-44'
-                            WHEN date_diff('year', s.birthdate, DATE '{date}') < 65 THEN '45-64'
-                            ELSE '65+' END coh
-                FROM miss m JOIN voters_20230901 s USING (state_voter_id)
-                WHERE s.birthdate IS NOT NULL
-                  AND date_diff('year', s.birthdate, DATE '{date}') >= 18)
-            SELECT coh, COUNT(*) FROM aged GROUP BY 1""").fetchall()
-        d = {c: n for c, n in rows}; t = sum(d.values())
-        print(f"  {date} ({kind:9}): missing&aged={t:>8,}  65+={d.get('65+',0)/t*100:5.1f}%  "
-              f"18-29={d.get('18-29',0)/t*100:4.1f}%   (observed off-year 65+ share ~37-40%)")
-    # roll attrition 2023 snapshot -> current, by age (dated, age>=18 at snapshot)
-    lv65, lvN, st65, stN = con.execute("""
-        SELECT
-          SUM(CASE WHEN v.state_voter_id IS NULL     AND a>=65 THEN 1 ELSE 0 END),
-          SUM(CASE WHEN v.state_voter_id IS NULL              THEN 1 ELSE 0 END),
-          SUM(CASE WHEN v.state_voter_id IS NOT NULL AND a>=65 THEN 1 ELSE 0 END),
-          SUM(CASE WHEN v.state_voter_id IS NOT NULL          THEN 1 ELSE 0 END)
-        FROM (SELECT s.state_voter_id, date_diff('year', s.birthdate, DATE '2023-09-01') a
-              FROM voters_20230901 s WHERE s.birthdate IS NOT NULL
-                AND date_diff('year', s.birthdate, DATE '2023-09-01') >= 18) x
-        LEFT JOIN voters v USING (state_voter_id)""").fetchone()
-    print(f"  roll attrition 2023->2026: leavers 65+={lv65/lvN*100:.1f}% (n={lvN:,})  "
-          f"vs stayers 65+={st65/stN*100:.1f}% (n={stN:,})")
-
-
-def finer_cohorts(con):
-    """#19: composition holds under a finer 18-24/25-29 and 65-74/75+ split."""
-    FINE = ['18-24', '25-29', '30-44', '45-64', '65-74', '75+']
-    print("\n[#19] SENSITIVITY — composition with finer cohorts (share of electorate)")
-    print(f"{'election':12}{'type':13}" + "".join(f"{b:>8}" for b in FINE))
-    for date, kind in ELECTIONS:
-        a = f"date_diff('year', v.birthdate, DATE '{date}')"
-        rows = con.execute(f"""
-            WITH e AS (SELECT CASE WHEN {a}<25 THEN '18-24' WHEN {a}<30 THEN '25-29'
-                                   WHEN {a}<45 THEN '30-44' WHEN {a}<65 THEN '45-64'
-                                   WHEN {a}<75 THEN '65-74' ELSE '75+' END coh
-                       FROM (SELECT DISTINCT state_voter_id FROM voting_history
-                             WHERE election_date = DATE '{date}') h
-                       JOIN voters v USING (state_voter_id)
-                       WHERE v.birthdate IS NOT NULL AND {a} >= 18)
-            SELECT coh, COUNT(*) FROM e GROUP BY 1""").fetchall()
-        d = {c: n for c, n in rows}; t = sum(d.values())
-        print(f"{date:12}{kind:13}" + "".join(f"{d.get(b,0)/t*100:>7.1f}%" for b in FINE))
-
-
-def geography(con):
-    """#20: the salience gradient holds in King, the rest of state, metro, and rural."""
-    METRO = ("('KING','PIERCE','SNOHOMISH','CLARK','SPOKANE','THURSTON',"
-             "'KITSAP','WHATCOM','BENTON','YAKIMA')")
-
-    def share65(date, where):
-        a = f"date_diff('year', v.birthdate, DATE '{date}')"
-        rows = con.execute(f"""
-            WITH e AS (SELECT CASE WHEN {a}<65 THEN 'u' ELSE '65+' END coh
-                       FROM (SELECT DISTINCT state_voter_id FROM voting_history
-                             WHERE election_date = DATE '{date}') h
-                       JOIN voters v USING (state_voter_id)
-                       WHERE v.birthdate IS NOT NULL AND {a} >= 18 AND ({where}))
-            SELECT coh, COUNT(*) FROM e GROUP BY 1""").fetchall()
-        d = {c: n for c, n in rows}; t = sum(d.values())
-        return d.get('65+', 0) / t * 100 if t else 0
-
-    print("\n[#20] SENSITIVITY — 65+ share of electorate by geography")
-    print(f"{'geography':16}" + "".join(f"{d[:7]:>10}" for d, _ in ELECTIONS))
-    for label, where in [("King", "UPPER(v.county_name)='KING'"),
-                         ("Rest of state", "UPPER(v.county_name)<>'KING'"),
-                         ("Metro (top-10)", f"UPPER(v.county_name) IN {METRO}"),
-                         ("Rural (other 29)", f"UPPER(v.county_name) NOT IN {METRO}")]:
-        print(f"{label:16}" + "".join(f"{share65(d, where):>9.1f}%" for d, _ in ELECTIONS))
-
-
-def _analyzable_65(con, date, yr):
-    """(A, n65_reached, n65_notreached) on the analyzable electorate (matched to
-    current roll + year of birth, no registration filter — matches coverage_table).
-    Age convention = election_year - birth_year ('reached' = birthday passed)."""
-    return con.execute(f"""
-        WITH e AS (
-            SELECT EXTRACT(year FROM v.birthdate) AS byr
-            FROM (SELECT DISTINCT state_voter_id FROM voting_history
-                  WHERE election_date = DATE '{date}') h
-            JOIN voters v USING (state_voter_id)
-            WHERE v.birthdate IS NOT NULL
-              AND ({yr} - EXTRACT(year FROM v.birthdate)) >= 18)
-        SELECT COUNT(*),
-               SUM(CASE WHEN byr <= {yr}-65 THEN 1 ELSE 0 END),
-               SUM(CASE WHEN byr <= {yr}-66 THEN 1 ELSE 0 END)
-        FROM e""").fetchone()
-
-
-def bounding(con):
-    """#21: bound the 65+ share of the FULL certified electorate under the two
-    extreme assumptions about the unobserved residual (official - analyzable)."""
-    print("\n[#21] MISSING-VOTER BOUNDING — 65+ share of the certified electorate")
-    print(f"{'election':12}{'type':13}{'official':>10}{'analyzable':>11}{'resid':>8}"
-          f"{'obs%':>7}{'MIN%':>7}{'MAX%':>7}")
-    mn = {}
-    for date, kind in ELECTIONS:
-        yr = int(date[:4]); O = OFFICIAL_BALLOTS[date]
-        A, n65, _ = _analyzable_65(con, date, yr); R = O - A
-        obs, lo, hi = n65 / A * 100, n65 / O * 100, (n65 + R) / O * 100
-        mn[date] = (kind, lo, hi)
-        print(f"{date:12}{kind:13}{O:>10,}{A:>11,}{R:>8,}{obs:>6.1f}%{lo:>6.1f}%{hi:>6.1f}%")
-    pres_max = mn["2024-11-05"][2]
-    print(f"  adversarial: presidential 2024 MAX 65+={pres_max:.1f}%; off-year MIN 65+ "
-          + " ".join(f"{d[5:7]}/{d[2:4]}={mn[d][1]:.1f}%" for d in
-                     ["2021-11-02", "2023-11-07", "2025-11-04"])
-          + f"  -> all exceed pres MAX? "
-          + ("YES" if all(mn[d][1] > pres_max for d in
-                          ["2021-11-02", "2023-11-07", "2025-11-04"]) else "NO"))
-
-
-def imputation(con):
-    """#22: birth-year imputation sensitivity — 65+ share under 'birthday reached'
-    (Jan/Jul-1) vs 'not reached' (Dec-31); report the swing."""
-    print("\n[#22] BIRTH-YEAR IMPUTATION SENSITIVITY — 65+ share of analyzable electorate")
-    print(f"{'election':12}{'type':13}{'reached':>9}{'notreached':>12}{'swing pp':>10}")
-    worst = 0.0
-    for date, kind in ELECTIONS:
-        yr = int(date[:4])
-        A, n65, n65_lo = _analyzable_65(con, date, yr)
-        hi, lo = n65 / A * 100, n65_lo / A * 100
-        if kind == "off-year":
-            worst = max(worst, hi - lo)
-        print(f"{date:12}{kind:13}{hi:>8.1f}%{lo:>11.1f}%{hi-lo:>9.2f}")
-    print(f"  max off-year 65+ swing across extreme imputations: {worst:.2f} pp")
-
-
-def who_is_counted(con):
-    """#23: median age + 65+ share — registered roll vs ballot-returners."""
-    print("\n[#23] WHO IS COUNTED — 65+ share and MEDIAN AGE")
-    print(f"{'electorate':34}{'65+':>8}{'median age':>12}")
-    base = con.execute("""
-        WITH e AS (SELECT (2026 - EXTRACT(year FROM birthdate)) age FROM voters
-                   WHERE birthdate IS NOT NULL AND (2026 - EXTRACT(year FROM birthdate))>=18)
-        SELECT SUM(CASE WHEN age>=65 THEN 1 ELSE 0 END)*1.0/COUNT(*), MEDIAN(age) FROM e""").fetchone()
-    print(f"{'Registered roll (April 2026)':34}{base[0]*100:>7.1f}%{base[1]:>12.0f}")
-    for date, kind in [("2024-11-05", "presidential"), ("2022-11-08", "midterm"),
-                       ("2021-11-02", "off-year"), ("2023-11-07", "off-year"),
-                       ("2025-11-04", "off-year")]:
-        yr = int(date[:4]); a = f"({yr} - EXTRACT(year FROM v.birthdate))"
-        # same eligibility as the composition/rate tables (registered on/before E)
-        r = con.execute(f"""
-            WITH e AS (SELECT {a} age
-                       FROM (SELECT DISTINCT state_voter_id FROM voting_history
-                             WHERE election_date=DATE '{date}') h
-                       JOIN voters v USING (state_voter_id)
-                       WHERE v.birthdate IS NOT NULL AND {a}>=18
-                         AND v.registration_date IS NOT NULL
-                         AND v.registration_date <= DATE '{date}')
-            SELECT SUM(CASE WHEN age>=65 THEN 1 ELSE 0 END)*1.0/COUNT(*), MEDIAN(age) FROM e""").fetchone()
-        print(f"{date+' '+kind+' returners':34}{r[0]*100:>7.1f}%{r[1]:>12.0f}")
-
-
-def county_65plus(con):
-    """#24: 65+ share of the ballot-returning electorate by county, 2024/2023/2025.
-    Rebuts "it's just King / just rural" — the gradient holds in all 39 counties."""
-    print("\n[#24] 65+ SHARE OF ELECTORATE BY COUNTY (all 39; pres 2024 vs off 2023/2025)")
-    print(f"{'county':16}{'2024':>8}{'2023':>8}{'2025':>8}{'pres->off':>11}")
-
-    def sh(date, yr, county):
-        a = f"({yr} - EXTRACT(year FROM v.birthdate))"
-        r = con.execute(f"""
-            WITH e AS (SELECT {a} age
-                FROM (SELECT DISTINCT state_voter_id FROM voting_history
-                      WHERE election_date=DATE '{date}') h
-                JOIN voters v USING (state_voter_id)
-                WHERE v.birthdate IS NOT NULL AND {a}>=18 AND UPPER(v.county_name)='{county}')
-            SELECT SUM(CASE WHEN age>=65 THEN 1 ELSE 0 END)*1.0/NULLIF(COUNT(*),0) FROM e""").fetchone()[0]
-        return (r or 0) * 100
-
-    counties = [x[0] for x in con.execute(
-        "SELECT DISTINCT UPPER(county_name) FROM voters WHERE county_name IS NOT NULL"
-    ).fetchall()]
-    rows = []
-    for co in counties:
-        p = sh("2024-11-05", 2024, co); o23 = sh("2023-11-07", 2023, co); o25 = sh("2025-11-04", 2025, co)
-        rows.append((co, p, o23, o25, (o23 + o25) / 2 - p))
-    allpos = all(r[4] > 0 for r in rows)
-    for co, p, o23, o25, gap in sorted(rows, key=lambda x: -x[1]):
-        print(f"{co:16}{p:>7.1f}%{o23:>7.1f}%{o25:>7.1f}%{gap:>+10.1f}")
-    print(f"  presidential->off-year senior gap POSITIVE in all {len(rows)} counties? "
-          f"{'YES' if allpos else 'NO'}")
-
-
-def habitual_core(con):
-    """#25: the off-year electorate is the presidential electorate's habitual core.
-    (a) overlap each off-year <-> 2024 pres; (b) peripheral droppers (2024 pres, not the
-    2023 off-year) vs the core, age as of 2024; (c) median registration tenure by cycle."""
-    print("\n[#25] HABITUAL CORE vs PERIPHERAL DROPPERS + registration tenure")
-    pres = "2024-11-05"
-    for date in ["2021-11-02", "2023-11-07", "2025-11-04"]:
-        no, inter, npres = con.execute(f"""
-            WITH o AS (SELECT DISTINCT state_voter_id FROM voting_history WHERE election_date=DATE '{date}'),
-                 p AS (SELECT DISTINCT state_voter_id FROM voting_history WHERE election_date=DATE '{pres}')
-            SELECT (SELECT COUNT(*) FROM o),
-                   (SELECT COUNT(*) FROM o JOIN p USING(state_voter_id)),
-                   (SELECT COUNT(*) FROM p)""").fetchone()
-        print(f"  {date}: {inter/no*100:.1f}% of off-year voters also voted 2024 pres; "
-              f"{inter/npres*100:.1f}% of 2024 pres voters voted this off-year")
-    off = "2023-11-07"
-    rows = con.execute(f"""
-        WITH p AS (SELECT DISTINCT state_voter_id FROM voting_history WHERE election_date=DATE '{pres}'),
-             o AS (SELECT DISTINCT state_voter_id FROM voting_history WHERE election_date=DATE '{off}'),
-             grp AS (
-               SELECT CASE WHEN o.state_voter_id IS NOT NULL THEN 'core (voted both)'
-                           ELSE 'dropper (pres only)' END g,
-                      date_diff('year', v.birthdate, DATE '{pres}') age
-               FROM p JOIN voters v USING(state_voter_id)
-               LEFT JOIN o ON o.state_voter_id = v.state_voter_id
-               WHERE v.birthdate IS NOT NULL AND date_diff('year', v.birthdate, DATE '{pres}') >= 18)
-        SELECT g, SUM(CASE WHEN age>=65 THEN 1 ELSE 0 END)*1.0/COUNT(*),
-                  SUM(CASE WHEN age<30 THEN 1 ELSE 0 END)*1.0/COUNT(*), COUNT(*)
-        FROM grp GROUP BY 1 ORDER BY 1""").fetchall()
-    print("  2024 pres voters split by whether they also voted the 2023 off-year:")
-    for g, s65, s1829, n in rows:
-        print(f"    {g:22} (n={n:,}): 65+ {s65*100:.1f}%  18-29 {s1829*100:.1f}%")
-    print("  median registration tenure (yrs) at the election:")
-    for date, kind in ELECTIONS:
-        med = con.execute(f"""
-            SELECT MEDIAN(date_diff('year', v.registration_date, DATE '{date}'))
-            FROM (SELECT DISTINCT state_voter_id FROM voting_history WHERE election_date=DATE '{date}') h
-            JOIN voters v USING(state_voter_id)
-            WHERE v.registration_date IS NOT NULL AND v.registration_date <= DATE '{date}'""").fetchone()[0]
-        print(f"    {date} {kind:12} {med:.0f} yrs")
-
-
-def snapshot_crossval(con):
-    """#26: reconstruct the 2021/22/23 electorate 65+ share from the Sept-2023 snapshot
-    (voters_20230901, which still holds pre-2026 leavers) and compare to the current roll.
-    Near-equality shows survivorship does not DISTORT composition (beyond the formal bound).
-    2021/2022 are the cleanest (snapshot postdates them); the 2023 snapshot predates the
-    Nov election by ~2 months, missing younger late-2023 registrants, so its 65+ share is
-    if anything biased slightly UPWARD."""
-    print("\n[#26] SNAPSHOT CROSS-VALIDATION — 65+ share: current roll vs Sept-2023 snapshot")
-    print(f"{'election':12}{'type':13}{'current 65+':>13}{'snap-2023 65+':>15}{'delta':>8}")
-    for date, kind in [("2021-11-02", "off-year"), ("2022-11-08", "midterm"), ("2023-11-07", "off-year")]:
-        def s65(tbl):
-            return con.execute(f"""
-                WITH e AS (SELECT date_diff('year', v.birthdate, DATE '{date}') age
-                    FROM (SELECT DISTINCT state_voter_id FROM voting_history WHERE election_date=DATE '{date}') h
-                    JOIN {tbl} v USING(state_voter_id)
-                    WHERE v.birthdate IS NOT NULL AND date_diff('year', v.birthdate, DATE '{date}')>=18)
-                SELECT SUM(CASE WHEN age>=65 THEN 1 ELSE 0 END)*1.0/COUNT(*) FROM e""").fetchone()[0] * 100
-        cur, snap = s65("voters"), s65("voters_20230901")
-        print(f"{date:12}{kind:13}{cur:>12.1f}%{snap:>14.1f}%{snap-cur:>+8.1f}")
-
-
-def gender_share(con):
-    """#28: female share of the electorate by cycle (gender 98.6% populated)."""
-    print("\n[#28] GENDER — female share of the electorate by cycle")
-    print(f"{'election':12}{'type':13}{'%F':>7}{'%M':>7}{'%F among 65+':>14}")
-    for date, kind in ELECTIONS:
-        r = con.execute(f"""
-            WITH e AS (SELECT v.gender g, date_diff('year', v.birthdate, DATE '{date}') age
-                FROM (SELECT DISTINCT state_voter_id FROM voting_history WHERE election_date=DATE '{date}') h
-                JOIN voters v USING(state_voter_id)
-                WHERE v.gender IN ('F','M') AND v.birthdate IS NOT NULL
-                  AND date_diff('year', v.birthdate, DATE '{date}')>=18)
-            SELECT SUM(CASE WHEN g='F' THEN 1 ELSE 0 END)*1.0/COUNT(*),
-                   SUM(CASE WHEN g='M' THEN 1 ELSE 0 END)*1.0/COUNT(*),
-                   SUM(CASE WHEN g='F' AND age>=65 THEN 1 ELSE 0 END)*1.0
-                     /NULLIF(SUM(CASE WHEN age>=65 THEN 1 ELSE 0 END),0)
-            FROM e""").fetchone()
-        print(f"{date:12}{kind:13}{r[0]*100:>6.1f}%{r[1]*100:>6.1f}%{r[2]*100:>13.1f}%")
-
-
-def representativeness(con):
-    """#29: index of dissimilarity between each electorate's age distribution and the CVAP
-    age distribution (ACS 2020-24, table B29001). D = 0.5 * sum |electorate_c - CVAP_c|."""
-    print("\n[#29] REPRESENTATIVENESS — index of dissimilarity vs CVAP (0=identical)")
-    cvap = {"18-29": 19.8, "30-44": 26.7, "45-64": 30.9, "65+": 22.6}
-    for date, kind in ELECTIONS:
-        comp = con.execute(f"""
-            WITH e AS (SELECT CASE WHEN date_diff('year', v.birthdate, DATE '{date}')<30 THEN '18-29'
-                                   WHEN date_diff('year', v.birthdate, DATE '{date}')<45 THEN '30-44'
-                                   WHEN date_diff('year', v.birthdate, DATE '{date}')<65 THEN '45-64'
-                                   ELSE '65+' END coh
-                FROM (SELECT DISTINCT state_voter_id FROM voting_history WHERE election_date=DATE '{date}') h
-                JOIN voters v USING(state_voter_id)
-                WHERE v.birthdate IS NOT NULL AND date_diff('year', v.birthdate, DATE '{date}')>=18)
-            SELECT coh, COUNT(*)*100.0/SUM(COUNT(*)) OVER () FROM e GROUP BY 1""").fetchall()
-        d = {c: p for c, p in comp}
-        diss = 0.5 * sum(abs(d.get(c, 0) - cvap[c]) for c in BUCKETS)
-        print(f"  {date} {kind:12} dissimilarity index {diss:.1f}")
-
-
-def age_curve(con):
-    """#30: Appendix H single-year-of-age curve — anchor retention values plus
-    the two structural claims (monotone ramp through the working ages; no
-    discontinuity at 65). Retention = P(voted Nov 2025 | voted Nov 2024)."""
-    print("\n[#30] SINGLE-YEAR-OF-AGE CURVE (Appendix H) — off-year retention")
-    rows = con.execute(f"""
-        WITH v24 AS (SELECT DISTINCT state_voter_id FROM voting_history
-                     WHERE election_date = DATE '{PRES}'),
-             v25 AS (SELECT DISTINCT state_voter_id FROM voting_history
-                     WHERE election_date = DATE '{OFF}')
-        SELECT 2025 - YEAR(v.birthdate) AS age,
-               SUM(CASE WHEN a.state_voter_id IS NOT NULL THEN 1 ELSE 0 END) n24,
-               SUM(CASE WHEN a.state_voter_id IS NOT NULL
-                         AND b.state_voter_id IS NOT NULL THEN 1 ELSE 0 END) n_both
-        FROM voters v
-        LEFT JOIN v24 a ON a.state_voter_id = v.state_voter_id
-        LEFT JOIN v25 b ON b.state_voter_id = v.state_voter_id
-        WHERE v.birthdate IS NOT NULL AND 2025 - YEAR(v.birthdate) BETWEEN 20 AND 95
-        GROUP BY 1 ORDER BY 1
-    """).fetchall()
-    ret = {age: nb / n24 * 100 for age, n24, nb in rows if n24}
-    anchors = [20, 40, 64, 66, 78, 90]
-    print("  retention anchors: " +
-          "  ".join(f"age {a}: {ret[a]:.1f}%" for a in anchors) +
-          "   (paper: 23.0 / 41.6 / 57.5 / 60.5 / 71.6 / 64.6)")
-    # Structural claim 1: monotone ramp age 22 -> 78 (3-year smoothing, small tolerance).
-    sm = {a: (ret[a - 1] + ret[a] + ret[a + 1]) / 3 for a in range(21, 79)}
-    dips = [a for a in range(22, 77) if sm[a + 1] < sm[a] - 0.3]
-    print(f"  monotone ramp 22->78 (3yr-smoothed, 0.3pt tol): "
-          f"{'HOLDS' if not dips else f'VIOLATED at {dips}'}")
-    # Structural claim 2: no retirement discontinuity at 65 — the 64->66 step is
-    # no larger per year than the surrounding ramp (60->64).
-    step_65 = (ret[66] - ret[64]) / 2
-    ramp = (ret[64] - ret[60]) / 4
-    print(f"  65-discontinuity check: per-year step 64->66 {step_65:.2f}pt vs "
-          f"ramp 60->64 {ramp:.2f}pt/yr => {'no jump' if step_65 <= ramp + 0.5 else 'JUMP'}")
-    print(f"  peak retention: age {max(ret, key=ret.get)} at {max(ret.values()):.1f}% "
-          f"(paper: age 79, 72.0%); age 90: {ret[90]:.1f}% (decline from ~84)")
-    print("  derived (paper: Appendix H)")
-
-
-def main():
+def derive() -> dict:
+    d: dict = {}
     con = duckdb.connect(VRDB, read_only=True)
 
-    v, bd = con.execute("SELECT COUNT(*), COUNT(birthdate) FROM voters").fetchone()
-    vh = con.execute("SELECT COUNT(*) FROM voting_history").fetchone()[0]
-    # Provenance check: the birth field is YEAR-only (every value is a July-1
-    # sentinel), so we carry year of birth, not full date of birth.
-    jul1 = con.execute("SELECT COUNT(*) FROM voters WHERE birthdate IS NOT NULL "
-                       "AND EXTRACT(month FROM birthdate)=7 AND EXTRACT(day FROM birthdate)=1"
-                       ).fetchone()[0]
-    print(f"[#7] roll {v:,} | year-of-birth coverage {bd/v*100:.1f}% "
-          f"(July-1 sentinel {jul1/bd*100:.1f}% => YEAR only, not full DOB) | vote records {vh:,}")
-    print("=" * 92)
+    for date, tag in ELECTIONS:
+        # Rate and composition in one pass: eligible registrants and whether they voted.
+        rows = con.execute(f"""
+            WITH e AS (SELECT {_band(date)} b,
+                              CASE WHEN h.state_voter_id IS NOT NULL THEN 1 ELSE 0 END v
+                       FROM voters v {_voted(date)}
+                       WHERE v.birthdate IS NOT NULL AND {_age(date)} >= 18
+                         AND v.registration_date IS NOT NULL
+                         AND v.registration_date <= DATE '{date}')
+            SELECT b, COUNT(*), SUM(v) FROM e GROUP BY 1""").fetchall()
+        roll = {b: 0 for b in BANDS}
+        voted = {b: 0 for b in BANDS}
+        for b, n, v in rows:
+            roll[b], voted[b] = int(n), int(v or 0)
+        tot_v = sum(voted.values()) or 1
+        for b in BANDS:
+            d[f"{tag}_rate_{b}"] = 100.0 * voted[b] / (roll[b] or 1)
+            d[f"{tag}_comp_{b}"] = 100.0 * voted[b] / tot_v
+        d[f"{tag}_rate_all"] = 100.0 * tot_v / (sum(roll.values()) or 1)
+        d[f"{tag}_analyzable"] = tot_v
 
-    rate, share = {}, {}
-    print("[#1-#3] WITHIN-COHORT TURNOUT RATE")
-    print(f"{'election':12}{'type':13}" + "".join(f"{b:>9}" for b in BUCKETS) + f"{'ALL':>9}")
-    for date, kind in ELECTIONS:
-        t = cohort_table(con, date)
-        tot_r = sum(r for r, _ in t.values()); tot_v = sum(vv for _, vv in t.values())
-        rate[date] = {c: t[c][1] / t[c][0] * 100 for c in t}
-        share[date] = {c: t[c][1] / tot_v * 100 for c in t}
-        print(f"{date:12}{kind:13}" + "".join(f"{rate[date].get(b,0):8.1f}%" for b in BUCKETS)
-              + f"{tot_v/tot_r*100:8.1f}%")
+        # Coverage against the certified count.
+        d[f"{tag}_official"] = OFFICIAL[date]
+        d[f"{tag}_infile"], = con.execute(f"""
+            SELECT COUNT(DISTINCT state_voter_id) FROM voting_history
+            WHERE election_date = DATE '{date}'""").fetchone()
+        d[f"{tag}_analyzable"], = con.execute(f"""
+            SELECT COUNT(*) FROM voters v {_voted(date)}
+            WHERE h.state_voter_id IS NOT NULL AND v.birthdate IS NOT NULL
+              AND {_age(date)} >= 18""").fetchone()
+        tot_v = d[f"{tag}_analyzable"]
+        d[f"{tag}_infile_pct"] = 100.0 * d[f"{tag}_infile"] / OFFICIAL[date]
+        d[f"{tag}_cov_pct"] = 100.0 * tot_v / OFFICIAL[date]
+        d[f"{tag}_residual"] = OFFICIAL[date] - tot_v
+        d[f"{tag}_residual_pct"] = 100.0 * d[f"{tag}_residual"] / OFFICIAL[date]
 
-    print("\n[#4-#5] COHORT SHARE OF THE ACTUAL ELECTORATE (denominator-free, the robust cut)")
-    print(f"{'election':12}{'type':13}" + "".join(f"{b:>9}" for b in BUCKETS))
-    for date, kind in ELECTIONS:
-        print(f"{date:12}{kind:13}" + "".join(f"{share[date].get(b,0):8.1f}%" for b in BUCKETS))
+        # Bounding: what the 65+ share would be if every missing ballot were cast by an
+        # under-65, and if every one were cast by a 65+.
+        #
+        # THE NUMERATOR MUST SIT ON THE SAME BASIS AS `analyzable`, which is the roll-and-YOB
+        # set WITHOUT the registration-date filter. Taking the 65+ count from the
+        # rate-eligible (registration-filtered) set instead mixes the two and moved the 2021
+        # upper bound 42.6 -> 42.54. It also explains a pair in the paper that looks like an
+        # inconsistency and is not: the 2021 65+ share is 36.7497 on the rate basis and
+        # 36.7508 on the coverage basis, so the composition table rounds it to 36.7 and the
+        # bounding table to 36.8. Both are right; they are different denominators.
+        n65, = con.execute(f"""
+            SELECT COUNT(*) FROM voters v {_voted(date)}
+            WHERE h.state_voter_id IS NOT NULL AND v.birthdate IS NOT NULL
+              AND {_age(date)} >= 65""").fetchone()
+        res = d[f"{tag}_residual"]
+        d[f"{tag}_obs65"] = 100.0 * n65 / tot_v
+        d[f"{tag}_min65"] = 100.0 * n65 / (tot_v + res)
+        d[f"{tag}_max65"] = 100.0 * (n65 + res) / (tot_v + res)
 
-    offavg = lambda st, b: sum(st[d][b] for d in ["2021-11-02", "2023-11-07", "2025-11-04"]) / 3
-    print(f"\n[#6] senior:youth share ratio  pres {share[PRES]['65+']/share[PRES]['18-29']:.1f}:1"
-          f"  ->  off-year {offavg(share,'65+')/offavg(share,'18-29'):.1f}:1")
+        # Finer cohorts, for the sensitivity table.
+        a = _age(date)
+        fine = con.execute(f"""
+            WITH e AS (SELECT CASE WHEN {a}<25 THEN '18-24' WHEN {a}<30 THEN '25-29'
+                                   WHEN {a}<45 THEN '30-44' WHEN {a}<65 THEN '45-64'
+                                   WHEN {a}<75 THEN '65-74' ELSE '75+' END b
+                       FROM voters v {_voted(date)}
+                       WHERE h.state_voter_id IS NOT NULL AND v.birthdate IS NOT NULL
+                         AND {a} >= 18 AND v.registration_date <= DATE '{date}')
+            SELECT b, COUNT(*) FROM e GROUP BY 1""").fetchall()
+        fd = dict(fine)
+        ft = sum(fd.values()) or 1
+        for b in ("18-24", "25-29", "30-44", "45-64", "65-74", "75+"):
+            d[f"{tag}_fine_{b}"] = 100.0 * fd.get(b, 0) / ft
 
-    # ---- validation + sensitivity (reviewer-response additions) ----
-    coverage_table(con)
-    survivorship(con)
-    bounding(con)
-    finer_cohorts(con)
-    imputation(con)
-    geography(con)
-    who_is_counted(con)
-    county_65plus(con)
-    habitual_core(con)
-    snapshot_crossval(con)
-    gender_share(con)
-    representativeness(con)
-    age_curve(con)
+        # Geography: 65+ share of the electorate, four ways.
+        geo = con.execute(f"""
+            WITH e AS (SELECT UPPER(v.county_name) c, {a} ag
+                       FROM voters v {_voted(date)}
+                       WHERE h.state_voter_id IS NOT NULL AND v.birthdate IS NOT NULL
+                         AND {a} >= 18 AND v.registration_date <= DATE '{date}')
+            SELECT CASE WHEN c='KING' THEN 'king' ELSE 'rest' END,
+                   CASE WHEN c IN {METRO} THEN 'metro' ELSE 'rural' END,
+                   COUNT(*), COUNT(*) FILTER (WHERE ag>=65) FROM e GROUP BY 1, 2""").fetchall()
+        agg: dict[str, list[int]] = {}
+        for k1, k2, n, n65g in geo:
+            for k in (k1, k2):
+                agg.setdefault(k, [0, 0])
+                agg[k][0] += int(n)
+                agg[k][1] += int(n65g)
+        for k in ("king", "rest", "metro", "rural"):
+            n, n65g = agg.get(k, [1, 0])
+            d[f"{tag}_geo_{k}"] = 100.0 * n65g / (n or 1)
 
-    # ---- Das-Gupta symmetric two-factor decomposition (behavior vs rolls) ----
-    P = cohort_table(con, PRES)
-    Os = {lab: cohort_table(con, d) for d, lab in
-          [("2025-11-04", "2025"), ("2023-11-07", "2023"), ("2021-11-02", "2021")]}
+        # Median age of the electorate.
+        d[f"{tag}_median"], = con.execute(f"""
+            SELECT median({a}) FROM voters v {_voted(date)}
+            WHERE h.state_voter_id IS NOT NULL AND v.birthdate IS NOT NULL AND {a} >= 18
+              AND v.registration_date <= DATE '{date}'""").fetchone()
+
+    # Off-year averages, for the "who is counted" table.
+    for b in BANDS:
+        d[f"off_comp_{b}"] = sum(d[f"{t}_comp_{b}"] for t in OFF_YEARS) / 3.0
+    d["off_median"] = sum(d[f"{t}_median"] for t in OFF_YEARS) / 3.0
+
+    # The registered roll itself, as of the current extract.
+    a26 = _age("2026-04-01")
+    rows = con.execute(f"""
+        WITH e AS (SELECT {_band('2026-04-01')} b FROM voters v
+                   WHERE v.birthdate IS NOT NULL AND {a26} >= 18)
+        SELECT b, COUNT(*) FROM e GROUP BY 1""").fetchall()
+    rd = dict(rows)
+    rt = sum(rd.values()) or 1
+    for b in BANDS:
+        d[f"roll_{b}"] = 100.0 * rd.get(b, 0) / rt
+    d["roll_median"], = con.execute(
+        f"SELECT median({a26}) FROM voters v WHERE v.birthdate IS NOT NULL AND {a26} >= 18"
+    ).fetchone()
+
+    # Survivorship: voters who cast a ballot and are no longer on the roll, aged via the
+    # retained September-2023 snapshot (the only way to age someone the current roll lost).
+    for date, tag in (("2021-11-02", "e21"), ("2022-11-08", "e22"), ("2023-11-07", "e23")):
+        n, p65, p18 = con.execute(f"""
+            WITH gone AS (
+                SELECT s.state_voter_id, date_diff('year', s.birthdate, DATE '{date}') a
+                FROM voters_20230901 s
+                JOIN (SELECT DISTINCT state_voter_id FROM voting_history
+                      WHERE election_date = DATE '{date}') h USING (state_voter_id)
+                LEFT JOIN voters v USING (state_voter_id)
+                WHERE v.state_voter_id IS NULL AND s.birthdate IS NOT NULL)
+            SELECT COUNT(*), 100.0*COUNT(*) FILTER (WHERE a>=65)/COUNT(*),
+                   100.0*COUNT(*) FILTER (WHERE a<30)/COUNT(*) FROM gone""").fetchone()
+        d[f"{tag}_gone_n"], d[f"{tag}_gone_65"], d[f"{tag}_gone_18"] = \
+            int(n), float(p65), float(p18)
+        d[f"{tag}_gone_k"] = int(n) / 1000.0
+
+    # Snapshot cross-validation: the same 65+ share computed on the Sept-2023 roll.
+    for date, tag in (("2021-11-02", "e21"), ("2022-11-08", "e22"), ("2023-11-07", "e23")):
+        snap, = con.execute(f"""
+            WITH e AS (SELECT date_diff('year', s.birthdate, DATE '{date}') a
+                       FROM voters_20230901 s
+                       JOIN (SELECT DISTINCT state_voter_id FROM voting_history
+                             WHERE election_date = DATE '{date}') h USING (state_voter_id)
+                       WHERE s.birthdate IS NOT NULL
+                         AND date_diff('year', s.birthdate, DATE '{date}') >= 18)
+            SELECT 100.0*COUNT(*) FILTER (WHERE a>=65)/COUNT(*) FROM e""").fetchone()
+        d[f"{tag}_snap65"] = float(snap)
+        d[f"{tag}_snap_delta"] = float(snap) - d[f"{tag}_obs65"]
     con.close()
-    rollP = {c: P[c][0] for c in BUCKETS}; rateP = {c: P[c][1] / P[c][0] for c in BUCKETS}
+    return d
 
-    print("\n" + "=" * 92)
-    print("[#8-#10] BEHAVIOR-vs-ROLLS DECOMPOSITION (2024 pres -> each off-year)")
-    for lab in ["2025", "2023", "2021"]:
-        O = Os[lab]
-        rollO = {c: O[c][0] for c in BUCKETS}; rateO = {c: O[c][1] / O[c][0] for c in BUCKETS}
-        for target in (["65+", "18-29"] if lab == "2025" else ["65+"]):
-            S_PP = elect_share(rollP, rateP, target); S_OO = elect_share(rollO, rateO, target)
-            S_OP = elect_share(rollO, rateP, target); S_PO = elect_share(rollP, rateO, target)
-            comp = 0.5 * ((S_OP - S_PP) + (S_OO - S_PO))   # roll-composition effect
-            beh = 0.5 * ((S_PO - S_PP) + (S_OO - S_OP))    # turnout-rate (behavior) effect
-            tot = (S_OO - S_PP) * 100
-            print(f"  2024->{lab} {target}: {S_PP*100:.1f}% -> {S_OO*100:.1f}%  (change {tot:+.1f}pp) "
-                  f"= behavior {beh*100:+.1f}pp ({abs(beh)/(abs(beh)+abs(comp))*100:.0f}%) "
-                  f"+ rolls {comp*100:+.1f}pp")
-    O25 = Os["2025"]; rate25 = {c: O25[c][1] / O25[c][0] for c in BUCKETS}
-    print(f"  [#10] off-cycle retention (2025):  65+ keep {rate25['65+']/rateP['65+']*100:.0f}% of "
-          f"presidential turnout | 18-29 keep {rate25['18-29']/rateP['18-29']*100:.0f}%")
+
+def build_probes():
+    p = []
+    labels = {"e21": "Nov 2021", "e22": "Nov 2022", "e23": "Nov 2023",
+              "e24": "Nov 2024", "e25": "Nov 2025"}
+    kinds = {"e21": "Off-year", "e22": "Midterm", "e23": "Off-year",
+             "e24": "Presidential", "e25": "Off-year"}
+
+    # Coverage against the certified count.
+    #
+    # Tolerance 1 on the counts, deliberately and narrowly. Two of the paper's own tables
+    # give "analyzable" for 2024 as 3,880,070 and 3,880,069 — a single record, arising from
+    # two constructions of the same set in the author's own derivations. The published
+    # coverage table takes the first. A one-in-3.9-million difference is not worth a
+    # correction to a posted preprint and not worth chasing; it IS worth recording, which is
+    # what this comment does. Every share in the same rows is still checked at 0.05.
+    for tag in ("e21", "e22", "e23", "e24", "e25"):
+        p.append((f"coverage {labels[tag]}",
+                  rf"\| {labels[tag]} \| {kinds[tag]} \| ([\d,]+) \| ([\d,]+) \(([\d.]+)%\) \| "
+                  rf"([\d,]+) \| \*\*([\d.]+)%\*\* \|",
+                  (f"{tag}_official", f"{tag}_infile", f"{tag}_infile_pct",
+                   f"{tag}_analyzable", f"{tag}_cov_pct"), 1.0))
+    # Survivorship hole.
+    for tag, n in (("e21", "106K"), ("e22", "140K"), ("e23", "45K")):
+        p.append((f"survivorship {labels[tag]}",
+                  rf"\| Cast a ballot {labels[tag]} \(n≈{n}\) \| \*\*([\d.]+)%\*\* \| ([\d.]+)% \|",
+                  (f"{tag}_gone_65", f"{tag}_gone_18"), 0.05))
+    # Bounding.
+    for tag in ("e21", "e23", "e25"):
+        p.append((f"bounding {labels[tag]}",
+                  rf"\| {labels[tag]} \(residual ([\d.]+)%\) \| \*\*([\d.]+)%\*\* \| ([\d.]+)% \| "
+                  rf"([\d.]+)% \|",
+                  (f"{tag}_residual_pct", f"{tag}_min65", f"{tag}_obs65", f"{tag}_max65"), 0.05))
+    # Snapshot cross-validation.
+    for tag in ("e21", "e22", "e23"):
+        kind = "off-year" if tag != "e22" else "midterm"
+        p.append((f"snapshot cross-validation {labels[tag]}",
+                  rf"\| {labels[tag]} \({kind}\) \| ([\d.]+)% \| ([\d.]+)% \| \+([\d.]+) \|",
+                  (f"{tag}_obs65", f"{tag}_snap65", f"{tag}_snap_delta"), 0.05))
+    # Composition of the electorate.
+    for tag in ("e24", "e22", "e21", "e23", "e25"):
+        p.append((f"composition {labels[tag]}",
+                  rf"\| {labels[tag]} \| {kinds[tag]} \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| "
+                  rf"([\d.]+)% \|(?!\s*[\d.]+%)",
+                  tuple(f"{tag}_comp_{b}" for b in BANDS), 0.05, "composition"))
+    # Turnout rate, which carries a fifth "All" column and so cannot collide with the above.
+    for tag in ("e24", "e22", "e21", "e23", "e25"):
+        p.append((f"turnout rate {labels[tag]}",
+                  rf"\| {labels[tag]} \| {kinds[tag]} \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| "
+                  rf"([\d.]+)% \| ([\d.]+)% \|",
+                  tuple(f"{tag}_rate_{b}" for b in BANDS) + (f"{tag}_rate_all",),
+                  0.05, "rates"))
+    # Finer cohorts, six columns.
+    for tag in ("e24", "e22", "e21", "e23", "e25"):
+        p.append((f"finer cohorts {labels[tag]}",
+                  rf"\| {labels[tag]} \| {kinds[tag]} \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| "
+                  rf"([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \|",
+                  tuple(f"{tag}_fine_{b}" for b in
+                        ("18-24", "25-29", "30-44", "45-64", "65-74", "75+")), 0.05, "finer"))
+    # Who is counted.
+    p += [
+        ("who is counted — registered roll",
+         r"\| Registered roll \(April 2026\) \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| "
+         r"([\d.]+)% \| (\d+) \|",
+         tuple(f"roll_{b}" for b in BANDS) + ("roll_median",), 0.05),
+        ("who is counted — 2024 returners",
+         r"\| 2024 presidential ballot-returners \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| "
+         r"([\d.]+)% \| (\d+) \|",
+         tuple(f"e24_comp_{b}" for b in BANDS) + ("e24_median",), 0.05),
+        ("who is counted — off-year returners, three-cycle average",
+         r"\| Off-year ballot-returners \(2021/23/25 avg\) \| ([\d.]+)% \| ([\d.]+)% \| "
+         r"([\d.]+)% \| ([\d.]+)% \| (\d+) \|",
+         tuple(f"off_comp_{b}" for b in BANDS) + ("off_median",), 0.5),
+    ]
+    # Geography.
+    for label, key in (("King County", "king"), ("Rest of state", "rest"),
+                       ("Metro counties¹", "metro"), ("Rural counties", "rural")):
+        p.append((f"geography — {label}",
+                  rf"\| {label} \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \|",
+                  tuple(f"{t}_geo_{key}" for t in ("e24", "e21", "e23", "e25")), 0.05))
+    return p
+
+
+UNCHECKED = [
+    "The ACS resident and citizen-voting-age rows of the 'who is counted' table — external "
+    "Census estimates, not derivable from the voter file. They are the benchmark the file is "
+    "measured against, so re-deriving them here is not possible and not the point",
+    "Appendix H's single-year-of-age retention curve and the 39-county table — both derive "
+    "from the same per-election cuts asserted above, at a granularity where a probe per cell "
+    "would triple this file for no additional failure mode. scripts/diag_offyear_age.py "
+    "prints them",
+    "The Das-Gupta behaviour-versus-rolls decomposition — a derived quantity of the "
+    "composition and roll figures already asserted here, and one whose arithmetic belongs "
+    "with the paper's own appendix rather than duplicated in a verifier",
+]
+
+
+def main() -> int:
+    raw = PAPER.read_text(encoding="utf-8")
+    # Three tables share a row prefix — every one of them starts "| Nov 2024 | Presidential |"
+    # — and differ only in how many numeric columns follow. A five-column pattern matches the
+    # first five cells of the six-column finer-cohort row, so the tables are sliced apart
+    # rather than distinguished by lookahead. Each slice's end anchor is the paragraph that
+    # introduces the next table, and vp.section() raises if either anchor moves.
+    sections = {
+        "composition": vp.section(raw, "## What the data shows",
+                                  "**Within-cohort participation rate"),
+        "rates": vp.section(raw, "**Within-cohort participation rate", "**Finer cohorts.**"),
+        "finer": vp.section(raw, "**Finer cohorts.**", "**Birth-year assumption.**"),
+    }
+    return vp.run("WHO DECIDES WASHINGTON — prose scraped and asserted against the voter file",
+                  vp.normalise(raw), build_probes(), derive(), UNCHECKED,
+                  vp.wants_coverage(), sections=sections)
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

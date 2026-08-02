@@ -447,9 +447,9 @@ strengthen. Rebuild with `scripts/match_wa_voters_to_donors.py --source {fec,sta
   `STRICT_ZIP5_FULL` measured **100.0%** (120/120, Wilson 95% CI 96.9–100) while the three
   initial-based keys ran **47.9–71.7%**. Population-weighted across the panels, donor-weighted
   precision is **93.0%**. Of 152 confirmed-false matches, **129 were household/relative merges
-  and every one of them sat on an initial-based key — none on the full-name key.** An
-  independent human rater re-rated 150 of the 480 blind and **agreed on all 75 full-name-key
-  records**. This is why the papers' primary specification is the full-name key alone; the
+  and every one of them sat on an initial-based key — none on the full-name key.** A blind re-rate of 150 of
+  the 480 by the same rater **reproduced all 75 full-name-key records** — test-retest, not
+  inter-rater reliability. This is why the papers' primary specification is the full-name key alone; the
   pooled figures in F1–F3 above are the all-tier match and therefore carry the 93.0% weighted
   precision, not 100%. *(An earlier version of this bullet reported an unadjudicated 150-match
   sample — "87% full-first-name agreement, 13% namesake risk, CSV emitted for human review".
@@ -504,7 +504,7 @@ closed — see F6.)*
 - **Defensible claim 2 — the donor class is less unaffiliated and more Democratic-tilted than
   the electorate** (the party-of-record cut WA cannot do). Matched-donor registered-party vs the
   full roll:
-  - **NY:** electorate **D 48% / R 22% / unaffiliated-or-other 30%** → donors **D 59% / R 25% /
+  - **NY:** electorate **D 48% / R 22% / unaffiliated-or-other 30%** → donors **D 59% / R 24% /
     O 17%.** Donors are +11 pts more Democratic and little more than half as unaffiliated — the
     "donor class older *and* more Dem" finding, confirmed at the person level.
   - **ID:** electorate **D 12% / R 63% / O 25%** → donors **D 20% / R 67% / O 13%.** Even in a
@@ -530,12 +530,25 @@ are.*
 
 | State | Donors super-voter % | Non-donors | Ratio | Avg propensity (donor / non) |
 |---|--:|--:|--:|--:|
-| WA | 87.6% (312.3K) | 50.9% (5.14M) | **1.72×** | 0.967 / 0.749 |
+| WA | 87.6% (312.5K) | 50.9% (5.15M) | **1.72×** | 0.967 / 0.749 |
 | NY | 83.1% (558.0K) | 45.0% (12.98M) | **1.85×** | 0.892 / 0.653 |
 | ID | 50.0% (41.1K) | 30.1% (988.8K) | **1.66×** | 0.892 / 0.851 |
 
 > **Recomputed 2026-07-27**, same cause as F5: the NY and ID rows were still on the
 > pre-switch pooled matches (308.0K and 47.8K) while WA's had been refreshed.
+>
+> **Washington's roll is now pinned, and the two counts in its row moved when it was
+> (2026-08-01).** `voter_scores` is a live table — `refresh-gotv` rebuilds it on every ballot
+> load, and each improvement to the VRDB precinct crosswalk pulls previously unscoped voters
+> into district scope. Between this section being written and the pin the WA roll grew from
+> 5,456,444 to **5,460,015**, which moved the scored-donor count 312.3K → **312.5K** and the
+> non-donor count 5.14M → **5.15M**. Both are denominator drift, not a change in the match:
+> `voter_donor_affiliation` is unchanged at 314,974, and **every percentage in the WA row is
+> identical** — 87.6 / 50.9 / 1.72× / 0.967 / 0.749 to four decimal places. The row now reads
+> against the dated snapshot `donor_paper_wa_roll` (2026-07-31, 5,460,015 rows) that the
+> donor-class paper pins for the same reason, so it cannot drift again; re-pinning is a
+> deliberate act behind `scripts/pin_wa_donor_roll.py --force`. NY and ID need no equivalent —
+> their rolls are static extracts.
 
 - **Defensible claim.** The engagement gap between the donor class and the rest of the roll is
   a **feature of every state measured, not a state peculiarity**: with identical definitions the

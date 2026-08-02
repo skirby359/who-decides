@@ -117,10 +117,15 @@ WHERE contributor_name IS NOT NULL AND contributor_name <> ''
 """
 
 
-def sample_cell(con, panel_tbl, tier, band, n, exclude_ids=()):
+def sample_cell(con, panel_tbl, tier, band, n, exclude_ids=(), party=None):
     """Sample up to n matched voters from one tier x dollar-band cell.
 
     band: 'top10' = top donor-dollar decile within the panel, 'rest' = deciles 2-10.
+    party: when set, additionally restrict to that registered party (review round 17 —
+    Idaho's party rows are the result that fails the panel-specific bound, so its
+    replacement sample is stratified on the variable the finding is about; without that,
+    a 100-record draw from a panel that is 20% Democratic yields ~20 Democratic records
+    and says little about the cell under attack).
     Deterministic via md5(state_voter_id || SEED).
     """
     band_pred = "d.decile = 1" if band == "top10" else "d.decile > 1"
@@ -131,6 +136,9 @@ def sample_cell(con, panel_tbl, tier, band, n, exclude_ids=()):
     if exclude_ids:
         excl = " AND d.state_voter_id NOT IN (" +                ",".join("?" for _ in exclude_ids) + ")"
         params += list(exclude_ids)
+    if party:
+        excl += " AND UPPER(TRIM(v.party)) = ?"
+        params.append(party)
     return [r[0] for r in con.execute(f"""
         WITH d AS (
             SELECT state_voter_id, match_quality,
@@ -196,9 +204,23 @@ def main() -> int:
     ap.add_argument("--exclude-rated", nargs="*", metavar="CSV",
                     help="verdict CSV(s) whose state_voter_id column names records to "
                          "EXCLUDE, so a fresh draw is independent of the published pass")
+    ap.add_argument("--states", nargs="+", default=None, metavar="ST",
+                    help="restrict the draw to these states (e.g. --states ID)")
+    # nargs="+", not "*": a bare `--by-party` would otherwise parse to [] and fall through to
+    # an UNSTRATIFIED draw, silently giving the caller the opposite of what they asked for.
+    ap.add_argument("--by-party", nargs="+", default=None, metavar="PARTY",
+                    help="stratify equally across these registered parties, e.g. "
+                         "--by-party DEM REP UNA. Only meaningful where the roll "
+                         "publishes party (NY, ID).")
+    ap.add_argument("--label", default=None, metavar="NAME",
+                    help="write to a NAMED output set with a fresh opaque id space, for a "
+                         "draw handed to a different rater. Required for any independent "
+                         "sample: the published `S####` and `H####` ids carry verdicts "
+                         "anyone can look up, which turns an inter-rater statistic into a "
+                         "copying exercise.")
     args = ap.parse_args()
 
-    global SEED, PANEL_TABLE, TIERS
+    global SEED, PANEL_TABLE, TIERS, STATES
     SEED = args.seed
     if args.live_panels:
         PANEL_TABLE = {"federal": "voter_donor_affiliation_fec",
@@ -209,6 +231,47 @@ def main() -> int:
             print(f"  !! unknown tier(s): {unknown}; valid are {TIERS}")
             return 2
         TIERS = list(args.tiers)
+    if args.by_party:
+        # Washington's roll publishes no party — that absence is the reason the paper's party
+        # comparison runs only in NY and ID. Without this guard the draw dies mid-run on a
+        # DuckDB binder error naming a column, which reads like a schema bug rather than a
+        # request for something the data cannot answer.
+        _no_party = {"WA"} & {s.upper() for s in (args.states or ["WA", "NY", "ID"])}
+        if _no_party:
+            print(f"  !! --by-party is not available for {sorted(_no_party)}: that roll "
+                  f"publishes no party of record. Restrict with --states NY ID, or drop "
+                  f"--by-party.")
+            return 2
+    if args.states:
+        want = {s.upper() for s in args.states}
+        unknown = want - {s[0] for s in STATES}
+        if unknown:
+            print(f"  !! unknown state(s): {sorted(unknown)}")
+            return 2
+        STATES = [s for s in STATES if s[0] in want]
+
+    # A named draw gets its own id space and its own files. The prefix is derived from the
+    # label and must not collide with a PUBLISHED one: `S` is the 480-record ledger and `H`
+    # the 150-record re-rate, and both are published WITH their verdicts.
+    id_prefix, evidence_path, key_path, idmap_path = "S", EVIDENCE, KEYFILE, IDFILE
+    if args.label:
+        if not args.label.replace("_", "").replace("-", "").isalnum():
+            print(f"  !! --label must be alphanumeric: {args.label!r}")
+            return 2
+        id_prefix = args.label[0].upper()
+        if id_prefix in ("S", "H"):
+            print(f"  !! label {args.label!r} yields id prefix {id_prefix!r}, which is a "
+                  f"PUBLISHED id space (S=480-record ledger, H=150-record re-rate). A rater "
+                  f"handed those ids can look up the prior verdict. Pick another label.")
+            return 2
+        evidence_path = OUTDIR / f"match_validation_{args.label}.csv"
+        key_path = OUTDIR / f"match_validation_{args.label}_key.csv"
+        idmap_path = OUTDIR / f"match_validation_{args.label}_ids.csv"
+        for fp in (evidence_path, key_path, idmap_path):
+            if fp.exists():
+                print(f"  !! {fp} exists — refusing to overwrite a drawn sample. "
+                      f"Delete it deliberately, or pick another --label.")
+                return 2
 
     exclude_ids: set[str] = set()
     for path in (args.exclude_rated or []):
@@ -242,22 +305,34 @@ def main() -> int:
             con.execute(CK_SQL.format(prefix=prefix))
             tbl = PANEL_TABLE[panel]
             for tier in TIERS:
+                # With --by-party the tier's allocation is drawn once per party, so a cell
+                # is (tier x band x party) and the party mix of the sample is fixed by
+                # design rather than inherited from the panel.
+                parties = args.by_party if args.by_party else [None]
                 got = {}
-                for band in ("top10", "rest"):
-                    ids = sample_cell(con, tbl, tier, band, args.per_cell,
-                                      exclude_ids)
-                    got[band] = ids
+                party_of: dict[str, str] = {}
+                for pty in parties:
+                    for band in ("top10", "rest"):
+                        ids = sample_cell(con, tbl, tier, band, args.per_cell,
+                                          exclude_ids, party=pty)
+                        got.setdefault(band, [])
+                        got[band] += ids
+                        for i in ids:
+                            party_of[i] = pty or ""
                 # Backfill a short band from the other so the tier keeps its allocation.
-                short = 2 * args.per_cell - len(got["top10"]) - len(got["rest"])
-                if short > 0:
-                    for band in ("rest", "top10"):
-                        extra = [i for i in sample_cell(con, tbl, tier, band,
-                                                        args.per_cell + short)
-                                 if i not in got[band]][:short]
-                        got[band] += extra
-                        short -= len(extra)
-                        if short <= 0:
-                            break
+                # Skipped under --by-party: borrowing across bands there would also borrow
+                # across parties and silently unbalance the stratum the draw exists for.
+                if not args.by_party:
+                    short = 2 * args.per_cell - len(got["top10"]) - len(got["rest"])
+                    if short > 0:
+                        for band in ("rest", "top10"):
+                            extra = [i for i in sample_cell(con, tbl, tier, band,
+                                                            args.per_cell + short)
+                                     if i not in got[band]][:short]
+                            got[band] += extra
+                            short -= len(extra)
+                            if short <= 0:
+                                break
                 for band, ids in got.items():
                     for r in evidence_for(con, tbl, tier, ids):
                         (svid, vf, vm, vl, vz, vcity, dcount, dtot,
@@ -265,6 +340,7 @@ def main() -> int:
                         rows.append({
                             "_state": state, "_panel": panel, "_tier": tier,
                             "_band": band, "_svid": svid,
+                            "_party": party_of.get(svid, ""),
                             "voter_first": vf or "", "voter_middle": vm or "",
                             "voter_last": vl or "", "voter_zip5": vz or "",
                             "voter_city": vcity or "",
@@ -283,46 +359,58 @@ def main() -> int:
     rows.sort(key=lambda r: hashlib.md5(
         (r["_svid"] + r["_tier"] + SEED).encode()).hexdigest())
     for i, r in enumerate(rows, 1):
-        r["sample_id"] = f"S{i:04d}"
+        r["sample_id"] = f"{id_prefix}{i:04d}"
 
+    # `partial_merge` was MISSING here until 2026-08-01, and the omission was silent: both
+    # rater instruction documents tell the rater to tick it, and the pre-specified scoring
+    # requires it reported separately from identity errors, but a draw from this script gave
+    # them nowhere to record it. The `idaho1` draw shipped without it and had the column added
+    # after the fact. Keep it adjacent to `verdict` — the earlier hand-built evidence files
+    # (`_human`, `_rater2`) put it there and a rater reads the two columns together.
     ev_cols = ["sample_id", "voter_first", "voter_middle", "voter_last", "voter_zip5",
                "voter_city", "matched_gifts", "matched_total", "donor_names",
                "donor_zip5s", "donor_distinct_first_names", "donor_rows_refound",
-               "donor_total_refound", "verdict", "notes"]
-    with open(EVIDENCE, "w", newline="", encoding="utf-8") as fh:
+               "donor_total_refound", "partial_merge", "verdict", "notes"]
+    with open(evidence_path, "w", newline="", encoding="utf-8") as fh:
         w = csv.DictWriter(fh, fieldnames=ev_cols, extrasaction="ignore")
         w.writeheader()
         for r in rows:
-            w.writerow({**r, "verdict": "", "notes": ""})
+            w.writerow({**r, "partial_merge": "", "verdict": "", "notes": ""})
 
-    with open(KEYFILE, "w", newline="", encoding="utf-8") as fh:
+    with open(key_path, "w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh)
         w.writerow(["sample_id", "state", "panel", "tier", "dollar_band",
-                    "matched_total"])
+                    "reg_party", "matched_total"])
         for r in rows:
             w.writerow([r["sample_id"], r["_state"], r["_panel"], r["_tier"],
-                        r["_band"], r["matched_total"]])
+                        r["_band"], r["_party"], r["matched_total"]])
 
     print(f"\nwrote {len(rows):,} rows")
-    print(f"  blinded evidence -> {EVIDENCE}   (NO stratum labels; PII; gitignored)")
-    with open(IDFILE, "w", newline="", encoding="utf-8") as fh:
+    print(f"  blinded evidence -> {evidence_path}   (NO stratum labels; PII; gitignored)")
+    with open(idmap_path, "w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh)
         w.writerow(["sample_id", "state_voter_id"])
         for r in rows:
             w.writerow([r["sample_id"], r["_svid"]])
 
-    print(f"  stratum key      -> {KEYFILE}    (join only AFTER verdicts are recorded)")
-    print(f"  voter-id map     -> {IDFILE}     (gitignored; feeds a later "
+    print(f"  stratum key      -> {key_path}    (join only AFTER verdicts are recorded)")
+    print(f"  voter-id map     -> {idmap_path}     (gitignored; feeds a later "
           f"--exclude-rated)")
     print("\nallocation actually achieved (counts only):")
     from collections import Counter
     for key, label in ((("_tier",), "tier"), (("_state", "_panel"), "state x panel"),
-                       (("_band",), "dollar band")):
+                       (("_band",), "dollar band"), (("_party",), "registered party")):
         print(f"  by {label}:")
         for k, n in sorted(Counter(tuple(r[c] for c in key) for r in rows).items()):
             print(f"    {' / '.join(k):34} {n:>5,}")
-    print("\nNEXT: fill `verdict` with Y / NC / NP / U, then "
-          "python scripts/score_match_validation.py")
+    print("\nNEXT: fill `verdict` with Y / NC / NP / U (and `partial_merge` with y), then score.")
+    if args.label:
+        print(f"  A LABELLED draw is not scored by score_match_validation.py — that script is "
+              f"hard-coded to the 480-record pass and tier-reweights, which is wrong for a "
+              f"single-tier or party-stratified draw. Use the scorer written for this design "
+              f"(for the Idaho draw: scripts/score_idaho_validation.py --label {args.label}).")
+    else:
+        print("  python scripts/score_match_validation.py")
     return 0
 
 

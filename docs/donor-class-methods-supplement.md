@@ -1,6 +1,6 @@
 # Methods and provenance supplement
 
-### Companion to *The Donor Class Is Not the Electorate*
+### Companion to *Who Gives? The Donor Class and the Registered Electorate*
 
 **Stephen Kirby** · Tikor Consulting · July 2026 · <kirby@tikorconsulting.com>
 
@@ -46,7 +46,9 @@ standardisation, match-tier and household sensitivities, panel overlap, period-a
 panels, Idaho composition shares, the unresolved-recipient bounds:
 `scripts/diag_donor_class_revisions.py`. Age-standardized party and turnout cuts:
 `scripts/diag_donor_age_standardization.py`. Linkage recall, dollar coverage and the
-uniqueness guard's cost: `scripts/diag_match_rate.py`. Match-error sensitivity at the
+uniqueness guard's cost: `scripts/diag_match_rate.py`. The Washington PDC name-order defect,
+measured by rebuilding the primary key both ways against the roll with a placebo control on
+the comma-formatted layer: `scripts/diag_wa_pdc_name_order.py`. Match-error sensitivity at the
 validation ceiling: `scripts/diag_match_error_sensitivity.py`. County multipliers split into
 participation and intensity: `scripts/diag_county_decomposition.py`. The non-match cascade:
 `scripts/diag_residual_decomposition.py`. Party-specific matchability, age × county
@@ -79,10 +81,11 @@ about this work anywhere.
 
 `scripts/verify_donor_class.py` reaches the databases with from-scratch SQL, imports no
 analysis code, and re-derives the designated results independently of the build path. It
-**scrapes the manuscript's own prose and tables** and asserts **1,203 figures** against the
-databases.
+**scrapes the manuscript's own prose and tables** and asserts **1,305 figures** against the
+databases — over the manuscript, the supplement, and the submission memo, cover letter and metadata,
+which restate paper figures and were previously unchecked.
 
-It also runs a **coverage audit**: every numeric token in the **44** designated result
+It also runs a **coverage audit**: every numeric token in the **48** designated result
 sections must either be captured by an assertion or carry a written exemption naming where it
 *is* verified, and the run fails otherwise. So the claim is "nothing in those sections is
 unaccounted for", not merely "the figures someone thought to check agree."
@@ -95,10 +98,12 @@ Appendix F's matchability-by-party block **and its three rating tables — the p
 distinction matters, because "nothing unaccounted for" would otherwise be read as "everything
 re-derived", and it is not.
 
-**Closed by derivation — 40 sections.** The four findings; the main-body methods section and its
-match-rate, sensitivity and residual blocks; the crossover tables and their restatements; the
-limitations bullets; Appendices A, B, D and E; the derived parts of C and G; and **Appendix F's
-three rating tables**, which are asserted against the frozen verdict CSVs — counts, precision and
+**Closed by derivation — 44 sections.** The four findings; the main-body methods section and its
+match-rate and sensitivity blocks; the crossover tables and their restatements; the
+limitations bullets; Appendices A, B, D and E; the derived parts of C and G; **Appendix F's
+three rating tables**; and **Appendix F §§F7–F8**, which hold the error-budget, de-merge,
+residual-cascade and name-order tables relocated from the article body in review round 17. The
+rating tables are asserted against the frozen verdict CSVs — counts, precision and
 Wilson intervals recomputed from the adjudication record rather than trusted.
 
 **Closed by written reason — 4 sections**, each naming the script that owns its figures:
@@ -142,7 +147,7 @@ used different versions would be a different computation.
 | Database schema | created by `init_schema` in `src/wa_analyzer/db.py` at the release commit |
 | Storage | ~5 GB `wa_statewide.duckdb`, plus the three voter files; ~20 GB total working set |
 | Runtime | a full verifier pass is minutes; a panel rebuild from raw inputs is hours, dominated by the contribution loads |
-| Source digests | eight files, SHA-256, in the table below. `scripts/source_checksums.py` regenerates them |
+| Source digests | nine files, SHA-256, in the table below. `scripts/source_checksums.py` regenerates them |
 
 ### Source-file digests
 
@@ -150,9 +155,17 @@ So a reconstruction can prove it began from the same inputs rather than from a l
 the same URL. Sizes are bytes; paths are relative to `data/raw/`. Regenerate with
 `scripts/source_checksums.py`.
 
+**Washington is pinned at both ends as of 2026-08-01**, which is what the New York row already
+did and what this table was previously inconsistent about: the `.zip` is the production as
+received, and the `.txt` inside it is what the loaders read and what the panels were built from,
+so a reconstruction can verify whichever it holds. The two earlier voting-history files are
+pinned individually because they came from a September 2023 production for which no archive was
+retained.
+
 | source | file | bytes | SHA-256 |
 |---|---|--:|---|
 | WA voter file | `vrdb/20260401_VRDB_Extract.txt` | 764,857,851 | `babe545ed9f50696b2c1eacef4dbb9f4bcbd30ff01ee33b8ca5e7be522c5d6ca` |
+| WA voter file (production archive) | `vrdb/04.2026.WA.zip` | 219,835,127 | `600dccb9b08dab68ae3910d02203d8682ada056d66ff39143e3e5392925fc909` |
 | WA voting history 2023–2024 | `vrdb/2023-2024_Voting_History.txt` | 448,358,084 | `7a51e8e53ab0f78e86ed3cb655de710f83aff9d36a1ad344cf630a12ccb20c7f` |
 | WA voting history 2021–2022 | `vrdb/2021-2022_Voting_History.txt` | 347,543,952 | `b3c0c5fc19796bb4d43247275834963856fd71941b322e242999dd8fdf70a831` |
 | NY voter file | `ny/ALLNYVOTERS20260629.zip` | 928,142,538 | `ea0b97ccb027b6bfce571d17f7ef19b8135e1c10ed8cbbec136f4b73e3ef4807` |
@@ -197,8 +210,9 @@ is part of the method.
 - **First pass — AI-assisted.** The initial 480 verdicts were produced with AI assistance under
   the author's review, against the blinded extract. Published as
   `docs/reference/match_validation_verdicts_2026-07-27.csv`, keyed on a synthetic `sample_id`.
-- **Second pass — independent human re-rating.** 150 of those records were re-rated by an
-  independent human rater working from the same blinded evidence, published as
+- **Second pass — blind re-rate by the same rater.** 150 of those records were re-rated by the
+  author, blind to the first pass, from the same blinded evidence — so this is test–retest and
+  not inter-rater reliability. Published as
   `docs/reference/match_validation_human_verdicts_2026-07-27.csv`. Agreement and the direction of
   every disagreement are reported in Appendix F. Because both passes saw the same evidence, this
   is inter-rater reliability, **not** ground truth.

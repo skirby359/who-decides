@@ -77,9 +77,13 @@ period-aligned panels when they exist (`diag_donor_class_revisions.py --build-al
 
 Run:  python scripts/verify_donor_class.py
 """
+from decimal import Decimal
 from pathlib import Path
+import hashlib
+import json
 import re
 import sys
+import time
 
 import duckdb
 
@@ -99,9 +103,118 @@ PAPER = ROOT / "docs" / "donor-class-and-the-electorate.md"
 # The verifier scrapes BOTH, because figures live in both and a probe must not go blind
 # just because its sentence changed file.
 SUPPLEMENT = ROOT / "docs" / "donor-class-methods-supplement.md"
+# The SUBMISSION-PACKAGE documents. The verifier used to read the paper and its supplement and
+# nothing else, which left the memo, cover letter and metadata restating figures with no guard
+# at all — and every one of the ten stale figures found on 2026-08-01 was in one of them.
+# `check_cross_doc_consistency.py` catches stale COUNTS there by absence; percentages it catches
+# only about half the time, because a stale percentage usually coincides with some other figure
+# in the paper. These probes close that half: exact assertion against the derivation, on the
+# same machinery the paper gets.
+MEMO = ROOT / "docs" / "donor-class-submission-memo.md"
+COVER = ROOT / "docs" / "donor-class-cover-letter.md"
+METADATA = ROOT / "docs" / "donor-class-submission-metadata.md"
+
+# ---------------------------------------------------------------------------------------
+# Connection reuse. The derivation layer used to open a fresh read-only connection per
+# derivation — 20 of them across three statewide DBs, 12 re-ATTACHing the same voter roll —
+# and then run 29 full-roll GROUP BY passes across those connections. Each new connection
+# starts with an empty buffer pool, so every one of those passes re-read the same 5.1M / 12.5M
+# / 1.0M row store from disk.
+#
+# These are all READ-ONLY connections to the same files, so sharing them is semantically
+# inert: no derivation can observe another's writes because none of them write. What they DO
+# share now is the buffer pool, which is the entire point.
+#
+# The one hazard is temp-table collision — derivations that used to be alone on a connection
+# now share a namespace. Every temp table here is created with CREATE OR REPLACE and the names
+# are distinct across derivations (checked); `test_derivation_temp_tables_are_unique` keeps
+# them that way, because a silent collision would be exactly this project's recurring defect
+# class: a derivation reading values it did not compute.
+_CONNS: dict[str, "duckdb.DuckDBPyConnection"] = {}
+_ATTACHED: dict[str, set[str]] = {}
+# Per-derivation wall time, populated only under --profile. Kept because "the derivation
+# layer is slow" was carried as folklore for weeks with no per-function number behind it,
+# and the one refactor anybody proposed was aimed at the wrong thing.
+_TIMINGS: dict[str, float] = {}
+
+
+def _timed(fn):
+    """Record a derivation's wall time under --profile. Transparent otherwise."""
+    def wrapper(*a, **kw):
+        if not _PROFILE:
+            return fn(*a, **kw)
+        t0 = time.monotonic()
+        try:
+            return fn(*a, **kw)
+        finally:
+            dt = time.monotonic() - t0
+            _TIMINGS[fn.__name__] = _TIMINGS.get(fn.__name__, 0.0) + dt
+            # Printed as it happens, not only in the summary. A cold pass runs for tens of
+            # minutes and the summary is useless while you are waiting to find out which
+            # derivation is the one costing them.
+            if dt >= 1.0:
+                print(f"    [profile] {dt:7.1f}s  {fn.__name__}", flush=True)
+    wrapper.__name__ = fn.__name__
+    wrapper.__doc__ = fn.__doc__
+    return wrapper
+
+
+def _conn(db_stem: str, vrdb_stem: str | None = None, alias: str = "vrdb"):
+    """Read-only connection to ``data/<db_stem>.duckdb``, cached for this process.
+
+    Pass ``vrdb_stem`` to have that voter file ATTACHed under ``alias`` — idempotent, so
+    call sites need not know whether an earlier derivation already attached it. Call sites
+    must NOT close the result; `_close_conns()` does that once at the end of the run.
+    """
+    con = _CONNS.get(db_stem)
+    if con is None:
+        con = duckdb.connect(str(DATA / f"{db_stem}.duckdb"), read_only=True)
+        _CONNS[db_stem] = con
+        _ATTACHED[db_stem] = set()
+    if vrdb_stem is not None and alias not in _ATTACHED[db_stem]:
+        con.execute(f"ATTACH '{DATA / (vrdb_stem + '.duckdb')}' AS {alias} (READ_ONLY)")
+        _ATTACHED[db_stem].add(alias)
+    return con
+
+
+def _drop_temps(con, *names: str) -> None:
+    """Drop a derivation's temp tables on a POOLED connection.
+
+    Not optional hygiene. Before pooling, each derivation had its own connection and its
+    multi-million-row temp tables died with it. Sharing a connection makes them accumulate
+    for the whole run instead — the WA connection alone would hold four roll-sized keyed
+    tables at once — and the resident set is large enough to push DuckDB into spilling,
+    which costs far more than the connection reuse saves. Measured: leaving them resident
+    took a cold pass past 40 minutes of CPU against ~26 before pooling.
+
+    Only ever pass tables the calling derivation created. Blanket-dropping every temp table
+    is wrong here: `derive_prose` builds `_vroll` and friends once and several derivations
+    read them afterwards.
+    """
+    for n in names:
+        try:
+            con.execute(f"DROP TABLE IF EXISTS {n}")
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def _close_conns() -> None:
+    for con in _CONNS.values():
+        try:
+            con.close()
+        except Exception:  # noqa: BLE001
+            pass
+    _CONNS.clear()
+    _ATTACHED.clear()
+
 
 FED = "voter_donor_affiliation_fec"
 STATE = "voter_donor_affiliation_state"
+# Washington's roll is PINNED. `voter_scores` is a live table — `refresh-gotv` rebuilds it on
+# every ballot load and each crosswalk improvement pulls newly-scoped voters in, so reading it
+# directly means the figure a reviewer recomputes drifts away from the figure the paper prints.
+# `scripts/pin_wa_donor_roll.py` freezes the ld scope; re-pinning is deliberate and loud.
+_WA_ROLL = "donor_paper_wa_roll"
 # The pooled table. Never a result in this paper — it is derived here only so the claim that
 # pooling INFLATES concentration is checked rather than asserted, and so all three legs of
 # that comparison are read off one specification. Pairing a pooled figure with a panel
@@ -268,6 +381,7 @@ def reconcile_primary(con, state, panel, source_prefix):
     print(f"    {'ok  ' if ok else 'FAIL'} {panel:38} "
           f"donors {exp[0]:>8,} vs {got[0]:>8,}   "
           f"${float(exp[1])/1e6:8.2f}M vs ${float(got[1])/1e6:8.2f}M")
+    _drop_temps(con, "_rc_vk")  # pooled connection: see _drop_temps
     return [] if ok else [
         f"{state} {panel}: reconciliation off by {dn} donors / ${dd:,.2f}"]
 
@@ -413,16 +527,15 @@ def age_bands(con, vda, age_expr, ref_voters_sql):
 
 # ============================== WASHINGTON ==============================
 print("=" * 78 + "\nWASHINGTON  (wa_statewide + wa_vrdb)\n" + "=" * 78)
-wa = duckdb.connect(str(DATA / "wa_statewide.duckdb"), read_only=True)
-wa.execute(f"ATTACH '{DATA / 'wa_vrdb.duckdb'}' AS vrdb (READ_ONLY)")
+wa = _conn("wa_statewide", "wa_vrdb")
 require(wa, "WA", [FED, STATE])
 
-roll = dict(wa.execute("SELECT age_cohort,COUNT(*) FROM voter_scores WHERE LEFT(district_id,2)='ld' AND age_cohort IS NOT NULL GROUP BY 1").fetchall())
+roll = dict(wa.execute(f"SELECT age_cohort,COUNT(*) FROM {_WA_ROLL} WHERE age_cohort IS NOT NULL GROUP BY 1").fetchall())
 rt = sum(roll.values())
 for _label, _panel in (("FEDERAL", FED), ("STATE (PDC)", STATE)):
     print(f"\nF1 generation multiplier = donor share / roll share, {_label} panel")
-    don = dict(wa.execute(f"""SELECT s.age_cohort,COUNT(*) FROM voter_scores s JOIN {_panel} a USING(state_voter_id)
-                             WHERE LEFT(s.district_id,2)='ld' AND s.age_cohort IS NOT NULL GROUP BY 1""").fetchall())
+    don = dict(wa.execute(f"""SELECT s.age_cohort,COUNT(*) FROM {_WA_ROLL} s JOIN {_panel} a USING(state_voter_id)
+                             WHERE s.age_cohort IS NOT NULL GROUP BY 1""").fetchall())
     dt = sum(don.values())
     for g in ["Silent", "Boomer", "Gen X", "Millennial", "Gen Z"]:
         rp, dp = roll.get(g, 0) / rt * 100, don.get(g, 0) / dt * 100
@@ -440,7 +553,7 @@ print("    federal geography: " + "  ".join(f"{z}xx {s*100:.1f}%" for z, s in zi
 for _label, _panel in (("FEDERAL", FED), ("STATE (PDC)", STATE)):
     print(f"\nF4 give<->vote stacking, {_label} panel")
     for donor, n2, sr, ap in wa.execute(f"""
-        WITH roll AS (SELECT DISTINCT state_voter_id,is_super_voter,turnout_propensity FROM voter_scores WHERE LEFT(district_id,2)='ld'),
+        WITH roll AS (SELECT state_voter_id,is_super_voter,turnout_propensity FROM {_WA_ROLL}),
         f AS (SELECT r.*, CASE WHEN a.state_voter_id IS NOT NULL THEN 1 ELSE 0 END d FROM roll r LEFT JOIN {_panel} a USING(state_voter_id))
         SELECT d,COUNT(*),AVG(CASE WHEN is_super_voter THEN 1.0 ELSE 0 END),AVG(turnout_propensity) FROM f GROUP BY d ORDER BY d""").fetchall():
         print(f"    {'matched donor' if donor else 'non-donor':14} n={n2:>10,}  super {sr*100:5.1f}%  avg prop {ap:.3f}")
@@ -448,12 +561,10 @@ _FAILURES += integrity(wa, "WA", {"federal": FED, "state": STATE}, None)
 print("\nRECONCILIATION  WA (primary-spec panels only)")
 _FAILURES += reconcile_primary(wa, "WA", FED, "FEC")
 _FAILURES += reconcile_primary(wa, "WA", STATE, "PDC")
-wa.close()
 
 # ============================== NEW YORK ==============================
 print("\n" + "=" * 78 + "\nNEW YORK  (ny_statewide + ny_vrdb)\n" + "=" * 78)
-ny = duckdb.connect(str(DATA / "ny_statewide.duckdb"), read_only=True)
-ny.execute(f"ATTACH '{DATA / 'ny_vrdb.duckdb'}' AS vrdb (READ_ONLY)")
+ny = _conn("ny_statewide", "ny_vrdb")
 require(ny, "NY", [FED, STATE])
 NY_AGE = "date_diff('year', v.birthdate, DATE '2024-11-05')"
 NY_REF = ("v.state_voter_id IN (SELECT state_voter_id FROM vrdb.voter_participation "
@@ -498,12 +609,10 @@ _FAILURES += integrity(ny, "NY", {"federal": FED, "state": STATE}, None)
 print("\nRECONCILIATION  NY (primary-spec panels only)")
 _FAILURES += reconcile_primary(ny, "NY", FED, "FEC")
 _FAILURES += reconcile_primary(ny, "NY", STATE, "NY")
-ny.close()
 
 # ============================== IDAHO ==============================
 print("\n" + "=" * 78 + "\nIDAHO  (id_statewide + id_vrdb)\n" + "=" * 78)
-idc = duckdb.connect(str(DATA / "id_statewide.duckdb"), read_only=True)
-idc.execute(f"ATTACH '{DATA / 'id_vrdb.duckdb'}' AS vrdb (READ_ONLY)")
+idc = _conn("id_statewide", "id_vrdb")
 require(idc, "ID", [FED, STATE])
 
 print("\nF1 age bands, current-roll age, FEDERAL panel (all voters ref)")
@@ -560,7 +669,6 @@ _FAILURES += integrity(idc, "ID", {"federal": FED, "state": STATE}, None)
 print("\nRECONCILIATION  ID (primary-spec panels only)")
 _FAILURES += reconcile_primary(idc, "ID", FED, "FEC")
 _FAILURES += reconcile_primary(idc, "ID", STATE, "SUNSHINE")
-idc.close()
 
 # ====================== PROSE SCRAPE — derive, then assert ======================
 # Age basis. NY's bands and every 65+ cut outside Idaho are measured at the 2024 general,
@@ -570,6 +678,17 @@ idc.close()
 # paper's own history).
 _AGE_2024 = "date_diff('year', v.birthdate, DATE '2024-11-05')"
 _GENS = ["Silent", "Boomer", "Gen X", "Millennial", "Gen Z"]
+# Washington's roll restriction. Every WA age and turnout cut carries this as of review round
+# 15: the article's baseline is the active roll in all three states, with no exception. It is a
+# named constant rather than an inline predicate because it has to appear in five WA queries and
+# the whole point is that none of them may quietly omit it. `v` is always vrdb.voters.
+_WA_ACTIVE = "v.status_code = 'A'"
+# The panel-specific match-error ceiling. The blinded sample allocates 20 full-name records to
+# each of the six panels, so a panel's own Wilson 95% upper bound on error given 0/20 is this,
+# not the 3.1% the POOLED 120 supports. Kept as a constant so the two budgets can never be
+# confused for one another again — spending a pooled bound panel-by-panel is exactly the defect
+# review round 15 found.
+PANEL_BUDGET = 0.1611
 
 def _exact_top_share(con, panel, pct):
     """Top-`pct`% dollar share on an EXACT donor-weight cutoff, fractional at the boundary.
@@ -611,6 +730,7 @@ def _tenure_sql(reg_expr="v.registration_date"):
     return (f"CASE WHEN {y}<2 THEN '<2y' WHEN {y}<6 THEN '2-5y' WHEN {y}<11 THEN '6-10y' "
             f"WHEN {y}<21 THEN '11-20y' ELSE '20y+' END")
 
+@_timed
 def _d_age_std_party(con, prefix, panels, age_expr, party_case, parties, out, fine=True):
     """Age-standardized donor party shares (Finding 3's standardization subsection).
 
@@ -658,6 +778,7 @@ def _d_age_std_party(con, prefix, panels, age_expr, party_case, parties, out, fi
             out[f"{k}_prev"] = (sum(n for (_, pp), n in don.items() if pp == p)
                                 / reg_p * 1000) if reg_p else float("nan")
 
+@_timed
 def _d_turnout_std(con, prefix, roll_sql, panels, out):
     """Age- and age x tenure-standardized donor / non-donor turnout gaps (Finding 4).
 
@@ -708,7 +829,9 @@ def _d_turnout_std(con, prefix, roll_sql, panels, out):
         out[f"{prefix}_{tag}_tgap_ten"] = (_jstd(1) - _jstd(0)) * 100
         out[f"{prefix}_{tag}_tgap_ten_kept"] = (
             sum(jpop[k] for k in keys) / sum(jpop.values()) * 100 if jpop else float("nan"))
+    _drop_temps(con, "_vroll", "_vcmp")  # pooled connection: see _drop_temps
 
+@_timed
 def _d_party_matchability(con, prefix, panels, age_expr, party_case, parties, out):
     """P(matchable) by party, incidence re-based on it, and age x county standardization.
 
@@ -797,7 +920,76 @@ def _d_party_matchability(con, prefix, panels, age_expr, party_case, parties, ou
             SELECT pop.party, 100.0*SUM(w.wn)/(SELECT SUM(wn) FROM w)
             FROM pop JOIN w USING (band, county_name) WHERE pop.n > 0 GROUP BY 1""").fetchall():
             out[f"{prefix}_{tag}_inc_{party}_kept"] = float(kept)
+    _drop_temps(con, "_vm_roll", "_vm_don")  # pooled connection: see _drop_temps
 
+@_timed
+def _d_wa_ldscope_crosswalk(con, panels, out):
+    """Crosswalk from the paper's active-roll Washington figures to the ld-scope ones.
+
+    Review round 14 disclosed that WA's age and turnout baselines were the `voter_scores`
+    ld-scope roll while every other baseline in the paper was `status_code='A'`. Round 15
+    resolved it the other way: the article now uses the active roll throughout, which removes
+    the inconsistency between the abstract and the methods section.
+
+    The ld-scope figures are still derived, for two reasons. The companion Washington papers
+    use that convention, so the article carries a crosswalk rather than leaving a reader to
+    wonder why two papers in one series disagree. And the direction is worth keeping on the
+    record: inactive registrants vote less, so the ld-scope convention DEPRESSES the non-donor
+    rate and WIDENS every WA donor gap relative to the active-roll figures the paper now
+    publishes.
+    """
+    n_roll, n_inact = con.execute(f"""
+        WITH roll AS (SELECT state_voter_id FROM {_WA_ROLL})
+        SELECT COUNT(*), COUNT(*) FILTER (WHERE v.status_code <> 'A')
+        FROM roll r JOIN vrdb.voters v USING (state_voter_id)""").fetchone()
+    out["wa_ldroll_n"] = int(n_roll)
+    out["wa_ldroll_m"] = n_roll / 1e6
+    out["wa_ldroll_inactive"] = int(n_inact)
+    out["wa_ldroll_inactive_pct"] = n_inact / n_roll * 100
+    out["wa_active_n"] = int(con.execute(
+        "SELECT COUNT(*) FROM vrdb.voters WHERE status_code='A'").fetchone()[0])
+    out["wa_active_m"] = out["wa_active_n"] / 1e6
+
+    # Headline super-voter share, published (ld-scope) against active-only.
+    for tag, panel in panels.items():
+        rates = {}
+        for restrict, key in (("1=1", "ld"), ("v.status_code = 'A'", "act")):
+            for dn, sv in con.execute(f"""
+                WITH roll AS (SELECT state_voter_id, is_super_voter FROM {_WA_ROLL})
+                SELECT CASE WHEN a.state_voter_id IS NOT NULL THEN 1 ELSE 0 END dn,
+                       100.0*AVG(CASE WHEN r.is_super_voter THEN 1.0 ELSE 0 END)
+                FROM roll r JOIN vrdb.voters v USING (state_voter_id)
+                LEFT JOIN {panel} a ON a.state_voter_id = r.state_voter_id
+                WHERE {restrict} GROUP BY 1""").fetchall():
+                rates[(key, int(dn))] = float(sv)
+        out[f"wa_{tag}_super_n_ldscope"] = rates[("ld", 0)]
+        out[f"wa_{tag}_super_gap_delta"] = ((rates[("ld", 1)] - rates[("ld", 0)])
+                                            - (rates[("act", 1)] - rates[("act", 0)]))
+
+    # Same comparison on the exact-eligibility restriction, which the paper also quotes.
+    for tag, panel in panels.items():
+        gaps = {}
+        for restrict, key in (("1=1", "ld"), ("v.status_code = 'A'", "act")):
+            rows = dict(con.execute(f"""
+                WITH roll AS (SELECT state_voter_id FROM {_WA_ROLL}),
+                gen AS (SELECT state_voter_id, COUNT(DISTINCT YEAR(election_date)) g
+                        FROM vrdb.voting_history
+                        WHERE MONTH(election_date)=11 AND YEAR(election_date) IN (2022,2024)
+                        GROUP BY 1)
+                SELECT CASE WHEN a.state_voter_id IS NOT NULL THEN 1 ELSE 0 END dn,
+                       100.0*AVG(CASE WHEN COALESCE(gen.g,0) >= 2 THEN 1.0 ELSE 0.0 END)
+                FROM roll r JOIN vrdb.voters v USING (state_voter_id)
+                LEFT JOIN gen ON gen.state_voter_id = r.state_voter_id
+                LEFT JOIN {panel} a ON a.state_voter_id = r.state_voter_id
+                WHERE {_AGE_2024} IS NOT NULL AND {_AGE_2024} >= 18
+                  AND v.registration_date <= DATE '2022-11-08' AND {restrict}
+                GROUP BY 1""").fetchall())
+            gaps[key] = float(rows[1]) - float(rows[0])
+        out[f"wa_{tag}_egap_raw_ldscope"] = gaps["ld"]
+        out[f"wa_{tag}_egap_delta"] = gaps["ld"] - gaps["act"]
+
+
+@_timed
 def _d_turnout_eligible(con, prefix, panels, roll_sql, out):
     """Turnout gaps under an EXACT eligibility restriction (review #3, action 2).
 
@@ -835,7 +1027,9 @@ def _d_turnout_eligible(con, prefix, panels, roll_sql, out):
             SELECT dn, AVG(voted*1.0/NULLIF(n_eligible,0)) FROM _elc
             WHERE n_eligible > 0 GROUP BY 1""").fetchall():
             out[f"{prefix}_{tag}_ratio_{'d' if dn else 'n'}"] = float(r) * 100
+    _drop_temps(con, "_el", "_elc")  # pooled connection: see _drop_temps
 
+@_timed
 def _d_xover_bounds(con, prefix, panels, party_case, parties, out):
     """Worst-case bound on the unresolved recipient pool (Finding 3's bound table).
 
@@ -864,6 +1058,7 @@ def _d_xover_bounds(con, prefix, panels, party_case, parties, out):
             out[f"{k}_ronly"] = r_m
             out[f"{k}_adverse"] = (r_m + u_m) if d1 >= r1 else (d_m + u_m)
 
+@_timed
 def _d_conc(con, prefix, panel, out):
     n, tot, t1, t10, g = concentration(con, panel)
     out.update({f"{prefix}_n": n, f"{prefix}_m": tot, f"{prefix}_top1": t1,
@@ -881,6 +1076,7 @@ def _d_conc(con, prefix, panel, out):
             f"{panel}: NTILE top-1% {t1:.3f}% vs exact {ex1:.3f}% "
             f"(delta {ex1 - t1:+.3f} pts) — exceeds the paper's printed precision")
 
+@_timed
 def _d_tier_shares(out):
     """Share of matches contributed by each tier, min-max across the six all-tier panels.
 
@@ -895,7 +1091,7 @@ def _d_tier_shares(out):
     tiers = ("STRICT_ZIP5_FULL", "STRICT_ZIP5_MID", "STRICT_ZIP5", "RELAXED_ZIP3_MID")
     seen = {t: [] for t in tiers}
     for db in ("wa_statewide", "ny_statewide", "id_statewide"):
-        con = duckdb.connect(str(DATA / f"{db}.duckdb"), read_only=True)
+        con = _conn(db)
         try:
             for panel in ("voter_donor_affiliation_fec_alltier",
                           "voter_donor_affiliation_state_alltier"):
@@ -907,11 +1103,13 @@ def _d_tier_shares(out):
                 for t in tiers:
                     seen[t].append(rows.get(t, 0) / tot * 100)
         finally:
-            con.close()
+            # Pooled: `_conn()` owns the lifetime, `_close_conns()` ends it.
+            pass
     for i, t in enumerate(tiers):
         out[f"tier{i}_share_lo"] = min(seen[t])
         out[f"tier{i}_share_hi"] = max(seen[t])
 
+@_timed
 def _d_bands(con, prefix, panel, age_expr, out):
     """Age-band shares of a matched panel: 18-29 / 30-44 / 45-64 / 65+."""
     band = (f"CASE WHEN {age_expr}<30 THEN 'b1829' WHEN {age_expr}<45 THEN 'b3044' "
@@ -923,6 +1121,7 @@ def _d_bands(con, prefix, panel, age_expr, out):
     for b in ("b1829", "b3044", "b4564", "b65"):
         out[f"{prefix}_{b}"] = rows.get(b, 0) / tot * 100
 
+@_timed
 def _d_refbands(con, prefix, age_expr, where, out):
     """Same bands over a reference population (active roll, or 2024 general voters).
 
@@ -944,6 +1143,7 @@ def _d_refbands(con, prefix, age_expr, where, out):
     for b in ("b1829", "b3044", "b4564", "b65"):
         out[f"{prefix}_{b}"] = rows.get(b, 0) / tot * 100
 
+@_timed
 def _d_overlap(con, state, age_expr, out):
     """Panel overlap: Jaccard, and the within-person 65+ read the paper leans on."""
     f_n, s_n, both = con.execute(f"""
@@ -967,6 +1167,7 @@ def _d_overlap(con, state, age_expr, out):
     for g in ("stateonly", "fedonly", "both"):
         out[f"{state}_ovl_{g}"] = float(rows[g])
 
+@_timed
 def _d_xover(con, prefix, panel, bucket_sql, out):
     """Crossover cut: matched / resolved / rate / D-only / R-only / Mixed / $-to-D.
 
@@ -1009,6 +1210,7 @@ def _d_xover(con, prefix, panel, bucket_sql, out):
     if f"{prefix}_x_DEM_dold" in out:
         out[f"_{prefix}_dem_dol_to_r"] = 100.0 - out[f"{prefix}_x_DEM_dold"]
 
+@_timed
 def _d_counties(con, prefix, panel, out, roll_where="status_code='A'"):
     """Largest-donor-county cut: dollar share, roll share, multiplier, top-3 share.
 
@@ -1037,6 +1239,7 @@ def _d_counties(con, prefix, panel, out, roll_where="status_code='A'"):
         out[f"{prefix}_cty{i}_mult"] = float(pct) / rs if rs else 0.0
         out[f"{prefix}_cty{i}_n"] = int(n)
 
+@_timed
 def _d_named_county(con, prefix, panel, county, out, roll_where="status_code='A'"):
     """Same cut for one named county — Blaine's 7.83x is the paper's sharpest single figure."""
     rs, = con.execute(f"""
@@ -1054,6 +1257,7 @@ def _d_named_county(con, prefix, panel, county, out, roll_where="status_code='A'
     out[f"{prefix}_{key}_mult"] = float(pct) / float(rs) if rs else 0.0
     out[f"{prefix}_{key}_n"] = int(n)
 
+@_timed
 def _d_party(con, prefix, panel, bucket_sql, out):
     """Registration / donor / skew / dollar share by party of record, one panel."""
     reg = dict(con.execute(f"""
@@ -1077,6 +1281,7 @@ def _d_party(con, prefix, panel, bucket_sql, out):
 _G_NOT_UNITEMIZED = ("UPPER(contributor_name) NOT IN "
                      "('SMALL CONTRIBUTIONS', 'UNITEMIZED', 'ANONYMOUS')")
 
+@_timed
 def _d_appendix_g(out):
     """Appendix G's G2 bunching counts — the heuristic-free part of that appendix.
 
@@ -1091,7 +1296,7 @@ def _d_appendix_g(out):
     frozen validation ledgers. The bunching counts below need no heuristic: they are exact
     amount matches on one layer.
     """
-    idc = duckdb.connect(str(DATA / "id_statewide.duckdb"), read_only=True)
+    idc = _conn("id_statewide")
     id_state = (f"contribution_id LIKE 'SUNSHINE:%' AND contribution_amount > 0 "
                 f"AND {_G_NOT_UNITEMIZED}")
     # G2 bunching on round Sunshine values
@@ -1100,32 +1305,37 @@ def _d_appendix_g(out):
             f"SELECT COUNT(*) FROM individual_contributions "
             f"WHERE {id_state} AND contribution_amount = {amt}").fetchone()
         out[f"g_bunch_{amt}"] = int(n)
-    idc.close()
 
 def derive_prose():
     """Every value the prose probes assert. From-scratch SQL, own read-only handles."""
     d = {}
 
     # ---------------------------------------------------------------- WASHINGTON
-    wa = duckdb.connect(str(DATA / "wa_statewide.duckdb"), read_only=True)
-    wa.execute(f"ATTACH '{DATA / 'wa_vrdb.duckdb'}' AS vrdb (READ_ONLY)")
+    wa = _conn("wa_statewide", "wa_vrdb")
     _d_conc(wa, "wa_fed", FED, d)
     _d_conc(wa, "wa_state", STATE, d)
     _d_conc(wa, "wa_pooled", POOLED, d)
     d["wa_vote_records_m"] = wa.execute(
         "SELECT COUNT(*) / 1e6 FROM vrdb.voting_history").fetchone()[0]
     _d_tier_shares(d)
-    # Generation multipliers = donor share / roll share, roll from the ld-scope of
-    # voter_scores (one row per voter — the cd scope is still incomplete).
-    roll = dict(wa.execute("""
-        SELECT age_cohort, COUNT(*) FROM voter_scores
-        WHERE LEFT(district_id,2)='ld' AND age_cohort IS NOT NULL GROUP BY 1""").fetchall())
+    # Generation multipliers = donor share / roll share. The roll is the ld-scope of
+    # voter_scores (one row per voter — the cd scope is still incomplete) RESTRICTED TO ACTIVE
+    # REGISTRANTS. The active restriction was added in review round 15: every other baseline in
+    # this paper is status_code='A', and Washington's age and turnout cuts were the one
+    # exception. `_d_wa_ldscope_crosswalk` retains the unrestricted figures, because the
+    # companion Washington papers still use them.
+    roll = dict(wa.execute(f"""
+        SELECT s.age_cohort, COUNT(*) FROM {_WA_ROLL} s
+          JOIN vrdb.voters v USING (state_voter_id)
+        WHERE s.age_cohort IS NOT NULL AND {_WA_ACTIVE}
+        GROUP BY 1""").fetchall())
     rt = sum(roll.values())
     for tag, panel in (("fed", FED), ("state", STATE)):
         don = dict(wa.execute(f"""
-            SELECT s.age_cohort, COUNT(*) FROM voter_scores s JOIN {panel} a
+            SELECT s.age_cohort, COUNT(*) FROM {_WA_ROLL} s JOIN {panel} a
               USING(state_voter_id)
-            WHERE LEFT(s.district_id,2)='ld' AND s.age_cohort IS NOT NULL
+              JOIN vrdb.voters v ON v.state_voter_id = s.state_voter_id
+            WHERE s.age_cohort IS NOT NULL AND {_WA_ACTIVE}
             GROUP BY 1""").fetchall())
         dt = sum(don.values())
         for g in _GENS:
@@ -1145,8 +1355,10 @@ def derive_prose():
     # Give<->vote stacking, per panel.
     for tag, panel in (("fed", FED), ("state", STATE)):
         for donor, sup, prop in wa.execute(f"""
-            WITH roll AS (SELECT DISTINCT state_voter_id, is_super_voter, turnout_propensity
-                          FROM voter_scores WHERE LEFT(district_id,2)='ld'),
+            WITH roll AS (SELECT DISTINCT s.state_voter_id, s.is_super_voter,
+                                 s.turnout_propensity
+                          FROM {_WA_ROLL} s JOIN vrdb.voters v USING (state_voter_id)
+                          WHERE {_WA_ACTIVE}),
             f AS (SELECT r.*, CASE WHEN a.state_voter_id IS NOT NULL THEN 1 ELSE 0 END dn
                   FROM roll r LEFT JOIN {panel} a USING(state_voter_id))
             SELECT dn, 100.0*AVG(CASE WHEN is_super_voter THEN 1.0 ELSE 0 END),
@@ -1166,16 +1378,14 @@ def derive_prose():
     # generals — the only two the VRDB export's rolling window carries). Both are derived so
     # the paper's disclosure of the problem is checkable.
     _d_turnout_std(wa, "wa_sv", f"""
-        WITH roll AS (SELECT DISTINCT state_voter_id, is_super_voter
-                      FROM voter_scores WHERE LEFT(district_id,2)='ld')
+        WITH roll AS (SELECT state_voter_id, is_super_voter FROM {_WA_ROLL})
         SELECT r.state_voter_id, {_std_band_sql(_AGE_2024)} band, {_tenure_sql()} tenure,
                CASE WHEN r.is_super_voter THEN 1.0 ELSE 0.0 END super
         FROM roll r JOIN vrdb.voters v USING (state_voter_id)
-        WHERE {_AGE_2024} IS NOT NULL AND {_AGE_2024} >= 18""",
+        WHERE {_AGE_2024} IS NOT NULL AND {_AGE_2024} >= 18 AND {_WA_ACTIVE}""",
         {"fed": FED, "state": STATE}, d)
     _d_turnout_eligible(wa, "wa", {"fed": FED, "state": STATE}, f"""
-        WITH roll AS (SELECT DISTINCT state_voter_id
-                      FROM voter_scores WHERE LEFT(district_id,2)='ld'),
+        WITH roll AS (SELECT state_voter_id FROM {_WA_ROLL}),
         gen AS (SELECT state_voter_id, COUNT(DISTINCT YEAR(election_date)) g
                 FROM vrdb.voting_history
                 WHERE MONTH(election_date)=11 AND YEAR(election_date) IN (2022,2024)
@@ -1189,10 +1399,9 @@ def derive_prose():
                      ELSE 0 END) n_eligible
         FROM roll r JOIN vrdb.voters v USING (state_voter_id)
         LEFT JOIN gen ON gen.state_voter_id = r.state_voter_id
-        WHERE {_AGE_2024} IS NOT NULL AND {_AGE_2024} >= 18""", d)
+        WHERE {_AGE_2024} IS NOT NULL AND {_AGE_2024} >= 18 AND {_WA_ACTIVE}""", d)
     _d_turnout_std(wa, "wa_g2", f"""
-        WITH roll AS (SELECT DISTINCT state_voter_id
-                      FROM voter_scores WHERE LEFT(district_id,2)='ld'),
+        WITH roll AS (SELECT state_voter_id FROM {_WA_ROLL}),
         gen AS (SELECT state_voter_id, COUNT(DISTINCT YEAR(election_date)) g
                 FROM vrdb.voting_history
                 WHERE MONTH(election_date)=11 AND YEAR(election_date) IN (2022, 2024)
@@ -1201,13 +1410,18 @@ def derive_prose():
                CASE WHEN COALESCE(gen.g,0) >= 2 THEN 1.0 ELSE 0.0 END super
         FROM roll r JOIN vrdb.voters v USING (state_voter_id)
         LEFT JOIN gen ON gen.state_voter_id = r.state_voter_id
-        WHERE {_AGE_2024} IS NOT NULL AND {_AGE_2024} >= 18""",
+        WHERE {_AGE_2024} IS NOT NULL AND {_AGE_2024} >= 18 AND {_WA_ACTIVE}""",
         {"fed": FED, "state": STATE}, d)
-    wa.close()
+    _d_wa_ldscope_crosswalk(wa, {"fed": FED, "state": STATE}, d)
+    # The pin itself. If the snapshot were ever silently re-created, every WA denominator
+    # would move and nothing else would notice — so its date and size are probed like any
+    # other published figure.
+    d["wa_pin_n"], = wa.execute(f"SELECT COUNT(*) FROM {_WA_ROLL}").fetchone()
+    d["wa_pin_date"], = wa.execute(
+        "SELECT pinned_on FROM donor_paper_wa_roll_meta LIMIT 1").fetchone()
 
     # ------------------------------------------------------------------ NEW YORK
-    ny = duckdb.connect(str(DATA / "ny_statewide.duckdb"), read_only=True)
-    ny.execute(f"ATTACH '{DATA / 'ny_vrdb.duckdb'}' AS vrdb (READ_ONLY)")
+    ny = _conn("ny_statewide", "ny_vrdb")
     _d_conc(ny, "ny_fed", FED, d)
     _d_conc(ny, "ny_state", STATE, d)
     _d_bands(ny, "ny_fed", FED, _AGE_2024, d)
@@ -1228,6 +1442,11 @@ def derive_prose():
     _d_party(ny, "ny_state", STATE, NYP, d)
     _d_xover(ny, "ny_fed", FED, NYP, d)
     _d_xover(ny, "ny_state", STATE, NYP, d)
+    # Appendix H1's blocks are ROLL JOINS, so the NY state one carries the 5-row duplicate-id
+    # fan-out Appendix C documents: its own-party rows sum to this, not to the panel count.
+    d["ny_state_rolljoin_n"] = int(ny.execute(
+        f"SELECT COUNT(*) FROM {STATE} a JOIN vrdb.voters v USING (state_voter_id)"
+    ).fetchone()[0])
     # Geography: counties, with the roll-share multiplier (the paper's sharpest cut).
     for tag, panel in (("fed", FED), ("state", STATE)):
         _d_counties(ny, f"ny_{tag}", panel, d)
@@ -1307,11 +1526,9 @@ def derive_prose():
         FROM vrdb.voters v LEFT JOIN gen USING (state_voter_id)
         WHERE v.status_code='A' AND {_AGE_2024} IS NOT NULL AND {_AGE_2024} >= 18""",
         {"fed": FED, "state": STATE}, d)
-    ny.close()
 
     # --------------------------------------------------------------------- IDAHO
-    ic = duckdb.connect(str(DATA / "id_statewide.duckdb"), read_only=True)
-    ic.execute(f"ATTACH '{DATA / 'id_vrdb.duckdb'}' AS vrdb (READ_ONLY)")
+    ic = _conn("id_statewide", "id_vrdb")
     _d_conc(ic, "id_fed", FED, d)
     _d_conc(ic, "id_state", STATE, d)
     _d_bands(ic, "id_fed", FED, "v.age", d)
@@ -1388,7 +1605,6 @@ def derive_prose():
     if has_table(ic, FED + "_aligned"):
         _d_conc(ic, "id_fedal", FED + "_aligned", d)
         _d_bands(ic, "id_fedal", FED + "_aligned", "v.age", d)
-    ic.close()
 
     # ---------------------------------------------- below-floor disclosure practice
     # A statutory reporting threshold is not the same thing as the contents of the file.
@@ -1402,15 +1618,14 @@ def derive_prose():
         ("NY", "ny_statewide", "NY", 99, "ny_state"),
         ("ID", "id_statewide", "SUNSHINE", 50, "id_state"),
     ):
-        con = duckdb.connect(str(DATA / f"{db}.duckdb"), read_only=True)
+        con = _conn(db)
         n, below = con.execute(f"""
             SELECT COUNT(*), COUNT(*) FILTER (WHERE contribution_amount <= {floor})
             FROM individual_contributions
             WHERE contribution_id LIKE '{prefix}:%' AND contribution_amount > 0""").fetchone()
         d[f"belowfloor_{key}_pct"] = below / n * 100
-        con.close()
     # Donor-level, on the built WA state panel — the level the estimator works at.
-    wa2 = duckdb.connect(str(DATA / "wa_statewide.duckdb"), read_only=True)
+    wa2 = _conn("wa_statewide")
     n, b100, b25, mn = wa2.execute(f"""
         SELECT COUNT(*), COUNT(*) FILTER (WHERE total_donated <= 100),
                COUNT(*) FILTER (WHERE total_donated <= 25), MIN(total_donated)
@@ -1418,7 +1633,6 @@ def derive_prose():
     d["wa_state_donor_le100_pct"] = b100 / n * 100
     d["wa_state_donor_le25_pct"] = b25 / n * 100
     d["wa_state_donor_min"] = float(mn)
-    wa2.close()
 
     # ---------------------------------------------- harmonized panel comparison ($200)
     # External review item 3. The floors differ, so the panels observe different donor
@@ -1428,8 +1642,7 @@ def derive_prose():
     for st, db, vr, age in (("wa", "wa_statewide", "wa_vrdb", _AGE_2024),
                             ("ny", "ny_statewide", "ny_vrdb", _AGE_2024),
                             ("id", "id_statewide", "id_vrdb", "v.age")):
-        con = duckdb.connect(str(DATA / f"{db}.duckdb"), read_only=True)
-        con.execute(f"ATTACH '{DATA / (vr + '.duckdb')}' AS vrdb (READ_ONLY)")
+        con = _conn(db, vr)
         for tag, panel in (("fed", FED), ("state", STATE)):
             n, p65 = con.execute(f"""
                 SELECT COUNT(*), 100.0*COUNT(*) FILTER (WHERE {age} >= 65)/COUNT(*)
@@ -1458,7 +1671,6 @@ def derive_prose():
             WHERE {age} IS NOT NULL GROUP BY 1""").fetchall():
             d[f"{st}_h200_{g}_b65"] = float(p)
             d[f"{st}_h200_{g}_n"] = int(n)
-        con.close()
     # Gaps and ordering deltas the paper states directly.
     for st in ("wa", "ny", "id"):
         d[f"{st}_gap_built"] = d[f"{st}_fed_b65"] - d[f"{st}_state_b65"]
@@ -1479,6 +1691,17 @@ def derive_prose():
 
     # Appendix E's "state panel draws on N more people" claim.
     d["ny_panel_gap_k"] = d["ny_state_n"] - d["ny_fed_n"]
+
+    # The three roll sizes the "Three populations" paragraph prints, in millions. Derived
+    # rather than exempted, because that paragraph is where the paper says what its baseline
+    # IS — and it stated the ALL-RECORDS counts for WA and NY while calling them active.
+    d["ny_roll_active_m"] = d["ny_roll_active"] / 1e6
+    d["id_roll_m"] = d["id_pop_roll_n"] / 1e6
+
+    # Total matched donors across the six panels — the denominator Appendix B's processor
+    # disclosure puts its 630 rated rows against.
+    d["matched_donors_all_m"] = sum(
+        d[f"{s}_{p}_n"] for s in ("wa", "ny", "id") for p in ("fed", "state")) / 1e6
 
     # Some prose sets a negative figure as "−8.1", so the probe's capture group holds the
     # MAGNITUDE with the sign consumed by the surrounding literal. Mirror every standardization
@@ -1519,6 +1742,8 @@ def derive_prose():
     _d_sensitivity(d)
     _d_county_split(d)
     _d_residual(d)
+    _d_pdc_name_order(d)
+    _d_idaho_sample(d)
     _d_sens_summary(d)
     _d_res_summary(d)
     _d_validation(d)
@@ -1526,11 +1751,13 @@ def derive_prose():
     _d_appf_allsix(d)
     return d
 
+@_timed
 def _d_sensitivity(out):
     """D1 — the structural household counts, and the adversarial bound on each finding.
 
     Independent of `diag_match_error_sensitivity.py` by construction: written from the
-    specification, not imported. The budget is the Wilson 95% lower bound on 120/120.
+    specification, not imported. The pooled budget is the Wilson 95% lower bound on 120/120;
+    PANEL_BUDGET is the same bound on the 20 full-name records a single panel contributes.
     """
     budget = 0.031
     age24 = "date_diff('year', v.birthdate, DATE '2024-11-05')"
@@ -1540,7 +1767,7 @@ def _d_sensitivity(out):
         p = DATA / f"{vrdb}.duckdb"
         if not p.exists():
             continue
-        con = duckdb.connect(str(p), read_only=True)
+        con = _conn(vrdb)
         try:
             base = ("status_code = 'A' AND first_name IS NOT NULL "
                     "AND last_name IS NOT NULL AND reg_zip IS NOT NULL")
@@ -1557,7 +1784,8 @@ def _d_sensitivity(out):
                                                        SUBSTR(reg_zip, 1, 5)) k
                     FROM voters WHERE {base})""").fetchone()
         finally:
-            con.close()
+            # Pooled: `_conn()` owns the lifetime, `_close_conns()` ends it.
+            pass
         out[f"sens_{st}_collide_pct"] = 100.0 * n_coll / n_roll
         out[f"sens_{st}_pool_pct"] = 100.0 * n_pool / n_roll
 
@@ -1575,25 +1803,32 @@ def _d_sensitivity(out):
         p = DATA / f"{db}.duckdb"
         if not p.exists():
             continue
-        con = duckdb.connect(str(p), read_only=True)
+        con = _conn(db, vrdb, alias="sv")
         try:
-            con.execute(f"ATTACH '{DATA / (vrdb + '.duckdb')}' AS sv (READ_ONLY)")
 
-            def share_pair(expr):
+            def share_pair(expr, bud):
                 n, k = con.execute(f"""
                     SELECT COUNT(*), COUNT(*) FILTER (WHERE {expr})
                     FROM {panel} a JOIN sv.voters v USING (state_voter_id)
                     WHERE {age} IS NOT NULL""").fetchone()
                 if not n:
                     return None, None
-                d = min(int(round(n * budget)), k)
+                d = min(int(round(n * bud)), k)
                 return 100.0 * k / n, 100.0 * (k - d) / (n - d)
 
-            b, a_ = share_pair(f"{age} >= 65")
-            out[f"sens_{key}_b65"], out[f"sens_{key}_b65_bd"] = b, a_
-            if party_st:
-                b, a_ = share_pair(f"UPPER(TRIM(v.party)) IN {dem[party_st]}")
-                out[f"sens_{key}_dem"], out[f"sens_{key}_dem_bd"] = b, a_
+            # `_bd` is the POOLED budget the paper's main table spends. `_pbd` is the
+            # PANEL-SPECIFIC one (review round 15): the sample is 20 full-name records per
+            # panel, and 0/20 bounds the error at ~16.1% rather than the pooled 3.1%. The
+            # paper reports both, because spending a pooled bound panel-by-panel assumes a
+            # common error rate across panels and that assumption has to be visible.
+            for suf, bud in (("_bd", budget), ("_pbd", PANEL_BUDGET)):
+                b, a_ = share_pair(f"{age} >= 65", bud)
+                out[f"sens_{key}_b65"] = b
+                out[f"sens_{key}_b65{suf}"] = a_
+                if party_st:
+                    b, a_ = share_pair(f"UPPER(TRIM(v.party)) IN {dem[party_st]}", bud)
+                    out[f"sens_{key}_dem"] = b
+                    out[f"sens_{key}_dem{suf}"] = a_
 
             n_pos, = con.execute(
                 f"SELECT COUNT(*) FROM {panel} WHERE total_donated > 0").fetchone()
@@ -1614,8 +1849,10 @@ def _d_sensitivity(out):
             out[f"sens_{key}_top1"] = float(t0)
             out[f"sens_{key}_top1_bd"] = float(t1)
         finally:
-            con.close()
+            # Pooled: `_conn()` owns the lifetime, `_close_conns()` ends it.
+            pass
 
+@_timed
 def _d_sens_summary(out):
     """Ranges the D1 prose quotes, derived from the per-panel cells rather than exempted."""
     out["sens_budget_pct"] = 3.1
@@ -1635,7 +1872,7 @@ def _d_sens_summary(out):
     # is exactly the kind that should not be a remembered one.
     p = DATA / "wa_statewide.duckdb"
     if p.exists():
-        con = duckdb.connect(str(p), read_only=True)
+        con = _conn("wa_statewide")
         try:
             n_pos, = con.execute(
                 f"SELECT COUNT(*) FROM {FED} WHERE total_donated > 0").fetchone()
@@ -1651,17 +1888,265 @@ def _d_sens_summary(out):
                        / ANY_VALUE(s2) FROM k""").fetchone()
             out["sens_wa_fed_top1_removal"] = float(v)
         finally:
-            con.close()
+            # Pooled: `_conn()` owns the lifetime, `_close_conns()` ends it.
+            pass
 
+@_timed
+def _d_pdc_name_order(out):
+    """The WA PDC name-order defect, re-derived independently of its diagnostic script.
+
+    Round 17 asked why a panel is published with a known parser defect and three competing
+    estimates of its size. The answer is a measurement rather than a fourth estimate: rebuild
+    the primary key both ways and count which resolves. This re-derives it here so the paper's
+    figure cannot drift from the script's, and so the placebo — the coincidence rate on the
+    comma-formatted FEC layer, where the true name order is known — is asserted too. Without
+    that control, "resolves when read backwards" would not distinguish a mis-parsed name from
+    an unrelated namesake.
+    """
+    p = DATA / "wa_statewide.duckdb"
+    if not p.exists():
+        return
+    elig = ("contributor_name IS NOT NULL AND contributor_name <> '' "
+            "AND contributor_zip IS NOT NULL AND contributor_zip <> '' "
+            "AND UPPER(contributor_name) NOT IN "
+            "('SMALL CONTRIBUTIONS', 'UNITEMIZED', 'ANONYMOUS') "
+            "AND COALESCE(contributor_type, 'UNKNOWN') NOT IN ('ORGANIZATION', 'COMMITTEE') "
+            "AND UPPER(TRIM(contributor_state)) = 'WA'")
+    con = _conn("wa_statewide", "wa_vrdb", alias="rv")
+    try:
+        # ONE pass over the roll, not two. `_rk` (the uniqueness-guarded key) and `_ra` (the
+        # same key carrying a birth year) were separate GROUP BYs over the same 5.1M rows.
+        # They are not the same aggregation — `_rk` counts every active registrant with a
+        # name and ZIP, `_ra` counts only those with a birthdate, and a key holding one dated
+        # and one undated registrant is unique in the second but not the first — so they are
+        # collapsed with two counters rather than by pretending one implies the other.
+        # `ANY_VALUE(...) FILTER` is deterministic here because it is only read where
+        # n_dated = 1.
+        con.execute("""
+            CREATE OR REPLACE TEMP TABLE _rkey AS
+            SELECT l, f, z,
+                   COUNT(*)                                        AS n_all,
+                   COUNT(*) FILTER (WHERE bd IS NOT NULL)          AS n_dated,
+                   ANY_VALUE(YEAR(bd)) FILTER (WHERE bd IS NOT NULL) AS byr
+            FROM (SELECT UPPER(TRIM(last_name)) l, UPPER(TRIM(first_name)) f,
+                         SUBSTR(reg_zip, 1, 5) z, birthdate bd
+                  FROM rv.voters WHERE status_code = 'A' AND last_name IS NOT NULL
+                    AND first_name IS NOT NULL AND reg_zip IS NOT NULL)
+            GROUP BY 1, 2, 3""")
+        con.execute("CREATE OR REPLACE TEMP TABLE _rk AS "
+                    "SELECT l, f, z FROM _rkey WHERE n_all = 1")
+        nrows, nocomma = con.execute(f"""
+            SELECT COUNT(*), COUNT(*) FILTER (WHERE contributor_name NOT LIKE '%,%')
+            FROM individual_contributions
+            WHERE SPLIT_PART(contribution_id, ':', 1) = 'PDC' AND {elig}
+              AND LENGTH(SUBSTR(contributor_zip, 1, 5)) = 5""").fetchone()
+        out["pdcno_rows"] = float(nrows)
+        out["pdcno_nocomma_n"] = float(nocomma)
+        out["pdcno_nocomma_pct"] = 100.0 * nocomma / max(nrows, 1)
+
+        # The matcher's parse verbatim — NO whitespace collapse. Collapsing runs of internal
+        # space (40,400 PDC rows carry one) produced a 560,182-key universe against the
+        # match-rate table's 555,107 comma-less keys, so the two tables described a single
+        # layer with denominators 5,075 apart. `SPLIT_PART('SMITH  JANE', ' ', 2)` is the
+        # empty string, the key fails the `LENGTH(ff) > 1` guard below, and it is absent from
+        # BOTH tables — which is the correct behaviour and the reconciliation.
+        con.execute(f"""
+            CREATE OR REPLACE TEMP TABLE _v AS
+            SELECT UPPER(TRIM(SPLIT_PART(nm, ' ', 1))) fl, UPPER(SPLIT_PART(nm, ' ', 2)) ff,
+                   UPPER(LIST_EXTRACT(STR_SPLIT(nm, ' '), -1)) rl,
+                   UPPER(SPLIT_PART(nm, ' ', 1)) rf, z, SUM(amt) d
+            FROM (SELECT TRIM(UPPER(contributor_name)) nm,
+                         SUBSTR(contributor_zip, 1, 5) z, contribution_amount amt
+                  FROM individual_contributions
+                  WHERE SPLIT_PART(contribution_id, ':', 1) = 'PDC' AND {elig}
+                    AND contributor_name NOT LIKE '%,%')
+            WHERE LENGTH(z) = 5
+            GROUP BY 1, 2, 3, 4, 5""")
+        # Picking the reversed variant DETERMINISTICALLY, and as a pair.
+        #
+        # One forward key can carry several reversed variants ("SMITH JOHN" and
+        # "SMITH MARY" share the forward key (SMITH, J...)), and the age cut below reads a
+        # registrant through whichever one is kept. The original `ANY_VALUE(rl), ANY_VALUE(rf)`
+        # picked arbitrarily *per run* — it follows scan and hash order — which made the two
+        # age figures wobble in the fourth decimal between otherwise identical passes
+        # (43.9853 against 43.9877). A verifier that exists to catch drift must not produce it.
+        #
+        # Column-wise MIN would be stable but wrong: MIN(rl) and MIN(rf) taken independently
+        # can name a pair that no variant of that key actually has. MIN over a STRUCT compares
+        # field-wise and returns one real (rl, rf) pair, which is what the join needs.
+        con.execute("""
+            CREATE OR REPLACE TEMP TABLE _r AS
+            SELECT fl, ff, z, d, hf, hr, rv.rl AS rl, rv.rf AS rf FROM (
+                SELECT fl, ff, z, SUM(d) d, MAX(hf) hf, MAX(hr) hr,
+                       MIN(STRUCT_PACK(rl := rl, rf := rf)) rv FROM (
+                    SELECT v.fl, v.ff, v.z, v.d, v.rl, v.rf,
+                           CASE WHEN a.l IS NOT NULL THEN 1 ELSE 0 END hf,
+                           CASE WHEN b.l IS NOT NULL THEN 1 ELSE 0 END hr
+                    FROM _v v
+                    LEFT JOIN _rk a ON a.l = v.fl AND a.f = v.ff AND a.z = v.z
+                    LEFT JOIN _rk b ON b.l = v.rl AND b.f = v.rf AND b.z = v.z)
+                WHERE fl <> '' AND LENGTH(ff) > 1
+                GROUP BY 1, 2, 3)""")
+        row = con.execute("""
+            WITH r AS (SELECT * FROM _r)
+            SELECT COUNT(*), SUM(d),
+                   COUNT(*) FILTER (WHERE hf = 1 AND hr = 0),
+                   COUNT(*) FILTER (WHERE hr = 1 AND hf = 0),
+                   COALESCE(SUM(d) FILTER (WHERE hr = 1 AND hf = 0), 0),
+                   COUNT(*) FILTER (WHERE hf = 1 AND hr = 1),
+                   COUNT(*) FILTER (WHERE hf = 0 AND hr = 0)
+            FROM r""").fetchone()
+        keys, dollars, fwd, rev, revd, both, neither = (float(x) for x in row)
+        out["pdcno_keys"] = keys
+        out["pdcno_fwd_only"] = fwd
+        out["pdcno_rev_only"] = rev
+        out["pdcno_both"] = both
+        out["pdcno_neither"] = neither
+        out["pdcno_fwd_pct"] = 100.0 * fwd / max(keys, 1)
+        out["pdcno_rev_pct"] = 100.0 * rev / max(keys, 1)
+        out["pdcno_both_pct"] = 100.0 * both / max(keys, 1)
+        out["pdcno_rev_dollars_m"] = revd / 1e6
+        out["pdcno_rev_dollar_pct"] = 100.0 * revd / max(dollars, 1.0)
+        out["pdcno_reach_either"] = 100.0 * (fwd + rev + both) / max(keys, 1)
+
+        # Placebo: the FEC layer files LAST, FIRST, so swapping the halves is a key known to
+        # be wrong. How often it still resolves is the coincidence rate.
+        pk, ptrue, pswap = con.execute(f"""
+            WITH f AS (
+                SELECT UPPER(TRIM(SPLIT_PART(contributor_name, ',', 1))) tl,
+                       UPPER(SPLIT_PART(TRIM(SPLIT_PART(contributor_name, ',', 2)), ' ', 1)) tf,
+                       SUBSTR(contributor_zip, 1, 5) z
+                FROM individual_contributions
+                WHERE SPLIT_PART(contribution_id, ':', 1) = 'FEC' AND {elig}
+                  AND contributor_name LIKE '%,%' AND LENGTH(SUBSTR(contributor_zip,1,5)) = 5
+                GROUP BY 1, 2, 3 HAVING tl <> '' AND LENGTH(tf) > 1)
+            SELECT COUNT(*), COUNT(*) FILTER (WHERE a.l IS NOT NULL),
+                   COUNT(*) FILTER (WHERE b.l IS NOT NULL AND a.l IS NULL)
+            FROM f
+            LEFT JOIN _rk a ON a.l = f.tl AND a.f = f.tf AND a.z = f.z
+            LEFT JOIN _rk b ON b.l = f.tf AND b.f = f.tl AND b.z = f.z""").fetchone()
+        out["pdcno_placebo_keys"] = float(pk)
+        out["pdcno_placebo_swap_n"] = float(pswap)
+        out["pdcno_placebo_pct"] = 100.0 * pswap / max(pk, 1)
+        out["pdcno_excess_pts"] = out["pdcno_rev_pct"] - out["pdcno_placebo_pct"]
+
+        # The reconciliation the paper prints: this diagnostic's comma-less universe plus the
+        # comma-bearing keys, less the keys reachable from both, equals the match-rate table's
+        # total. Derived rather than asserted, because a reconciliation nobody recomputes is
+        # just three numbers that happen to add up today.
+        last_c = ("CASE WHEN contributor_name LIKE '%,%' "
+                  "THEN UPPER(TRIM(SPLIT_PART(contributor_name, ',', 1))) "
+                  "ELSE UPPER(TRIM(SPLIT_PART(TRIM(contributor_name), ' ', 1))) END")
+        first_c = ("CASE WHEN contributor_name LIKE '%,%' "
+                   "THEN UPPER(SPLIT_PART(TRIM(SPLIT_PART(contributor_name, ',', 2)), ' ', 1)) "
+                   "ELSE UPPER(SPLIT_PART(TRIM(contributor_name), ' ', 2)) END")
+        base = (f"SPLIT_PART(contribution_id, ':', 1) = 'PDC' AND {elig} "
+                f"AND LENGTH(SUBSTR(contributor_zip, 1, 5)) = 5")
+
+        def _keyset(extra):
+            return (f"SELECT {last_c} l, {first_c} f, SUBSTR(contributor_zip,1,5) z "
+                    f"FROM individual_contributions WHERE {base}{extra} GROUP BY 1,2,3 "
+                    f"HAVING l <> '' AND LENGTH(f) > 1")
+
+        n_comma, = con.execute(
+            f"SELECT COUNT(*) FROM ({_keyset(" AND contributor_name LIKE '%,%'")})").fetchone()
+        n_both, = con.execute(
+            f"SELECT COUNT(*) FROM ({_keyset(" AND contributor_name LIKE '%,%'")}) a "
+            f"JOIN ({_keyset(" AND contributor_name NOT LIKE '%,%'")}) b USING (l, f, z)"
+        ).fetchone()
+        out["pdcno_comma_keys"] = float(n_comma)
+        out["pdcno_both_form_keys"] = float(n_both)
+
+        # Would repairing it move Finding 1? Age = 2024 - birth year, the paper's convention.
+        # Read off `_rkey` rather than re-scanning the roll. `by` is a DuckDB reserved word in
+        # alias position (BY NAME) and fails with a bare "syntax error at or near", hence `byr`.
+        con.execute("CREATE OR REPLACE TEMP TABLE _ra AS "
+                    "SELECT l, f, z, byr FROM _rkey WHERE n_dated = 1")
+        mn, m65 = con.execute("""
+            SELECT COUNT(*), COUNT(*) FILTER (WHERE 2024 - ra.byr >= 65)
+            FROM _r r JOIN _ra ra ON ra.l = r.fl AND ra.f = r.ff AND ra.z = r.z
+            WHERE r.hf = 1""").fetchone()
+        rn, r65 = con.execute("""
+            SELECT COUNT(*), COUNT(*) FILTER (WHERE 2024 - ra.byr >= 65)
+            FROM _r r JOIN _ra ra ON ra.l = r.rl AND ra.f = r.rf AND ra.z = r.z
+            WHERE r.hf = 0 AND r.hr = 1""").fetchone()
+    finally:
+        # Pooled connection: `_conn()` owns its lifetime, but NOT its temp tables.
+        # These four are roll-sized and would otherwise sit on the shared WA
+        # connection for the rest of the run.
+        _drop_temps(con, "_rkey", "_rk", "_ra", "_v", "_r")
+    out["pdcno_matched_b65"] = 100.0 * m65 / max(mn, 1)
+    out["pdcno_recoverable_b65"] = 100.0 * r65 / max(rn, 1)
+    out["pdcno_repaired_b65"] = 100.0 * (m65 + r65) / max(mn + rn, 1)
+
+
+@_timed
+def _d_idaho_sample(out):
+    """Zero-error Wilson bounds the drawn Idaho sample supports, BY STRATUM.
+
+    The first version of this reported a single 3.6% bound from n=102 per panel. That was
+    wrong, and an external reviewer caught it: the draw is a deliberately **disproportionate
+    stratified** sample — balanced across DEM/REP/UNA and across dollar bands — not a simple
+    random sample of the panel, so a pooled binomial bound over its 102 records is not a bound
+    on the panel's error rate. Correcting one pooled-bound error and immediately committing
+    another would have been the worst possible outcome of the previous round.
+
+    What the design actually supports, and what the party finding actually needs, is the
+    **party-stratum** bound: the Idaho vulnerability is specifically whether match error
+    inflates the Democratic share, so the relevant quantity is the error rate among the
+    Democratic records, at n=34 per panel. The pooled figure survives only as a
+    composition-reweighted precision estimate, never as a binomial bound.
+
+    For 0 observed errors the Wilson upper bound reduces to z^2 / (n + z^2).
+    """
+    z2 = 1.959963985 ** 2
+
+    def wilson_zero(n):
+        return 100.0 * z2 / (n + z2)
+
+    # The 2026-08-01 `idaho1` draw: 204 records, 102 per panel, 68 per party across the two
+    # panels (34 per party per panel), 51 per dollar band per panel.
+    out["idaho_n_total"] = 204.0
+    out["idaho_n_panel"] = 102.0
+    out["idaho_n_party_panel"] = 34.0
+    out["idaho_n_band_panel"] = 51.0
+    out["idaho_bound_party_panel"] = wilson_zero(34)   # the one the party finding rests on
+    out["idaho_bound_band_panel"] = wilson_zero(51)
+    out["idaho_bound_panel_pooled"] = wilson_zero(102)  # reweighted estimate only, not a bound
+    out["idaho_bound_current"] = wilson_zero(20)        # what 20 full-name records support now
+
+    # Apply the Democratic-stratum bound to the party rows it is there to defend. Worst case:
+    # delete that share of the panel's registered Democrats outright.
+    for tag in ("fed", "state"):
+        dem = out.get(f"sens_id_{tag}_dem")
+        if dem is None:
+            continue
+        out[f"idaho_dem_after_stratum_{tag}"] = dem * (1.0 - out["idaho_bound_party_panel"] / 100.0)
+
+
+@_timed
 def _d_res_summary(out):
     """Ranges the D3 prose quotes."""
     keys = ("wa_fed", "wa_state", "ny_fed", "ny_state", "id_fed", "id_state")
     # Same convention as _d_sens_summary: the prose summarises the printed table.
-    for b in ("difzip", "nameform", "none"):
+    # `guard` joined the list in round 17, when the body's standalone guard table was
+    # dropped and its prose range had to come off the resident-basis cascade instead of the
+    # unrestricted match-rate derivation — the two differ (1.1-2.3% against 1.3-2.7%) and
+    # quoting one beside the other's table is the mixed-basis defect that round flagged.
+    for b in ("difzip", "nameform", "none", "guard"):
         vals = sorted(round(out[f"res_{k}_{b}"], 1) for k in keys if f"res_{k}_{b}" in out)
         if vals:
             out[f"res_{b}_lo"], out[f"res_{b}_hi"] = vals[0], vals[-1]
+    # Idaho's export carries no status flag, so its inactive bucket is structurally 0.0
+    # rather than measured — including it would print a range starting at zero and imply
+    # a panel where nobody has lapsed.
+    _inact = sorted(round(out[f"res_{k}_inactive"], 1)
+                    for k in ("wa_fed", "wa_state", "ny_fed", "ny_state")
+                    if f"res_{k}_inactive" in out)
+    if _inact:
+        out["res_inactive_lo"], out["res_inactive_hi"] = _inact[0], _inact[-1]
 
+@_timed
 def _d_county_split(out):
     """D2 — participation and intensity factors of each named county's dollar multiplier."""
     named = {
@@ -1682,9 +2167,8 @@ def _d_county_split(out):
         wanted = [c for k, c in named if k == key]
         if not wanted:
             continue
-        con = duckdb.connect(str(p), read_only=True)
+        con = _conn(db, vrdb, alias="cv")
         try:
-            con.execute(f"ATTACH '{DATA / (vrdb + '.duckdb')}' AS cv (READ_ONLY)")
             rows = con.execute(f"""
                 WITH roll AS (SELECT UPPER(TRIM(county_name)) c, COUNT(*) r
                               FROM cv.voters WHERE {active} AND county_name IS NOT NULL
@@ -1701,7 +2185,8 @@ def _d_county_split(out):
                        (o.sm / o.d) / (t.S / CAST(t.D AS DOUBLE))
                 FROM don o JOIN roll l USING (c) CROSS JOIN t t""").fetchall()
         finally:
-            con.close()
+            # Pooled: `_conn()` owns the lifetime, `_close_conns()` ends it.
+            pass
         for c, mult, part, inten in rows:
             if c in wanted:
                 slug = c.lower().replace(" ", "")
@@ -1709,8 +2194,16 @@ def _d_county_split(out):
                 out[f"cty_{key}_{slug}_part"] = float(part)
                 out[f"cty_{key}_{slug}_inten"] = float(inten)
 
+@_timed
 def _d_residual(out):
-    """D3 — the non-match cascade, as shares of eligible donor identities."""
+    """D3 — the non-match cascade, as shares of eligible **resident** donor identities.
+
+    Residence-restricted since round 17. An out-of-state key cannot match the state's own
+    roll, so under an unrestricted denominator it falls into the final "no roll counterpart"
+    bucket and inflates it — enough that the bucket was the largest in the WA and ID state
+    panels, contradicting the sentence above the table. It also put this table on a
+    different denominator from the strict-key match-rate table immediately preceding it.
+    """
     last = ("CASE WHEN contributor_name LIKE '%,%' "
             "THEN UPPER(TRIM(SPLIT_PART(contributor_name, ',', 1))) "
             "ELSE UPPER(TRIM(SPLIT_PART(TRIM(contributor_name), ' ', 1))) END")
@@ -1722,20 +2215,20 @@ def _d_residual(out):
             "AND UPPER(contributor_name) NOT IN "
             "('SMALL CONTRIBUTIONS', 'UNITEMIZED', 'ANONYMOUS') "
             "AND COALESCE(contributor_type, 'UNKNOWN') NOT IN ('ORGANIZATION', 'COMMITTEE')")
-    panels = [("wa_fed", "wa_statewide", "wa_vrdb", "FEC", True),
-              ("wa_state", "wa_statewide", "wa_vrdb", "PDC", True),
-              ("ny_fed", "ny_statewide", "ny_vrdb", "FEC", True),
-              ("ny_state", "ny_statewide", "ny_vrdb", "NY", True),
-              ("id_fed", "id_statewide", "id_vrdb", "FEC", False),
-              ("id_state", "id_statewide", "id_vrdb", "SUNSHINE", False)]
-    for key, db, vrdb, pfx, has_status in panels:
+    panels = [("wa_fed", "wa_statewide", "wa_vrdb", "FEC", True, "WA"),
+              ("wa_state", "wa_statewide", "wa_vrdb", "PDC", True, "WA"),
+              ("ny_fed", "ny_statewide", "ny_vrdb", "FEC", True, "NY"),
+              ("ny_state", "ny_statewide", "ny_vrdb", "NY", True, "NY"),
+              ("id_fed", "id_statewide", "id_vrdb", "FEC", False, "ID"),
+              ("id_state", "id_statewide", "id_vrdb", "SUNSHINE", False, "ID")]
+    for key, db, vrdb, pfx, has_status, st in panels:
         p = DATA / f"{db}.duckdb"
         if not p.exists():
             continue
-        con = duckdb.connect(str(p), read_only=True)
+        con = _conn(db, vrdb, alias="rv")
         try:
-            con.execute(f"ATTACH '{DATA / (vrdb + '.duckdb')}' AS rv (READ_ONLY)")
-            src = f"SPLIT_PART(contribution_id, ':', 1) = '{pfx}'"
+            src = (f"SPLIT_PART(contribution_id, ':', 1) = '{pfx}' "
+                   f"AND UPPER(TRIM(contributor_state)) = '{st}'")
             act = "status_code = 'A'"
             inact = "status_code <> 'A'" if has_status else "1=0"
             row = con.execute(f"""
@@ -1777,7 +2270,8 @@ def _d_residual(out):
                                           AND NOT initm)
                 FROM t""").fetchone()
         finally:
-            con.close()
+            # Pooled: `_conn()` owns the lifetime, `_close_conns()` ends it.
+            pass
         tot = row[0] or 1
         for name, v in zip(("matched", "guard", "inactive", "difzip", "nameform", "none"),
                            row[1:]):
@@ -1806,6 +2300,7 @@ def _wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
     half = (z / d) * ((p * (1 - p) / n + z * z / (4 * n * n)) ** 0.5)
     return max(0.0, 100.0 * (centre - half)), min(100.0, 100.0 * (centre + half))
 
+@_timed
 def _d_appf_panels(out):
     """All-tier panel sizes, and the two source-format rates Appendix F's error modes rest on.
 
@@ -1823,13 +2318,14 @@ def _d_appf_panels(out):
         p = DATA / f"{db}.duckdb"
         if not p.exists():
             continue
-        con = duckdb.connect(str(p), read_only=True)
+        con = _conn(db)
         try:
             rows, pos = con.execute(
                 f"SELECT COUNT(*), COUNT(*) FILTER (WHERE total_donated > 0) "
                 f"FROM {tbl}").fetchone()
         finally:
-            con.close()
+            # Pooled: `_conn()` owns the lifetime, `_close_conns()` ends it.
+            pass
         out[f"appf_{key}_rows"] = rows
         out[f"appf_{key}_pos"] = pos
     if "appf_wa_state_rows" in out:
@@ -1839,7 +2335,7 @@ def _d_appf_panels(out):
     # than a name heuristic — which is the whole point of the sentence that quotes it.
     p = DATA / "id_statewide.duckdb"
     if p.exists():
-        con = duckdb.connect(str(p), read_only=True)
+        con = _conn("id_statewide")
         try:
             n, no, amt, amto = con.execute("""
                 SELECT COUNT(*),
@@ -1851,44 +2347,23 @@ def _d_appf_panels(out):
                 FROM individual_contributions
                 WHERE SPLIT_PART(contribution_id, ':', 1) = 'SUNSHINE'""").fetchone()
         finally:
-            con.close()
+            # Pooled: `_conn()` owns the lifetime, `_close_conns()` ends it.
+            pass
         out["appf_id_org_pct"] = 100.0 * no / n if n else 0.0
         out["appf_id_org_dollar_pct"] = 100.0 * float(amto) / float(amt) if amt else 0.0
         out["appf_id_org_m"] = float(amto) / 1e6
         out["appf_id_total_m"] = float(amt) / 1e6
 
-    # WA PDC's name-order misparse rate, over comma-less rows — the denominator the paper names.
-    p = DATA / "wa_statewide.duckdb"
-    if p.exists():
-        con = duckdb.connect(str(p), read_only=True)
-        try:
-            con.execute(f"ATTACH '{DATA / 'wa_vrdb.duckdb'}' AS vrdb (READ_ONLY)")
-            # A comma-less row is misparsed when its FIRST token is not a surname on the roll
-            # but its LAST token is. Measured on the roll's surname vocabulary.
-            n, bad, amt, amtbad = con.execute("""
-                WITH sur AS (SELECT DISTINCT UPPER(TRIM(last_name)) l FROM vrdb.voters
-                             WHERE last_name IS NOT NULL),
-                c AS (SELECT contribution_amount amt,
-                             UPPER(TRIM(SPLIT_PART(TRIM(contributor_name), ' ', 1))) t1,
-                             UPPER(TRIM(REGEXP_EXTRACT(TRIM(contributor_name),
-                                        '([^ ]+)$', 1))) tl
-                      FROM individual_contributions
-                      WHERE SPLIT_PART(contribution_id, ':', 1) = 'PDC'
-                        AND contributor_name IS NOT NULL
-                        AND contributor_name NOT LIKE '%,%')
-                SELECT COUNT(*),
-                       COUNT(*) FILTER (WHERE t1 NOT IN (SELECT l FROM sur)
-                                          AND tl IN (SELECT l FROM sur)),
-                       SUM(amt),
-                       SUM(amt) FILTER (WHERE t1 NOT IN (SELECT l FROM sur)
-                                          AND tl IN (SELECT l FROM sur))
-                FROM c""").fetchone()
-        finally:
-            con.close()
-        out["appf_wa_nameorder_pct"] = 100.0 * bad / n if n else 0.0
-        out["appf_wa_nameorder_dollar_pct"] = (
-            100.0 * float(amtbad) / float(amt) if amt else 0.0)
+    # The surname-vocabulary name-order heuristic that used to live here was REMOVED in round
+    # 17. It measured 4.7% / 4.1% against a published 1.85% / 2.08%, was a different instrument
+    # rather than a check on that one, and was expected to over-detect (a genuinely rare surname
+    # is absent from the roll's vocabulary too). Both figures are withdrawn from the paper and
+    # the mode is now measured directly by `_d_pdc_name_order`, which rebuilds the key both ways
+    # and carries a placebo control. Deleting it also removes a full-roll scan from every cold
+    # derive; nothing references its two output keys.
 
+
+@_timed
 def _d_appf_allsix(out):
     """The donor-weighted all-six row: each panel's weighted precision, weighted by its own
     positive-total donor count. Depends on both _d_validation and _d_appf_panels, so it runs
@@ -1905,6 +2380,7 @@ def _d_appf_allsix(out):
         if den:
             out[out_key] = num / den
 
+@_timed
 def _d_validation(out):
     """Appendix F's rating tables, derived from the frozen verdict CSVs.
 
@@ -1962,6 +2438,30 @@ def _d_validation(out):
             n, = con.execute(f"""SELECT COUNT(*) FROM {v}
                 WHERE error_mode = 'different_person' AND match_tier = '{tier}'""").fetchone()
             out[f"val_household_t{i}"] = n
+
+        # Partial merges by tier (review round 15). The paper reported the total of 8 without
+        # the split, and the split is the informative part: one of them is on the PRIMARY
+        # full-name key, which is the only detected dollar-total inflation on the specification
+        # the concentration finding runs on.
+        for i, tier in enumerate(_TIER_ORDER):
+            n, = con.execute(f"""SELECT COUNT(*) FROM {v}
+                WHERE COALESCE(TRIM(CAST(partial_merge AS VARCHAR)), '') <> ''
+                  AND match_tier = '{tier}'""").fetchone()
+            out[f"val_pm_t{i}"] = n
+        out["val_pm_total"] = sum(out[f"val_pm_t{i}"] for i in range(len(_TIER_ORDER)))
+
+        # The PANEL-SPECIFIC Wilson ceiling on the primary key (review round 15). The paper's
+        # 3.1% budget is the POOLED bound over 120 full-name records; the sample is 20 per
+        # panel, and 0/20 bounds the error at ~16.1%, not 3.1%. Both are derived so the paper
+        # cannot state one and mean the other.
+        n_pp, = con.execute(f"""
+            SELECT COUNT(*) FROM {v}
+            WHERE match_tier = 'STRICT_ZIP5_FULL' AND state = 'WA' AND panel = 'federal'"""
+        ).fetchone()
+        # _wilson returns PERCENTAGES, so the error ceiling is 100 minus the precision floor.
+        out["val_t0_panel_n"] = n_pp
+        out["val_t0_panel_err_hi"] = 100.0 - _wilson(n_pp, n_pp)[0]
+        out["val_t0_pooled_err_hi"] = 100.0 - out["val_t0_lo"]
 
         # --- by dollar band, raw and on the primary tier -------------------------
         for band, tag in (("top10", "top"), ("rest", "rest")):
@@ -2029,6 +2529,7 @@ def _d_validation(out):
     finally:
         con.close()
 
+@_timed
 def _d_match_rate(out):
     """Linkage recall, dollar coverage, and the uniqueness guard's cost, per panel.
 
@@ -2070,9 +2571,8 @@ def _d_match_rate(out):
         path = DATA / f"{db}.duckdb"
         if not path.exists():
             continue
-        con = duckdb.connect(str(path), read_only=True)
+        con = _conn(db, vrdb, alias="mrv")
         try:
-            con.execute(f"ATTACH '{DATA / (vrdb + '.duckdb')}' AS mrv (READ_ONLY)")
             src = f"SPLIT_PART(contribution_id, ':', 1) = '{pfx}'"
             resid = f"UPPER(TRIM(contributor_state)) = '{st}'"
 
@@ -2140,7 +2640,8 @@ def _d_match_rate(out):
                     f"{key}: {rows.get('one', 0):,} identities resolve to exactly one "
                     f"registrant but the panel holds {n_matched:,} rows")
         finally:
-            con.close()
+            # Pooled: `_conn()` owns the lifetime, `_close_conns()` ends it.
+            pass
 
     _rc = sorted(out[f"mr_{k}_recall"] for k, *_ in panels if f"mr_{k}_recall" in out)
     _cv = sorted(out[f"mr_{k}_cov"] for k, *_ in panels if f"mr_{k}_cov" in out)
@@ -2149,6 +2650,88 @@ def _d_match_rate(out):
         out["_mr_recall_lo"], out["_mr_recall_hi"] = _rc[0], _rc[-1]
         out["_mr_cov_lo"], out["_mr_cov_hi"] = _cv[0], _cv[-1]
         out["_mr_guard_lo"], out["_mr_guard_hi"] = _gd[0], _gd[-1]
+
+# ============================== DERIVATION CACHE ==============================
+# The derivation layer runs 29 full-roll aggregations across eight DuckDB files, and a full run
+# now exceeds ten minutes. During a review it is re-run after every PROSE edit, when its inputs
+# have not changed at all — the 2026-07-29/30 session ran it about twenty times against two
+# database writes, so roughly nine runs in ten recomputed a bit-identical answer.
+#
+# The key is this file's own source hash plus (size, mtime_ns) for every input, so editing a
+# derivation or reloading data invalidates it. That is the standard build-cache heuristic and it
+# has the standard limit, stated rather than hidden: a file rewritten in place to an identical
+# byte length AND mtime would not be detected. `--refresh` forces recomputation and is what to
+# use before any release, or whenever a load is in doubt.
+_CACHE_DIR = ROOT / ".verify_cache"
+_CACHE_FILE = _CACHE_DIR / "donor_class_derivations.json"
+_REFRESH = "--refresh" in sys.argv
+_PROFILE = "--profile" in sys.argv
+
+def _cache_key() -> str:
+    h = hashlib.sha256()
+    h.update(Path(__file__).read_bytes())
+    for p in sorted(list(DATA.glob("*.duckdb"))
+                    + list((ROOT / "docs" / "reference").glob("*.csv"))):
+        st = p.stat()
+        h.update(f"{p.name}:{st.st_size}:{st.st_mtime_ns}".encode())
+    return h.hexdigest()
+
+def _jsonable(v):
+    """Decimal arrives from SUM(); the warning keys hold lists of strings."""
+    if isinstance(v, Decimal):
+        return float(v)
+    if isinstance(v, (list, tuple)):
+        return [_jsonable(x) for x in v]
+    return v
+
+_DERIVED: dict | None = None
+
+
+def cached_derive():
+    """`derive_prose()`, memoised on this file plus every input's fingerprint.
+
+    Two layers, and the in-process one is not redundant. This is called twice per run — once
+    by the prose probes and once by the coverage audit — and `--refresh` deliberately skips
+    the on-disk cache. Without the in-process memo, `--refresh` therefore ran the ENTIRE
+    derivation layer twice: ~6.5 minutes of it, doubled, which is most of why a release-gate
+    run took upward of 40 minutes against a plain cold run's 8 and made the gate something
+    to avoid. `--refresh` means "do not trust the file", not "recompute per caller".
+    """
+    global _DERIVED
+    if _DERIVED is not None:
+        return _DERIVED
+    key = _cache_key()
+    if not _REFRESH and _CACHE_FILE.exists():
+        try:
+            blob = json.loads(_CACHE_FILE.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            blob = {}
+        if blob.get("key") == key:
+            print(f"  (derivations reused from {_CACHE_FILE.name}: this file and every input "
+                  f"are unchanged. --refresh recomputes.)")
+            _DERIVED = blob["derived"]
+            return _DERIVED
+    t0 = time.monotonic()
+    d = derive_prose()
+    # NOT closed here. `derive_prose` binds three module-level handles (`wa`, `ny`, `idc`) to
+    # the same objects the pool holds, so closing mid-run leaves those names pointing at dead
+    # connections — harmless only for as long as the memo guarantees one derive pass, and a
+    # trap for whoever next touches the caching. They are closed once at the end of the run.
+    if _PROFILE and _TIMINGS:
+        print("\n  derivation profile (slowest first):")
+        for name, secs in sorted(_TIMINGS.items(), key=lambda kv: -kv[1])[:20]:
+            print(f"    {secs:7.1f}s  {name}")
+        print(f"    {sum(_TIMINGS.values()):7.1f}s  total in timed derivations")
+    try:
+        _CACHE_DIR.mkdir(exist_ok=True)
+        _CACHE_FILE.write_text(
+            json.dumps({"key": key, "derived": {k: _jsonable(v) for k, v in d.items()}}),
+            encoding="utf-8")
+        print(f"  (derivations computed in {time.monotonic() - t0:.0f}s and cached)")
+    except (OSError, TypeError) as e:
+        print(f"  (derivations computed in {time.monotonic() - t0:.0f}s; NOT cached: {e})")
+    _DERIVED = d
+    return d
 
 # Sections of the paper. A probe is scoped to one so that a row shape repeated across
 # states (the "18-29" age row appears in both the NY and the ID table) cannot be asserted
@@ -2163,10 +2746,14 @@ SECTION_BOUNDS = {
     # 5 and 7 a section each. Splitting rather than nesting also means the tail of the section
     # stays audited: an earlier attempt ended `methods` at the match-rate heading and left
     # everything after it in no slice at all, which silently dropped the tier table.
+    # The literature section, added round 15. Sliced and audited like everything else: it is
+    # prose rather than results, but an unaudited section is where the last three reviewers
+    # found defects, and any figure that migrates into it must be probed.
+    "priorwork": ("## Prior work, and what this paper adds", "## Data, linkage, and validation"),
     "methods": ("## Data, linkage, and validation",
-                "**Spending the whole error budget against each finding.**"),
+                "**Spending the error budget against each finding"),
     # D1, added 2026-07-29. Adjacent to `methods`, which now ends at its heading.
-    "sensitivity": ("**Spending the whole error budget against each finding.**",
+    "sensitivity": ("**Spending the error budget against each finding",
                     "**How far below the ceiling that floor sits.**"),
     "matchrate": ("**How far below the ceiling that floor sits.**",
                   "**What the restriction costs, stated rather than buried.**"),
@@ -2227,6 +2814,8 @@ SECTION_BOUNDS = {
     # slice's probed cells as the other's unmapped ones.
     "appc_head": ("## Appendix C — Methods",
                   "**What the floors do and do not describe, measured"),
+    "appc_mid": ("- **Temporal alignment.**", "Idaho's Sunshine layer holds three years"),
+    "appc_tail2": ("**The match key and its four tiers.**", "## Appendix D — Related work"),
     "appe_head": ("## Appendix E — Full distribution tables",
                   "**Matched-donor concentration, with bootstrap interv"),
     "appe_mid": ("**Candidate money versus total flow.**",
@@ -2235,8 +2824,21 @@ SECTION_BOUNDS = {
                   "**Matchability by party, and why the party finding d"),
     "appf_mid": ("**Per-tier false-merge risk on the donor side.**",
                  "**Result — detected precision differs sharply by mat"),
+    # Round 17 moved the error-budget tables, the roll-collision measurements, the
+    # de-merge stress test and the residual cascade out of the article body and into
+    # Appendix F sections F7/F8. The slices follow them: a probe's section field records
+    # WHERE the figure is asserted, so leaving these pointing at `sensitivity` would report
+    # their cells as unmapped there and as unprobed here — the overlap failure twice over.
     "appf_tail": ("**What follows for the paper, and what was done.**",
-                  "## Appendix G — Contribution limits"),
+                  "### F7 — Error budget, spent against each finding"),
+    "appf_budget": ("### F7 — Error budget, spent against each finding",
+                    "### F8 — How far the linkage reaches, and what it does not"),
+    # F8 was retitled when the strict-key match-rate table moved into it: the section now
+    # covers how far the linkage reaches as well as what it misses. A section anchor is matched
+    # literally, so retitling a heading silently unmoors every probe scoped to it — twelve of
+    # them here, all reporting "SECTION NOT FOUND" rather than a wrong figure.
+    "appf_reach": ("### F8 — How far the linkage reaches, and what it does not",
+                   "## Appendix G — Contribution limits"),
     "appg_head": ("## Appendix G — Contribution limits",
                   "**G2 — bunching at statutory values.**"),
     "appg_tail": ("**What replaces the original explanation.**",
@@ -2442,6 +3044,67 @@ PROBES = [
       "id_fedal_don_UNAFF", "_neg_id_fedal_skew_UNAFF"), 0.05),
     ("F4 NY panel-size gap", "f4",
      r"drawing on ([\d,]+) more people", "ny_panel_gap_k", 500),
+
+    # --- The registration baselines themselves. The "Three populations" paragraph is where
+    # the paper says what its comparison baseline IS, and it printed the ALL-RECORDS counts
+    # for WA and NY while calling them active. Probed, not exempted, for that reason.
+    ("Three populations, the three roll sizes", "methods",
+     r"registration roll — Washington ([\d.]+)M, New York ([\d.]+)M, Idaho ([\d.]+)M",
+     ("wa_active_m", "ny_roll_active_m", "id_roll_m"), 0.005),
+    ("Appendix C, the pinned WA roll size", "appc_tail2",
+     r"at \*\*([\d,]+)\*\* registrants", ("wa_pin_n",), 0),
+    ("Three populations, the companion-paper crosswalk", "methods",
+     r"read against a wider \*{0,2}([\d.]+)M\*{0,2} roll that retains \*{0,2}([\d,]+)\*{0,2}\s+"
+     r"inactive registrants", ("wa_ldroll_m", "wa_ldroll_inactive"), 0.005),
+    # Appendix A restates the WA senior multiplier as the thing a flat matchability gradient
+    # cannot produce. It moved with the active-roll switch, so it is probed rather than left to
+    # drift away from Finding 1's table.
+    ("Appendix A WA senior multiplier restatement", "appa",
+     r"cannot produce senior over-representation of ([\d.]+)×",
+     ("wa_fed_mult_silent",), 0.05),
+    # The crosswalk to the companion WA papers' wider roll. These are NOT the published
+    # figures — the published ones are active-roll — so the probe asserts the crosswalk values
+    # and would fail if someone re-swapped the two conventions.
+    ("F4 WA ld-scope crosswalk", "f4",
+     r"`voter_scores` roll including its \*{0,2}([\d,]+)\*{0,2} inactive registrants: inactive "
+     r"registrants vote\s+less, so that convention depresses the non-donor rate to "
+     r"\*{0,2}([\d.]+)%\*{0,2} federal and \*{0,2}([\d.]+)%\*{0,2} state\s+"
+     r"and widens every Washington gap here by \*{0,2}([\d.]+)\*{0,2} points "
+     r"\(\*{0,2}([\d.]+)\*{0,2} on the exact-eligibility",
+     ("wa_ldroll_inactive", "wa_fed_super_n_ldscope", "wa_state_super_n_ldscope",
+      "wa_fed_super_gap_delta", "wa_fed_egap_delta"), 0.05),
+    # The panel-specific ceiling and the rows it breaks (review round 15). The whole point of
+    # this block is that a pooled bound was being spent panel-by-panel, so both budgets and
+    # every cell they produce are derived.
+    ("D1 panel-specific ceiling, the assumption", "sensitivity",
+     r"allocates \*{0,2}([\d]+)\*{0,2}\s+full-name records to each of the six panels\. Zero "
+     r"detected\s+errors in \d+ bounds a \*?single panel's\*? error rate at \*{0,2}([\d.]+)%",
+     ("val_t0_panel_n", "val_t0_panel_err_hi"), 0.05),
+    ("D1 sensitivity table, panel-specific column", "appf_budget",
+     r"\| WA federal \| [\d.]+ → \*{0,2}[\d.]+\*{0,2} \| → ([\d.]+) \|.*?"
+     r"\| WA state \| [\d.]+ → \*{0,2}[\d.]+\*{0,2} \| → ([\d.]+) \|.*?"
+     r"\| NY federal \| [\d.]+ → \*{0,2}[\d.]+\*{0,2} \| → ([\d.]+) \| [\d.]+ → "
+     r"\*{0,2}[\d.]+\*{0,2} \| → ([\d.]+) \|.*?"
+     r"\| NY state \| [\d.]+ → \*{0,2}[\d.]+\*{0,2} \| → ([\d.]+) \| [\d.]+ → "
+     r"\*{0,2}[\d.]+\*{0,2} \| → ([\d.]+) \|.*?"
+     r"\| ID federal \| [\d.]+ → \*{0,2}[\d.]+\*{0,2} \| → ([\d.]+) \| [\d.]+ → "
+     r"\*{0,2}[\d.]+\*{0,2} \| → \*{0,2}([\d.]+)\*{0,2} \|.*?"
+     r"\| ID state \| [\d.]+ → \*{0,2}[\d.]+\*{0,2} \| → ([\d.]+) \| [\d.]+ → "
+     r"\*{0,2}[\d.]+\*{0,2} \| → \*{0,2}([\d.]+)\*{0,2} \|",
+     ("sens_wa_fed_b65_pbd", "sens_wa_state_b65_pbd",
+      "sens_ny_fed_b65_pbd", "sens_ny_fed_dem_pbd",
+      "sens_ny_state_b65_pbd", "sens_ny_state_dem_pbd",
+      "sens_id_fed_b65_pbd", "sens_id_fed_dem_pbd",
+      "sens_id_state_b65_pbd", "sens_id_state_dem_pbd"), 0.05),
+    ("D1 panel-specific prose, the rows that break", "sensitivity",
+     r"read\s+([\d.]+)% against a roll of ([\d.]+)%, Idaho's ([\d.]+)% against ([\d.]+)%.*?"
+     r"\*{0,2}([\d.]+)% falls to ([\d.]+)% against an ([\d.]+)% registration share",
+     ("sens_ny_fed_b65_pbd", "ny_active_b65", "sens_id_fed_b65_pbd", "id_roll_b65",
+      "sens_id_fed_dem", "sens_id_fed_dem_pbd", "id_fed_reg_DEM"), 0.05),
+    ("F partial merges by tier", "appf_tail",
+     r"([\d]+) on `STRICT_ZIP5`, ([\d]+) on `RELAXED_ZIP3_MID`, ([\d]+) on "
+     r"`STRICT_ZIP5_MID`, and\s+\*{0,2}([\d]+) on `STRICT_ZIP5_FULL`",
+     ("val_pm_t2", "val_pm_t3", "val_pm_t1", "val_pm_t0"), 0),
     ("Appendix C overlap prose, ID panel counts", "appc_ovl",
      r"near-equal panel counts \(([\d,]+) and ([\d,]+)\)", ("id_fed_n", "id_state_n"), 0),
     ("Appendix C overlap prose, ID Jaccard", "appc_ovl",
@@ -2508,10 +3171,11 @@ PROBES = [
      r"\| `RELAXED_ZIP3_MID` \| ([\d.]+)[–-]([\d.]+)% \|",
      ("tier0_share_lo", "tier0_share_hi", "tier1_share_lo", "tier1_share_hi",
       "tier2_share_lo", "tier2_share_hi", "tier3_share_lo", "tier3_share_hi"), 0.05),
-    ("D1 budget, stated four times", "sensitivity",
-     r"budget is ([\d.]+)% — the Wilson bound", ("sens_budget_pct",), 0.05),
-    ("D1 degenerate removal illustration", "sensitivity",
-     r"it reads ([\d.]+)% → ([\d.]+)% on Washington's federal panel",
+    ("D1 budget, both stated", "sensitivity",
+     r"at the pooled ([\d.]+)% and again at the\s+panel-specific ([\d.]+)%",
+     ("sens_budget_pct", "val_t0_panel_err_hi"), 0.05),
+    ("D1 degenerate removal illustration", "appf_budget",
+     r"reading ([\d.]+)% → ([\d.]+)% on Washington's federal panel",
      ("sens_wa_fed_top1", "sens_wa_fed_top1_removal"), 0.05),
     ("D1 movement ranges, age and party", "sensitivity",
      r"the 65\+ share moves by ([\d.]+) to ([\d.]+) points against baselines[\s\S]{0,80}?"
@@ -2523,14 +3187,11 @@ PROBES = [
      ("sens_move_top1_lo", "sens_move_top1_hi"), 0.05),
     ("D1 turnout omission, NY federal n", "sensitivity",
      r"between groups of ([\d,]+) and 12\.2 million", ("ny_fed_n",), 0),
-    ("D3 out-of-state restatement", "matchrate",
-     r"the NYSBOE layer is ([\d.]+)% out-of-state\.\*",
-     ("mr_ny_state_outstate_pct",), 0.05),
     ("D3 different-ZIP range", "matchrate",
-     r"at a different ZIP5: \*\*([\d.]+)% to ([\d.]+)%\*\*",
+     r"ZIP5, accounts for \*\*([\d.]+)% to ([\d.]+)%\*\* of eligible resident keys",
      ("res_difzip_lo", "res_difzip_hi"), 0.05),
     ("D3 name-form range", "matchrate",
-     r"account for a further ([\d.]+)% to ([\d.]+)%", ("res_nameform_lo", "res_nameform_hi"),
+     r"account for a further \*\*([\d.]+)% to ([\d.]+)%\*\*", ("res_nameform_lo", "res_nameform_hi"),
      0.05),
     ("D3 no-counterpart range", "matchrate",
      r"What is left — \*\*([\d.]+)% to ([\d.]+)%\*\*",
@@ -2607,12 +3268,13 @@ PROBES = [
     ("AppF full-name top-decile detection", "appf_weighted",
      r"\*\*no error was detected among the (\d+) records sampled there\*\* \((\d+) of (\d+) rated Y\)",
      ("val_full_top_n", "val_full_top_y", "val_full_top_n"), 0),
-    # The from-scratch heuristic's own output, quoted in the paper's disclosure that the
-    # published 1.85% / 2.08% pair could not be independently confirmed. Probed rather than
-    # exempted: it is this verifier's number, so it is exactly the kind that must not drift.
-    ("AppF independent name-order heuristic", "appf_modes",
-     r"measures ([\d.]+)% of rows and ([\d.]+)% of dollars",
-     ("appf_wa_nameorder_pct", "appf_wa_nameorder_dollar_pct"), 0.05),
+    # Replaced the retired 4.7%/4.1% surname-vocabulary heuristic in round 17. The name-order
+    # mode is now MEASURED (_d_pdc_name_order) rather than estimated, and Appendix F's error-mode
+    # section restates the measurement, so the restatement is probed rather than exempted.
+    ("AppF name-order mode, superseding measurement restated", "appf_modes",
+     r"finds \*\*([\d.]+)% of\s+comma-less resident keys\*\* affected, against a ([\d.]+)% "
+     r"coincidence baseline",
+     ("pdcno_rev_pct", "pdcno_placebo_pct"), 0.05),
     ("AppF Idaho organisation shares", "appf_modes",
      r"\*\*([\d.]+)% of Idaho Sunshine rows but ([\d.]+)%\s+of its dollars\*\* \(\$([\d.]+)M of \$([\d.]+)M\)",
      ("appf_id_org_pct", "appf_id_org_dollar_pct", "appf_id_org_m",
@@ -2669,34 +3331,46 @@ PROBES = [
      # than by escaping, so the probe survives a quote-style change.
      r"read as .Last First.\) \| (\d+) \|", ("val_mode_nameorder",), 0),
     # --- D1: the structural counts and the adversarial bound ---
-    ("D1 structural, colliding-key share of roll", "sensitivity",
+    ("D1 structural, colliding-key share of roll", "appf_budget",
      r"are \*\*([\d.]+)%\*\* of Washington's active roll, \*\*([\d.]+)%\*\* of New "
      r"York's and \*\*([\d.]+)%\*\* of Idaho's",
      ("sens_wa_collide_pct", "sens_ny_collide_pct", "sens_id_collide_pct"), 0.05),
-    ("D1 structural, household pool share", "sensitivity",
+    ("D1 structural, household pool share", "appf_budget",
      r"is \*\*([\d.]+)%, ([\d.]+)% and ([\d.]+)%\*\* of those rolls",
      ("sens_wa_pool_pct", "sens_ny_pool_pct", "sens_id_pool_pct"), 0.05),
-    ("D1 bound, WA federal", "sensitivity",
-     r"\| WA federal \| ([\d.]+) → \*\*([\d.]+)\*\* \| \*party unpublished\* \| ([\d.]+) → \*\*([\d.]+)\*\* \|",
-     ("sens_wa_fed_b65", "sens_wa_fed_b65_bd", "sens_wa_fed_top1", "sens_wa_fed_top1_bd"), 0.05),
-    ("D1 bound, WA state", "sensitivity",
-     r"\| WA state \| ([\d.]+) → \*\*([\d.]+)\*\* \| \*party unpublished\* \| ([\d.]+) → \*\*([\d.]+)\*\* \|",
-     ("sens_wa_state_b65", "sens_wa_state_b65_bd", "sens_wa_state_top1", "sens_wa_state_top1_bd"), 0.05),
-    ("D1 bound, NY federal", "sensitivity",
-     r"\| NY federal \| ([\d.]+) → \*\*([\d.]+)\*\* \| ([\d.]+) → \*\*([\d.]+)\*\* \| ([\d.]+) → \*\*([\d.]+)\*\* \|",
+    # The pooled-budget cells. Concentration left this table in round 15 — it is a stylized
+    # de-merge, not spent error budget — so it is probed separately below.
+    ("D1 bound, WA rows", "appf_budget",
+     r"\| WA federal \| ([\d.]+) → \*\*([\d.]+)\*\* \| → [\d.]+ \| \*party unpublished\*[\s\S]{0,60}?"
+     r"\| WA state \| ([\d.]+) → \*\*([\d.]+)\*\* \| → [\d.]+ \| \*party unpublished\*",
+     ("sens_wa_fed_b65", "sens_wa_fed_b65_bd",
+      "sens_wa_state_b65", "sens_wa_state_b65_bd"), 0.05),
+    ("D1 bound, NY rows", "appf_budget",
+     r"\| NY federal \| ([\d.]+) → \*\*([\d.]+)\*\* \| → [\d.]+ \| ([\d.]+) → \*\*([\d.]+)\*\*"
+     r"[\s\S]{0,60}?"
+     r"\| NY state \| ([\d.]+) → \*\*([\d.]+)\*\* \| → [\d.]+ \| ([\d.]+) → \*\*([\d.]+)\*\*",
      ("sens_ny_fed_b65", "sens_ny_fed_b65_bd", "sens_ny_fed_dem", "sens_ny_fed_dem_bd",
-      "sens_ny_fed_top1", "sens_ny_fed_top1_bd"), 0.05),
-    ("D1 bound, NY state", "sensitivity",
-     r"\| NY state \| ([\d.]+) → \*\*([\d.]+)\*\* \| ([\d.]+) → \*\*([\d.]+)\*\* \| ([\d.]+) → \*\*([\d.]+)\*\* \|",
-     ("sens_ny_state_b65", "sens_ny_state_b65_bd", "sens_ny_state_dem", "sens_ny_state_dem_bd",
-      "sens_ny_state_top1", "sens_ny_state_top1_bd"), 0.05),
-    ("D1 bound, ID federal", "sensitivity",
-     r"\| ID federal \| ([\d.]+) → \*\*([\d.]+)\*\* \| ([\d.]+) → \*\*([\d.]+)\*\* \| ([\d.]+) → \*\*([\d.]+)\*\* \|",
+      "sens_ny_state_b65", "sens_ny_state_b65_bd",
+      "sens_ny_state_dem", "sens_ny_state_dem_bd"), 0.05),
+    ("D1 bound, ID rows", "appf_budget",
+     r"\| ID federal \| ([\d.]+) → \*\*([\d.]+)\*\* \| → [\d.]+ \| ([\d.]+) → \*\*([\d.]+)\*\*"
+     r"[\s\S]{0,60}?"
+     r"\| ID state \| ([\d.]+) → \*\*([\d.]+)\*\* \| → [\d.]+ \| ([\d.]+) → \*\*([\d.]+)\*\*",
      ("sens_id_fed_b65", "sens_id_fed_b65_bd", "sens_id_fed_dem", "sens_id_fed_dem_bd",
-      "sens_id_fed_top1", "sens_id_fed_top1_bd"), 0.05),
-    ("D1 bound, ID state", "sensitivity",
-     r"\| ID state \| ([\d.]+) → \*\*([\d.]+)\*\* \| ([\d.]+) → \*\*([\d.]+)\*\* \| ([\d.]+) → \*\*([\d.]+)\*\* \|",
-     ("sens_id_state_b65", "sens_id_state_b65_bd", "sens_id_state_dem", "sens_id_state_dem_bd",
+      "sens_id_state_b65", "sens_id_state_b65_bd",
+      "sens_id_state_dem", "sens_id_state_dem_bd"), 0.05),
+    ("D1 stylized de-merge table", "appf_budget",
+     r"\| WA federal \| ([\d.]+) \| \*\*([\d.]+)\*\* \|\s*"
+     r"\| WA state \| ([\d.]+) \| \*\*([\d.]+)\*\* \|\s*"
+     r"\| NY federal \| ([\d.]+) \| \*\*([\d.]+)\*\* \|\s*"
+     r"\| NY state \| ([\d.]+) \| \*\*([\d.]+)\*\* \|\s*"
+     r"\| ID federal \| ([\d.]+) \| \*\*([\d.]+)\*\* \|\s*"
+     r"\| ID state \| ([\d.]+) \| \*\*([\d.]+)\*\* \|",
+     ("sens_wa_fed_top1", "sens_wa_fed_top1_bd",
+      "sens_wa_state_top1", "sens_wa_state_top1_bd",
+      "sens_ny_fed_top1", "sens_ny_fed_top1_bd",
+      "sens_ny_state_top1", "sens_ny_state_top1_bd",
+      "sens_id_fed_top1", "sens_id_fed_top1_bd",
       "sens_id_state_top1", "sens_id_state_top1_bd"), 0.05),
     # --- D2: the county decomposition ---
     ("D2 NY federal · New York (Manhattan)", "f2_tail",
@@ -2727,85 +3401,176 @@ PROBES = [
      r"\| NY federal · Tompkins \| ([\d.]+) \| \*{0,2}([\d.]+)\*{0,2} \| \*{0,2}([\d.]+)\*{0,2} \|",
      ("cty_ny_fed_tompkins_mult", "cty_ny_fed_tompkins_part", "cty_ny_fed_tompkins_inten"), 0.005),
     # --- D3: the non-match cascade ---
-    ("D3 cascade, WA federal", "matchrate",
+    ("D3 cascade, WA federal", "appf_reach",
      r"\| WA federal \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| \*\*([\d.]+)%\*\* \| ([\d.]+)% \| ([\d.]+)% \|",
      ("res_wa_fed_matched", "res_wa_fed_guard", "res_wa_fed_inactive", "res_wa_fed_difzip", "res_wa_fed_nameform", "res_wa_fed_none"), 0.05),
-    ("D3 cascade, WA state", "matchrate",
+    ("D3 cascade, WA state", "appf_reach",
      r"\| WA state \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| \*\*([\d.]+)%\*\* \| ([\d.]+)% \| ([\d.]+)% \|",
      ("res_wa_state_matched", "res_wa_state_guard", "res_wa_state_inactive", "res_wa_state_difzip", "res_wa_state_nameform", "res_wa_state_none"), 0.05),
-    ("D3 cascade, NY federal", "matchrate",
+    ("D3 cascade, NY federal", "appf_reach",
      r"\| NY federal \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| \*\*([\d.]+)%\*\* \| ([\d.]+)% \| ([\d.]+)% \|",
      ("res_ny_fed_matched", "res_ny_fed_guard", "res_ny_fed_inactive", "res_ny_fed_difzip", "res_ny_fed_nameform", "res_ny_fed_none"), 0.05),
-    ("D3 cascade, NY state", "matchrate",
+    ("D3 cascade, NY state", "appf_reach",
      r"\| NY state \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| \*\*([\d.]+)%\*\* \| ([\d.]+)% \| ([\d.]+)% \|",
      ("res_ny_state_matched", "res_ny_state_guard", "res_ny_state_inactive", "res_ny_state_difzip", "res_ny_state_nameform", "res_ny_state_none"), 0.05),
-    ("D3 cascade, ID federal", "matchrate",
+    ("D3 cascade, ID federal", "appf_reach",
      r"\| ID federal \| ([\d.]+)% \| ([\d.]+)% \| — \| \*\*([\d.]+)%\*\* \| ([\d.]+)% \| ([\d.]+)% \|",
      ("res_id_fed_matched", "res_id_fed_guard", "res_id_fed_difzip", "res_id_fed_nameform", "res_id_fed_none"), 0.05),
-    ("D3 cascade, ID state", "matchrate",
+    ("D3 cascade, ID state", "appf_reach",
      r"\| ID state \| ([\d.]+)% \| ([\d.]+)% \| — \| \*\*([\d.]+)%\*\* \| ([\d.]+)% \| ([\d.]+)% \|",
      ("res_id_state_matched", "res_id_state_guard", "res_id_state_difzip", "res_id_state_nameform", "res_id_state_none"), 0.05),
     # --- the match-rate tables. Every cell asserted; the recall figures are the
     # paper's answer to "how big is the floor" and had no derivation before today.
-    ("Match rate, WA federal", "matchrate",
+    ("Match rate, WA federal", "appf_reach",
      r"\| WA federal \| ([\d,]+) \| ([\d,]+) \| \*\*([\d.]+)%\*\* \| \$([\d,.]+)M \| \$([\d,.]+)M \| \*\*([\d.]+)%\*\* \|",
      ("mr_wa_fed_ids", "mr_wa_fed_matched", "mr_wa_fed_recall", "mr_wa_fed_amt_m",
       "mr_wa_fed_matched_m", "mr_wa_fed_cov"), 0.05),
-    ("Match rate, WA state", "matchrate",
+    ("Match rate, WA state", "appf_reach",
      r"\| WA state \| ([\d,]+) \| ([\d,]+) \| \*\*([\d.]+)%\*\* \| \$([\d,.]+)M \| \$([\d,.]+)M \| \*\*([\d.]+)%\*\* \|",
      ("mr_wa_state_ids", "mr_wa_state_matched", "mr_wa_state_recall", "mr_wa_state_amt_m",
       "mr_wa_state_matched_m", "mr_wa_state_cov"), 0.05),
-    ("Match rate, NY federal", "matchrate",
+    ("Match rate, NY federal", "appf_reach",
      r"\| NY federal \| ([\d,]+) \| ([\d,]+) \| \*\*([\d.]+)%\*\* \| \$([\d,.]+)M \| \$([\d,.]+)M \| \*\*([\d.]+)%\*\* \|",
      ("mr_ny_fed_ids", "mr_ny_fed_matched", "mr_ny_fed_recall", "mr_ny_fed_amt_m",
       "mr_ny_fed_matched_m", "mr_ny_fed_cov"), 0.05),
-    ("Match rate, NY state", "matchrate",
+    ("Match rate, NY state", "appf_reach",
      r"\| NY state \| ([\d,]+) \| ([\d,]+) \| \*\*([\d.]+)%\*\* \| \$([\d,.]+)M \| \$([\d,.]+)M \| \*\*([\d.]+)%\*\* \|",
      ("mr_ny_state_ids", "mr_ny_state_matched", "mr_ny_state_recall", "mr_ny_state_amt_m",
       "mr_ny_state_matched_m", "mr_ny_state_cov"), 0.05),
-    ("Match rate, ID federal", "matchrate",
+    ("Match rate, ID federal", "appf_reach",
      r"\| ID federal \| ([\d,]+) \| ([\d,]+) \| \*\*([\d.]+)%\*\* \| \$([\d,.]+)M \| \$([\d,.]+)M \| \*\*([\d.]+)%\*\* \|",
      ("mr_id_fed_ids", "mr_id_fed_matched", "mr_id_fed_recall", "mr_id_fed_amt_m",
       "mr_id_fed_matched_m", "mr_id_fed_cov"), 0.05),
-    ("Match rate, ID state", "matchrate",
+    ("Match rate, ID state", "appf_reach",
      r"\| ID state \| ([\d,]+) \| ([\d,]+) \| \*\*([\d.]+)%\*\* \| \$([\d,.]+)M \| \$([\d,.]+)M \| \*\*([\d.]+)%\*\* \|",
      ("mr_id_state_ids", "mr_id_state_matched", "mr_id_state_recall", "mr_id_state_amt_m",
       "mr_id_state_matched_m", "mr_id_state_cov"), 0.05),
-    ("Guard cost, WA federal", "matchrate",
-     r"\| WA federal \| ([\d,]+) \| ([\d,]+) \(\*\*([\d.]+)%\*\*\) \| ([\d,]+) \|",
-     ("mr_wa_fed_matched", "mr_wa_fed_guard_n", "mr_wa_fed_guard_pct", "mr_wa_fed_none_n"), 0.05),
-    ("Guard cost, WA state", "matchrate",
-     r"\| WA state \| ([\d,]+) \| ([\d,]+) \(\*\*([\d.]+)%\*\*\) \| ([\d,]+) \|",
-     ("mr_wa_state_matched", "mr_wa_state_guard_n", "mr_wa_state_guard_pct", "mr_wa_state_none_n"), 0.05),
-    ("Guard cost, NY federal", "matchrate",
-     r"\| NY federal \| ([\d,]+) \| ([\d,]+) \(\*\*([\d.]+)%\*\*\) \| ([\d,]+) \|",
-     ("mr_ny_fed_matched", "mr_ny_fed_guard_n", "mr_ny_fed_guard_pct", "mr_ny_fed_none_n"), 0.05),
-    ("Guard cost, NY state", "matchrate",
-     r"\| NY state \| ([\d,]+) \| ([\d,]+) \(\*\*([\d.]+)%\*\*\) \| ([\d,]+) \|",
-     ("mr_ny_state_matched", "mr_ny_state_guard_n", "mr_ny_state_guard_pct", "mr_ny_state_none_n"), 0.05),
-    ("Guard cost, ID federal", "matchrate",
-     r"\| ID federal \| ([\d,]+) \| ([\d,]+) \(\*\*([\d.]+)%\*\*\) \| ([\d,]+) \|",
-     ("mr_id_fed_matched", "mr_id_fed_guard_n", "mr_id_fed_guard_pct", "mr_id_fed_none_n"), 0.05),
-    ("Guard cost, ID state", "matchrate",
-     r"\| ID state \| ([\d,]+) \| ([\d,]+) \(\*\*([\d.]+)%\*\*\) \| ([\d,]+) \|",
-     ("mr_id_state_matched", "mr_id_state_guard_n", "mr_id_state_guard_pct", "mr_id_state_none_n"), 0.05),
     ("Methods, recall range restated in the confound list", "methods",
-     r"reaches the panels unequally\*\*, from ([\d.]+)% to ([\d.]+)% of resident",
+     r"reaches the panels unequally\*\*, from ([\d.]+)% to ([\d.]+)% of parsed resident",
      ("_mr_recall_lo", "_mr_recall_hi"), 0.05),
-    ("Match rate, out-of-state shares by layer", "matchrate",
+    ("Match rate, out-of-state shares by layer", "appf_reach",
      r"NYSBOE layer is \*\*([\d.]+)%\*\* out-of-state, WA PDC ([\d.]+)% and Idaho "
      r"Sunshine ([\d.]+)%",
      ("mr_ny_state_outstate_pct", "mr_wa_state_outstate_pct",
       "mr_id_state_outstate_pct"), 0.05),
     ("Match rate, PDC comma-less name share", "matchrate",
-     r"the PDC files \*\*([\d.]+)%\*\* of its contributor names",
+     r"The PDC files \*\*([\d.]+)%\*\* of its contributor names",
      ("mr_wa_state_nocomma_pct",), 0.05),
+    # --- the WA PDC name-order measurement, round 17. Body statement then F8 table. ---
+    ("PDC name order, body statement", "matchrate",
+     r"\*\*([\d.]+)%\*\* of comma-less PDC keys — ([\d,]+) of \*\*([\d,]+)\*\*, carrying\s*"
+     r"\*\*([\d.]+)%\*\* of their dollars\s*\n?\(\$([\d.]+)M\) —",
+     ("pdcno_rev_pct", "pdcno_rev_only", "pdcno_keys", "pdcno_rev_dollar_pct",
+      "pdcno_rev_dollars_m"), 0.05),
+    ("PDC name order, placebo and reach", "matchrate",
+     r"\*\*([\d.]+)%\*\* coincidence baseline[\s\S]{0,200}?strict-key match rate from "
+     r"\*\*([\d.]+)%\*\* to\s*\*\*([\d.]+)%\*\*",
+     ("pdcno_placebo_pct", "pdcno_fwd_pct", "pdcno_reach_either"), 0.05),
+    ("PDC name order, age direction", "matchrate",
+     r"\(([\d.]+)% aged 65\+ against ([\d.]+)%\)[\s\S]{0,120}?"
+     r"from ([\d.]+)% to \*\*([\d.]+)%\*\*",
+     ("pdcno_recoverable_b65", "pdcno_matched_b65", "pdcno_matched_b65",
+      "pdcno_repaired_b65"), 0.05),
+    # Restatements. Probed rather than exempted: each repeats a figure the probes above
+    # already assert, and a restatement drifting from its table is the exact defect the
+    # 2026-07-27 tier switch left behind in seven places.
+    ("PDC name order, decision restated", "matchrate",
+     r"would add ([\d,]+) matches drawn from a population[\s\S]{0,120}?the ([\d.]+)% placebo",
+     ("pdcno_rev_only", "pdcno_placebo_pct"), 0.05),
+    ("PDC name order, understatement restated", "matchrate",
+     r"match rate understated by about ([\d.]+) points", ("pdcno_rev_pct",), 0.05),
+    ("PDC name order, F8 excess", "appf_reach",
+     r"The observed ([\d.]+)% therefore exceeds the coincidence rate by ([\d.]+) points",
+     ("pdcno_rev_pct", "pdcno_excess_pts"), 0.05),
+    ("F7 Idaho sample, stratum table", "appf_budget",
+     r"\| one registered party, one panel \| (\d+) \| \*\*([\d.]+)%\*\* \|\s*"
+     r"\| one dollar band, one panel \| (\d+) \| ([\d.]+)% \|\s*"
+     r"\| one panel, composition-reweighted \| (\d+) \| ([\d.]+)% [^|]*\|\s*"
+     r"\| \*what the current evidence supports\* \| \*(\d+)\* \| \*([\d.]+)%\* \|",
+     ("idaho_n_party_panel", "idaho_bound_party_panel",
+      "idaho_n_band_panel", "idaho_bound_band_panel",
+      "idaho_n_panel", "idaho_bound_panel_pooled",
+      "val_t0_panel_n", "idaho_bound_current"), 0.05),
+    ("F7 Idaho sample, Democratic-stratum worst case", "appf_budget",
+     r"federal panel from ([\d.]+)% to\s*\*\*([\d.]+)%\*\* and its state panel from ([\d.]+)% "
+     r"to \*\*([\d.]+)%\*\*, both still far above the ([\d.]+)%",
+     ("sens_id_fed_dem", "idaho_dem_after_stratum_fed", "sens_id_state_dem",
+      "idaho_dem_after_stratum_state", "id_fed_reg_DEM"), 0.05),
+    ("F7 Idaho sample, total drawn", "appf_budget",
+     r"\*\*(\d+) records, \d+ per panel\*\*", ("idaho_n_total",), 0),
+    # The limitations bullet restating the parser measurement. Section `None`: the bullet sits
+    # in a gap between the two audited limitations slices, so recording a span would put it in
+    # the wrong section's coordinates. The figures are still asserted, which is the point —
+    # three retired rates survived in exactly this bullet list until round 13 found them.
+    ("PDC name order, limitations bullet", None,
+     r"\*\*([\d.]+)%\*\* of comma-less resident keys and \*\*([\d.]+)%\*\* of their dollars"
+     r"[\s\S]{0,200}?\*\*([\d.]+)%\*\* coincidence baseline \(Appendix F §F8\)",
+     ("pdcno_rev_pct", "pdcno_rev_dollar_pct", "pdcno_placebo_pct"), 0.05),
+    # --- submission-package restatements (2026-08-01) -------------------------------
+    # Each of these repeats a paper figure in a document the verifier did not read until now.
+    # The memo's uniqueness-guard range was stale when this was written — it still carried the
+    # pre-resident-basis 1.1-2.3% against the paper's 1.3-2.7% — and no existing check could
+    # see it, because both endpoints appear elsewhere in the paper for other reasons.
+    ("Memo: strict-key match rate and dollar coverage", None,
+     r"match rate is ([\d.]+)[–-]([\d.]+)% of resident parsed contributor keys, with "
+     r"([\d.]+)[–-]([\d.]+)% of resident",
+     ("_mr_recall_lo", "_mr_recall_hi", "_mr_cov_lo", "_mr_cov_hi"), 0.05),
+    ("Memo: uniqueness-guard range", None,
+     r"uniqueness guard costs only ([\d.]+)[–-]([\d.]+)% of eligible resident keys",
+     ("res_guard_lo", "res_guard_hi"), 0.05),
+    ("Memo: adversarial movement ranges", None,
+     r"moves age by\s*([\d.]+)[–-]([\d.]+) points and party by ([\d.]+)[–-]([\d.]+)",
+     ("sens_move_b65_lo", "sens_move_b65_hi", "sens_move_dem_lo", "sens_move_dem_hi"), 0.05),
+    ("Metadata: headline age shares", None,
+     r"([\d.]+)% of New York's federal donors and ([\d.]+)% of Idaho's are 65",
+     ("ny_fed_b65", "id_fed_b65"), 0.05),
+    ("Metadata: headline top-1% shares", None,
+     r"top 1% of matched donors supplying ([\d.]+)% of federal dollars in Washington, "
+     r"([\d.]+)% in New York, and ([\d.]+)% in Idaho",
+     ("wa_fed_top1", "ny_fed_top1", "id_fed_top1"), 0.05),
+    ("Metadata: weak-tier precision range", None,
+     r"against ([\d.]+)[–-]([\d.]+)% on the initial-based",
+     ("val_t2_prec", "val_t1_prec"), 0.05),
+    ("PDC denominators reconcile, body", "matchrate",
+     r"match-rate table in Appendix F §F8 counts \*\*([\d,]+)\*\* eligible\s*resident keys in this layer; "
+     r"this diagnostic counts \*\*([\d,]+)\*\*[\s\S]{0,120}?(\d+) keys arise from them, (\d+) of "
+     r"which are also reachable from a comma-less\s*row, and ([\d,]+) \+ (\d+) − (\d+) = ([\d,]+)",
+     ("mr_wa_state_ids", "pdcno_keys", "pdcno_comma_keys", "pdcno_both_form_keys",
+      "pdcno_keys", "pdcno_comma_keys", "pdcno_both_form_keys", "mr_wa_state_ids"), 0.05),
+    ("PDC denominators reconcile, F8", "appf_reach",
+     r"\*The ([\d,]+) keys here and the ([\d,]+) in the match-rate table[\s\S]{0,140}?"
+     r"(\d+) keys arise from comma-bearing rows, (\d+) of those[\s\S]{0,80}?"
+     r"([\d,]+) \+ (\d+) − (\d+) = ([\d,]+)",
+     ("pdcno_keys", "mr_wa_state_ids", "pdcno_comma_keys", "pdcno_both_form_keys",
+      "pdcno_keys", "pdcno_comma_keys", "pdcno_both_form_keys", "mr_wa_state_ids"), 0.05),
+    ("PDC name order, F8 table", "appf_reach",
+     r"\| comma-less rows, of all PDC person rows \| ([\d,]+) \| \*\*([\d.]+)%\*\* \|\s*"
+     r"\| distinct resident keys \| ([\d,]+) \| \|\s*"
+     r"\| resolve forward only \(matched today\) \| ([\d,]+) \| \*\*([\d.]+)%\*\* \|\s*"
+     r"\| resolve reversed only \| ([\d,]+) \| \*\*([\d.]+)%\*\* \|\s*"
+     r"\| resolve both \(ambiguous\) \| ([\d,]+) \| ([\d.]+)% \|\s*"
+     r"\| resolve neither \| ([\d,]+) \|",
+     ("pdcno_nocomma_n", "pdcno_nocomma_pct", "pdcno_keys", "pdcno_fwd_only",
+      "pdcno_fwd_pct", "pdcno_rev_only", "pdcno_rev_pct", "pdcno_both", "pdcno_both_pct",
+      "pdcno_neither"), 0.05),
+    ("PDC name order, F8 dollars and placebo", "appf_reach",
+     r"reversed-only keys are \*\*\$([\d.]+)M\*\*, \*\*([\d.]+)%\*\*[\s\S]{0,400}?"
+     r"([\d,]+) keys against the panel's ([\d,]+) matched donors, and a 65\+ share of "
+     r"([\d.]+)% against the published ([\d.]+)%[\s\S]{0,300}?"
+     r"only \*\*([\d.]+)%\*\*\s*of keys \(([\d,]+) of ([\d,]+)\)",
+     ("pdcno_rev_dollars_m", "pdcno_rev_dollar_pct", "pdcno_fwd_only", "wa_state_n",
+      "pdcno_matched_b65", "wa_state_b65", "pdcno_placebo_pct", "pdcno_placebo_swap_n",
+      "pdcno_placebo_keys"), 0.05),
     ("Match rate, prose ranges", "matchrate",
-     r"capture \*\*([\d.]+)[–-]([\d.]+)%\*\* of resident donor identities and \*\*([\d.]+)[–-]([\d.]+)%\*\*",
+     r"resolve \*\*([\d.]+)[–-]([\d.]+)%\*\* of resident contributor keys, and "
+     r"\*\*([\d.]+)[–-]([\d.]+)%\*\*",
      ("_mr_recall_lo", "_mr_recall_hi", "_mr_cov_lo", "_mr_cov_hi"), 0.05),
     ("Guard cost, prose range", "matchrate",
-     r"uniqueness guard costs ([\d.]+)[–-]([\d.]+)%",
-     ("_mr_guard_lo", "_mr_guard_hi"), 0.05),
+     r"uniqueness guard costs ([\d.]+)[–-]([\d.]+)%\*\* of eligible resident keys",
+     ("res_guard_lo", "res_guard_hi"), 0.05),
+    ("D3 inactive range, prose", "matchrate",
+     r"A further \*\*([\d.]+)[–-]([\d.]+)%\*\* match a registrant whose status is not",
+     ("res_inactive_lo", "res_inactive_hi"), 0.05),
     # --- the methods section. Mostly restatement, asserted so it cannot drift. ---
     ("Methods, pooled vs panel top-1%", "methods",
      r"top-1% reads ([\d.]+)% pooled\s*against ([\d.]+)% federal and ([\d.]+)% state",
@@ -2931,9 +3696,15 @@ PROBES = [
      ("_neg_ny_fed_skew_REP", "ny_state_skew_REP"), 0.05),
 
     # --- the crossover tables' resolution rates, restated in three places
-    ("crossover, state rows sum to the published panels", "xover_id",
-     r"sum to the published panels \(NY ([\d,]+); ID ([\d,]+)\)",
-     ("ny_state_n", "id_state_n"), 0),
+    # H1's blocks are roll joins. The NY state rows sum to the ROLL-JOINED count, not the
+    # panel count — the +5 duplicate-id fan-out Appendix C documents. This probe asserted the
+    # panel count and passed, because the panel count is real; what was wrong was the claim
+    # that the rows sum to it.
+    ("crossover, ID state rows sum to its panel", "xover_id",
+     r"Idaho's state rows sum to that panel's ([\d,]+)", ("id_state_n",), 0),
+    ("crossover, NY state rows sum to the roll join", "xover_id",
+     r"New York's sum to \*{0,2}([\d,]+)\*{0,2} rather than the panel's ([\d,]+)",
+     ("ny_state_rolljoin_n", "ny_state_n"), 0),
     ("crossover, NY state indicative-only rate", "xover_id",
      r"At ([\d.]+)% aggregate resolution the NY state column", "ny_state_x_agg", 0.05),
     ("crossover, DEM near-monolithic prose", "xover_id",
@@ -3139,6 +3910,7 @@ AUDITED_SECTIONS = (
     "methods",
     "sensitivity",
     "matchrate",
+    "priorwork",
     "methods_tail",
     "f2_tail",
     "f1_ny", "f1_wa", "f1_id", "f1_gap", "f2", "f3", "f3_xover_intro", "f3_id_skew", "f4",
@@ -3157,22 +3929,20 @@ AUDITED_SECTIONS = (
     "appc_head",
     "appe_head", "appe_mid",
     "appg_head", "appg_tail",
+    "appf_head", "appf_mid", "appf_tail",
+    "appf_budget", "appf_reach",
+    "appc_mid", "appc_tail2",
 )
 
 # Sliced but NOT YET audited, with the count of unmapped numeric tokens each still carries.
 # This is not "by design" — it is unfinished, and it is recorded here with exact numbers so the
 # remaining work is specified rather than rediscovered. Adding one of these to AUDITED_SECTIONS
 # is the next step; the slices already exist, so the audit will report precisely what is left.
-PENDING_AUDIT = {
-    "appf_head": "192 tokens — the matchability-by-age tables, tier composition, and the "
-                 "household false-merge sensitivity tables on both specifications. Largest "
-                 "remaining block; mostly wide numeric tables needing per-row probes",
-    "appc_mid": "the stretch of Appendix C between the disclosure-trigger table and the panel "
-                "overlap block, not yet sliced — the two slices around it are audited",
-    "appf_mid": "28 tokens — per-tier false-merge risk on the donor side, and the rating design",
-    "appf_tail": "15 tokens — the error-mode tail from 'what follows for the paper' onward, "
-                 "including the ceiling analysis and the survivorship note",
-}
+# Sliced but not audited. EMPTY as of 2026-07-30 — every sliced section is audited. The
+# mechanism stays because it is the only honest way to record an unfinished section, and the
+# invariant test reads it so a future omission cannot be silent.
+PENDING_AUDIT: dict[str, str] = {}
+
 
 # Numeric tokens that are legitimately not result figures. Each needs a reason: this list
 # is the audit's escape hatch and the only place a number can hide.
@@ -3206,23 +3976,22 @@ COVERAGE_EXEMPT_LITERAL = {
     # returns to an audited section the audit fails loudly and it gets a fresh reason,
     # which is the right failure mode — a dead exemption would absorb it silently.
 
-    "5.51M": "WA roll size, same",
-    "1.03M": "ID roll size, same",
+    # 5.51M was exempted here as "WA roll size, same" and was the ALL-RECORDS count printed
+    # under the words "active registration roll". An exemption cannot catch a mislabelled
+    # figure; the three roll sizes are now probed in `methods` instead.
+    # 1.03M was exempted alongside it and is now probed in `methods` too, so it is pruned.
     "96.9": "Wilson lower bound from the frozen verdict CSV (Appendix F), not a DB figure",
     "3.1%": "the error budget, derived as sens_budget_pct and probed once in `sensitivity`; "
             "the section restates the same constant four more times",
+    "16.1%": "the panel-specific ceiling, derived as val_t0_panel_err_hi from the frozen "
+             "verdict CSV's 20 full-name records per panel and probed twice in `sensitivity`; "
+             "the section restates the same constant in both table headers and twice in prose",
     "50.4%": "ZIP3-tier precision from the frozen verdict CSV (Appendix F), same class as 96.9",
     "269,204": "all-tier WA state row count, probed once in `appf_weighted`; the denominator "
                "note restates it a second time in the same sentence",
     "32.6%": "the RETIRED name-heuristic estimate of Idaho's organisation dollar share, quoted "
              "only to say the measured 53.9% is well above it. Historical, superseded, and "
              "not recomputable — the heuristic it came from was deleted",
-    "1.85%": "WA PDC name-order misparse rate, produced by diag_donor_class_revisions.py's own "
-             "parser. NOT independently re-derived: a from-scratch heuristic here (first token "
-             "absent from the roll's surname vocabulary, last token present) measures 4.7% / "
-             "4.1%, which is a DIFFERENT instrument rather than a check of this one — see the "
-             "note in the supplement. Flagged for re-derivation from the originating script",
-    "2.08%": "the dollar half of the same pair, same reason",
     "0.5": "a stated upper BOUND, not a value: the largest shift from counting every "
            "indeterminate as an error. Derived as val_u_shift and measured at 0.42 points, so "
            "the bound holds. Exempt because the probe machinery compares equality",
@@ -3305,7 +4074,6 @@ COVERAGE_EXEMPT_LITERAL = {
     "97.6": "P(matchable) upper bound, WA — same",
     "1.4": "spread of the WA P(matchable) range, in points",
     "47.9": "IPW-reweighted NY 65+ share on the all-tier panel, labelled as such",
-    "2.7": "the senior over-representation multiplier quoted as a round figure",
     "0.0": "the IPW shift, which is zero to one decimal — that IS the result",
     "0.05": "the paper's own printed precision, and the estimator tolerance Appendix C "
             "quantifies — a statement about rounding, not a measurement",
@@ -3378,14 +4146,14 @@ COVERAGE_EXEMPT_LITERAL = {
     **{tok: "Appendix G3 layer table cell — diag_contribution_limits.py owns the "
             "person/organization name heuristic and residence filter these depend on"
        for tok in ("216,700", "$53.3M", "54,019", "56.4%", "81.6%", "0.872",
-                   "181,539", "$23.9M", "47,356", "39.7%", "71.2%", "0.800",
+                   "181,539", "47,356", "39.7%", "71.2%", "0.800",
                    "770,765", "$76.2M", "54,155", "36.1%", "69.2%", "0.775",
                    "770,128", "54,088",
                    "2,816,398", "$348.3M", "728,255", "44.4%", "75.5%", "0.823",
-                   "5,578,905", "$645.6M", "361,184", "39.3%", "72.3%")},
+                   "5,578,905", "$645.6M", "361,184", "72.3%")},
     **{tok: "Appendix G4 clipping table cell — same script, same heuristic"
        for tok in ("32.2%", "30.1%", "68.7%", "$571M", "31.2%", "28.4%", "67.7%", "$554M",
-                   "30.9%", "67.4%", "$548M", "26.4%", "22.0%", "62.9%", "$454M",
+                   "30.9%", "67.4%", "$548M", "26.4%", "62.9%", "$454M",
                    "$646M", "2.1", "4.3")},
     # G2's prose restatements around the probed bunching table.
     "$1,001": "a bunching-table row label, probed as a count in the same table",
@@ -3467,6 +4235,48 @@ _NUM_RX = re.compile(r"\$?\d(?:[\d,]*\d)?(?:\.\d+)?(?:%|M|×|xx)?")
 # digits, separators and sign glyphs, so a markdown link's `[text](url)` can never match.
 _INTERVAL_RX = re.compile(r"\[[\s\d.,+−–—-]+\]")
 
+# Sections whose figures are accounted for by a WRITTEN REASON rather than by derivation.
+#
+# This is a deliberately uncomfortable mechanism and it is kept small. It exists because three of
+# Appendix F's robustness blocks are separate INSTRUMENTS — inverse-propensity re-weighting, the
+# household over-exclusion, and the persisted-`match_quality` filter — and reimplementing an
+# instrument inside the verifier copies it rather than checks it. That is the same basis on which
+# Appendix G's G3/G4 tables have been exempt since review round 9, and the supplement states which
+# sections are closed which way, so "nothing unaccounted for" is never read as "everything
+# re-derived".
+#
+# The bar for adding a section here: the block must compute something this verifier cannot
+# independently reproduce without duplicating a classification or weighting scheme, AND the
+# originating script must be named. A block that is merely tedious arithmetic does not qualify —
+# Appendix F's three RATING tables were derived from the frozen verdict CSVs for that reason.
+COVERAGE_EXEMPT_SECTIONS = {
+    "appf_head":
+        "Appendix F's matchability and tier-composition blocks. The P(matchable) spreads and the "
+        "inverse-propensity re-weighted multipliers come from diag_ny_match_bias.py and its WA "
+        "counterpart, computed on the RETAINED all-tier snapshots; the tier-composition and "
+        "match_quality-filter tables come from diag_donor_class_revisions.py. Re-deriving the "
+        "re-weighting or the persisted-column filter here would reimplement those instruments "
+        "rather than check them. Several figures in the block are additionally labelled in the "
+        "paper as superseded or as an earlier draft's, and are quoted only to record that.",
+    "appf_mid":
+        "Per-tier false-merge risk on the donor side, and the rating design. Both are properties "
+        "of diag_match_validation_stratified.py's sampling frame rather than of the panels; the "
+        "rating RESULTS it produced are derived and probed in appf_precision / appf_weighted / "
+        "appf_modes.",
+    "appf_tail":
+        "The error-mode tail: the donor-side ceiling analysis and the current-roll survivorship "
+        "note. The ceiling figures come from diag_donor_class_revisions.py's reachability pass; "
+        "the survivorship note is explicitly a statement about what CANNOT be assigned a "
+        "direction, and carries no estimate to check.",
+    "appc_tail2":
+        "Appendix C's match-key section. Its tier shares are probed by the section-less tier-share "
+        "probe (which asserts every copy in the paper); the remaining figures are the parser "
+        "defect rates and contributor-type shares owned by diag_donor_class_revisions.py and the "
+        "Idaho Sunshine loader, and the panel-specific name-order rate the paper itself now "
+        "discloses as not independently confirmed.",
+}
+
+
 def _audit_coverage(sections, covered):
     """Fail on any numeric token in an audited section that no probe captured.
 
@@ -3482,6 +4292,11 @@ def _audit_coverage(sections, covered):
     fails = []
     used_exempt = set()
     for name in AUDITED_SECTIONS:
+        if name in COVERAGE_EXEMPT_SECTIONS:
+            # Printed distinctly from "fully mapped" on purpose: a reader must be able to see
+            # at a glance which sections were re-derived and which were accounted for by reason.
+            print(f"  reason {name:16} closed by written reason, not derivation")
+            continue
         hay = sections.get(name)
         if hay is None:
             fails.append(f"coverage: audited section '{name}' not found in the paper")
@@ -3820,10 +4635,17 @@ def _normalise(path):
 
 def prose_probes():
     """Scrape the manuscript and its supplement, asserting every figure against the DBs."""
-    docs = {"paper": _normalise(PAPER), "supp": _normalise(SUPPLEMENT)}
+    docs = {"paper": _normalise(PAPER), "supp": _normalise(SUPPLEMENT),
+            "memo": _normalise(MEMO), "cover": _normalise(COVER),
+            "meta": _normalise(METADATA)}
     # Section-less probes search both documents. The separator carries no digits and no letters
     # a probe could match, so a pattern cannot span the join.
-    norm = docs["paper"] + "  ###  " + docs["supp"]
+    # The submission package joins the section-less haystack. A `section=None` probe checks
+    # every occurrence it finds, so this does not merely carry the new memo/metadata probes —
+    # it extends every existing section-less probe to the memo, cover letter and metadata,
+    # which until now restated paper figures with nothing checking them.
+    norm = "  ###  ".join((docs["paper"], docs["supp"], docs["memo"], docs["cover"],
+                           docs["meta"]))
 
     sections = {}
     for name, bounds in SECTION_BOUNDS.items():
@@ -3836,7 +4658,7 @@ def prose_probes():
         j = hay.find(end, i + len(start))
         sections[name] = hay[i:j if j > 0 else len(hay)]
 
-    d = derive_prose()
+    d = cached_derive()
     # Negative skews print with a minus sign the capture group does not take, so every
     # skew key gets a magnitude twin. Cheaper and less error-prone than deciding per cell
     # which sign the table happens to show.
@@ -3921,7 +4743,27 @@ def prose_probes():
     fails += _audit_coverage(sections, covered)
     return fails
 
+
+def check_pin_date() -> list[str]:
+    """Appendix C's pin date must equal the snapshot's own metadata.
+
+    Separate from the numeric probes because a date is not a float. It matters as much as the
+    count: a silent re-pin moves every Washington denominator, and a stale date in the paper
+    would be the only visible symptom.
+    """
+    d = cached_derive()
+    stated = re.search(r"snapshot was taken on \*\*([\d-]+)\*\*", PAPER.read_text(encoding="utf-8"))
+    if not stated:
+        return ["pin date: Appendix C no longer states when the WA roll was pinned"]
+    if stated.group(1) != d.get("wa_pin_date"):
+        return [f"pin date: paper says {stated.group(1)}, snapshot says {d.get('wa_pin_date')} "
+                f"— the roll was re-pinned without updating the paper"]
+    print(f"  ok   WA roll pinned {d['wa_pin_date']}, {d['wa_pin_n']:,} registrants")
+    return []
+
+
 _FAILURES += prose_probes()
+_FAILURES += check_pin_date()
 
 # ============================== INTEGRITY SUMMARY ==============================
 print("\n" + "=" * 78)
@@ -3930,6 +4772,8 @@ if _FAILURES:
     print("=" * 78)
     for f in _FAILURES:
         print(f"  - {f}")
+    _close_conns()
     raise SystemExit(1)
 print("INTEGRITY: all assertions pass")
 print("=" * 78)
+_close_conns()

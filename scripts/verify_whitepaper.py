@@ -1,22 +1,20 @@
 """Verify docs/electoral-health-whitepaper.md Findings 4 and 5 against the databases.
 
-WHY THIS ONE IS BUILT DIFFERENTLY. The other verify_* scripts hold the published figure as
-a Python constant and compare it to a fresh derivation. That works for a paper whose
-numbers are computed once and stated once. The white paper is not that: it *restates*
-figures computed in the donor-class and cross-state papers, and its two observed failure
-modes were (a) drifting out of step with those sources and (b) contradicting **itself** —
-Finding 5 once gave the federal top-1% as 41.2% in a panel note and 42.4% four lines later.
-A constants table cannot catch either, because it never reads the prose: someone can edit
-the sentence and leave the constant right, and the check still passes.
+WHERE THE PROSE-SCRAPING DESIGN CAME FROM. This script invented it. The other verify_*
+scripts used to hold each published figure as a Python constant and compare it to a fresh
+derivation, which works for a paper whose numbers are computed once and stated once. The
+white paper is not that: it *restates* figures computed in the donor-class and cross-state
+papers, and its two observed failure modes were drifting out of step with those sources and
+contradicting **itself** — Finding 5 once gave the federal top-1% as 41.2% in a panel note
+and 42.4% four lines later. A constants table catches neither, because it never reads the
+prose: someone can edit the sentence, leave the constant right, and the check still passes.
 
-So this script SCRAPES THE PROSE. Each probe is a regex anchored on the surrounding words,
-and **every** occurrence of the captured figure must equal the derived value. That makes
-the two failure modes structurally impossible to miss: a figure stated twice is checked
-twice, so an internal contradiction fails on whichever occurrence is wrong.
-
-A probe whose anchor matches nothing is a FAILURE, not a skip. Rewording the sentence out
-from under a check is itself the thing to catch — silence there is how the whitepaper drifted
-in the first place.
+So this script SCRAPES THE PROSE, and on 2026-08-01 the rest of the series was rebuilt the
+same way. The loop itself now lives in `_verify_prose.py` and this file calls it, so the
+three rules are defined once: a probe whose anchor matches nothing FAILS rather than
+skipping, every occurrence of a figure is checked, and `--coverage` lists what no probe
+touched. Keeping a private copy of the loop had made the original the one verifier with no
+coverage report.
 
 SCOPE. Findings 4, 5 and 6 — the money/donor findings that restate verified cuts. Findings
 1-3 are prospectus items whose realized analyses are covered by their own papers' verifiers.
@@ -41,15 +39,15 @@ import sys
 import duckdb
 import numpy as np
 
-try:
-    sys.stdout.reconfigure(encoding="utf-8")
-except Exception:  # noqa: BLE001
-    pass
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _verify_prose as vp  # noqa: E402
 
-ROOT = Path(__file__).resolve().parent.parent
-DATA = ROOT / "data"
-PAPER = ROOT / "docs" / "electoral-health-whitepaper.md"
-MONEY_PAPER = ROOT / "docs" / "does-money-move-votes.md"
+vp.stdout_utf8()
+
+ROOT = vp.ROOT
+DATA = vp.DATA
+PAPER = vp.DOCS / "electoral-health-whitepaper.md"
+MONEY_PAPER = vp.DOCS / "does-money-move-votes.md"
 GENS = ["Silent", "Boomer", "Gen X", "Millennial", "Gen Z"]
 
 # Bootstrap settings, copied from diag_donor_concentration_bootstrap.py. The seed is fixed
@@ -222,7 +220,8 @@ def _bootstrap(d):
     ic.close()
     for tag, x in pools:
         n = x.size
-        g = np.empty(BOOT_B); t1 = np.empty(BOOT_B)
+        g = np.empty(BOOT_B)
+        t1 = np.empty(BOOT_B)
         for b in range(BOOT_B):
             s = x[rng.integers(0, n, n)]
             g[b], t1[b] = _gini_np(s), _topshare_np(s, 0.01)
@@ -439,62 +438,21 @@ PROBES = [
 
 
 def main():
+    """Slice Findings 4-6, then hand the probes to the shared harness.
+
+    FOLDED ONTO `_verify_prose` 2026-08-01. This script invented the prose-scraping design
+    and the rest of the series was built from it; keeping a private copy of the loop meant
+    the original was the one verifier with no `--coverage` report, and any fix to the shared
+    rules had to be made twice. The probe table and the derivations are unchanged.
+    """
     text = PAPER.read_text(encoding="utf-8")
     m = re.search(r"### 4\. Money and votes.*?(?=\n## )", text, re.S)
     if not m:
         print("FATAL: could not locate Findings 4-6 in the white paper")
         return 1
-    # Normalise: drop blockquote markers, collapse all whitespace. Lets the anchors span
-    # line wraps, so re-flowing a paragraph does not silently disarm a probe.
-    norm = re.sub(r"\s+", " ", re.sub(r"(?m)^\s*>\s?", "", m.group(0)))
-
-    d = derive()
-    print("=" * 84)
-    print("WHITE PAPER — Findings 4-6, prose scraped and asserted against the databases")
-    print("=" * 84)
-    fails = []
-    for label, rx, keys, tol in PROBES:
-        keys = (keys,) if isinstance(keys, str) else keys
-        hits = re.findall(rx, norm)
-        if not hits:
-            print(f"  FAIL {label:52} ANCHOR NOT FOUND")
-            fails.append(f"{label}: anchor not found — the sentence was reworded, or the "
-                         f"figure was removed. Re-point the probe or restore the text.")
-            continue
-        for hit in hits:
-            hit = (hit,) if isinstance(hit, str) else hit
-            for got, key in zip(hit, keys):
-                want = d.get(key)
-                if want is None:
-                    print(f"  FAIL {label:52} no derived value for {key}")
-                    fails.append(f"{label}: derivation '{key}' unavailable")
-                    continue
-                val = float(got.replace(",", ""))
-                ok = abs(val - float(want)) <= tol
-                shown = f"{val:,.0f}" if tol == 0 else f"{val:g}"
-                wshown = f"{want:,.0f}" if tol == 0 else f"{want:.4g}"
-                print(f"  {'ok  ' if ok else 'FAIL'} {label:52} "
-                      f"paper {shown:>10}   derived {wshown}")
-                if not ok:
-                    fails.append(f"{label}: paper says {shown}, data says {wshown}")
-        if len(hits) > 1:
-            print(f"       ({len(hits)} occurrences checked — a figure stated more than "
-                  f"once must agree with the data every time)")
-
-    print("\n  NOT covered by this script:")
-    for u in UNCHECKED:
-        print(f"    - {u}")
-
-    print("\n" + "=" * 84)
-    if fails:
-        print(f"WHITE PAPER: {len(fails)} FAILURE(S)")
-        print("=" * 84)
-        for f in fails:
-            print(f"  - {f}")
-        return 1
-    print("WHITE PAPER: Findings 4-6 agree with the data")
-    print("=" * 84)
-    return 0
+    return vp.run("WHITE PAPER — Findings 4-6, prose scraped and asserted against the data",
+                  vp.normalise(m.group(0)), PROBES, derive(), UNCHECKED,
+                  vp.wants_coverage())
 
 
 if __name__ == "__main__":

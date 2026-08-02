@@ -34,6 +34,14 @@ SOURCES = [
     ("WA voter file",
      "vrdb/20260401_VRDB_Extract.txt",
      "WA SoS standard VRDB extract, April 2026 (requested 2026-04-08)"),
+    # Pinned alongside the extracted .txt above, not instead of it (2026-08-01). The .txt is
+    # what the loaders read and what the published digest already refers to; the archive is the
+    # production as received, which is the artifact a replication request would be pointed at.
+    # This makes Washington consistent with the New York row, which pins the archive.
+    ("WA voter file (production archive)",
+     "vrdb/04.2026.WA.zip",
+     "the SoS production as received — contains the extract above, the 2025–2026 voting "
+     "history, the districts/precincts workbook, and the use-restriction documentation"),
     ("WA voting history 2023–2024",
      "vrdb/2023-2024_Voting_History.txt",
      "participation records feeding the turnout cut"),
