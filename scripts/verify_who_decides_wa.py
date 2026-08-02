@@ -112,10 +112,15 @@ def derive() -> dict:
         d[f"{tag}_infile"], = con.execute(f"""
             SELECT COUNT(DISTINCT state_voter_id) FROM voting_history
             WHERE election_date = DATE '{date}'""").fetchone()
+        # "Analyzable (roll + YOB)" means exactly what it says: on the current roll, with a
+        # year of birth. NO age filter — adding `>= 18` here was wrong and put this column
+        # one record low in 2022 and 2024, because a handful of ballot-returners compute as
+        # under 18 under the year-difference convention. The rounding check caught it; the
+        # tolerance had not, because one record in 3.9 million is inside any sane tolerance
+        # and the figure was still not the one the paper prints.
         d[f"{tag}_analyzable"], = con.execute(f"""
             SELECT COUNT(*) FROM voters v {_voted(date)}
-            WHERE h.state_voter_id IS NOT NULL AND v.birthdate IS NOT NULL
-              AND {_age(date)} >= 18""").fetchone()
+            WHERE h.state_voter_id IS NOT NULL AND v.birthdate IS NOT NULL""").fetchone()
         tot_v = d[f"{tag}_analyzable"]
         d[f"{tag}_infile_pct"] = 100.0 * d[f"{tag}_infile"] / OFFICIAL[date]
         d[f"{tag}_cov_pct"] = 100.0 * tot_v / OFFICIAL[date]
@@ -240,20 +245,20 @@ def build_probes():
     kinds = {"e21": "Off-year", "e22": "Midterm", "e23": "Off-year",
              "e24": "Presidential", "e25": "Off-year"}
 
-    # Coverage against the certified count.
+    # Coverage against the certified count, asserted exactly.
     #
-    # Tolerance 1 on the counts, deliberately and narrowly. Two of the paper's own tables
-    # give "analyzable" for 2024 as 3,880,070 and 3,880,069 — a single record, arising from
-    # two constructions of the same set in the author's own derivations. The published
-    # coverage table takes the first. A one-in-3.9-million difference is not worth a
-    # correction to a posted preprint and not worth chasing; it IS worth recording, which is
-    # what this comment does. Every share in the same rows is still checked at 0.05.
+    # This block briefly carried a tolerance of 1 with a comment explaining that two of the
+    # paper's own tables disagreed by a single record. That explanation was wrong: the paper
+    # was consistent and THIS SCRIPT was applying an age filter the paper's definition does
+    # not. Widening the tolerance had made the symptom go away and preserved the defect,
+    # which is the exact move CLAUDE.md forbids. The derivation is fixed and the tolerance is
+    # back to the printed precision.
     for tag in ("e21", "e22", "e23", "e24", "e25"):
         p.append((f"coverage {labels[tag]}",
                   rf"\| {labels[tag]} \| {kinds[tag]} \| ([\d,]+) \| ([\d,]+) \(([\d.]+)%\) \| "
                   rf"([\d,]+) \| \*\*([\d.]+)%\*\* \|",
                   (f"{tag}_official", f"{tag}_infile", f"{tag}_infile_pct",
-                   f"{tag}_analyzable", f"{tag}_cov_pct"), 1.0))
+                   f"{tag}_analyzable", f"{tag}_cov_pct"), 0.05))
     # Survivorship hole.
     for tag, n in (("e21", "106K"), ("e22", "140K"), ("e23", "45K")):
         p.append((f"survivorship {labels[tag]}",

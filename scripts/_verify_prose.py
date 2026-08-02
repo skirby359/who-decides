@@ -38,6 +38,7 @@ from __future__ import annotations
 
 import re
 import sys
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -119,8 +120,54 @@ def _coverage(norm: str, covered: list[tuple[int, int]]) -> list[str]:
     return out
 
 
+def _round_half_up(value: float, places: int) -> Decimal:
+    """Round the way a person writing a paper rounds.
+
+    Python's built-in `round` is half-to-EVEN: round(0.5) is 0 and round(2.5) is 2. Nobody
+    writes a paper that way, so comparing a printed figure against it would manufacture
+    failures at exactly the boundary values this check exists to examine. Decimal with
+    ROUND_HALF_UP matches the convention the papers actually use, and sidesteps binary
+    float representation while it is at it.
+    """
+    q = Decimal(1).scaleb(-places)
+    return Decimal(repr(float(value))).quantize(q, rounding=ROUND_HALF_UP)
+
+
+def _places(printed: str) -> int:
+    """Decimal places in the figure AS PRINTED — the precision the paper committed to."""
+    return len(printed.split(".")[1]) if "." in printed else 0
+
+
+def check_rounding(printed: str, derived: float) -> str | None:
+    """Return a message when `printed` is not the correct rounding of `derived`.
+
+    WHY THIS EXISTS, and why a tolerance cannot replace it. A tolerance asks "is the printed
+    figure CLOSE to the data?" — this asks "is it the RIGHT figure?", which is a different
+    and stricter question. On 2026-08-02 five defects across four papers were of exactly this
+    shape and every one passed its tolerance:
+
+        Idaho, Other-party median age        38    against 39
+        Idaho, May-2024 primary R-D        76.9    against 76.82
+        New York, 2023 30-44 share         15.8    against 15.85055
+        money paper, local-trend r         0.32    against 0.314932
+        cross-state, NY donor Republican     25    against 24.4958
+
+    Each was found by hand, by noticing full precision. The rule is exact and has no false
+    positives, so it belongs in the harness rather than in anyone's attention.
+    """
+    try:
+        want = _round_half_up(derived, _places(printed))
+        got = Decimal(printed.replace(",", ""))
+    except (InvalidOperation, ValueError):
+        return None
+    if got == want:
+        return None
+    return f"printed {printed}, but {derived:.6g} rounds to {want}"
+
+
 def run(title: str, norm: str, probes, derived: dict, unchecked=(),
-        show_coverage: bool = False, sections: dict[str, str] | None = None) -> int:
+        show_coverage: bool = False, sections: dict[str, str] | None = None,
+        round_exempt: dict[str, str] | None = None) -> int:
     """Assert every probe against `derived`. Returns a process exit code.
 
     probes: (label, regex, key | (keys...), tolerance[, section]). Each capture group in the
@@ -135,7 +182,15 @@ def run(title: str, norm: str, probes, derived: dict, unchecked=(),
 
     Coverage spans are recorded per section, so a probe scoped to a slice does not mark
     anything covered in the full text. Only whole-document probes feed the coverage report.
+
+    ROUNDING is checked on every figure in addition to the tolerance, because the two ask
+    different questions — see `check_rounding`. `round_exempt` maps a probe label to the
+    reason its printed form is legitimately not a rounding of the derived value: an
+    abbreviated count, a figure the paper states as an approximation, or a documented
+    difference between two constructions. A reason is required, so an exemption is a
+    decision on the record rather than a silence.
     """
+    round_exempt = round_exempt or {}
     bar = "=" * 92
     print(bar)
     print(title)
@@ -144,6 +199,7 @@ def run(title: str, norm: str, probes, derived: dict, unchecked=(),
     covered: list[tuple[int, int]] = []
     n_checked = 0
     n_scoped = 0
+    n_round = 0
 
     for probe in probes:
         label, rx, keys, tol = probe[:4]
@@ -197,6 +253,14 @@ def run(title: str, norm: str, probes, derived: dict, unchecked=(),
                 n_checked += 1
                 if not ok:
                     fails.append(f"{label}: paper says {shown}, data says {wshown}")
+                elif label not in round_exempt:
+                    # Only when the tolerance PASSED: a figure that already failed on value
+                    # does not need a second complaint about how it was rounded.
+                    msg = check_rounding(got.strip(), float(want))
+                    if msg:
+                        print(f"  ROUND {label:56} {msg}")
+                        fails.append(f"{label}: {msg}")
+                        n_round += 1
                 if in_full:
                     covered.append(m.span(gi + 1))
         if len(hits) > 1:
@@ -222,7 +286,8 @@ def run(title: str, norm: str, probes, derived: dict, unchecked=(),
 
     print("\n" + bar)
     if fails:
-        print(f"{title.split(' —')[0]}: {len(fails)} FAILURE(S)")
+        rnd = f" ({n_round} of them a rounding direction)" if n_round else ""
+        print(f"{title.split(' —')[0]}: {len(fails)} FAILURE(S){rnd}")
         print(bar)
         for f in fails:
             print(f"  - {f}")
