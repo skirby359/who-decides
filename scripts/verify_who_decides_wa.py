@@ -186,9 +186,60 @@ def derive() -> dict:
             WHERE h.state_voter_id IS NOT NULL AND v.birthdate IS NOT NULL AND {a} >= 18
               AND v.registration_date <= DATE '{date}'""").fetchone()
 
+    # Scale of the two source tables, and the retained snapshot. Stated in the abstract and
+    # the methods note and probed nowhere until 2026-08-02.
+    d["roll_m"], = con.execute(
+        "SELECT COUNT(*) / 1e6 FROM voters").fetchone()
+    d["history_m"], = con.execute(
+        "SELECT COUNT(*) / 1e6 FROM voting_history").fetchone()
+    d["snapshot_m"], = con.execute(
+        "SELECT COUNT(*) / 1e6 FROM voters_20230901").fetchone()
+
+    # Roll attrition 2023 -> 2026. The paper reads this as evidence that leaving the roll is
+    # age-loaded, which is the mechanism behind the survivorship bound, so it is a result
+    # rather than a description.
+    left, left_k, left_pct, left_65, stay_65 = con.execute("""
+        WITH s AS (SELECT state_voter_id, birthdate FROM voters_20230901
+                   WHERE birthdate IS NOT NULL),
+             j AS (SELECT s.birthdate, (v.state_voter_id IS NULL) AS gone
+                   FROM s LEFT JOIN voters v USING (state_voter_id))
+        SELECT COUNT(*) FILTER (WHERE gone),
+               COUNT(*) FILTER (WHERE gone) / 1e3,
+               100.0 * COUNT(*) FILTER (WHERE gone) / COUNT(*),
+               100.0 * COUNT(*) FILTER (WHERE gone AND date_diff('year', birthdate,
+                                                                 DATE '2023-09-01') >= 65)
+                     / NULLIF(COUNT(*) FILTER (WHERE gone), 0),
+               100.0 * COUNT(*) FILTER (WHERE NOT gone AND date_diff('year', birthdate,
+                                                                     DATE '2023-09-01') >= 65)
+                     / NULLIF(COUNT(*) FILTER (WHERE NOT gone), 0)
+        FROM j""").fetchone()
+    d["left_n"], d["left_k"], d["left_pct"] = int(left), float(left_k), float(left_pct)
+    d["left_65"], d["stay_65"] = float(left_65), float(stay_65)
+
+    # Coverage range across the five cycles, which the prose states as a span.
+    d["cov_lo"] = min(d[f"{t}_cov_pct"] for t in ("e21", "e22", "e23", "e24", "e25"))
+    d["cov_hi"] = max(d[f"{t}_cov_pct"] for t in ("e21", "e22", "e23", "e24", "e25"))
+
+    # Habitual core: the share of each off-year's returners who also voted in 2024. The
+    # abstract states it as a span, so the span needs derived endpoints.
+    for date, tag in (("2021-11-02", "e21"), ("2023-11-07", "e23"), ("2025-11-04", "e25")):
+        d[f"{tag}_core"], = con.execute(f"""
+            WITH off AS (SELECT DISTINCT state_voter_id FROM voting_history
+                         WHERE election_date = DATE '{date}'),
+                 pres AS (SELECT DISTINCT state_voter_id FROM voting_history
+                          WHERE election_date = DATE '2024-11-05')
+            SELECT 100.0 * COUNT(*) FILTER (
+                     WHERE state_voter_id IN (SELECT state_voter_id FROM pres))
+                   / COUNT(*) FROM off""").fetchone()
+    d["core_lo"] = min(d[f"{t}_core"] for t in ("e21", "e23", "e25"))
+    d["core_hi"] = max(d[f"{t}_core"] for t in ("e21", "e23", "e25"))
+
     # Off-year averages, for the "who is counted" table.
     for b in BANDS:
         d[f"off_comp_{b}"] = sum(d[f"{t}_comp_{b}"] for t in OFF_YEARS) / 3.0
+    # Official turnout rate for the 2021 example the methods note quotes: certified ballots
+    # over registered voters as the Secretary of State reports it, not a file-derived rate.
+    d["e21_official_turnout"] = 39.38
     d["off_median"] = sum(d[f"{t}_median"] for t in OFF_YEARS) / 3.0
 
     # The registered roll itself, as of the current extract.
@@ -234,6 +285,12 @@ def derive() -> dict:
             SELECT 100.0*COUNT(*) FILTER (WHERE a>=65)/COUNT(*) FROM e""").fetchone()
         d[f"{tag}_snap65"] = float(snap)
         d[f"{tag}_snap_delta"] = float(snap) - d[f"{tag}_obs65"]
+
+    # The largest gap between the current-roll and snapshot reconstructions, which the paper
+    # states as a bound ("agree to within ~1.4 points"). Computed HERE and not earlier: the
+    # per-cycle deltas it maxes over are produced by the loop immediately above, and putting
+    # this before them raised a KeyError on the first run.
+    d["recon_max_gap"] = max(abs(d[f"{tg}_snap_delta"]) for tg in ("e21", "e22", "e23"))
     con.close()
     return d
 
@@ -296,6 +353,47 @@ def build_probes():
                   rf"([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \|",
                   tuple(f"{tag}_fine_{b}" for b in
                         ("18-24", "25-29", "30-44", "45-64", "65-74", "75+")), 0.05, "finer"))
+    # ---- ABSTRACT restatements. The abstract is what a reviewer reads first and every figure
+    # in it restates a table cell below. The harness checks every occurrence of a figure, but
+    # only where a probe points at it — these sentences had no probe, so the abstract could
+    # have drifted from its own tables without anything failing.
+    p += [
+        ("abstract — source scale",
+         r"a ([\d.]+)-million-voter roll\s+linked to ([\d.]+) million individual vote-history "
+         r"records", ("roll_m", "history_m"), 0.05),
+        ("abstract — 65+ share, three off-years against 2024",
+         r"Voters 65 and older were ([\d.]+)%, ([\d.]+)%, and\s+([\d.]+)% of the 2021, 2023, "
+         r"and 2025 odd-year electorates, against ([\d.]+)% in 2024",
+         ("e21_comp_65+", "e23_comp_65+", "e25_comp_65+", "e24_comp_65+"), 0.05),
+        ("abstract — 18-29 fall",
+         r"voters\s+18–29 fell from ([\d.]+)% in 2024 to about ([\d.]+)% off-cycle",
+         ("e24_comp_18-29", "off_comp_18-29"), 0.05),
+        ("abstract — habitual core span",
+         r"habitual core\* \((\d+)–(\d+)% of\s+off-year voters also vote in presidential "
+         r"years\)", ("core_lo", "core_hi"), 0.5),
+
+        # ---- Methods and validation prose, none of it previously probed.
+        ("methods — vote-history record count restated",
+         r"`voting_history` \(([\d.]+)M records\)", "history_m", 0.05),
+        ("methods — 2021 certified example",
+         r"November 2021: ([\d,]+) ballots counted, ([\d.]+)% turnout",
+         ("e21_official", "e21_official_turnout"), 0.05),
+        ("methods — analyzable coverage span",
+         r"Analyzable coverage runs from \*\*([\d.]+)% in 2021 to ([\d.]+)% in 2025\*\*",
+         ("cov_lo", "cov_hi"), 0.05),
+        ("methods — retained snapshot size",
+         r"`voters_20230901`, ([\d.]+)M rows", "snapshot_m", 0.005),
+        ("survivorship — roll attrition is age-loaded",
+         r"of the (\d+)K voters \(([\d.]+)%\) who left the roll\s+between 2023 and 2026, "
+         r"([\d.]+)% were 65\+, versus ([\d.]+)% of those who stayed",
+         ("left_k", "left_pct", "left_65", "stay_65"), 0.5),
+        ("cross-check — the two reconstructions agree within",
+         r"agree to within ~([\d.]+) points", "recon_max_gap", 0.05),
+        ("bounds — the three off-year minima restated in prose",
+         r"each off-year electorate \(\*\*([\d.]+)% / ([\d.]+)% / ([\d.]+)%\*\* 65\+\)",
+         ("e21_min65", "e23_min65", "e25_min65"), 0.05),
+    ]
+
     # Who is counted.
     p += [
         ("who is counted — registered roll",

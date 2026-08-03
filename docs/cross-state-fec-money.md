@@ -50,7 +50,7 @@ anything, slightly understated). Figures are 2018–2026 federal cycles.
 | Distinct donors (name+zip) | 361,818 | 671,488 | 836,784 | 54,155 |
 | Median gift | $25 | $25 | $25 | $25 |
 | **Gini (donor $)** | 0.800 | **0.848** | 0.818 | *0.775* |
-| **Top 1% of donors → share of $** | 39.3% | **47.5%** | 41.7% | *36.0%* |
+| **Top 1% of donors → share of $** | 39.3% | **47.5%** | 41.7% | *36.1%* |
 | Top 10% of donors → share of $ | 72.3% | 78.7% | 74.5% | *69.2%* |
 | Dollars from gifts **< $200** | 25.0% | 13.8% | 20.3% | **29.0%** |
 | Dollars from gifts **≥ $5,000** | 20.0% | **34.8%** | 33.3% | 20.1% |
@@ -69,7 +69,7 @@ Big Tech (WA), Wall Street (NY), Energy/Industrial (TX), MLM/timber (ID).**
 
 ### 1. New York is the most top-heavy; Idaho the most retail
 - **Defensible claim.** The top 1% of donors supply **47.5%** of New York's federal dollars
-  versus **36.0%** in Idaho (Gini 0.848 vs 0.775) — with WA (39.3%) and TX (41.7%) between.
+  versus **36.1%** in Idaho (Gini 0.848 vs 0.775) — with WA (39.3%) and TX (41.7%) between.
   Conversely, sub-$200 gifts are **29.0%** of Idaho's dollars and 25.0% of Washington's but
   only **13.8%** of NY's, and ≥$5,000 gifts are **34.8%** of NY's money vs ~20% of both ID
   and WA. New York's federal money is concentrated at the top; **Idaho's is the most

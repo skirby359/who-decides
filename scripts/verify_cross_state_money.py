@@ -14,10 +14,32 @@ aggregate-only, derived-vs-paper. Three layers:
             and IPW-reweighted, pooled concentration, party-of-record skew, and the
             giving<->turnout cut. Added 2026-07-27.
 
-EXIT CODE. The OUTFLOW and INFLOW blocks print derived-vs-paper for a human to compare
-and never fail the run — their donor key is a name+zip proxy with documented sub-0.5pt
-grouping drift, so an exact assertion would be noise. The §F5/§F6 block DOES fail the
-run, and this script now exits non-zero when it does.
+EXIT CODE, and a justification that was measured and found false (2026-08-02).
+
+This block used to say the OUTFLOW and INFLOW figures could only be printed, not asserted,
+because the name+zip donor key carries "documented sub-0.5pt grouping drift" that an exact
+assertion would turn into noise. Nobody had measured it. Measured, on the headline table:
+
+    donor counts        EXACT in all four states, gap 0
+    Gini                worst gap 0.0004   (printed to 3dp, half-width 0.0005)
+    top-1% / top-10%    worst 0.052 / 0.035
+    <$200 / >=$5,000    worst 0.040 / 0.032
+    retired share       worst 0.033 AFTER fixing this script's own definition of it
+
+So every metric reproduces inside the precision the paper prints, and the drift the
+exemption was built on is not there. The §Headline table is now HARD-ASSERTED at printed
+precision like §F5/§F6, and the single figure that did not reproduce turned out to be a real
+rounding defect the exemption had been hiding: Idaho's top-1% derives 36.0519, which rounds
+to 36.1, and the paper printed 36.0.
+
+The `retired` share is the cautionary half of that story. It was off by 0.15 to 0.26 points
+in ALL FOUR states, in the same direction, which reads like drift and is not: this script
+matched only `contributor_occupation`, while the published definition is
+`occupation='RETIRED' OR employer='RETIRED'`. A one-directional offset across every state is
+always a basis difference. Corrected here; the paper was right.
+
+Sections §1-§3 and §A-§E remain print-only for now. That is a backlog item, not a
+justification — the measurement above says they are assertable too.
 
 Outflow basis = the paper's: FEC individual contributions by IN-STATE RESIDENTS,
 restricted to rows with an FEC committee id (`fec_candidate_id ~ '^[CPHS][0-9]'`) and
@@ -400,8 +422,58 @@ F_UNCHECKED = [
 ]
 
 
+# Emphasis wrapper: the headline table marks its extremes with *italic* and **bold**, so a
+# cell pattern has to accept all three forms or the probe finds nothing.
+_E = r"(?:\*\*|\*)?"
+
+
+def _row(label, cells=4):
+    """Regex for one headline row: the label, then `cells` emphasis-tolerant numeric cells."""
+    return (r"\| " + label + r" \| "
+            + r" \| ".join(_E + r"\$?([\d,.]+)[MB]?%?" + _E for _ in range(cells)) + r" \|")
+
+
+HEADLINE_STATES = ("WA", "NY", "TX", "ID")
+
+# The §Headline table, asserted at the precision it prints. Until 2026-08-02 not one of these
+# 40 figures was checked by anything; see the docstring for the measurement that showed the
+# exemption protecting them was unfounded.
+HEADLINE_PROBES = [
+    ("headline — total federal dollars",
+     _row(r"Total federal \$ \(resident donors\)"),
+     ("out_WA_total_m", "out_NY_total_b", "out_TX_total_b", "out_ID_total_m"), 0.5),
+    ("headline — contributions",
+     _row(r"Contributions"),
+     tuple(f"out_{s}_contribs_m" for s in HEADLINE_STATES), 0.005),
+    ("headline — distinct donors",
+     _row(r"Distinct donors \(name\+zip\)"),
+     tuple(f"out_{s}_donors" for s in HEADLINE_STATES), 0),
+    ("headline — median gift",
+     _row(r"Median gift"),
+     tuple(f"out_{s}_median_gift" for s in HEADLINE_STATES), 0.5),
+    ("headline — Gini",
+     _row(r"\*\*Gini \(donor \$\)\*\*"),
+     tuple(f"out_{s}_gini" for s in HEADLINE_STATES), 0.0005),
+    ("headline — top 1% share",
+     _row(r"\*\*Top 1% of donors → share of \$\*\*"),
+     tuple(f"out_{s}_top1" for s in HEADLINE_STATES), 0.05),
+    ("headline — top 10% share",
+     _row(r"Top 10% of donors → share of \$"),
+     tuple(f"out_{s}_top10" for s in HEADLINE_STATES), 0.05),
+    ("headline — dollars from gifts under $200",
+     _row(r"Dollars from gifts \*\*< \$200\*\*"),
+     tuple(f"out_{s}_lt200" for s in HEADLINE_STATES), 0.05),
+    ("headline — dollars from gifts at or above $5,000",
+     _row(r"Dollars from gifts \*\*≥ \$5,000\*\*"),
+     tuple(f"out_{s}_ge5000" for s in HEADLINE_STATES), 0.05),
+    ("headline — dollars from retired donors",
+     _row(r"Dollars from \*\*retired\*\* donors"),
+     tuple(f"out_{s}_retired" for s in HEADLINE_STATES), 0.05),
+]
+
+
 def verify_individual_layer():
-    """Derive F5/F6 and assert it against the paper's own prose. Returns failures."""
+    """Derive the headline table plus F5/F6 and assert both against the paper's prose."""
     d = {
         # Historical figures the recompute note quotes. They are what the RETIRED panels
         # gave, so they are literals by construction and must keep saying so.
@@ -409,10 +481,19 @@ def verify_individual_layer():
     }
     if not _collect(d):
         return ["F5/F6: a state's data was unavailable, so the block could not be asserted"]
-    rc = vp.run("F5/F6 - the individual money-linked layer, scraped from the paper",
+    for st in HEADLINE_STATES:
+        for k, v in outflow(st).items():
+            # `out_` prefix, deliberately. outflow() and f5() both yield a `gini` and a `top1`
+            # per state for DIFFERENT POPULATIONS -- every in-state FEC contributor versus the
+            # matched-voter panel (WA: 0.800 against 0.857). Sharing a key name made the F5
+            # probes compare the matched-voter Gini against the contributor one. It failed
+            # loudly, but only because the two happen to differ a lot; a closer pair would
+            # have passed on the wrong number.
+            d[f"out_{st}_{k}"] = v
+    rc = vp.run("CROSS-STATE - headline table and the individual money-linked layer",
                 vp.normalise(PAPER.read_text(encoding="utf-8")),
-                F_PROBES, d, F_UNCHECKED, vp.wants_coverage())
-    return [] if rc == 0 else ["see the F5/F6 failures above"]
+                HEADLINE_PROBES + F_PROBES, d, F_UNCHECKED, vp.wants_coverage())
+    return [] if rc == 0 else ["see the failures above"]
 
 
 def outflow(state):
@@ -427,7 +508,16 @@ def outflow(state):
     shares = con.execute(f"""
         SELECT 100.0*SUM(contribution_amount) FILTER(WHERE contribution_amount<200)/SUM(contribution_amount),
                100.0*SUM(contribution_amount) FILTER(WHERE contribution_amount>=5000)/SUM(contribution_amount),
-               100.0*SUM(contribution_amount) FILTER(WHERE contributor_occupation ILIKE '%retired%')/SUM(contribution_amount)
+               -- The published definition is occupation='RETIRED' OR employer='RETIRED'
+               -- (scripts/cross_state_fec_money.py). Matching only the occupation field, as
+               -- this did until 2026-08-02, silently drops every donor who put RETIRED in the
+               -- employer box and something else in occupation -- which ran the share 0.15 to
+               -- 0.26 points low in ALL FOUR states, in the same direction. A one-directional
+               -- offset across every state is a basis difference, never drift.
+               100.0*SUM(contribution_amount) FILTER(
+                   WHERE UPPER(COALESCE(contributor_occupation,''))='RETIRED'
+                      OR UPPER(COALESCE(contributor_employer,''))='RETIRED')
+                 /SUM(contribution_amount)
         FROM individual_contributions WHERE {filt}
     """).fetchone()
     # per-donor concentration (donor = UPPER(name)+zip5)
@@ -452,9 +542,16 @@ def outflow(state):
         SELECT (2.0*SUM(i*t)/((SELECT COUNT(*) FROM r)*(SELECT SUM(t) FROM r)))
                - ((SELECT COUNT(*) FROM r)+1.0)/(SELECT COUNT(*) FROM r) FROM r
     """).fetchone()[0]
+    # Total dollars, contribution count and median gift — the three headline rows that need
+    # no donor grouping at all, and so cannot be affected by the key even in principle.
+    tot, nrows, med = con.execute(f"""
+        SELECT SUM(contribution_amount), COUNT(*), median(contribution_amount)
+        FROM individual_contributions WHERE {filt}""").fetchone()
     con.close()
     return dict(lt200=shares[0], ge5000=shares[1], retired=shares[2],
-                donors=conc, top1=top[0], top10=top[1], gini=gini)
+                donors=conc, top1=top[0], top10=top[1], gini=gini,
+                total_m=float(tot) / 1e6, total_b=float(tot) / 1e9,
+                contribs_m=int(nrows) / 1e6, median_gift=float(med))
 
 
 def main():
