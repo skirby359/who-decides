@@ -2123,3 +2123,41 @@ found by the guard: `check_cross_doc_consistency.py` flagged the stale counts.
 
 **Suite 1,997 passed / 7 skipped; infra 244; all eight paper verifiers exit 0. Series total
 1,081 → 1,153 asserted figures.**
+
+---
+
+## 2026-08-06 (third pass) — the stale +0.55 in the money paper's satellites: CLOSED
+
+Both entries above recorded this as open and author-owned. It is now fixed, on author
+instruction:
+
+| file | was | now |
+|---|---|---|
+| `money-votes-submission-metadata.md` | abstract: "correlates with candidate overperformance at **+0.55**" | **+0.58** |
+| `money-votes-submission-notes.md` | objection heading quoted as *"You found **+0.55** and then explained it away"* | **+0.58**, now verbatim with the paper's Appendix A |
+
+**The basis was re-enumerated before the edit rather than taken from the earlier entry**, which
+is the standing rule after the 2026-08-06 white-paper incident. Against the pinned frame
+(`docs/reference/overperformance_cells_2026-08-01.csv`) the correlation derives **0.5803**, which
+`verify_money_votes.py` asserts as +0.58. The candidates ruled out: the retired 109-cell frame
+(+0.55, and the paper's own pin note labels it retired); a different correlate row (+0.43
+incumbency, +0.34 quality, +0.31 local trend — none is 0.55); a change in the 163-cell universe
+(unchanged — what moved is the both-side-finance subset); a pinned-roll basis (inapplicable, the
+figure is not roll-denominated); and rounding (0.5803 never rounds to 0.55).
+
+**Checked for siblings before editing, and there were none.** The retired frame also moved three
+fundraising-position means (+4.20 → +4.22, +2.37 → +2.32, −1.93 → −1.77). Neither satellite
+quotes any of them, so +0.55 was the whole of the contamination. The paper's other two abstract
+correlations, +0.43 and +0.34, did not move.
+
+**The one surviving +0.55 in the document set is correct and must stay:** the paper's own pin
+note at `does-money-move-votes.md`, which records the retired value in order to withdraw it.
+That sentence is also precisely why `check_cross_doc_consistency.py` could not catch this — its
+orphan check works by ABSENCE, and the figure *was* present in the paper. **The guard hole is
+NOT fixed by this correction**, and closing it needs a design change: exclude a paper's
+retirement-note spans from the text that grounds its satellites. Until then, a satellite figure
+that a paper explicitly retires remains invisible to that check. Its own `--self-test` puts
+recall at ~52% on one-decimal percentages against ~98% on counts.
+
+`verify_money_votes.py` green (59 figures, three sections mapped);
+`check_cross_doc_consistency.py` 0 findings.
