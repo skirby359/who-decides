@@ -140,8 +140,15 @@ def _ipw(con):
 
 def _turnout(con):
     rows = con.execute("""
-        WITH roll AS (SELECT DISTINCT state_voter_id, is_super_voter, turnout_propensity
-                      FROM voter_scores WHERE district_id LIKE 'ld%'),
+        -- The PINNED roll (donor_paper_wa_roll, frozen 2026-07-31), not the live
+        -- voter_scores. voter_scores is rebuilt on every ballot load and every
+        -- crosswalk improvement, so reading it live made these figures drift
+        -- away from the paper by a few thousandths -- and drift in a verifier
+        -- reads as "the paper is wrong" when the paper is fine. The pin carries
+        -- exactly the three columns this derivation needs and reproduces the
+        -- published values to the digit: 87.60 / 50.91 / 0.9670 / 0.7486.
+        WITH roll AS (SELECT state_voter_id, is_super_voter, turnout_propensity
+                      FROM donor_paper_wa_roll),
         f AS (SELECT r.*, (a.state_voter_id IS NOT NULL) donor
               FROM roll r LEFT JOIN voter_donor_affiliation a USING (state_voter_id))
         SELECT donor, 100.0*AVG(CASE WHEN is_super_voter THEN 1.0 ELSE 0 END),
@@ -262,13 +269,55 @@ def _finding6(d):
     c.close()
 
 
+def _scale(con, d):
+    """Dollar scales quoted in Finding 5's two provenance notes.
+
+    THE THREE FIGURES SIT ON THREE DIFFERENT AMOUNT FILTERS, and that is not a defect
+    to "tidy up" — each reproduces exactly on one basis and on no other:
+
+        FEC  $646.2M   `FEC:` prefix, every row       (identical with amt>0; the
+                                                       negative rows are PDC's)
+        PDC  $394.6M   `PDC:` prefix, EVERY row       (amt>0 gives $402.9M — the
+                                                       PDC layer carries -$8.3M of
+                                                       refunds, so the published
+                                                       figure is the net one)
+        both $1,050.8M unfiltered, amt>0              (all rows gives $1,042.5M)
+
+    So 646.2 + 394.6 = 1,040.8 does not equal 1,050.8, and the note's parenthetical
+    ("FEC plus state PDC plus non-resident donors") is a description of the population
+    rather than an equation. Making the filters uniform would break two of the three.
+    """
+    for key, where in (
+            ("fec_m", "contribution_id LIKE 'FEC:%'"),
+            ("pdc_m", "contribution_id LIKE 'PDC:%'"),
+            ("unfiltered_m", "contribution_amount > 0")):
+        v, = con.execute("SELECT SUM(contribution_amount)/1e6 FROM individual_contributions "
+                         f"WHERE {where}").fetchone()
+        d[f"wa_{key}"] = float(v)
+
+
 def _money_paper(d):
-    """Cross-document: the white paper's Finding 6 slope/r must match the paper that owns them."""
+    """Cross-document: white-paper figures OWNED BY does-money-move-votes.md.
+
+    The slope/r pair was here from the start. The fundraising correlation and the WA-03
+    residual were added 2026-08-06 by the coverage gate, and the correlation FAILED: the
+    white paper said +0.55 in three places while the owning paper says +0.58 and records
+    +0.55 as the retired value of a frame that grew from 109 both-side finance cells to
+    129. Drift into a restating document, which is the exact failure this script was
+    written for, surviving because no probe pointed at it.
+    """
     t = re.sub(r"\s+", " ", MONEY_PAPER.read_text(encoding="utf-8"))
     m = re.search(r"−([\d.]+) points of residual per \$1M net pro-Democratic IE "
                   r"\(Pearson r = −([\d.]+), n = (\d+)\)", t)
     if m:
         d["ie_slope"], d["ie_r"], d["ie_n"] = -float(m.group(1)), -float(m.group(2)), int(m.group(3))
+    m = re.search(r"\| \*\*fundraising, log2\(D receipts / R receipts\)\*\* \| \*\*\+([\d.]+)\*\* \|", t)
+    if m:
+        d["money_r_fundraising"] = float(m.group(1))
+    m = re.search(r"\| \*\*cd03 / 24\*\* \| \*\*\+\$[\d.]+M\*\* \| \*\*\$[\d.]+M\*\* \| "
+                  r"\*\*\+([\d.]+)\*\* \|", t)
+    if m:
+        d["money_wa03_resid"] = float(m.group(1))
 
 
 def derive():
@@ -287,7 +336,18 @@ def derive():
     d["wa_fed_zip3"] = _zip3_top2(wa, "voter_donor_affiliation_fec")
     ipw, pm_lo, pm_hi = _ipw(wa)
     d["wa_ipw_Silent"], d["wa_ipw_Gen Z"] = ipw["Silent"][1], ipw["Gen Z"][1]
+    # The LEFT side of the "1.96→1.91×" arrow, previously unprobed. Taken from _ipw's own
+    # raw ratio rather than from _multipliers, so both halves of one sentence sit on one
+    # basis (vrdb.voters + birth year, not voter_scores ld-scope). The two agree to 2dp on
+    # WA — see _multipliers' docstring — which is why the paper can print the pooled figure
+    # from one beside the IPW figure from the other.
+    d["wa_raw_Silent"], d["wa_raw_Gen Z"] = ipw["Silent"][0], ipw["Gen Z"][0]
     d["wa_pmatch_lo"], d["wa_pmatch_hi"] = pm_lo, pm_hi
+    # The all-tier federal top-1% the F2 line records as its own superseded value. Derived
+    # rather than exempted: the retained _alltier snapshot reproduces it to the digit
+    # (42.444 -> 42.4), so the withdrawal note is checkable and not just asserted.
+    d["wa_fed_alltier_top1"] = _conc(wa, "voter_donor_affiliation_fec_alltier")["top1"]
+    _scale(wa, d)
     d.update({f"wa_{k}": v for k, v in _turnout(wa).items()})
     wa.close()
 
@@ -390,9 +450,26 @@ PROBES = [
      r"state panel top-1% \*\*([\d.]+)%\*\*", "wa_state_top1", 0.05),
     ("P(matchable) spread across generations",
      r"generations \(([\d.]+)%–([\d.]+)%", ("wa_pmatch_lo", "wa_pmatch_hi"), 0.05),
-    ("IPW shift, Silent and Gen Z",
-     r"Silent [\d.]+→([\d.]+)×, Gen Z [\d.]+→([\d.]+)×",
-     ("wa_ipw_Silent", "wa_ipw_Gen Z"), 0.005),
+    ("IPW shift, Silent and Gen Z — BOTH sides of the arrow",
+     r"\(Silent ([\d.]+)→([\d.]+)×, Gen Z ([\d.]+)→([\d.]+)×",
+     ("wa_raw_Silent", "wa_ipw_Silent", "wa_raw_Gen Z", "wa_ipw_Gen Z"), 0.005),
+    ("federal multipliers restated in the panel note",
+     r"on the federal panel \(Silent \*\*([\d.]+)×\*\*,\s*Gen Z \*\*([\d.]+)×\*\*\)",
+     ("wa_fed_mult_Silent", "wa_fed_mult_Gen Z"), 0.005),
+    ("federal top-1% restated in the withdrawal note",
+     r"contradicting the ([\d.]+)% in the panel note", "wa_fed_top1", 0.05),
+    ("ID state 65+ share restated in the layer caveat",
+     r"The ID crossover and ([\d.]+)% figures", "id_state_65", 0.05),
+    ("withdrawn all-tier federal top-1%",
+     r"previously read ([\d.]+)% \[[\d.–-]+\] for the federal panel",
+     "wa_fed_alltier_top1", 0.05),
+    ("two money systems in individual_contributions — FEC then PDC dollars",
+     r"federal \(`FEC:`, \$([\d.]+)M\) \*and\* state \(`PDC:`, \$([\d.]+)M\)",
+     ("wa_fec_m", "wa_pdc_m"), 0.05),
+    ("federal outflow basis restated in the occupation note",
+     r"Washington-resident donors, \$([\d.]+)M", "wa_fec_m", 0.05),
+    ("the unfiltered pooled total the occupation note withdraws",
+     r"non-resident donors, \$([\d,.]+)M", "wa_unfiltered_m", 0.05),
     ("NY own-party skew, federal then state",
      r"deep-blue NY \(\+([\d.]+)\s*pts federal, \+([\d.]+) state\)",
      ("ny_fed_skew", "ny_state_skew"), 0.05),
@@ -434,25 +511,163 @@ PROBES = [
     ("Finding 6 — slope and r (vs does-money-move-votes.md)",
      r"\*\*negative\*\* \(−([\d.]+) pp per \$1M net pro-Dem IE, Pearson r −([\d.]+), n=(\d+)\)",
      ("_neg_ie_slope", "_neg_ie_r", "ie_n"), 0.005),
+    ("Finding 6 — fundraising correlation (vs does-money-move-votes.md)",
+     r"log2\(D/R\) correlates \*\*\+([\d.]+)\*\* with overperformance",
+     "money_r_fundraising", 0.005),
+    ("Finding 6 — the same correlation restated in the objection",
+     r"\+([\d.]+) is exactly what a true causal effect", "money_r_fundraising", 0.005),
+    ("Finding 6 — WA-03 residual (vs does-money-move-votes.md)",
+     r"finished \+([\d.]+) pp off its fundamentals", "money_wa03_resid", 0.005),
 ]
 
 
+# --- Coverage gate (ported 2026-08-06; see verify_who_decides_wa for the three rules) ----
+# The three findings, partitioned so no slice overlaps another — spans are per-section
+# coordinates, so a slice that swallows another reports the inner one's probed cells as
+# unmapped. Finding 6's end anchor is the horizontal rule that closes the scraped block;
+# it occurs exactly once in that block, and vp.slice_with_offset raises if it moves.
+AUDIT_BOUNDS = {
+    "finding4": ("### 4. Money and votes", "### 5. The donor class"),
+    "finding5": ("### 5. The donor class", "### 6. Money marks strength"),
+    "finding6": ("### 6. Money marks strength", " --- "),
+}
+
+COVERAGE_EXEMPT = [
+    (r"^(?:19|20)\d{2}$", "a calendar year, not a result"),
+    (r"^\d{1,2}$", "small integer — list ordinals, insight/failure scores, race counts"),
+]
+
+# Every literal here names WHERE the figure is checked, or the open question that closes it.
+# "Not a result" with no reason is how a real figure hides — see verify_who_decides_wa.
+COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
+    # --- Finding 5's two WITHDRAWN occupation figures. Deliberately retired values, and
+    # the reason they cannot be re-derived is visible in which half still reproduces:
+    # `individual_contributions` has GROWN since 2026-07-27, so the scale-invariant
+    # percentage survives (21.27% -> 21.3 exactly) while the dollar total does not
+    # ($223.5M today against the published $221.7M). The CURRENT values on this basis
+    # ($154.0M / 23.8% and $128.8M / 19.9%) ARE asserted, by the occupation-blocs probe.
+    "221.7": "withdrawn pre-2026-07-27 RETIRED dollars on the unfiltered pooled table, "
+             "which has since grown; today's basis gives $223.5M. The figure that "
+             "REPLACED it ($154.0M) is asserted by the occupation-blocs probe",
+    "21.3": "the withdrawn RETIRED share on the same retired basis; reproduces (21.27%) "
+            "but is recorded as superseded. Replacement 23.8% is asserted",
+    "147.4": "withdrawn pre-2026-07-27 NOT EMPLOYED dollars; as above, today $147.5M. "
+             "Replacement $128.8M is asserted",
+    "14.1": "the withdrawn NOT EMPLOYED share; the two candidate bases now give 14.04% "
+            "(amt>0) and 14.15% (all rows), so it reproduces on neither and is history. "
+            "Replacement 19.9% is asserted",
+    # --- the all-tier bootstrap CI beside the withdrawn 42.4%, which IS derived.
+    "40.2": "lower bound of the WITHDRAWN all-tier federal top-1% CI. Not reproducible "
+            "standalone: the published intervals come from one RNG threaded through "
+            "federal-then-state-then-inflow in that order (see _bootstrap), so an "
+            "all-tier panel cannot be inserted into the sequence without changing every "
+            "other interval. Owned by cross-state-fec-money.md §F4; the point estimate "
+            "42.4% is derived here from voter_donor_affiliation_fec_alltier",
+    "44.9": "upper bound of the same withdrawn interval; as above",
+    # --- Finding 6's holdout R2, owned by the money paper.
+    "0.00": "the allocation holdout R2, stated as '~0.00'. does-money-move-votes.md owns "
+            "the cells (0.013 / 0.026 / 0.022) and verify_money_votes.py exempts them by "
+            "the same reasoning, naming the holdout diagnostic. NOTE FOR THE AUTHOR: the "
+            "allocation-alone cell is 0.022, which rounds to 0.02 rather than 0.00 — '~' "
+            "is doing real work here and 'R2 <= 0.03' would say it without rounding down",
+}
+
+# --- 🔴 OPEN AUTHOR QUESTION, left as an exemption rather than silently re-pointed ------
+# "donors are a narrow slice ... **~3.5-6% of voters**" (Finding 5, defensible claim).
+# NO basis tested reproduces that range. Enumerated 2026-08-06, panel x denominator:
+#
+#                       pooled  federal  state  pooled_alltier
+#   voter_scores ld      5.75%    2.70%   3.97%      6.99%
+#   donor_paper_wa_roll  5.77%    2.71%   3.98%      7.00%   (the PIN)
+#   vrdb.voters all      5.71%    2.68%   3.94%      6.93%
+#   vrdb.voters active   6.18%    2.90%   4.26%      7.50%
+#   super-voters only   10.85%    5.09%   7.48%     13.17%
+#
+# Cross-state pooled, which is the reading the range's width suggests: WA 5.71% /
+# NY 4.12% / ID 3.99% -> "~4.0-5.7%", the closest candidate but still not 3.5-6.
+# The prospectus predates BOTH the panel split and the Idaho load (2026-07-19), so the
+# original basis is not recoverable from the tables as they stand. Same shape as the two
+# open range questions on the posted WA paper: a stated span that does not match its
+# members. Author's call — leaving the number, narrowing it to the cross-state pooled
+# range, or restating it per panel.
+COVERAGE_EXEMPT_LITERAL["3.5"] = (
+    "OPEN AUTHOR QUESTION — no panel x denominator basis reproduces '~3.5-6% of voters'; "
+    "closest is cross-state pooled 4.0-5.7%. Full enumeration in the comment above")
+
+COVERAGE_EXEMPT_SECTIONS: dict[str, str] = {}
+
+
+def _restated_outside_the_slice(d) -> list[str]:
+    """Guard the ONE surface this script verifies nothing of: the rest of the document.
+
+    Added 2026-08-06, because the stale +0.55 it was written to catch appears THREE times
+    in this paper and only two are inside Findings 4-6. The third is in Appendix B's
+    publication sequence, where a coverage gate scoped to the findings can never see it —
+    so a fix driven by the gate alone would have left one occurrence wrong and the
+    verifier green, which is worse than not having looked.
+
+    Deliberately narrow: it re-checks whole-document occurrences of figures this script
+    already sources from does-money-move-votes.md, rather than becoming a second verifier
+    for a prospectus whose Findings 1-3 belong to other papers.
+    """
+    if "money_r_fundraising" not in d:
+        return ["Appendix guard: could not scrape the fundraising correlation from "
+                "does-money-move-votes.md — the anchor moved"]
+    whole = vp.normalise(PAPER.read_text(encoding="utf-8"))
+    want = d["money_r_fundraising"]
+    fails = []
+    hits = re.findall(r"overperformance \(\+([\d.]+)\)|correlates \*\*\+([\d.]+)\*\* with "
+                      r"overperformance|\+([\d.]+) is exactly what a true causal", whole)
+    flat = [float(x) for tup in hits for x in tup if x]
+    if not flat:
+        fails.append("Appendix guard: no whole-document occurrence of the fundraising "
+                     "correlation matched — the wording moved, so this guard is disarmed")
+    for got in flat:
+        if abs(got - want) > 0.005:
+            fails.append(f"whole-document fundraising correlation: paper +{got} vs "
+                         f"does-money-move-votes.md +{want}")
+    print(f"\n  restated-outside-the-slice guard: {len(flat)} whole-document occurrence(s) "
+          f"of the fundraising correlation, target +{want}")
+    return fails
+
+
 def main():
-    """Slice Findings 4-6, then hand the probes to the shared harness.
+    """Slice Findings 4-6, hand the probes to the shared harness, then GATE coverage.
 
     FOLDED ONTO `_verify_prose` 2026-08-01. This script invented the prose-scraping design
     and the rest of the series was built from it; keeping a private copy of the loop meant
     the original was the one verifier with no `--coverage` report, and any fix to the shared
-    rules had to be made twice. The probe table and the derivations are unchanged.
+    rules had to be made twice.
+
+    COVERAGE BECAME A GATE 2026-08-06. `--coverage` was an advisory report nobody had to
+    act on, so "74 figures agree" was a floor with no ceiling. Closing the 22 unprobed
+    tokens found a real defect on the first pass — the fundraising correlation stale at
+    +0.55 against the owning paper's +0.58, in three places.
     """
     text = PAPER.read_text(encoding="utf-8")
     m = re.search(r"### 4\. Money and votes.*?(?=\n## )", text, re.S)
     if not m:
         print("FATAL: could not locate Findings 4-6 in the white paper")
         return 1
-    return vp.run("WHITE PAPER — Findings 4-6, prose scraped and asserted against the data",
-                  vp.normalise(m.group(0)), PROBES, derive(), UNCHECKED,
-                  vp.wants_coverage())
+    norm = vp.normalise(m.group(0))
+    audit_sections, offsets, spans = {}, {}, {}
+    for name, (start, end) in AUDIT_BOUNDS.items():
+        audit_sections[name], offsets[name] = vp.slice_with_offset(norm, start, end)
+    d = derive()
+    rc = vp.run("WHITE PAPER — Findings 4-6, prose scraped and asserted against the data",
+                norm, PROBES, d, UNCHECKED, vp.wants_coverage(), spans_out=spans)
+    fails = vp.audit_coverage(audit_sections, spans, offsets, tuple(AUDIT_BOUNDS),
+                              COVERAGE_EXEMPT, COVERAGE_EXEMPT_LITERAL,
+                              COVERAGE_EXEMPT_SECTIONS)
+    fails += _restated_outside_the_slice(d)
+    if fails:
+        print("\n" + "=" * 78)
+        print(f"WHITE PAPER: {len(fails)} coverage/consistency FAILURE(S)")
+        print("=" * 78)
+        for f in fails:
+            print(f"  - {f}")
+        return 1
+    return rc
 
 
 if __name__ == "__main__":

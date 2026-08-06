@@ -184,3 +184,26 @@ would move that panel's 65+ share from 39.0% to 39.8%. The defect understates Fi
 Washington state panel rather than producing it. The panel is labelled coverage-compromised and
 read as a sensitivity panel; the parser is not repaired for this paper, because accepting reversed
 keys would add 42,787 matches from a population the blinded validation never rated.
+
+## Deleted 2026-08-03 — `ny-donor-class-by-party.md` (party-resolved NY donor analysis, 2026-06-29)
+
+Superseded 2026-07-27 and carried a "do not cite its numbers" banner from that date; deleted
+2026-08-03 once its retraction had been recorded here, because a retracted file left in place is
+a standing tripwire for anyone who finds it by search rather than by link.
+
+**What it claimed, and why none of it survives.** A pooled New York match of **308,032** voters
+to **6,311,939** contributions, with party and age tables built on it. The match was in fact
+FEC-money-only — it predated `scripts/load_ny_contributions.py`, so no NYSBOE state contribution
+ever entered it — and the match specification separately changed to the full-first-name key
+alone. Either change alone invalidates the counts; both together invalidate every derived table.
+
+**Superseding analysis.** `donor-class-and-the-electorate.md` Finding 3 reports New York as two
+separate panels on the current specification — federal **269,218** donors, state **378,383** —
+with the party skew measured against an ACTIVE-registrant baseline (federal DEM **+16.1**,
+NOPARTY **−13.7**). The corrected pooled count is **558,017**. Current figures for every panel
+are in `reference/primary_spec_figures_2026-07-27.md`.
+
+**References repointed** the same day in `electoral-health-TODO.md`, `ny-electorate-extras.md`,
+`ny-turnout-by-party-age.md` and `who-decides-new-york.md`. The retired figures may still appear
+in this ledger and in `electoral-health-audit-log.md`; recording a withdrawn number is what those
+files are for.

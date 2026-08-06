@@ -22,8 +22,8 @@ this paper and asserts every figure below against the voter file; see
 *An earlier version of this line said the paper had been verified because "all `verify_*`
 scripts re-run, exit 0". That was worth nothing: until 2026-08-01 this paper's verifier had
 no assertions and no failing exit path, so it printed values for a human to compare and
-returned 0 whatever the data said. When it was converted to assert, §III and §IV did not
-reproduce and have been recomputed — see the note under §IV.*
+returned 0 whatever the data said. When it was converted to assert, §II and §III did not
+reproduce and have been recomputed — see the note under §III.*
 
 *Provenance. All figures from `data/ny_vrdb.duckdb` — New York's NYSVOTER
 statewide file (13.54M registrants; individual party enrollment + full DOB +
@@ -49,40 +49,23 @@ odd-year Novembers and most legislative seats are settled in low-turnout closed
 primaries. New York is the one large state that lets us answer "who" with the
 variable that matters most: **individual party of record.**
 
-The short answer: **the people who decide New York are older than the state, and
-the gap is not partisan-neutral.** The off-year electorate is not a smaller copy
-of the presidential one — it is older, its Republican wing ages hardest, a
-quarter of registrants are structurally excluded from the contest that usually
-decides, and the rolls are quietly shifting away from both parties.
+The short answer: **the people who decide New York are older than the state, the
+graying is not partisan-neutral, and a quarter of registrants are shut out of the
+contest that usually decides.** That the off-year electorate is older replicates a
+sixty-year-old literature and is established here in **Appendix A**, where it belongs.
+What New York's party of record adds — and what no survey-based design has shown at this
+scale — is that the graying falls hardest on *one party's* electorate, that the bloc it
+excludes is the youngest and least engaged in the state, and that the rolls are shifting
+toward exactly that bloc.
 
 ---
 
-## I. The off-year electorate is older — New York replicates Washington
+## I. The graying is not partisan-neutral — the Republican electorate ages hardest
 
-Share of the general-election electorate by age band:
-
-| Election | Type | 18–29 | 30–44 | 45–64 | 65+ | median |
-|---|---|--:|--:|--:|--:|--:|
-| Nov 2024 | Presidential | **14.1%** | 23.1% | 34.6% | 28.2% | 53 |
-| Nov 2022 | Midterm | 9.8% | 21.1% | 38.5% | 30.6% | 56 |
-| Nov 2025 | Off-year | 11.5% | 21.0% | 33.1% | 34.4% | 56 |
-| Nov 2023 | Off-year | **6.0%** | 15.9% | 36.5% | **41.6%** | 61 |
-
-As the contest shrinks (presidential → midterm → odd-year), the under-30 share
-collapses (14% → 6% by 2023) and the 65+ share swells (28% → 42%); median age
-rises from 53 to 61. **Behavior, not rolls.** A Das-Gupta decomposition of the
-65+ share rise from 2024 to 2025 attributes it several times more to differential
-**turnout** than to the registration age structure (rate effect **+2.5 to +8.7 pts**
-vs composition +0.6 to +1.5, depending on party — a 3.6× ratio for Democrats up to
-12.5× for the unaffiliated) — the young *choose not to vote*
-off-cycle. This is an institutional, on-cycle-timing-fixable pattern, not a
-registration artifact.
-
----
-
-## II. Now we can see party — and the Republican electorate ages hardest
-
-This is the cut Washington's data cannot make. Share of each party's voters who
+This is the cut Washington's data cannot make, and it is this paper's contribution.
+Appendix A establishes the premise the off-cycle literature already predicts: as salience
+falls, the electorate ages. The question that premise leaves open is *whose* electorate
+ages — and the answer is not symmetric. Share of each party's voters who
 are 65+:
 
 | Election | DEM | REP | NOPARTY | OTHER |
@@ -124,7 +107,7 @@ rightward headcount shift.
 
 ---
 
-## III. The unaffiliated quarter: young, disengaged, and locked out
+## II. The unaffiliated quarter: young, disengaged, and locked out
 
 A quarter of New York registrants (25.3% of the active roll; 25.5% of the full roll) enroll in no party.
 They are not high-information independents holding the balance:
@@ -138,11 +121,11 @@ They are not high-information independents holding the balance:
 The blank bloc is the **youngest, least likely to vote, and least likely to
 donate** group in the state. And under New York's **closed** primaries they are
 excluded by law from the contest that, in most of the state, *is* the election
-(§V). A quarter of registrants have no voice at the nominating stage.
+(§IV). A quarter of registrants have no voice at the nominating stage.
 
 ---
 
-## IV. The nominating electorate is smaller still
+## III. The nominating electorate is smaller still
 
 New York settles most legislative seats in party primaries that only enrollees
 may vote in. Participation rate by enrollment:
@@ -161,13 +144,13 @@ being nonpartisan/special races). In blue New York the **Democratic primary is
 frequently the decisive contest** (2021 odd-year DEM 14.3% vs REP 4.2%; 2024
 state DEM 7.0% vs REP 1.6%).
 
-> **§III and §IV were recomputed on 2026-08-01, and the reason is worth stating.** Both
+> **§II and §III were recomputed on 2026-08-01, and the reason is worth stating.** Both
 > tables are **roll-denominated** — a rate or a share whose denominator is the registration
 > file — and the file has grown since they were first written. Recent registrants are 39.7%
-> Democratic and 35.6% unaffiliated against a roll at 47.6% and 25.3% (§VI), they are
+> Democratic and 35.6% unaffiliated against a roll at 47.6% and 25.3% (§V), they are
 > younger, and none of them voted in 2024, so a larger roll mechanically lowers every
-> participation rate and raises every youth share. Every deviation ran that way. Sections I
-> and II are **electorate**-denominated — the set of people who actually voted in a past
+> participation rate and raises every youth share. Every deviation ran that way. Appendix A
+> and Section I are **electorate**-denominated — the set of people who actually voted in a past
 > election cannot change when new registrants arrive — and every one of their thirty-nine
 > cells reproduced unchanged, which is what identifies the denominator as the cause.
 >
@@ -188,9 +171,9 @@ state DEM 7.0% vs REP 1.6%).
 > reasoning that a static FOIL extract cannot move; it moved, and a reload is invisible to a
 > paper that names no snapshot. `scripts/pin_ny_roll.py` freezes it the way Washington's is:
 > **`ny_paper_roll`, taken 2026-08-01 at 13,540,505 registrants, of whom 12,448,034 are
-> active.** Every roll-denominated figure in §III and §IV is computed against that snapshot,
+> active.** Every roll-denominated figure in §II and §III is computed against that snapshot,
 > and `scripts/verify_who_decides_ny.py` fails rather than falling back if it is absent.
-> Sections I and II continue to read the file directly, correctly: an electorate is a set of
+> Appendix A and Section I continue to read the file directly, correctly: an electorate is a set of
 > people who already voted, and it does not move. Re-pinning requires an explicit `--force`.
 >
 > Pinning changed no figure — all 96 asserted values reproduced against the snapshot on the
@@ -207,7 +190,7 @@ state DEM 7.0% vs REP 1.6%).
 
 ---
 
-## V. Safe-seat New York — where the primary is the election
+## IV. Safe-seat New York — where the primary is the election
 
 The reason the primary so often decides: by registration alone, most districts
 are not competitive. District counts by registration lean (DEM% − REP%, active
@@ -221,11 +204,11 @@ roll):
 Only **4 of 26 congressional and 17 of 150 Assembly districts (11%) are
 competitive** by registration; 19/26 and 105/150 lean Democratic. In the large
 majority of New York, the November general is a foregone conclusion and the real
-decision is thrown to the small, enrollment-gated primary electorate of §IV.
+decision is thrown to the small, enrollment-gated primary electorate of §III.
 
 ---
 
-## VI. A leading indicator: new registrants are abandoning party labels
+## V. A leading indicator: new registrants are abandoning party labels
 
 The blank bloc is not a legacy artifact — it is *growing through new
 registration*. Party mix of each year's new registrants still on the roll:
@@ -240,7 +223,7 @@ registration*. Party mix of each year's new registrants still on the roll:
 The Democratic share of new registrants has fallen ~18 points since 2008 while
 the no-party share has risen ~15 points (Republican roughly flat). The
 electorate that will decide future off-years is registering at a steady ~29–30
-but is **increasingly choosing no party** — and, per §III–IV, that choice is
+but is **increasingly choosing no party** — and, per §II–III, that choice is
 also a choice to sit out the nominating stage. (Survivorship caveat: only
 registrants still on today's roll appear; read the *trend in party mix*, which is
 composition-based, as the robust cut.)
@@ -250,9 +233,9 @@ composition-based, as the robust cut.)
 ## Boundary of inference
 
 - **Turnout rates vs shares.** The current-roll denominator inflates turnout
-  *rates* for older cycles; composition *shares* (§I–II) and within-year
-  cross-party comparisons (§II–IV) are the robust cuts. An independent
-  reproduction of the §III turnout and §IV primary figures runs about **1–2
+  *rates* for older cycles; composition *shares* (Appendix A and §I) and within-year
+  cross-party comparisons (§I–§III) are the robust cuts. An independent
+  reproduction of the §II turnout and §III primary figures runs about **1–2
   points under** the rate values reported here — the expected sensitivity to
   the choice of denominator (current roll vs. contemporaneous roll), not a
   discrepancy in the underlying counts. The direction and ordering are
@@ -262,11 +245,11 @@ composition-based, as the robust cut.)
 - **NOPARTY lean is never imputed.** The blank bloc's partisan sympathies are
   unobserved; we describe its age, turnout, and donation behavior, not its
   hidden preference (its federal *giving*, separately, leans ~2:1 Democratic —
-  see [`ny-donor-class-by-party.md`](ny-donor-class-by-party.md)).
+  see [`donor-class-and-the-electorate.md` Finding 3](donor-class-and-the-electorate.md)).
 - **Vote-history formats.** NYSVOTER mixes ~6 county-specific history formats per
   election; the normalized parser is validated against known turnout (2024
   presidential ≈ 7.4M, the credible figure for the current roll).
-- **Competitiveness (§V uses registration; the safe-seat paper uses observed
+- **Competitiveness (§IV uses registration; the safe-seat paper uses observed
   margins).** Registration lean is a structural proxy, not a vote result; it
   corroborates the observed map rather than replacing it.
 
@@ -297,9 +280,9 @@ the finding that the Republican electorate ages hardest. It sits in these litera
 
 - **Turnout composition by salience (surge-and-decline).** Campbell, "Surge and
   Decline" (1960); Wolfinger & Rosenstone, *Who Votes?* (1980); Leighley & Nagler,
-  *Who Votes Now?* (2013). Section I's presidential→off-year age gradient is this,
+  *Who Votes Now?* (2013). Appendix A's presidential→off-year age gradient is this,
   measured directly. Plutzer, "Becoming a Habitual Voter" (2002) frames the young-adult
-  drop-off in Section I.
+  drop-off in Appendix A.
 - **Off-cycle election timing, composition, and representation.** Anzia, *Timing and
   Turnout* (2014); Hajnal & Trounstine, "Where Turnout Matters" (2005); Hajnal, Kogan
   & Markarian, "Who Votes: City Election Timing and Voter Composition" (2022); Einstein
@@ -307,14 +290,14 @@ the finding that the Republican electorate ages hardest. It sits in these litera
   on-cycle remedy.
 - **The primary as the real election under one-party dominance.** V.O. Key, *Southern
   Politics in State and Nation* (1949); Hirano & Snyder, *Primary Elections in the
-  United States* (2019). Section V's safe-seat map is a modern, party-resolved instance.
+  United States* (2019). Section IV's safe-seat map is a modern, party-resolved instance.
 - **Primary-electorate representativeness (the tension).** Sides, Tausanovitch, Vavreck
   & Warshaw, "On the Representativeness of Primary Electorates" (2020) — distinguished
-  here: our claim is composition and closure (Section IV), not ideological extremism.
+  here: our claim is composition and closure (Section III), not ideological extremism.
 - **Independents / the unaffiliated.** Klar & Krupnikov, *Independent Politics* (2016);
   Fiorina, "The (Re)Nationalization of Congressional Elections" and the broader
   dealignment literature — the frame for the young, disengaged, locked-out unaffiliated
-  quarter (Section III) and the new-registrant abandonment of party labels (Section VI).
+  quarter (Section II) and the new-registrant abandonment of party labels (Section V).
 - **Voter-file / individual-level method.** Ansolabehere & Hersh, "Validation: What Big
   Data Reveal About Survey Misreporting and the Real Electorate" (2012); Hersh, *Hacking
   the Electorate* (2015). On the current-roll survivorship caveat (Boundary of
@@ -327,9 +310,9 @@ the finding that the Republican electorate ages hardest. It sits in these litera
 
 ```
 python scripts/load_ny_voters.py                        # NYSVOTER FOIL -> ny_vrdb.duckdb
-python scripts/diag_ny_turnout_party.py --rebuild       # turnout by age x party (I, II)
-STATE=NY python scripts/diag_ny_primary_participation.py # closed-primary participation (IV)
-STATE=NY python scripts/diag_ny_electorate_extras.py     # blank bloc / decomposition / trend / safe-seat (II-VI)
+python scripts/diag_ny_turnout_party.py --rebuild       # turnout by age x party (App. A, I)
+STATE=NY python scripts/diag_ny_primary_participation.py # closed-primary participation (II)
+STATE=NY python scripts/diag_ny_electorate_extras.py     # blank bloc / decomposition / trend / safe-seat (I-V, App. A)
 ```
 
 All inputs are public records (NY NYSVOTER under its lawful-use FOIL terms). See
@@ -338,3 +321,61 @@ the source ledger and method notes, and
 [`ny-turnout-by-party-age.md`](ny-turnout-by-party-age.md) /
 [`ny-electorate-extras.md`](ny-electorate-extras.md) for the full underlying
 tables.
+
+---
+
+## Appendix A — Validation: the off-year electorate is older
+
+**This is a replication, and it is placed here for that reason.** That the electorate ages
+as salience falls has been established since Campbell (1960) and measured for local
+elections by Anzia (2014); New York adds scale and individual records, not a new claim. The
+paper's contribution begins at Section I, which asks the question this literature leaves
+open — *whose* electorate ages. This appendix exists so that premise is measured rather
+than assumed, and so a reader can check it against the sources in Related work.
+
+Share of the general-election electorate by age band:
+
+| Election | Type | 18–29 | 30–44 | 45–64 | 65+ | median |
+|---|---|--:|--:|--:|--:|--:|
+| Nov 2024 | Presidential | **14.1%** | 23.1% | 34.6% | 28.2% | 53 |
+| Nov 2022 | Midterm | 9.8% | 21.1% | 38.5% | 30.6% | 56 |
+| Nov 2025 | Off-year | 11.5% | 21.0% | 33.1% | 34.4% | 56 |
+| Nov 2023 | Off-year | **6.0%** | 15.9% | 36.5% | **41.6%** | 61 |
+
+As the contest shrinks (presidential → midterm → odd-year), the under-30 share
+collapses (14% → 6% by 2023) and the 65+ share swells (28% → 42%); median age
+rises from 53 to 61. **Behavior, not rolls.** A Das-Gupta decomposition of the
+65+ share rise from 2024 to 2025 attributes it several times more to differential
+**turnout** than to the registration age structure (rate effect **+2.5 to +8.7 pts**
+vs composition +0.6 to +1.5, depending on party — a 3.6× ratio for Democrats up to
+12.5× for the unaffiliated) — the young *choose not to vote*
+off-cycle. This is an institutional, on-cycle-timing-fixable pattern, not a
+registration artifact.
+
+Like Section I, this table is **electorate**-denominated: it describes the set of people who
+actually cast a ballot in a past election, which cannot change when new registrants are
+added to the roll. That is why all of its cells reproduced unchanged through the
+2026-08-01 recomputation that moved Sections II and III — see the note under Section III.
+
+---
+
+## Appendix B — Section numbering, before and after 2026-08-06
+
+The paper was reordered on 2026-08-06 to open on its party-resolved result rather than on
+its replication. **Only the order and the numbering changed; no figure, table cell, or claim
+was altered by the reordering.** This map is recorded because earlier documents in this
+series — including the append-only
+[`electoral-health-audit-log.md`](electoral-health-audit-log.md) — cite these sections by
+number, and a silent renumbering would re-point those citations at different content.
+
+| Before | After | Content |
+|---|---|---|
+| §I | **Appendix A** | The off-year electorate is older (replication / validation) |
+| §II | **§I** | The graying is not partisan-neutral |
+| §III | **§II** | The unaffiliated quarter |
+| §IV | **§III** | The nominating electorate |
+| §V | **§IV** | Safe-seat New York |
+| §VI | **§V** | New registrants abandoning party labels |
+
+So a pre-2026-08-06 reference to "NY §III/§IV" — the roll-denominated blocks recomputed on
+2026-08-01 — is a reference to what are now **§II and §III**.

@@ -38,8 +38,12 @@ matched only `contributor_occupation`, while the published definition is
 `occupation='RETIRED' OR employer='RETIRED'`. A one-directional offset across every state is
 always a basis difference. Corrected here; the paper was right.
 
-Sections §1-§3 and §A-§E remain print-only for now. That is a backlog item, not a
-justification — the measurement above says they are assertable too.
+GATED 2026-08-06. §1 and §3 are now asserted too — they restate headline cells in prose,
+which is the drift that cost the donor paper four review rounds. The coverage audit gates
+§Headline, §1, §3 and §F, and every remaining section is listed in
+COVERAGE_EXEMPT_SECTIONS with the script that owns its figures. §2's population
+denominators and §5's per-cycle totals are the cheapest remaining closes; §K (151 tokens)
+is the largest.
 
 Outflow basis = the paper's: FEC individual contributions by IN-STATE RESIDENTS,
 restricted to rows with an FEC committee id (`fec_candidate_id ~ '^[CPHS][0-9]'`) and
@@ -469,6 +473,28 @@ HEADLINE_PROBES = [
     ("headline — dollars from retired donors",
      _row(r"Dollars from \*\*retired\*\* donors"),
      tuple(f"out_{s}_retired" for s in HEADLINE_STATES), 0.05),
+
+    # --- Findings 1 and 3 restate the headline table in prose, added 2026-08-06 by the gate.
+    # Every one of these is the SAME derived value as a headline cell, which is exactly why
+    # they were worth probing: a prose restatement drifting from the table above it is the
+    # defect that cost the donor paper four review rounds, and nothing pointed at these.
+    ("§1 — NY vs ID top-1%, and both Ginis",
+     r"top 1% of donors supply \*\*([\d.]+)%\*\* of New York's federal dollars versus "
+     r"\*\*([\d.]+)%\*\* in Idaho \(Gini ([\d.]+) vs ([\d.]+)\)",
+     ("out_NY_top1", "out_ID_top1", "out_NY_gini", "out_ID_gini"), 0.05),
+    ("§1 — WA and TX top-1%, stated as sitting between",
+     r"with WA \(([\d.]+)%\) and TX \(([\d.]+)%\) between",
+     ("out_WA_top1", "out_TX_top1"), 0.05),
+    ("§1 — sub-$200 shares, ID then WA then NY",
+     r"sub-\$200 gifts are \*\*([\d.]+)%\*\* of Idaho's dollars and ([\d.]+)% of "
+     r"Washington's but only \*\*([\d.]+)%\*\* of NY's",
+     ("out_ID_lt200", "out_WA_lt200", "out_NY_lt200"), 0.05),
+    ("§1 — NY's ≥$5,000 share",
+     r"≥\$5,000 gifts are \*\*([\d.]+)%\*\* of NY's money", "out_NY_ge5000", 0.05),
+    ("§3 — retired-donor shares, all four states",
+     r"\*\*([\d.]+)%\*\* of Idaho's federal donor dollars.*?followed by \*\*([\d.]+)%\*\* in "
+     r"Washington, \*\*([\d.]+)%\*\* in Texas, and just \*\*([\d.]+)%\*\* in New York",
+     ("out_ID_retired", "out_WA_retired", "out_TX_retired", "out_NY_retired"), 0.05),
 ]
 
 
@@ -490,10 +516,135 @@ def verify_individual_layer():
             # loudly, but only because the two happen to differ a lot; a closer pair would
             # have passed on the wrong number.
             d[f"out_{st}_{k}"] = v
+    norm = vp.normalise(PAPER.read_text(encoding="utf-8"))
+    audit_sections, offsets, spans = {}, {}, {}
+    for name, (start, end) in AUDIT_BOUNDS.items():
+        audit_sections[name], offsets[name] = vp.slice_with_offset(norm, start, end)
     rc = vp.run("CROSS-STATE - headline table and the individual money-linked layer",
-                vp.normalise(PAPER.read_text(encoding="utf-8")),
-                HEADLINE_PROBES + F_PROBES, d, F_UNCHECKED, vp.wants_coverage())
-    return [] if rc == 0 else ["see the failures above"]
+                norm, HEADLINE_PROBES + F_PROBES, d, F_UNCHECKED, vp.wants_coverage(),
+                spans_out=spans)
+    fails = vp.audit_coverage(audit_sections, spans, offsets, tuple(AUDIT_BOUNDS),
+                              COVERAGE_EXEMPT, COVERAGE_EXEMPT_LITERAL,
+                              COVERAGE_EXEMPT_SECTIONS)
+    if rc != 0:
+        fails.append("see the figure failures above")
+    return fails
+
+
+# --- Coverage gate, ported 2026-08-06 ----------------------------------------------------
+# THIS WAS THE ONE SERIES PAPER WITHOUT A GATE, and the reason it was deferred was honest:
+# 1,190 numeric tokens live in this paper's headed sections against 125 asserted, so "port the
+# gate" is not a port. What is done here instead is the thing that makes the backlog
+# actionable: the sections this verifier ACTUALLY DERIVES are gated hard, and every remaining
+# section is named with the script that owns it. One aggregate "583 unprobed" becomes a
+# per-section ledger, which is the difference between a known gap and an unknown one.
+#
+# The 2026-08-02 round's warning applies to anything added here: the reason those figures went
+# unasserted was once recorded as donor-key drift making exact assertion meaningless. That was
+# never measured and was FALSE -- donor counts are exact in all four states, Gini within
+# 0.0004 -- and it was concealing Idaho's top-1% printed as 36.0 against a derived 36.1. Do not
+# re-adopt it in any form.
+AUDIT_BOUNDS = {
+    # Gated: derived by outflow() in this file.
+    "headline": ("## The headline", "## Findings"),
+    "finding1": ("### 1. New York is the most top-heavy", "### 2. Participation is broadest"),
+    "finding3": ("### 3. The retired-donor economy", "### 4. Sector signatures"),
+    # Gated: derived by f5()/f6() in this file. The largest section in the paper.
+    "individual": ("### F. The individual layer", "### G. The cross-state money-flow matrix"),
+    # Named, not gated -- see COVERAGE_EXEMPT_SECTIONS for each one's owner.
+    "finding2": ("### 2. Participation is broadest", "### 3. The retired-donor economy"),
+    "finding4": ("### 4. Sector signatures", "### 5. A uniform presidential rhythm"),
+    "finding5": ("### 5. A uniform presidential rhythm", "## Follow-on tests"),
+    "test_a": ("### A. Is the money concentrating over time?", "### B. Where does each state"),
+    "test_b": ("### B. Where does each state", "### C. Top donors, top recipients"),
+    "test_c": ("### C. Top donors, top recipients", "### D. Does money chase competitive"),
+    "test_d": ("### D. Does money chase competitive", "### E. Inflow side"),
+    "test_e": ("### E. Inflow side", "### F. The individual layer"),
+    "test_g": ("### G. The cross-state money-flow matrix", "### H. Sector × competitiveness"),
+    "test_h": ("### H. Sector × competitiveness", "### I. Inflow concentration trend"),
+    "test_i": ("### I. Inflow concentration trend", "### J. Which side of a safe seat"),
+    "test_j": ("### J. Which side of a safe seat", "### K. State-level money"),
+    "test_k": ("### K. State-level money", "## Limits of inference"),
+    "status": ("## What's done, and what's next", "## Related work"),
+}
+
+COVERAGE_EXEMPT = [
+    (r"^(?:19|20)\d{2}$", "a calendar year, not a result"),
+    (r"^\d{1,2}$", "small integer - cycle counts, band edges, list ordinals"),
+]
+
+COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
+    # Gift-size THRESHOLDS naming the cut, not measurements of it. The shares computed at each
+    # threshold ARE asserted, four states apiece, by the two headline probes above.
+    "200": "the <$200 gift-size threshold labelling a cut; the shares at it are asserted",
+    "5,000": "the >=$5,000 gift-size threshold, as above",
+    "0.77": "a stated FLOOR ('all four exceed 0.77'), not a measurement. The four Ginis it "
+            "bounds are each asserted to three decimals by the headline Gini probe, and the "
+            "lowest of them is ID at 0.775 — so the claim is checkable from asserted values "
+            "even though the bound itself is not one of them",
+}
+
+# Each entry names WHERE the section's figures are derived. "Another script owns it" with no
+# script named is exactly the empty reason the audit exists to refuse, so every line names one.
+COVERAGE_EXEMPT_SECTIONS: dict[str, str] = {
+    # §F is where this verifier's F_PROBES concentrate, so leaving it ungated is not for want
+    # of derivation — it is that the section RESTATES a great deal that belongs to the donor
+    # paper. Of its 137 unmapped tokens the bulk are: the Appendix-F blinded validation (480
+    # records, 120/120, Wilson [96.9-100], 47.9-71.7% on initial-based keys), the 2026-07-27
+    # tier switch (382,408 -> 314,974 voters, $574.21M -> $468.85M), the WA federal/state panel
+    # split (147,745 / $346.3M / 41.2% / 0.815 and 217,114 / $122.5M / 43.5% / 0.821), and the
+    # two-money-system provenance figures ($646.2M FEC / $394.6M PDC). Every one of those is
+    # owned and asserted by verify_donor_class.py against the same databases; this paper is
+    # restating them, and re-deriving them here would fork the specification rather than check
+    # it. BACKLOG: probe them as CROSS-DOCUMENT checks against
+    # donor-class-and-the-electorate.md — the pattern verify_whitepaper.py uses for the money
+    # paper's figures, which is what caught the stale +0.55 on 2026-08-06.
+    "individual": "§F restates the donor paper's validation, tier-switch and panel-split "
+                  "figures, all owned and asserted by verify_donor_class.py. The cuts that are "
+                  "THIS paper's own (F5 donor skew, F6 giving-vs-turnout) are asserted by "
+                  "F_PROBES. BACKLOG: convert the restatements to cross-document probes "
+                  "against donor-class-and-the-electorate.md rather than re-deriving them.",
+    "finding2": "per-capita donor participation. The donor COUNTS are derived here by "
+                "outflow() and asserted in the headline table; the population denominators "
+                "(~7.9M WA / ~19.6M NY / ~30.5M TX / ~1.96M ID) are Census state population, "
+                "external to every database in this repo. BACKLOG: pin them the way "
+                "acs_cvap_by_state.py pins CVAP, then this section is closeable.",
+    "finding4": "sector signatures. Owned by scripts/cross_state_fec_money.py's employer/"
+                "occupation sector cut, which the paper cites inline. BACKLOG.",
+    "finding5": "the presidential-cycle rhythm - per-cycle dollar totals. Derivable from the "
+                "same outflow() filter with a GROUP BY election_cycle; nothing external is "
+                "needed. BACKLOG, and the cheapest of these to close.",
+    "test_a": "concentration over time. Owned by scripts/cross_state_fec_money.py. BACKLOG.",
+    "test_b": "per-state destinations. Owned by scripts/diag_cross_state_money_matrix.py, "
+              "which is also where the recipient-state resolution (candidate office state, "
+              "NOT committee registration state) is implemented. BACKLOG.",
+    "test_c": "top donors and recipients. Owned by scripts/diag_cross_state_donors.py. Note "
+              "this section names ORGANISATIONS and committees only - no individual donor is "
+              "named anywhere in this paper, which is the 11 C.F.R. § 104.15 boundary. BACKLOG.",
+    "test_d": "money x competitiveness, outflow side. Owned by "
+              "scripts/diag_cross_state_money_matrix.py. BACKLOG.",
+    "test_e": "the inflow layer. PARTLY derived in main() below (total rows, dollars, "
+              "per-recipient-state totals and out-of-state share are printed against the "
+              "paper's values) but not asserted through the harness. BACKLOG, and the "
+              "highest-value one: it is 93 tokens and the derivation already exists.",
+    "test_g": "the cross-state flow matrix. Owned by "
+              "scripts/diag_cross_state_money_matrix.py. BACKLOG.",
+    "test_h": "sector x competitiveness. Owned by scripts/cross_state_fec_money.py. BACKLOG.",
+    "test_i": "inflow concentration trend and donor retention. Owned by "
+              "scripts/diag_cross_state_donors.py. BACKLOG.",
+    "test_j": "longshot-vs-favored money. Owned by scripts/diag_loser_side_money.py, which is "
+              "already declared in F_UNCHECKED for the §J share it also supplies.",
+    "test_k": "the STATE-disclosure layer (WA PDC / NY BOE / ID Sunshine / TX TEC). Owned by "
+              "scripts/cross_state_state_money.py. Different regimes and filer universes from "
+              "the federal sections, which is why the paper warns against comparing K to A-J - "
+              "and why gating it needs its own derivation rather than an extension of "
+              "outflow(). BACKLOG, and the largest single section at 151 tokens.",
+    "status": "the roadmap section. Its numbers are row counts and load sizes describing what "
+              "has been INGESTED, not results - e.g. TX's 19,416 candidate-cycle rows. They "
+              "belong with the loaders (scripts/cross_state_state_money.py, "
+              "scripts/load_fec_inflow_bulk.py) and change when data is added, not when a "
+              "finding changes. BACKLOG, lowest priority of these.",
+}
 
 
 def outflow(state):

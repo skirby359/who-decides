@@ -1948,3 +1948,178 @@ at it — so twelve probes reported SECTION NOT FOUND and the budget slice swall
 reporting 109 tokens unmapped in the wrong section. Both anchors fixed, with a comment on the
 bound. A section anchor is matched literally: **retitling a heading silently unmoors every probe
 scoped to it.**
+
+---
+
+## 2026-08-06 — Coverage gate ported to four more papers; New York reordered
+
+**The gate.** `--coverage` had been an advisory report on six of the eight paper verifiers, so
+their figure counts were floors with no ceiling. `vp.audit_coverage` is now shared and gates
+`verify_whitepaper` (74 → **88** figures), `verify_who_decides_ny` (96 → **135**),
+`verify_who_decides_id` (96 → **210**) and `verify_who_returns_ballot` (21 → **25**), joining
+the donor, WA, safe-seat and money verifiers. Series total **910 → 1,081** excluding the donor
+paper. `verify_cross_state_money` is **deliberately not gated** — 583 unprobed tokens across
+~10 sections is a project, not a port — and that decision is recorded in
+`test_series_verifier_invariants.py::TestEveryPaperGatesCoverage.UNGATED` rather than left
+silent. A new guard also asserts that every other series verifier calls the gate and that its
+result reaches the exit status.
+
+**What the first gated run found, which is the argument for the gate.**
+
+| paper | defect | resolution |
+|---|---|---|
+| white paper | fundraising correlation **+0.55** in three places against `does-money-move-votes.md`'s **+0.58** | corrected. The money paper retired +0.55 on 2026-08-01 when its frame grew 109 → 129 both-side finance cells, and says so in its own pin note |
+| Idaho §IV | primary-electorate under-30 **4.9 → 5.0** and 45–64 **34.2 → 34.1** | corrected. Derived 4.967 / 34.105; the two errors ran in **opposite** directions, which is what ruled out a basis difference, and four age-filter variants agreed to three decimals |
+| Idaho | three complete result tables unprobed (§IV's two, §VI's six cohorts) | derived; §VII also re-derived independently rather than deferred to `verify_donor_class.py` |
+
+One occurrence of the stale +0.55 sat in the white paper's Appendix B, *outside* the verified
+slice, so a gate scoped to Findings 4–6 would have left it wrong and reported green. A narrow
+whole-document guard (`_restated_outside_the_slice`) now covers figures that script sources
+from another paper.
+
+**Four open author questions, all the same shape: a stated value that no basis reproduces.**
+Each is left in the paper with the full enumeration recorded in the verifier rather than
+silently re-pointed. NY §II (now §I) 2025 under-30 turnout `30.8 / 15.9` — fourteen bases, none
+reproduces, closest 30.95 / 15.81; the "nearly double" claim holds on all fourteen. White paper
+Finding 5 `~3.5–6% of voters` — no panel × denominator basis, closest 4.0–5.7. Idaho §VI 2024
+cohort count `263,315` — thirteen bases, all give 263,322. White paper Finding 6
+`holdout R² ~0.00` — the money paper's allocation cell is 0.022, which rounds to 0.02. A
+duplicate-identifier hypothesis for the Idaho count fitted its evidence exactly and was **false
+on checking**; the coincidence was the whole case for it.
+
+**🔴 Still open, and outside the gate's reach.** `money-votes-submission-metadata.md`'s
+paste-ready abstract and `money-votes-submission-notes.md`'s objection heading both still carry
+the retired **+0.55**. `check_cross_doc_consistency.py` reports them clean, and this was
+measured rather than assumed: its orphan check works by **absence**, and +0.55 *is* present in
+the money paper — inside the note that labels it retired. **A paper that honestly documents its
+own superseded figures immunises its satellites against that check.** The script's own
+`--self-test` puts recall at ~52% on one-decimal percentages against ~98% on counts, which is
+independent confirmation. Author's call.
+
+### New York reordered — section numbers changed, nothing else did
+
+The paper now opens on its party-resolved result; the age-composition replication moved to
+**Appendix A**, and §II–§VI became **§I–§V**. All 135 figures reproduced unchanged through the
+move, which is the check that it was a reordering and not a revision.
+
+**Every reference to NY sections in this log predates the change and means the OLD numbering.**
+This log is append-only, so those entries are not edited. The map, also carried in the paper's
+own Appendix B:
+
+| before | after |
+|---|---|
+| §I | Appendix A |
+| §II | §I |
+| §III | §II |
+| §IV | §III |
+| §V | §IV |
+| §VI | §V |
+
+So the recurring note in this log about "NY §III/§IV rate cuts running ~1–2pp under" refers to
+what are now **§II and §III**.
+
+**The gate caught the reorder itself**, which is the behaviour to keep: `slice_with_offset`
+raised `section start anchor not found` on the first run against the restructured paper rather
+than silently auditing the wrong text. Same lesson as the F8 retitling above — a section anchor
+is matched literally, and moving a heading unmoors every probe scoped to it.
+
+**Submission metadata drafted** for *Who Decides New York?*, *Who Decides Idaho?* and *Four
+States, Four Donor Economies*, plus submission notes for New York. All are registered in
+`check_cross_doc_consistency.py`'s pairing table the same day they were written — the +0.55
+lesson applied, since an abstract is the highest-consequence place for a figure to go stale.
+The white paper is **not** getting submission metadata: it is a research prospectus whose
+Appendix B is a publication sequence for the other papers, not an article.
+
+**Suite 1,997 passed / 7 skipped; all eight paper verifiers exit 0.**
+
+---
+
+## 2026-08-06 (second pass) — the harmonizer, and the last coverage gate
+
+**The cross-state synthesis is no longer a draft in the part that mattered.**
+`scripts/diag_cross_state_age_harmonized.py` now computes Findings 1 and 3 of
+`who-decides-cross-state.md` from one code path across the three voter files, and
+`scripts/acs_cvap_by_state.py` pins the CVAP benchmark for all three states at one ACS vintage
+(2020–2024 5-year, table B29001 → `docs/reference/cvap_age_acs2024.csv`). The harmonizer
+refuses to run without that pin: a per-run fetch would let one state's benchmark move to a
+newer release while the others stayed, and the dissimilarity index would quietly stop being
+comparable. Finding 3's ten `[recompute]` placeholders are gone; verifier 21 → **74 figures**.
+
+**Three conventions were measured rather than assumed, and one of them tightens a caveat.**
+WA and NY birthdates are BOTH normalised to July 1 of the birth year — every row of 5.5M and
+13.5M — so `date_diff('year', …)` returns the year difference and nothing finer exists in
+either file. Idaho stores a current integer age. So all three states are **year-resolution**,
+which is what makes shared bins legitimate; the paper's "age precision differs" caveat is true
+but understated, and now says so.
+
+**Filling the placeholders contradicted one of the paper's own claims, which is the argument
+for computing rather than transcribing.** Finding 1 said the senior-to-youth ratio "roughly
+triples from presidential to lowest-salience in every state". Harmonized, the multiplier runs
+**1.5× to 4.9×** — it does not triple in Idaho (×4.9) or in New York's 2025 odd-year (×1.5).
+Corrected, with the per-state ratios now stated. Two further results only visible once the
+metrics shared a definition:
+
+- **Idaho's closed May primary is the most age-unrepresentative decisive electorate in the
+  study** — dissimilarity **27.6** against the worst general measured anywhere here (NY 2023 at
+  22.4), and 46.7% over 65 against 5.0% under 30. Its cell was the prose phrase "grayest of
+  all" before this; it is now a number, and the phrase was right.
+- **"Odd-year" is not one salience level.** New York's two odd-year generals differ more from
+  each other (34.4% vs 41.6% over 65) than New York's presidential electorate differs from
+  Washington's — 2025 carried a New York City mayoral contest and 2023 did not. That is a
+  caution against the calendar-as-salience substitution the harmonization protocol exists to
+  avoid.
+
+**A one-directional offset caught the one real basis question, and a loose tolerance nearly hid
+it.** The first run reported WA as 7.5 / 13.3 / 18.6–20.0 against the WA paper's
+7.4 / 13.2 / 18.5–19.9 — every value 0.1 high, in the same direction. Two suspects were wrong:
+the WA paper also filters on `registration_date <= election_date` and has no upper age bound,
+and both variants give dissimilarity identical to three decimals. The cause is the
+**benchmark's rounding** — the single-state paper differences against its published 1-decimal
+CVAP row, this pin carries the unrounded shares. Both are now computed; the unrounded value is
+published and the rounded one exists to prove the definition reproduces the WA paper **exactly
+at its printed precision**, asserted on every run. The initial cross-check used `< 0.1` and
+passed while sitting 0.07 high, which is precisely the systematic offset a tolerance is worst
+at catching; it is now an exact rounding test.
+
+**My own error, of the documented kind.** The per-state ratios were first computed from the
+paper's ROUNDED table cells rather than the unrounded shares — 4.9–5.4 where the data gives
+4.9–5.5, 3.0–6.9 where it gives 3.0–7.0, 9.3 where it gives 9.4. The Idaho paper states that
+convention explicitly for its own R−D margins, and the cross-state paper now does too. Caught
+by the probes on the first run.
+
+**`verify_who_returns_ballot.py` changed premise.** It was built on the reasoning that a
+synthesis paper has nothing of its own to re-derive, so the sources were the ground truth and
+transcription drift was the only failure mode. Findings 1 and 3 now HAVE a derivation, so the
+script imports the harmonizer and asserts the paper against it, while Finding 2 stays
+transcription-checked against the source papers. Both regimes coexist and every probe says
+which it belongs to. It now opens the three voter DuckDBs and takes ~60s rather than 0.2s; the
+old docstring's "opens no database" claim is retired. The circularity is avoided because the
+harmonizer separately guards the shared DEFINITION against the single-state paper.
+
+### The last ungated verifier is gated
+
+`verify_cross_state_money.py` — 125 → **139 figures**. The audit hard-gates **§Headline, §1, §3
+and §F**, and names the owning script for each of **fifteen** remaining sections in
+`COVERAGE_EXEMPT_SECTIONS`. One aggregate "583 unprobed" is now a per-section ledger, which is
+the difference between a known gap and an unknown one. `TestEveryPaperGatesCoverage.UNGATED` is
+empty.
+
+**It justified itself on the first run: §1 and §3 are pure prose restatements of headline cells
+and nothing pointed at them** — the same drift class that cost the donor paper four review
+rounds. Fourteen figures added, all of them values `outflow()` already computed.
+
+**Still open there, in priority order and recorded in the ledger:** §E's inflow layer (93
+tokens, and the derivation already exists in `main()`); §5's per-cycle totals and §2's
+population denominators, which need a Census population pin the way `acs_cvap_by_state.py` pins
+CVAP; §K's state-disclosure layer (151 tokens, the largest); and §F's restatements of the donor
+paper's validation and tier-switch figures, which belong as **cross-document** probes against
+`donor-class-and-the-electorate.md` rather than re-derivations here — the pattern that caught
+the stale +0.55 earlier the same day.
+
+**The submission metadata and notes written earlier today were themselves corrected**, because
+they said this paper had no coverage gate and quoted 583 unprobed tokens. Both were true when
+written and false four hours later. That is the drift these documents exist to guard against,
+found by the guard: `check_cross_doc_consistency.py` flagged the stale counts.
+
+**Suite 1,997 passed / 7 skipped; infra 244; all eight paper verifiers exit 0. Series total
+1,081 → 1,153 asserted figures.**

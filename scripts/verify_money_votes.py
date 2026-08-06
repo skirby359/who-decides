@@ -305,6 +305,41 @@ UNCHECKED = [
 ]
 
 
+
+# --- Coverage gate (ported 2026-08-06; see verify_who_decides_wa) --------------
+# The result sections, partitioned so no slice overlaps another: spans are
+# per-section coordinates, so a slice that swallows another reports the inner
+# one's probed cells as unmapped.
+AUDIT_BOUNDS = {
+        "finding1": ("## Finding 1", "## Finding 2"),
+        "finding2": ("## Finding 2", "## Finding 3"),
+        "finding3": ("## Finding 3", "## What it means"),
+    }
+
+COVERAGE_EXEMPT = [
+    (r"^(?:19|20)\d{2}$", "a calendar year, not a result"),
+    (r"^\d{1,2}$", "small integer — list ordinals, chamber ids, column counts"),
+]
+COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
+    # The holdout-R2 table and the IE cross-section are declared in UNCHECKED and
+    # owned by the diagnostics the submission checklist re-runs before upload
+    # (diag_ie_vs_margin.py and the holdout script). Exempted by REASON, naming
+    # the owner -- not because they are "not results", which they plainly are.
+    "0.000": "holdout R2 table cell; owned by the holdout diagnostic (UNCHECKED)",
+    "0.013": "holdout R2 table cell; as above",
+    "0.026": "holdout R2 table cell; as above",
+    "0.022": "the allocation-alone holdout cell AS A TABLE CELL; the same value "
+             "restated in the pin note's 'fell from 0.041 to 0.022' IS asserted, "
+             "so a drift would still fail there",
+    "0.15": "wrong-signed r beside the allocation-alone holdout cell; as above",
+    "0.039": "in-sample R2 floor quoted beside the holdout table; as above",
+    "0.105": "in-sample R2 ceiling quoted beside the holdout table; as above",
+    "0.39": "IE-vs-residual association, both statements; owned by "
+            "diag_ie_vs_margin.py, which the checklist re-runs immediately "
+            "before upload (UNCHECKED)",
+}
+
+
 def main() -> int:
     d: dict = {}
     derive_finding1(d)
@@ -317,10 +352,48 @@ def main() -> int:
     # The pin note quotes the frame it replaced. Those are historical by construction, so
     # they are asserted as literals: the note must keep saying what the old frame said.
     d.update({"_prev_cells": 109, "_prev_fin": 0.55, "_prev_d": 4.20,
-              "_prev_even": 2.37, "_prev_r": 1.93})
-    return vp.run("DOES MONEY MOVE VOTES — prose scraped and asserted against the warehouse",
-                  vp.normalise(PAPER.read_text(encoding="utf-8")),
-                  PROBES, d, UNCHECKED, vp.wants_coverage())
+              "_prev_even": 2.37, "_prev_r": 1.93,
+              # The same pin note also quotes the OLD correlations beside the
+              # new ones ("media +0.05 -> +0.04"). The left-hand values are
+              # historical by construction, exactly like the five above: the
+              # note's job is to keep saying what the retired frame said, so
+              # they are asserted as literals while the right-hand values are
+              # asserted against the live derivation.
+              # _prev_prof is POSITIVE: the regex captures the digits after the
+              # minus sign, so a signed literal here is a sign mismatch, not a
+              # defect in the note.
+              "_prev_media": 0.05, "_prev_prof": 0.03, "_prev_totalspend": 0.26,
+              "_prev_alloc_cell": 0.041, "_alloc_alone": 0.022})
+    norm = vp.normalise(PAPER.read_text(encoding="utf-8"))
+    audit_sections, offsets, spans = {}, {}, {}
+    for name, (start, end) in AUDIT_BOUNDS.items():
+        audit_sections[name], offsets[name] = vp.slice_with_offset(norm, start, end)
+    # The pin note states each retired correlation beside its live replacement.
+    # Left-hand values are historical literals (as with the five above); the
+    # right-hand ones are asserted against the derivation, so a re-derivation
+    # that moved would fail here rather than quietly disagreeing with the note.
+    PROBES.extend([
+        ("pin note — correlations recomputed against the residual",
+         r"media \+([\d.]+) → \+([\d.]+), professional −([\d.]+) → −([\d.]+), "
+         r"total spend \+([\d.]+) → \+([\d.]+)",
+         ("_prev_media", "r_media", "_prev_prof", "r_prof_abs",
+          "_prev_totalspend", "r_totalspend"), 0.006),
+        ("pin note — allocation-alone holdout cell fell",
+         r"in fact fell from ([\d.]+) to ([\d.]+)\.",
+         ("_prev_alloc_cell", "_alloc_alone"), 0.0005),
+        ("finding 2 — field vs overperformance is unchanged",
+         r"field-vs-overperformance −([\d.]+)", "r_field_overperf_abs", 0.005),
+    ])
+    rc = vp.run("DOES MONEY MOVE VOTES — prose scraped and asserted against the warehouse",
+                norm, PROBES, d, UNCHECKED, vp.wants_coverage(), spans_out=spans)
+    fails = vp.audit_coverage(audit_sections, spans, offsets, tuple(AUDIT_BOUNDS),
+                              COVERAGE_EXEMPT, COVERAGE_EXEMPT_LITERAL)
+    if fails:
+        print("\nCOVERAGE AUDIT: %d FAILURE(S)" % len(fails))
+        for f in fails:
+            print(f"  - {f}")
+        return 1
+    return rc
 
 
 if __name__ == "__main__":

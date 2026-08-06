@@ -216,7 +216,7 @@ Republican registrants to those who actually pulled a Republican ballot in 2024:
 | Group | 18–29 | 30–44 | 45–64 | 65+ | median |
 |---|--:|--:|--:|--:|--:|
 | Republican registrants (all roll) | 12.6% | 20.4% | 32.5% | 34.5% | 55 |
-| Republican-ballot primary voters, 2024 | **4.9%** | 14.2% | 34.2% | **46.7%** | **63** |
+| Republican-ballot primary voters, 2024 | **5.0%** | 14.2% | 34.1% | **46.7%** | **63** |
 
 The people who nominate Idaho's officeholders are a gray subset of an already-red
 party: **median age 63, nearly half of them 65+.**

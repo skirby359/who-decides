@@ -167,7 +167,8 @@ def check_rounding(printed: str, derived: float) -> str | None:
 
 def run(title: str, norm: str, probes, derived: dict, unchecked=(),
         show_coverage: bool = False, sections: dict[str, str] | None = None,
-        round_exempt: dict[str, str] | None = None) -> int:
+        round_exempt: dict[str, str] | None = None,
+        spans_out: dict[str | None, list[tuple[int, int]]] | None = None) -> int:
     """Assert every probe against `derived`. Returns a process exit code.
 
     probes: (label, regex, key | (keys...), tolerance[, section]). Each capture group in the
@@ -189,6 +190,13 @@ def run(title: str, norm: str, probes, derived: dict, unchecked=(),
     abbreviated count, a figure the paper states as an approximation, or a documented
     difference between two constructions. A reason is required, so an exemption is a
     decision on the record rather than a silence.
+
+    `spans_out`, when given, is filled with the character spans this run actually
+    asserted, keyed by section name (None = whole document). That is what a caller
+    needs to turn the advisory coverage REPORT into a GATE: the report can only ask
+    "what did no probe touch in the full text", whereas a gate has to ask it per
+    result section — and a section-scoped probe records against its own slice, so
+    without the per-section breakdown its figures look unprobed.
     """
     round_exempt = round_exempt or {}
     bar = "=" * 92
@@ -197,6 +205,7 @@ def run(title: str, norm: str, probes, derived: dict, unchecked=(),
     print(bar)
     fails: list[str] = []
     covered: list[tuple[int, int]] = []
+    by_section: dict[str | None, list[tuple[int, int]]] = {}
     n_checked = 0
     n_scoped = 0
     n_round = 0
@@ -261,11 +270,15 @@ def run(title: str, norm: str, probes, derived: dict, unchecked=(),
                         print(f"  ROUND {label:56} {msg}")
                         fails.append(f"{label}: {msg}")
                         n_round += 1
+                by_section.setdefault(sec, []).append(m.span(gi + 1))
                 if in_full:
                     covered.append(m.span(gi + 1))
         if len(hits) > 1:
             print(f"       ({len(hits)} occurrences checked — a figure stated more than once "
                   f"must agree with the data every time)")
+
+    if spans_out is not None:
+        spans_out.update(by_section)
 
     if unchecked:
         print("\n  NOT covered by this script, and why:")
@@ -299,3 +312,95 @@ def run(title: str, norm: str, probes, derived: dict, unchecked=(),
 
 def wants_coverage(argv=None) -> bool:
     return "--coverage" in (sys.argv[1:] if argv is None else argv)
+
+
+# --------------------------------------------------------------------------
+# Coverage GATE (as distinct from the advisory report above), ported out of
+# verify_who_decides_wa 2026-08-06 so a third and fourth paper do not each
+# grow their own copy. Exemption tables stay with the paper that owns them.
+# --------------------------------------------------------------------------
+def audit_coverage(sections: dict, spans: dict, offsets: dict, audited,
+                   exempt_patterns=(), exempt_literals=None,
+                   exempt_sections=None) -> list[str]:
+    """Fail on any numeric token in an audited section that no probe captured.
+
+    Two coordinate spaces have to be reconciled or the audit lies. A
+    section-scoped probe records spans relative to its own slice; a
+    whole-document probe records them relative to the full normalised text.
+    Most probes are whole-document, so comparing only section-local spans
+    reported ~90 already-asserted figures as unmapped when this first ran
+    against the WA paper. `offsets` gives each slice's start in the full text, which
+    is what lets a whole-document span be translated into section coordinates.
+    """
+    print("\n" + "-" * 78)
+    print("COVERAGE AUDIT — every number in a result section must be probed or exempt")
+    print("-" * 78)
+    exempt_literals = exempt_literals or {}
+    exempt_sections = exempt_sections or {}
+    fails, used_exempt = [], set()
+    for name in audited:
+        if name in exempt_sections:
+            print(f"  reason {name:14} closed by written reason, not derivation")
+            continue
+        hay = sections.get(name)
+        if hay is None:
+            fails.append(f"coverage: audited section {name!r} was not sliced")
+            print(f"  FAIL {name:14} SECTION NOT SLICED")
+            continue
+        off = offsets[name]
+        covered = list(spans.get(name, []))                     # section-scoped, already local
+        covered += [(a - off, b - off) for a, b in spans.get(None, [])   # whole-document
+                    if a < off + len(hay) and off < b]
+        unmapped = []
+        for m in _NUMBER.finditer(hay):
+            # OVERLAP, not containment: a probe's capture group holds the numeric
+            # core (`1.6`) while the token may carry a suffix (`1.6%`), so the
+            # token's end runs past the group's. Containment reported every
+            # probed table cell as unmapped when the donor audit first ran.
+            if any(m.start() < b and a < m.end() for a, b in covered):
+                continue
+            tok = m.group(0)
+            bare = tok.lstrip("$").rstrip("%M×")
+            if bare in exempt_literals or tok in exempt_literals:
+                used_exempt.add(bare if bare in exempt_literals else tok)
+                continue
+            if any(re.match(p, bare) for p, _ in exempt_patterns):
+                continue
+            if _SECTION_REF.search(hay[max(0, m.start() - 24):m.start()]):
+                continue
+            ctx = re.sub(r"\s+", " ", hay[max(0, m.start() - 45):m.end() + 25])
+            unmapped.append((tok, ctx))
+        if unmapped:
+            print(f"  FAIL {name:14} {len(unmapped)} unmapped numeric token(s)")
+            for tok, ctx in unmapped[:60]:
+                print(f"         {tok:>10}   …{ctx}…")
+            if len(unmapped) > 60:
+                print(f"         … and {len(unmapped) - 60} more")
+            fails.append(f"coverage [{name}]: {len(unmapped)} unmapped token(s) — first is "
+                         f"{unmapped[0][0]!r}. Probe it, or exempt it with a reason.")
+        else:
+            print(f"  ok   {name:14} fully mapped")
+    stale = sorted(set(exempt_literals) - used_exempt)
+    if stale:
+        print(f"\n  note {len(stale)} literal exemption(s) no longer fire — prunable: "
+              + ", ".join(stale))
+    return fails
+
+
+def slice_with_offset(norm: str, start: str, end: str) -> tuple[str, int]:
+    """Section text plus its start offset in the normalised document.
+
+    Sliced from the NORMALISED text, not the raw file, so that section
+    coordinates and whole-document probe spans live in the same space. Same
+    anchor discipline as vp.section: both anchors must be present and the end
+    must follow the start, or the slice silently runs to end-of-document.
+    """
+    a = norm.find(start)
+    if a < 0:
+        raise LookupError(f"section start anchor not found: {start!r}")
+    b = norm.find(end, a + len(start))
+    if b < 0:
+        raise LookupError(f"section end anchor not found after start: {end!r}")
+    return norm[a:b], a
+
+

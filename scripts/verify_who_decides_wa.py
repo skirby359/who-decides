@@ -32,6 +32,7 @@ Run:  python scripts/verify_who_decides_wa.py [--coverage]
 """
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -242,6 +243,75 @@ def derive() -> dict:
     d["e21_official_turnout"] = 39.38
     d["off_median"] = sum(d[f"{t}_median"] for t in OFF_YEARS) / 3.0
 
+    # Official statewide turnout, WA SoS. EXTERNAL benchmarks, like OFFICIAL
+    # above: the paper compares its file-derived reconstruction against a rate
+    # the file cannot produce, so these are transcribed, not derived. Asserted
+    # at tolerance 0 — a transcription's only failure mode is a typo.
+    d.update({"off_turnout_2021": 39.38, "off_turnout_2022": 63.82,
+              "off_turnout_2023": 36.41, "off_turnout_2024": 78.95,
+              "off_turnout_2025": 39.24})
+
+    # ACS benchmark rows, TRANSCRIBED from the paper's own table. The ACS
+    # derivation is external (diag_wa_adult_age.py, tables B01001/B29001) and is
+    # declared in UNCHECKED below, so asserting the table against this proves
+    # nothing about the ACS itself. What it DOES prove is that the table and the
+    # prose ladder restating it agree with each other — which is the defect this
+    # audit exists to catch, and which nothing checked before. Stated plainly so
+    # nobody later mistakes a consistency check for a verification.
+    # --- Dissimilarity index -------------------------------------------
+    # The paper's definition, verbatim: "how far each electorate's age
+    # distribution sits from the citizen voting-age population, taken as half
+    # the summed absolute differences across cohorts". Benchmark is the ACS
+    # CVAP row transcribed below, so this inherits that row's external status.
+    _cvap = {"18-29": 19.8, "30-44": 26.7, "45-64": 30.9, "65+": 22.6}
+    for t in [tag for _, tag in ELECTIONS]:
+        d[f"{t}_dissim"] = 0.5 * sum(abs(d[f"{t}_comp_{b}"] - _cvap[b]) for b in BANDS)
+    _off_dis = [d[f"{t}_dissim"] for t in OFF_YEARS]
+    d["off_dissim_min"], d["off_dissim_max"] = min(_off_dis), max(_off_dis)
+    # "roughly 2.5x": mean-based is 2.59, min-based 2.50. Asserted on the mean
+    # with a tolerance that honours the word "roughly" — this is the loosest
+    # figure in the paper's result sections and the only one where the basis
+    # is genuinely ambiguous from the prose.
+    d["off_dissim_ratio"] = (sum(_off_dis) / len(_off_dis)) / d["e24_dissim"]
+
+    # --- Recorded gender ------------------------------------------------
+    # Share of returners recorded F, over F+M. Not over all returners: 'U'/'O'
+    # and NULL together are ~2.4% of the roll, and including them puts the
+    # presidential figure at 51.25 against the paper's 52.5. F/(F+M) reproduces
+    # it to 52.49, so that is the paper's basis.
+    for date, tag in ELECTIONS:
+        d[f"{tag}_female"], = con.execute(f"""
+            SELECT COUNT(*) FILTER (WHERE v.gender = 'F') * 100.0
+                   / NULLIF(COUNT(*) FILTER (WHERE v.gender IN ('F','M')), 0)
+            FROM voters v {_voted(date)} WHERE h.state_voter_id IS NOT NULL""").fetchone()
+
+    # --- Birth-year sensitivity ----------------------------------------
+    # The paper's opposite-extreme check: treat every voter as if their birthday
+    # had NOT yet happened (a Dec-31 assumption), i.e. one year younger than the
+    # main convention, so the 65+ test becomes year-difference >= 66. Same
+    # analyzable basis as the coverage table (returned, has YOB, no registration
+    # filter) — which is why 2021 reads 36.75 here and 36.7 in the composition
+    # table: different denominators, as the bounding note already documents.
+    for date, tag in ELECTIONS:
+        a = _age(date)
+        main, dec31 = con.execute(f"""
+            SELECT COUNT(*) FILTER (WHERE {a} >= 65) * 100.0 / COUNT(*),
+                   COUNT(*) FILTER (WHERE {a} >= 66) * 100.0 / COUNT(*)
+            FROM voters v {_voted(date)}
+            WHERE h.state_voter_id IS NOT NULL AND v.birthdate IS NOT NULL""").fetchone()
+        d[f"{tag}_by_main"], d[f"{tag}_by_dec31"] = main, dec31
+    d["off_by_maxshift"] = max(d[f"{t}_by_main"] - d[f"{t}_by_dec31"] for t in OFF_YEARS)
+
+    # Off-year min/max for the finer cohorts the prose quotes as a range.
+    for band in ("75+", "18-24"):
+        vals = [d[f"{t}_fine_{band}"] for t in OFF_YEARS]
+        d[f"off_fine_{band}_min"], d[f"off_fine_{band}_max"] = min(vals), max(vals)
+
+    d.update({"acs_adult_18-29": 20.0, "acs_adult_30-44": 28.3,
+              "acs_adult_45-64": 30.5, "acs_adult_65+": 21.1,
+              "acs_cvap_18-29": 19.8, "acs_cvap_30-44": 26.7,
+              "acs_cvap_45-64": 30.9, "acs_cvap_65+": 22.6})
+
     # The registered roll itself, as of the current extract.
     a26 = _age("2026-04-01")
     rows = con.execute(f"""
@@ -415,6 +485,110 @@ def build_probes():
         p.append((f"geography — {label}",
                   rf"\| {label} \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \|",
                   tuple(f"{t}_geo_{key}" for t in ("e24", "e21", "e23", "e25")), 0.05))
+
+    # ---------------------------------------------------------------
+    # PROSE RESTATEMENTS (added 2026-08-06 by the coverage audit).
+    #
+    # Each of these repeats a table value in a sentence. Every one was
+    # unprobed until the audit gated: the tables were checked, the prose
+    # describing them was not. That is precisely the gap an external
+    # reviewer found in the donor paper — a correct table under a
+    # sentence that misreports it — and it is the reason a figure stated
+    # twice must agree with the data BOTH times.
+    # ---------------------------------------------------------------
+    p += [
+        ("prose — headline off-year 65+ trio",
+         r"Voters 65\+ make up \*\*~37–40%\*\* of it \(([\d.]+) / ([\d.]+) / ([\d.]+)% across",
+         ("e21_comp_65+", "e23_comp_65+", "e25_comp_65+"), 0.05),
+        ("prose — presidential 65+ share",
+         r"across 2021 / 2023 / 2025\) versus \*\*([\d.]+)%\*\* in the presidential",
+         "e24_comp_65+", 0.05),
+        ("prose — 18-29 share, presidential to off-year",
+         r"the 18–29 share falls from \*\*([\d.]+)%\*\* to \*\*~([\d.]+)%\*\*",
+         ("e24_comp_18-29", "off_comp_18-29"), 0.05),
+        ("prose — midterm 65+ share",
+         r"with the midterm in between \(([\d.]+)% 65\+\)", "e22_comp_65+", 0.05),
+        ("prose — 65+ ladder across the five benchmark rows",
+         r"The 65\+ share climbs \*\*([\d.]+)% → ([\d.]+)% → ([\d.]+)% → ([\d.]+)% → ([\d.]+)%\*\*",
+         ("acs_adult_65+", "acs_cvap_65+", "roll_65+", "e24_comp_65+", "off_comp_65+"), 0.05),
+        ("prose — 18-29 ladder across the five benchmark rows",
+         r"the 18–29 share falls \*\*([\d.]+)% → ([\d.]+)% → ([\d.]+)% → ([\d.]+)% → ([\d.]+)%\*\*",
+         ("acs_adult_18-29", "acs_cvap_18-29", "roll_18-29", "e24_comp_18-29",
+          "off_comp_18-29"), 0.05),
+        ("who is counted — ACS adult residents (consistency, not verification)",
+         r"\| WA adult residents \(ACS 2020–24\) \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| "
+         r"([\d.]+)% \|",
+         tuple(f"acs_adult_{b}" for b in BANDS), 0.0),
+        ("who is counted — ACS citizen voting-age population (consistency)",
+         r"\| WA citizen voting-age population \(ACS 2020–24\) \| ([\d.]+)% \| ([\d.]+)% \| "
+         r"([\d.]+)% \| ([\d.]+)% \|",
+         tuple(f"acs_cvap_{b}" for b in BANDS), 0.0),
+        ("prose — roll senior share",
+         r"low and steady \(([\d.]+)% on the full April 2026", "roll_65+", 0.05),
+        ("prose — participation rate gap, 18-29 vs 65\\+",
+         r"participation falls from \*\*([\d.]+)%\*\* \(2024\) to about \*\*16%\*\* off-year, "
+         r"while 65\+ slips only from \*\*([\d.]+)%\*\*",
+         ("e24_rate_18-29", "e24_rate_65+"), 0.05),
+        ("prose — the All column example",
+         r"the \"All\" column \(e\.g\., ([\d.]+)% in 2024\)", "e24_rate_all", 0.05),
+        ("prose — official general-election turnout, five cycles",
+         r"official general-election turnout \(([\d.]+)% 2021, ([\d.]+)% 2022, ([\d.]+)% 2023, "
+         r"([\d.]+)% 2024, ([\d.]+)% 2025\)",
+         ("off_turnout_2021", "off_turnout_2022", "off_turnout_2023",
+          "off_turnout_2024", "off_turnout_2025"), 0.0),
+        ("prose — 2021 reconstruction lands on the official rate",
+         r"lands at about the official ([\d.]+)%", "off_turnout_2021", 0.0),
+        # Finer cohorts: the sentence quotes a RANGE across the three off-years,
+        # so each endpoint is asserted against the off-year min and max rather
+        # than an average — a range that quietly widened would otherwise pass.
+        # ⚠ AUTHOR QUESTION, not a probe failure. This sentence's 75+ range is
+        # asserted against 2023 and 2025 ONLY, because that is what it quotes —
+        # 16.8 and 18.3. The paper's own finer table gives a THIRD off-year,
+        # 2021 = 13.4%, and the derivation reproduces all three exactly
+        # (13.42 / 16.84 / 18.26). So the stated off-year range excludes a third
+        # of the off-year observations and the true span is 13.4–18.3.
+        # The tell is the other half of the same sentence: its 18–24 range
+        # ("~3.7–4.0%") DOES span all three off-years. One clause covers three
+        # elections and the other covers two.
+        # Left as-is and raised rather than silently re-pointed at min/max: the
+        # paper is a public preprint, so whether this is an error or a
+        # deliberate "recent off-years" reading is the author's call.
+        ("prose — 75+ share, presidential and the 2023/2025 off-year pair",
+         r"the 75\+ share rises from \*\*([\d.]+)%\*\* in the presidential year to "
+         r"\*\*([\d.]+)–([\d.]+)%\*\*",
+         ("e24_fine_75+", "e23_fine_75+", "e25_fine_75+"), 0.05),
+        ("prose — 18-24 share, presidential and off-year range",
+         r"the 18–24 share falls from \*\*([\d.]+)%\*\* to \*\*~([\d.]+)–([\d.]+)%\*\*",
+         ("e24_fine_18-24", "off_fine_18-24_min", "off_fine_18-24_max"), 0.05),
+        ("prose — dissimilarity index, presidential and midterm",
+         r"It comes out \*\*([\d.]+)\*\* for the 2024 presidential electorate, "
+         r"\*\*([\d.]+)\*\* at the midterm, and \*\*([\d.]+)–([\d.]+)\*\* across the three",
+         ("e24_dissim", "e22_dissim", "off_dissim_min", "off_dissim_max"), 0.05),
+        ("prose — off-year electorate is ~2.5x as age-unrepresentative",
+         r"roughly \*\*([\d.]+)× as age-unrepresentative", "off_dissim_ratio", 0.15),
+        ("prose — recorded-female share, presidential",
+         r"rising from ([\d.]+)% in the 2024 presidential electorate", "e24_female", 0.05),
+        # ⚠ SECOND AUTHOR QUESTION, same shape as the 75+ one below. See the
+        # note there. "53.0–53.1% in the off-year electorates" covers 2023
+        # (52.97) and 2025 (53.12) but NOT 2021, which reads 52.46 — statistically
+        # indistinguishable from the 52.5 presidential figure the sentence says
+        # it rises FROM. So in one of the three off-years there is no rise.
+        # Asserted against the two the sentence actually quotes.
+        ("prose — recorded-female share, 2023/2025 off-year pair",
+         r"electorate to ([\d.]+)–([\d.]+)% in the off-year electorates",
+         ("e23_female", "e25_female"), 0.05),
+        ("prose — birth-year Dec-31 check, maximum off-year shift",
+         r"moves the off-year 65\+ share by \*\*≤([\d.]+) points\*\*",
+         "off_by_maxshift", 0.05),
+        ("prose — birth-year Dec-31 check, the three worked examples",
+         r"\(e\.g\., 2021: ([\d.]+)% → ([\d.]+)%; 2025: ([\d.]+)% → ([\d.]+)%\).*?"
+         r"presidential share moves too, ([\d.]+)% → ([\d.]+)%\)",
+         ("e21_by_main", "e21_by_dec31", "e25_by_main", "e25_by_dec31",
+          "e24_by_main", "e24_by_dec31"), 0.05),
+        ("prose — off-year 65+ trio restated in the birth-year note",
+         r"land on the same result \(65\+ share ([\d.]+) / ([\d.]+) / ([\d.]+)%\)",
+         ("e21_comp_65+", "e23_comp_65+", "e25_comp_65+"), 0.05),
+    ]
     return p
 
 
@@ -432,6 +606,50 @@ UNCHECKED = [
 ]
 
 
+# ---------------------------------------------------------------------------
+# Coverage audit — ported from verify_donor_class.py, 2026-08-06
+# ---------------------------------------------------------------------------
+# WHY THIS PAPER NEEDS IT MOST. `--coverage` already existed here, but as an
+# advisory report nobody had to act on, so "183 figures agree" was a floor with
+# no stated ceiling. The donor paper learned the cost the hard way: after it
+# claimed 309 figures verified, an EXTERNAL reviewer found four more
+# contradictions in exactly the sections no probe pointed at. This paper is
+# already public, so the same class of defect here is a correction to the
+# published record rather than a pre-submission fix.
+#
+# Three rules the donor audit paid for, all of which bit on its first run:
+#   1. An exemption must NAME where the figure is verified, or why it is not a
+#      result. "Not a result" with no reason is how a real figure hides.
+#   2. Sections MUST NOT OVERLAP. Spans are per-section coordinates, so a slice
+#      that swallows another reports the inner one's cells as unmapped.
+#   3. A section's end anchor must FOLLOW its start anchor, or `find` returns -1
+#      and the slice silently runs to end-of-document.
+AUDITED_SECTIONS = ("composition", "rates", "finer", "tail")
+
+# Regex exemptions, matched against the bare token. Reason required.
+COVERAGE_EXEMPT = [
+    (r"^(?:19|20)\d{2}$", "a calendar year, not a result"),
+    (r"^\d{1,2}$", "small integer — list ordinals, cohort edges, column counts"),
+]
+COVERAGE_EXEMPT = [(p, why) for p, why in COVERAGE_EXEMPT if why]
+
+# Literal tokens, each with the reason it is not an unverified result.
+COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
+    "01001": "Census table id B01001 (sex by age), not a figure — the values drawn "
+             "from it are the ACS benchmark row, probed separately",
+    "29001": "Census table id B29001 (citizen voting-age population by age), as above",
+    "8201": "a bill number — Senate Joint Resolution 8201, named as the 2025 ballot's "
+            "only statewide measure. Not a quantity",
+}
+
+# Whole sections closed by a written reason rather than by derivation. Each must
+# say WHERE the figures are checked, per rule 1 above.
+COVERAGE_EXEMPT_SECTIONS: dict[str, str] = {}
+
+_NUM_RX = vp._NUMBER
+_SECTION_REF = vp._SECTION_REF
+
+
 def main() -> int:
     raw = PAPER.read_text(encoding="utf-8")
     # Three tables share a row prefix — every one of them starts "| Nov 2024 | Presidential |"
@@ -444,10 +662,58 @@ def main() -> int:
                                   "**Within-cohort participation rate"),
         "rates": vp.section(raw, "**Within-cohort participation rate", "**Finer cohorts.**"),
         "finer": vp.section(raw, "**Finer cohorts.**", "**Birth-year assumption.**"),
+        # The rest of Sensitivity, previously unaudited. NOTE the real ordering:
+        # "## Sensitivity" falls INSIDE the `rates` slice (the heading sits
+        # between the rate table and "**Finer cohorts.**"), so slicing
+        # Sensitivity as its own section would overlap both `rates` and `finer`
+        # and report their probed cells as unmapped — rule 2. These four slices
+        # partition "What the data shows" through "## Interpretation" exactly
+        # once each.
+        "tail": vp.section(raw, "**Birth-year assumption.**", "## Interpretation"),
     }
-    return vp.run("WHO DECIDES WASHINGTON — prose scraped and asserted against the voter file",
-                  vp.normalise(raw), build_probes(), derive(), UNCHECKED,
-                  vp.wants_coverage(), sections=sections)
+    norm = vp.normalise(raw)
+    # Audit slices are taken from the NORMALISED text so their coordinates and
+    # the whole-document probe spans agree. The probe-scoping slices above stay
+    # on `raw` — they only feed regex matching, where the offset is irrelevant.
+    audit_bounds = {
+        "composition": ("## What the data shows", "**Within-cohort participation rate"),
+        "rates": ("**Within-cohort participation rate", "**Finer cohorts.**"),
+        "finer": ("**Finer cohorts.**", "**Birth-year assumption.**"),
+        "tail": ("**Birth-year assumption.**", "## Interpretation"),
+    }
+    audit_sections, offsets = {}, {}
+    for name, (start, end) in audit_bounds.items():
+        audit_sections[name], offsets[name] = vp.slice_with_offset(norm, start, end)
+
+    spans: dict = {}
+    rc = vp.run("WHO DECIDES WASHINGTON — prose scraped and asserted against the voter file",
+                norm, build_probes(), derive(), UNCHECKED,
+                vp.wants_coverage(), sections=sections, spans_out=spans,
+                round_exempt={
+                    # The sentence says "ROUGHLY 2.5x", an explicit approximation,
+                    # and the basis is ambiguous from the prose: mean-of-off-years
+                    # over presidential is 2.59, minimum-off-year over presidential
+                    # is 2.50 exactly. Both are defensible readings of "the off-year
+                    # electorate", so the printed 2.5 is not a mis-rounding of a
+                    # single derived value — it is a rounded statement of one of two
+                    # constructions. Recorded rather than silently tolerated; if the
+                    # paper is ever revised, saying which is meant would close this.
+                    "prose — off-year electorate is ~2.5x as age-unrepresentative":
+                        "paper states it as an approximation ('roughly'), and 2.50 vs "
+                        "2.59 is the min-based vs mean-based reading of the same index",
+                })
+
+    audit_fails = vp.audit_coverage(
+        audit_sections, spans, offsets, AUDITED_SECTIONS,
+        COVERAGE_EXEMPT, COVERAGE_EXEMPT_LITERAL, COVERAGE_EXEMPT_SECTIONS)
+    if audit_fails:
+        print("\n" + "=" * 92)
+        print(f"COVERAGE AUDIT: {len(audit_fails)} FAILURE(S)")
+        print("=" * 92)
+        for f in audit_fails:
+            print(f"  - {f}")
+        return 1
+    return rc
 
 
 if __name__ == "__main__":

@@ -285,13 +285,13 @@ concrete analysis to run.
 
 - **Defensible claim.** Finance behaves as a marker of pre-existing candidate
   strength, not an independent vote-mover: raw fundraising log2(D/R) correlates
-  **+0.55** with overperformance, but spend *allocation* has cross-cycle holdout
+  **+0.58** with overperformance, but spend *allocation* has cross-cycle holdout
   R² ~**0.00**, and the forecast model zeroes the fundraising term post-redistricting
   because the baseline already absorbs it. The honest reading — "money follows the
   scoreboard" — is, on the *vote-buying* axis, consistent with the healthy null,
   while leaving the **access/agenda-setting** channel untested.
 - **Strongest objection.** The whole thing is a correlation with no exogenous
-  variation — +0.55 is exactly what a true causal effect *would also* produce. The
+  variation — +0.58 is exactly what a true causal effect *would also* produce. The
   allocation-R²-zero null is underpowered and tests spend *mix*, not *level*. So the
   data can neither confirm nor refute vote-buying; it can only show money is
   endogenous to candidate quality.
@@ -434,7 +434,7 @@ signal. Accuracy-weighted failure signal across all findings = **22/100**.*
 4. **Methods/curiosity piece:** Finding 6 — **DRAFTED** as
    [`does-money-move-votes.md`](does-money-move-votes.md) (2026-07-26). The story is the
    honest near-null *and* the data ceiling: money is the strongest single correlate of
-   overperformance (+0.55) yet leaves no causal fingerprint — allocation holdout R² ≈ 0,
+   overperformance (+0.58) yet leaves no causal fingerprint — allocation holdout R² ≈ 0,
    the forecast model discards the term against a known baseline, and the directional IE
    cross-section runs *negative* (n=7). Directional IE is one cycle deep and the $70.6M of
    PDC legislative IE has no support/oppose flag, so the verdict stays "cannot confirm or

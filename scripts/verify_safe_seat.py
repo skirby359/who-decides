@@ -486,6 +486,40 @@ UNCHECKED = [
 ]
 
 
+
+# --- Coverage gate (ported 2026-08-06; see verify_who_decides_wa) --------------
+# The result sections, partitioned so no slice overlaps another: spans are
+# per-section coordinates, so a slice that swallows another reports the inner
+# one's probed cells as unmapped.
+AUDIT_BOUNDS = {
+        "universe": ("## The seat universe", "## Dimension 1"),
+        "dim1": ("## Dimension 1", "## Dimension 2"),
+        "dim2": ("## Dimension 2", "## The four-state comparison"),
+        "fourstate": ("## The four-state comparison", "## Why it matters"),
+    }
+
+COVERAGE_EXEMPT = [
+    (r"^(?:19|20)\d{2}$", "a calendar year, not a result"),
+    (r"^\d{1,2}$", "small integer — list ordinals, chamber ids, column counts"),
+]
+COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
+    "48.5": "the 2016 outlier share, stated in the Dimension-2 table one line "
+            "above and asserted there; the prose repeats the table cell",
+    "51,981": "an illustrative candidate vote count naming the Klippert/Regev "
+              "race to show how a same-party general classifies; a worked "
+              "example of the rule, not a result of it",
+    "26,979": "the other side of the same worked example",
+    "27.6": "the no-D-v-R share under the ALTERNATIVE definition the paper "
+            "rejects, quoted to show what rejecting it would cost; the adopted "
+            "figure beside it is asserted",
+    "26.9": "the adopted 2020 no-D-v-R share as restated in this sentence; "
+            "asserted at its table cell in the Dimension-2 block",
+    "150": "the size of the NY Assembly, a chamber fact",
+    "149": "Assembly districts carrying a race in the loaded returns; the one "
+           "absent seat (AD 23) is named in the same sentence",
+}
+
+
 def main() -> int:
     d: dict = {}
     by_year = derive_wa(d)
@@ -496,9 +530,21 @@ def main() -> int:
     # table's four-cell row is shaped exactly like the year-header row of the primary/general
     # table 150 lines later.
     sections = {"universe": vp.section(raw, "## The seat universe", "## Dimension 1")}
-    return vp.run("SAFE-SEAT WASHINGTON — prose scraped and asserted against certified returns",
-                  vp.normalise(raw), build_probes(), d, UNCHECKED, vp.wants_coverage(),
-                  sections=sections)
+    norm = vp.normalise(raw)
+    audit_sections, offsets, spans = {}, {}, {}
+    for name, (start, end) in AUDIT_BOUNDS.items():
+        audit_sections[name], offsets[name] = vp.slice_with_offset(norm, start, end)
+    rc = vp.run("SAFE-SEAT WASHINGTON — prose scraped and asserted against certified returns",
+                norm, build_probes(), d, UNCHECKED, vp.wants_coverage(),
+                sections=sections, spans_out=spans)
+    fails = vp.audit_coverage(audit_sections, spans, offsets, tuple(AUDIT_BOUNDS),
+                              COVERAGE_EXEMPT, COVERAGE_EXEMPT_LITERAL)
+    if fails:
+        print("\nCOVERAGE AUDIT: %d FAILURE(S)" % len(fails))
+        for f in fails:
+            print(f"  - {f}")
+        return 1
+    return rc
 
 
 if __name__ == "__main__":
