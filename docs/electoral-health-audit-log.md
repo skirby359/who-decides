@@ -2161,3 +2161,88 @@ recall at ~52% on one-decimal percentages against ~98% on counts.
 
 `verify_money_votes.py` green (59 figures, three sections mapped);
 `check_cross_doc_consistency.py` 0 findings.
+
+---
+
+## 2026-08-06 (fourth pass) — both independent ratings scored; A9x CLOSED
+
+**Gate A9x is closed with nothing to bound.** The 204-record Idaho draw was rated by someone
+other than the author under the blinded protocol and scored by `scripts/score_idaho_validation.py`,
+written and committed before any verdict existed. **All 204 records rated Y — zero identity errors
+in every stratum**, on the published convention and on both pre-committed sensitivities, including
+the one that counts every `U` against the match. Three `partial_merge` ticks on the Idaho state
+panel, reported separately as dollar attribution. The design's 10.2% per-party-stratum ceiling is
+unchanged — it is a property of the draw, not the verdicts — and is now the operative bound rather
+than a floor. §F7, Finding 3's heading and the release checklist are updated; the worst-case Idaho
+figures (18.4% federal / 19.4% state) are the same numbers but now rest on a **measured** clean
+Democratic stratum rather than an assumed one.
+
+**The paper is no longer single-rater.** A third pass over the same 150 records by an independent
+rater — confirmed by the author as a different person — supplies **inter-rater** reliability,
+reported separately from the test–retest figures rather than pooled with them. The full-name block
+is **75/75 Y in both** that pass and the first, so the primary specification is confirmed
+unanimously by a rater with no stake in it. Agreement is **97.6% on the collapsed binary
+(κ 0.935, PABAK 0.952)** and 76.0% on all four verdicts (κ 0.516). Appendix F's "an independent
+rater … is not yet in hand" is retired.
+
+**The most useful thing the pass produced is a bracket.** The author's re-rate diverged *more
+permissively* than the published figure (95.7% donor-weighted); the independent rater diverges
+*more cautiously* (91.0%). The published **93.0%** sits between them. Two repeat readings that
+disagree with the original in opposite directions is much better evidence that the published
+figure is not systematically optimistic than either reading alone.
+
+**A correction to my own first draft of that prose, caught by deriving it.** I wrote "35 of the 36
+disagreements run toward less certainty". It is **34**. The axis is *certainty*, not sameness:
+`Y` and `NC` are both confident calls, so `NC → Y` is a substantive flip at unchanged certainty,
+and `U → NP` moves toward *more* certainty. On a same-to-different ordering an `NC → NP` move
+reads as gaining confidence, which is backwards. The classifier in `_d_rater2` now uses
+`{Y: 2, NC: 2, NP: 1, U: 0}` and the comment says why.
+
+**Two script bugs, both a change that did not propagate.** `--rater rater2` had never been
+runnable: it died on `KeyError 'ai_verdict'` because the two key files name the prior-verdict
+columns differently (`ai_verdict/ai_error_mode/ai_partial_merge` against `verdict/error/merge`).
+And three references still used the module-level `LEDGER_OUT` after `--rater` was added, so the
+run *reported* writing to the published 2026-07-27 ledger while correctly writing elsewhere — a
+false alarm about a published artifact, whose obvious response is to restore something never
+touched. Labelling was corrected with them: the output said "AI vs HUMAN", and **neither pass is
+AI** (withdrawn in round 16; the author rated all 480 and every pass since). The label is now set
+per run, and an unrecognised rater prints "reliability type unconfirmed" rather than guessing.
+
+**The new figures are DERIVED, not exempted.** Appendix F's inter-rater block sits in `appf_tail`,
+a section the coverage audit exempts — so ten result figures would have been asserted by nothing,
+and that exemption's written reason (ceiling analysis plus a directionless survivorship note)
+would have quietly become false. `_d_rater2` derives them from the committed PII-free ledger
+`reference/match_validation_rater2_verdicts.csv` and eleven probes assert them. The exemption now
+states explicitly that it does *not* cover them. Verifier **1,305 → 1,324 figures**.
+
+### 🔴 A pre-existing defect A14 had never exercised: the public verifier could not run
+
+`verify_donor_class.py` reads the submission memo, cover letter and metadata to extend its
+section-less probes over them. All three are in `sync_public_repo.NEVER` and correctly never
+travel — so in the public checkout the flagship verifier **crashed with FileNotFoundError**. The
+repository shipped that script, and a paper telling readers to run it, and it could not run.
+
+**This predates today** — the previously published copy references the memo identically — and it
+had never been caught because A14's "run the verifiers there" step had only ever been exercised on
+the other seven. Measured before fixing: exactly **six probes** target those documents, and they
+are the only failures.
+
+Absent is now empty rather than fatal, and those six probes are **skipped with a printed notice**
+naming the documents. Skipping is right only because the documents are withheld *by design*; a
+missing PAPER still fails loudly, because `PAPER` and `SUPPLEMENT` are not in the `_OPERATIONAL`
+map. Public run: **1,305 figures, all assertions pass**, against 1,324 privately — the 19-figure
+gap is exactly the withheld documents' probes, which is the honest number for a repository that
+does not carry them.
+
+Also: `.verify_cache/` was ignored privately but not publicly, and running the verifiers there
+created it. Added to the public `.gitignore` before it could be committed.
+
+**A14 verified: all eight verifiers exit 0 in the public checkout.** Suite 2,003 passed / 7
+skipped privately at the point of the ELJ rebuild; the generated ELJ artifacts were regenerated
+by `build_elj_submission.py` rather than hand-edited (abstract 287 words, body 11,370, no
+anonymisation leaks).
+
+**`docs/open-author-questions.md` now collects all six unresolved figure questions** in one place
+with an `ANSWER:` line each, since they were spread across three verifiers and a corrections
+ledger. It is in `NEVER`: it lists open defects in an already-public paper, and publishing that
+before the answers exist invites a reader to treat unanswered as unanswerable.

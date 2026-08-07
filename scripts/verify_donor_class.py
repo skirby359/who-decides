@@ -111,6 +111,14 @@ SUPPLEMENT = ROOT / "docs" / "donor-class-methods-supplement.md"
 # in the paper. These probes close that half: exact assertion against the derivation, on the
 # same machinery the paper gets.
 MEMO = ROOT / "docs" / "donor-class-submission-memo.md"
+
+# Probe-label prefix -> the operational document it checks. These three never travel to
+# the public repository (sync_public_repo.NEVER), so where they are absent their probes
+# cannot run and are skipped by name. Keyed on the label prefix because that convention
+# already exists in the probe table and is what a reader sees in the output.
+_OPERATIONAL = {"Memo:": "donor-class-submission-memo.md",
+                "Cover:": "donor-class-cover-letter.md",
+                "Metadata:": "donor-class-submission-metadata.md"}
 COVER = ROOT / "docs" / "donor-class-cover-letter.md"
 METADATA = ROOT / "docs" / "donor-class-submission-metadata.md"
 
@@ -1077,6 +1085,85 @@ def _d_conc(con, prefix, panel, out):
             f"(delta {ex1 - t1:+.3f} pts) — exceeds the paper's printed precision")
 
 @_timed
+def _d_rater2(out):
+    """Inter-rater agreement, derived from the committed PII-free ledger.
+
+    ADDED 2026-08-06 with the independent rating. Appendix F's new inter-rater block sits in
+    `appf_tail`, a section exempt from the coverage audit — so without this the ten figures it
+    states would be asserted by nothing, and the exemption's written reason (ceiling figures
+    plus a directionless survivorship note) would have quietly become false. Deriving beats
+    widening that reason: `reference/match_validation_rater2_verdicts.csv` is committed,
+    carries no names, and is exactly what the paper points a reader at.
+
+    Reads a CSV, not a database, so it costs nothing in the derivation layer and cannot be a
+    reason for the release gate to be slow.
+    """
+    path = ROOT / "docs" / "reference" / "match_validation_rater2_verdicts.csv"
+    if not path.exists():
+        return                      # probes will fail on the missing key, which is correct
+    import csv as _csv
+    rows = list(_csv.DictReader(path.open(encoding="utf-8")))
+    binary = {"Y": "same", "NC": "diff", "NP": "diff"}
+    full = [r for r in rows if r["match_tier"] == "STRICT_ZIP5_FULL"]
+    out["r2_full_n"] = len(full)
+    out["r2_full_y_pass1"] = sum(1 for r in full if r["pass1_verdict"] == "Y")
+    out["r2_full_y_rater2"] = sum(1 for r in full if r["rater2_verdict"] == "Y")
+    # Four-category observed agreement and kappa over every record. Reported alongside the
+    # binary pair because kappa is deflated where one category dominates: on a block that is
+    # nearly all-Y a low kappa means "little to disagree about", not "the raters disagree".
+    def _kappa(prs):
+        m = len(prs)
+        cats = sorted({c for pr in prs for c in pr})
+        p_o = sum(1 for x, y in prs if x == y) / m
+        fa = {c: sum(1 for x, _ in prs if x == c) / m for c in cats}
+        fb = {c: sum(1 for _, y in prs if y == c) / m for c in cats}
+        p_e = sum(fa[c] * fb[c] for c in cats)
+        return p_o, (p_o - p_e) / (1 - p_e)
+
+    obs4, k4 = _kappa([(r["pass1_verdict"], r["rater2_verdict"]) for r in rows])
+    out["r2_obs4"] = 100.0 * obs4
+    out["_r2_kappa4"] = k4
+    # Collapsed to same/different: U leaves the denominator, the published convention.
+    pairs = [(binary[a], binary[b]) for a, b in
+             ((r["pass1_verdict"], r["rater2_verdict"]) for r in rows)
+             if a in binary and b in binary]
+    n = len(pairs)
+    po = sum(1 for a, b in pairs if a == b) / n
+    ma = {c: sum(1 for a, _ in pairs if a == c) / n for c in ("same", "diff")}
+    mb = {c: sum(1 for _, b in pairs if b == c) / n for c in ("same", "diff")}
+    pe = sum(ma[c] * mb[c] for c in ("same", "diff"))
+    out["r2_binary_n"] = n
+    out["r2_obs_binary"] = 100.0 * po
+    out["r2_kappa_binary"] = (po - pe) / (1 - pe)
+    out["r2_pabak_binary"] = 2 * po - 1
+    # The direction of disagreement, which is the claim the prose actually makes.
+    #
+    # THE AXIS IS CERTAINTY, NOT SAMENESS, and getting that wrong is how the first draft of the
+    # prose said "35 of 36" where the truth is 34. `Y` and `NC` are both CONFIDENT calls — one
+    # confidently same, one confidently different — so a move between them is a substantive
+    # flip at equal certainty, not a loss of it. `NP` is a hedge and `U` is no call. On a
+    # same-to-different ordering (Y > NP > NC) an `NC -> NP` move reads as *gaining* confidence,
+    # which is backwards: it is a confident verdict becoming a hedge.
+    certainty = {"Y": 2, "NC": 2, "NP": 1, "U": 0}
+    less = more = flip = 0
+    for r in rows:
+        a, b = r["pass1_verdict"], r["rater2_verdict"]
+        if a == b:
+            continue
+        if certainty[b] < certainty[a]:
+            less += 1
+        elif certainty[b] > certainty[a]:
+            more += 1
+        else:
+            flip += 1          # equal certainty, opposite substance: NC <-> Y
+    out["r2_disagree"] = less + more + flip
+    out["r2_toward_less_certain"] = less
+    out["r2_toward_more_certain"] = more
+    out["r2_flip_same_certainty"] = flip
+    out["r2_u_pass1"] = sum(1 for r in rows if r["pass1_verdict"] == "U")
+    out["r2_u_rater2"] = sum(1 for r in rows if r["rater2_verdict"] == "U")
+
+
 def _d_tier_shares(out):
     """Share of matches contributed by each tier, min-max across the six all-tier panels.
 
@@ -1318,6 +1405,7 @@ def derive_prose():
     d["wa_vote_records_m"] = wa.execute(
         "SELECT COUNT(*) / 1e6 FROM vrdb.voting_history").fetchone()[0]
     _d_tier_shares(d)
+    _d_rater2(d)
     # Generation multipliers = donor share / roll share. The roll is the ld-scope of
     # voter_scores (one row per voter — the cd scope is still incomplete) RESTRICTED TO ACTIVE
     # REGISTRANTS. The active restriction was added in review round 15: every other baseline in
@@ -3498,6 +3586,50 @@ PROBES = [
       "idaho_dem_after_stratum_state", "id_fed_reg_DEM"), 0.05),
     ("F7 Idaho sample, total drawn", "appf_budget",
      r"\*\*(\d+) records, \d+ per panel\*\*", ("idaho_n_total",), 0),
+    # The zero-error result, 2026-08-06. These three are RESTATEMENTS in the prose that reports
+    # the rating, pointed at the same derived keys as the table and the deletion exercise above
+    # — which is the whole reason to probe them: a paragraph that restates a bound while
+    # announcing a result is exactly where the restated bound drifts from the bound.
+    ("F7 Idaho rated, worst-case figures restated", "appf_budget",
+     r"worst-case Idaho figures of \*\*([\d.]+)%\*\* federal and \*\*([\d.]+)%\*\* state",
+     ("idaho_dem_after_stratum_fed", "idaho_dem_after_stratum_state"), 0.05),
+    ("F7 Idaho rated, party-stratum ceiling restated", "appf_budget",
+     r"per-party-stratum ceiling of ([\d.]+)%", ("idaho_bound_party_panel",), 0.05),
+    # --- the independent rater's pass, 2026-08-06 ----------------------------------------
+    # Section None: this block sits in `appf_tail`, which the coverage audit exempts for its
+    # ceiling analysis and survivorship note. Rather than widen that exemption to cover ten
+    # result figures — which would have made its written reason false — the figures are derived
+    # from the committed PII-free ledger by _d_rater2 and asserted here.
+    ("Appendix F inter-rater, full-name block both passes", None,
+     r"full-name block \| \*\*(\d+)/(\d+) Y in both\*\*",
+     ("r2_full_y_rater2", "r2_full_n"), 0),
+    ("Appendix F inter-rater, full-name block in prose", None,
+     r"full-name block is (\d+)/(\d+) Y in both the first pass",
+     ("r2_full_y_rater2", "r2_full_n"), 0),
+    ("Appendix F inter-rater, four-category agreement", None,
+     r"all four verdicts \| ([\d.]+)% observed", ("r2_obs4",), 0.05),
+    # Split by PRINTED PRECISION, not for convenience: the observed share is printed to one
+    # decimal (half-width 0.05) and the two coefficients to three (half-width 0.0005). One
+    # tolerance covering both would have to be the looser of the two, which is how a tolerance
+    # stops discriminating between a rounding difference and a defect.
+    ("Appendix F inter-rater, binary observed agreement", None,
+     r"same/different \| \*\*([\d.]+)% observed", ("r2_obs_binary",), 0.05),
+    ("Appendix F inter-rater, binary coefficients", None,
+     r"observed, κ ([\d.]+)\*\*, PABAK ([\d.]+)",
+     ("r2_kappa_binary", "r2_pabak_binary"), 0.0005),
+    ("Appendix F inter-rater, four-category kappa restated", None,
+     r"four-category κ of ([\d.]+) and", ("_r2_kappa4",), 0.0005),
+    ("Appendix F inter-rater, binary kappa restated", None,
+     r"the binary κ of ([\d.]+) are not in tension", ("r2_kappa_binary",), 0.0005),
+    ("Appendix F inter-rater, U counts each pass", None,
+     r"used `U` on \*\*(\d+)\*\* records against the first pass's \*\*(\d+)\*\*",
+     ("r2_u_rater2", "r2_u_pass1"), 0),
+    ("Appendix F inter-rater, disagreement direction", None,
+     r"of the \*\*(\d+)\*\* disagreements\s*\*\*(\d+) move toward less certainty\*\*",
+     ("r2_disagree", "r2_toward_less_certain"), 0),
+    ("Appendix F inter-rater, the 34-of-36 restatement", None,
+     r"one-sided across (\d+) of (\d+) cases",
+     ("r2_toward_less_certain", "r2_disagree"), 0),
     # The limitations bullet restating the parser measurement. Section `None`: the bullet sits
     # in a gap between the two audited limitations slices, so recording a span would put it in
     # the wrong section's coordinates. The figures are still asserted, which is the point —
@@ -4264,10 +4396,17 @@ COVERAGE_EXEMPT_SECTIONS = {
         "rating RESULTS it produced are derived and probed in appf_precision / appf_weighted / "
         "appf_modes.",
     "appf_tail":
-        "The error-mode tail: the donor-side ceiling analysis and the current-roll survivorship "
-        "note. The ceiling figures come from diag_donor_class_revisions.py's reachability pass; "
-        "the survivorship note is explicitly a statement about what CANNOT be assigned a "
-        "direction, and carries no estimate to check.",
+        "The error-mode tail: the donor-side ceiling analysis, the current-roll survivorship "
+        "note, and (since 2026-08-06) the independent rater's inter-rater block. The ceiling "
+        "figures come from diag_donor_class_revisions.py's reachability pass; the survivorship "
+        "note is explicitly a statement about what CANNOT be assigned a direction, and carries "
+        "no estimate to check. THE INTER-RATER FIGURES ARE NOT COVERED BY THIS EXEMPTION — they "
+        "are derived by _d_rater2 from the committed PII-free ledger "
+        "reference/match_validation_rater2_verdicts.csv and asserted by ten section-less probes, "
+        "because widening a written reason to swallow ten new result figures is how a reason "
+        "that was true when written becomes false. The two donor-weighted precisions it also "
+        "states (91.0% independent, 95.7% re-rate, against the published 93.0%) are owned by "
+        "score_match_validation_human.py, which applies the frozen tier shares.",
     "appc_tail2":
         "Appendix C's match-key section. Its tier shares are probed by the section-less tier-share "
         "probe (which asserts every copy in the paper); the remaining figures are the parser "
@@ -4631,6 +4770,19 @@ def _normalise(path):
     Anchors then span line wraps and table rows, so re-flowing a paragraph does not silently
     disarm a probe.
     """
+    if not path.exists():
+        # An OPERATIONAL document that deliberately does not travel to the public repository —
+        # the submission memo, the cover letter, the metadata. Until 2026-08-06 this raised
+        # FileNotFoundError, so the flagship verifier CRASHED in the public checkout: the repo
+        # shipped `verify_donor_class.py` and a paper telling readers to run it, and it could
+        # not run. That was pre-existing and had never been caught, because A14's "run the
+        # verifiers there" step had only ever been exercised on the other seven.
+        #
+        # Absent is now empty, and the six probes that target these documents are SKIPPED with
+        # a printed notice rather than failing. Skipping is right only because the documents are
+        # withheld by design (sync_public_repo.NEVER); a MISSING PAPER still fails loudly,
+        # because `PAPER` and `SUPPLEMENT` are not in _OPERATIONAL below.
+        return ""
     return re.sub(r"\s+", " ", re.sub(r"(?m)^\s*>\s?", "", path.read_text(encoding="utf-8")))
 
 def prose_probes():
@@ -4674,7 +4826,18 @@ def prose_probes():
     # the coverage audit, which is the control that turns "the figures I probed agree"
     # into "no number in a result section is unaccounted for".
     covered: dict[str, list[tuple[int, int]]] = {}
+    absent = {pre: name for pre, name in _OPERATIONAL.items()
+              if not (ROOT / "docs" / name).exists()}
+    if absent:
+        print("  operational documents absent (they do not travel to the public repo); the "
+              "probes that check them are SKIPPED, not failed: "
+              + ", ".join(sorted(absent.values())))
+    skipped = 0
     for label, section, rx, keys, tol in PROBES:
+        pre = next((p for p in absent if label.startswith(p)), None)
+        if pre is not None:
+            skipped += 1
+            continue
         keys = (keys,) if isinstance(keys, str) else keys
         hay = norm if section is None else sections.get(section)
         if hay is None:

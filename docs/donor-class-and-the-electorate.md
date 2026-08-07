@@ -11,7 +11,8 @@ figures and the verification script that re-derives them; checking citations and
 references; and proposing robustness analyses, several of which were adopted. This is AI use
 affecting methods, analysis and code, not only language. AI was not an author and did not adjudicate any
 match-validation record. **Every verdict in the match-precision validation is the author's**,
-across both the original pass and a blind re-rate; the match itself is deterministic local code.
+across the original pass, a blind re-rate and an independent rater's pass; the match itself is
+deterministic local code.
 Verdicts are published at row level and both passes and their divergences are reported
 (Appendix F). **No individual-level voter, contribution or linkage record was submitted to any
 hosted AI service** — assistance operated on code, schemas, aggregate outputs and prose. That is
@@ -212,7 +213,7 @@ finding that link error in common algorithms is both large and systematic.
 the composition of itemized federal and state donor populations against registered-electorate
 baselines in three states, with observed party of record in two. Four things carry it: the
 linkage is validated as an instrument rather than asserted, with precision resolved by match key
-against a blinded sample and a blinded author re-rate; the two-panel construction prevents a
+against a blinded sample, a blinded author re-rate and an independent rater; the two-panel construction prevents a
 pooling error that would otherwise arise in this design; the instrument's **operational match
 rate is measured and its detectable error estimated and bounded**, rather than acknowledged and
 left there — true linkage error is not fully measured, and where the bound is wide the paper says
@@ -333,10 +334,12 @@ using the fields available to this linkage, at any sample size, because there is
 to separate them. Precision is also reported
 population-weighted per panel, since the sample deliberately oversamples the weak tiers by
 30–300× and its raw mean is not a panel estimate. **Every verdict is the author's**; no part of
-the adjudication was AI-assisted. Both passes are published at row level so they can be
-re-scored, and the second was a **blinded author re-rate** of a subset — which makes the
-agreement statistics **test–retest, not inter-rater**, reliability. An independent rater is an
-open item, and the Idaho panels are where it matters most (below).
+the adjudication was AI-assisted. All three passes are published at row level so they can be
+re-scored. The second was a **blinded author re-rate** of a subset, which makes its agreement
+statistics **test–retest**; the third was an **independent rater** over the same subset
+(2026-08-06), which supplies **inter-rater** reliability, and the two are reported separately
+rather than pooled. The Idaho panels, where an independent reading mattered most, were rated in
+the same round and returned **zero errors in 204 records** (below).
 
 **Spending the error budget against each finding — on a common-rate assumption that is stated,
 not assumed.** A bound that is stated but never applied is not much of a bound, so it is applied.
@@ -833,7 +836,7 @@ metro.
 
 ---
 
-## Finding 3 — Registered Democrats are over-represented relative to registration (New York *and* Idaho; the Idaho result pending independent validation)
+## Finding 3 — Registered Democrats are over-represented relative to registration (New York *and* Idaho; the Idaho result independently validated, zero errors in 204 records)
 
 This is the cut Washington cannot supply. Using each donor's **own** NY party
 enrollment (100% present), the donor class over-represents registered Democrats
@@ -2715,12 +2718,15 @@ deciding whether they are one person. The AI assistance disclosed for this proje
 analysis code, citation checking and proposed robustness tests — it does not extend to any
 judgement recorded here.
 
-That makes this a **single-rater** validation, and the consequence has to be stated rather than
+Two of the three passes are the author's, and the consequence has to be stated rather than
 softened: **a second rating by the same person is test–retest reliability, not inter-rater
 reliability.** It bounds how consistently one reader applies the criteria. It cannot detect a
 criterion that reader applies wrongly but applies the same way twice, and no agreement statistic
-computed between two passes by one person can. A second, genuinely independent rater is the
-remedy, is not yet in hand, and is named here as an open item rather than implied away.
+computed between two passes by one person can.
+
+**A third pass by an independent rater closed that gap on 2026-08-06**, and it is reported below
+as inter-rater reliability rather than folded into the test–retest figures. It was previously
+named here as an open item; it no longer is.
 
 *Protocol for the re-rate.* 150 of the 480 records, drawn to put **75 on the full-name key** —
 the block the primary specification rests on — and 25 on each initial-based key, with all 8
@@ -2765,13 +2771,46 @@ block stands at 120 rated with 75 reproduced. And the second pass ticked `partia
 record against the first pass's 8 — most likely under-use of an unfamiliar column rather than
 substantive disagreement, but it means the partial-merge count rests on one pass.
 
-*What would settle it.* An independent rater, drawn from outside the project, working the same
-blinded protocol on a fresh sample that excludes the already-rated records. Two such samples are
-drawn and outstanding, and neither is reflected in any figure above: a re-rate of the same 150
-records, which yields inter-rater reliability directly comparable to the test–retest above, and
-the 204-record Idaho draw described in §F7, which yields a panel-specific error bound for the one
-finding that needs one. Both use unpublished id spaces, because `S####` and `H####` appear in
-committed files beside their verdicts.
+*What settled it — an independent rater, 2026-08-06.* The same 150 records were rated a third
+time by someone other than the author, from outside the project, under the same blinded protocol
+and in an unpublished id space, because `S####` and `H####` appear in committed files beside
+their verdicts. This is **inter-rater** reliability, and it is reported separately from the
+test–retest figures above rather than pooled with them. Scored by
+`scripts/score_match_validation_human.py --rater rater2`; row-level ledger at
+`reference/match_validation_rater2_verdicts.csv`.
+
+**The full-name block is 75/75 Y in both the first pass and the independent pass.** The primary
+specification's tier is confirmed unanimously by a rater with no stake in it, which is a stronger
+statement than either the original pass or the author's re-rate could make alone.
+
+| | first pass vs independent rater |
+|---|---|
+| full-name block | **75/75 Y in both**; Wilson [95.1–100.0] on the independent pass alone |
+| agreement, all four verdicts | 76.0% observed, κ 0.516 |
+| agreement, collapsed to same/different | **97.6% observed, κ 0.935**, PABAK 0.952 |
+| donor-weighted precision, frozen shares | **91.0%** against the published 93.0% |
+
+**Read the two agreement figures together, and in that order.** The four-category κ of 0.516 and
+the binary κ of 0.935 are not in tension: they measure different things. The independent rater
+used `U` on **23** records against the first pass's **2**, and of the **36** disagreements
+**34 move toward less certainty** — 17 Y→U, 10 NC→NP, 5 NC→U, 2 Y→NP. Exactly one moves the other
+way (U→NP) and exactly one is a substantive flip at unchanged certainty (NC→Y, on an
+initial-based key). The axis there is *certainty*, not sameness: `Y` and `NC` are both confident
+calls, so a move between them is a flip rather than a loss of confidence, while `NP` is a hedge
+and `U` is no call. A shift that one-sided across 34 of 36 cases is a threshold convention, not a
+disagreement about who is who. **The two raters agree about identity and differ about how to
+label uncertainty**, and it is the binary coefficient that measures the first.
+
+**The published figure is now bracketed from both sides, which is the most useful thing this pass
+produced.** The author's re-rate diverged *more permissively* than the published pass (95.7%
+donor-weighted); the independent rater diverges *more cautiously* (91.0%). The published **93.0%**
+sits between them. Two repeat readings that disagree with the original in opposite directions is
+much better evidence that the published figure is not systematically optimistic than either
+reading alone, and it is evidence the paper could not offer before this pass existed. The range
+the weak-tier rates should be read across accordingly widens rather than narrows — which is the
+honest direction for it to move.
+
+The 204-record Idaho draw described in §F7 was rated in the same round and is scored there.
 
 **How much of the donor side is reachable at all?** Ceiling analysis on the donor files
 (`diag_donor_match_ceiling.py`) — the share of donors whose key could in principle resolve
@@ -2902,6 +2941,26 @@ sounds, and one that would reach the abstract. The sample is drawn by
 `diag_match_validation_stratified.py`, restricted to Idaho and to the primary key, stratified on
 registered party, and excluding every previously rated record by voter id; the rater's brief and
 the full scoring plan are in `idaho-validation-rater-instructions.md`.
+
+**Rated and scored, 2026-08-06: zero errors.** The draw was rated by someone other than the
+author under the blinded protocol above and scored by `scripts/score_idaho_validation.py`, which
+was written and committed before any verdict existed. **All 204 records were rated Y.** There is
+no error in any stratum, on the published convention or on either pre-committed sensitivity —
+including the harshest, in which every `U` is counted against the match. Three records on the
+Idaho state panel carry a `partial_merge` tick and are reported here separately, as the plan
+requires: the matched voter genuinely is a donor and the attributed dollar total sweeps in
+another person's gift, which is a dollar-attribution problem and not a misidentification.
+
+**What that changes, and what it does not.** The stratum ceilings in the table above are
+unchanged — they are properties of the design, not of the verdicts, and a zero-error result is
+what makes them the operative bound rather than a floor to be raised. So the deletion exercise
+below now rests on a **measured** clean Democratic stratum rather than an assumed one: the
+worst-case Idaho figures of **18.4%** federal and **19.4%** state are the same numbers, but they
+are now the consequence of a rating that found nothing rather than of a bound applied in the
+absence of one. The claim that survives is deliberately the weaker of the two available: **no
+false match was detected on the primary key in 204 Idaho records**, with a per-party-stratum
+ceiling of 10.2%, rather than a claim that the error rate is zero. A sample of 34 per cell cannot
+establish that, and the ceiling is reported precisely because it cannot.
 
 ### F8 — How far the linkage reaches, and what it does not
 

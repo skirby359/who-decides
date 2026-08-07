@@ -15,3 +15,8 @@ __pycache__/
 .env
 .DS_Store
 docs/who-decides-washington.jargonheavy.pdf
+
+# Derivation cache written by verify_donor_class.py. Keyed on the verifier source hash plus
+# the size and mtime of every database, so it is machine-local by construction and must never
+# be committed. Created here the first time A14 ran the verifiers in this checkout (2026-08-06).
+.verify_cache/
