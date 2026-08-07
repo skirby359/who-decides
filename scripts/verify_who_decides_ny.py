@@ -178,6 +178,25 @@ def derive() -> dict:
         d[f"bloc_{p}_median"], d[f"bloc_{p}_65"] = float(med), float(p65)
         d[f"bloc_{p}_1829"], d[f"bloc_{p}_turn"] = float(p1829), float(turn)
 
+    # Section I — 2025 general under-30 turnout by party. RESTATED 2026-08-06 on §II's
+    # convention (the pinned ACTIVE roll, age = election year minus birth_year, participation
+    # kind GENERAL), because the printed 30.8 / 15.9 reproduced on none of fourteen bases —
+    # see the note at the foot of this file for the full enumeration and why it was a real
+    # defect rather than a basis difference. This is the only roll-denominated RATE in an
+    # otherwise electorate-denominated section, which is how it survived the 2026-08-01
+    # recompute. The live `voters` table agrees with the pin here to 2dp; the pin is used
+    # because every other roll-denominated figure in this paper does.
+    for p, r in con.execute(f"""
+        WITH e AS (
+            SELECT v.party p,
+                   CASE WHEN v.state_voter_id IN (
+                        SELECT DISTINCT state_voter_id FROM voter_participation
+                        WHERE election_year=2025 AND kind='GENERAL') THEN 1 ELSE 0 END v25
+            FROM {PIN} v
+            WHERE v.is_active AND v.birth_year IS NOT NULL AND 2025 - v.birth_year < 30)
+        SELECT p, 100.0*SUM(v25)/COUNT(*) FROM e GROUP BY 1""").fetchall():
+        d[f"u30_g25_{p}"] = float(r)
+
     # Section III — closed-primary participation, as a share of each party's registrants.
     # New York's presidential primary is a distinct `kind`, so the paper's four rows are four
     # different contests rather than three; grouping by year alone would silently merge the
@@ -366,6 +385,12 @@ PROBES = [
     ("§I 65+ by party, 2023 odd-year",
      r"\| Nov 2023 \(odd\) \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \|",
      ("g23_DEM_65", "g23_REP_65", "g23_NOPARTY_65", "g23_OTHER_65"), 0.05),
+    # Replaces the exemption that held the retired 30.8 / 15.9 pair (see the note at the
+    # foot of this file). The sentence now names its own basis, so the probe can be exact.
+    ("§I 2025 general under-30 turnout by party",
+     r"Democratic\s+under-30 turnout \(([\d.]+)%\) was nearly \*\*double\*\* "
+     r"Republican \(([\d.]+)%\)",
+     ("u30_g25_DEM", "u30_g25_REP"), 0.05),
 
     # ---- Section III (see the module docstring: this block is the open discrepancy)
     ("§II blank bloc, DEM",
@@ -533,9 +558,16 @@ COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
            "occurrences the probes do not cover",
 }
 
-# --- 🔴 OPEN AUTHOR QUESTION, recorded rather than silently re-pointed -------------------
-# §II: "in the 2025 general, Democratic under-30 turnout (30.8%) was nearly **double**
-# Republican (15.9%)."
+# --- ✅ RESOLVED 2026-08-06 — author answered "paper not yet published, so fix" ----------
+# The pair now reads 31.5 / 16.1 and IS PROBED (see "§I 2025 general under-30 turnout by
+# party" above), computed on §II's own convention: pinned ACTIVE roll, age = election year
+# minus birth_year, participation kind GENERAL — the first row of the enumeration below.
+# The sentence also now names that basis in the paper, which is what made a probe possible.
+# The two exemptions this block used to install are deleted; the enumeration is KEPT,
+# because the reason the old pair could not be reproduced is the useful part of the record.
+#
+# What it used to say — "in the 2025 general, Democratic under-30 turnout (30.8%) was
+# nearly **double** Republican (15.9%)":
 #
 # This is a ROLL-denominated turnout rate sitting inside an otherwise ELECTORATE-denominated
 # section — the one figure in §II that the 2026-08-01 recompute would have had to touch, and
@@ -561,16 +593,12 @@ COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
 # not a status filter; and the two deviations run in OPPOSITE directions against the closest
 # candidate, which is not what a single basis difference looks like either.
 #
-# THE FINDING IS NOT AT RISK — the ratio is 1.92-2.11 on every basis, so "nearly double"
-# holds throughout. Only the two printed decimals are unresolved. New York is unpublished,
-# so this is fixable before submission, which is why it is surfaced now rather than left.
-# Author's call: name the basis, or restate on whichever one §III uses.
-COVERAGE_EXEMPT_LITERAL["30.8"] = (
-    "OPEN AUTHOR QUESTION — 2025 under-30 Democratic turnout; no basis of fourteen tested "
-    "reproduces it. Full enumeration in the comment above. The 'nearly double' claim holds "
-    "on every basis")
-COVERAGE_EXEMPT_LITERAL["15.9"] = (
-    "OPEN AUTHOR QUESTION — the Republican half of the same pair; as above")
+# THE FINDING WAS NEVER AT RISK — the ratio is 1.92-2.11 on every basis, so "nearly double"
+# holds throughout, and it is 1.96 on the basis now printed. Only the two decimals moved.
+#
+# NB "15.9" also occurs as a §IV table cell (Nov 2023 REP), which is asserted by its own
+# probe — deleting the literal exemption does not orphan it. Verified by re-running the
+# coverage gate after the change, not assumed.
 
 COVERAGE_EXEMPT_SECTIONS: dict[str, str] = {}
 
@@ -586,14 +614,17 @@ def main() -> int:
     audit_sections, offsets, spans = {}, {}, {}
     for name, (start, end) in AUDIT_BOUNDS.items():
         audit_sections[name], offsets[name] = vp.slice_with_offset(norm, start, end)
+    stats: dict = {}
     rc = vp.run("WHO DECIDES NEW YORK — prose scraped and asserted against the voter file",
-                norm, PROBES, derive(), UNCHECKED, vp.wants_coverage(), spans_out=spans)
+                norm, PROBES, derive(), UNCHECKED, vp.wants_coverage(), spans_out=spans,
+                stats_out=stats)
     fails = vp.audit_coverage(audit_sections, spans, offsets, tuple(AUDIT_BOUNDS),
                               COVERAGE_EXEMPT, COVERAGE_EXEMPT_LITERAL,
                               COVERAGE_EXEMPT_SECTIONS)
+    fails += vp.audit_satellite_counts(PAPER.name, stats.get("figures"))
     if fails:
         print("\n" + "=" * 78)
-        print(f"WHO DECIDES NEW YORK: {len(fails)} coverage FAILURE(S)")
+        print(f"WHO DECIDES NEW YORK: {len(fails)} coverage/satellite FAILURE(S)")
         print("=" * 78)
         for f in fails:
             print(f"  - {f}")

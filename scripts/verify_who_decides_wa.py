@@ -306,6 +306,9 @@ def derive() -> dict:
     for band in ("75+", "18-24"):
         vals = [d[f"{t}_fine_{band}"] for t in OFF_YEARS]
         d[f"off_fine_{band}_min"], d[f"off_fine_{band}_max"] = min(vals), max(vals)
+    # Same, for the recorded-female footnote's off-year range (ledger item C2).
+    _off_f = [d[f"{t}_female"] for t in OFF_YEARS]
+    d["off_female_min"], d["off_female_max"] = min(_off_f), max(_off_f)
 
     d.update({"acs_adult_18-29": 20.0, "acs_adult_30-44": 28.3,
               "acs_adult_45-64": 30.5, "acs_adult_65+": 21.1,
@@ -541,22 +544,20 @@ def build_probes():
         # Finer cohorts: the sentence quotes a RANGE across the three off-years,
         # so each endpoint is asserted against the off-year min and max rather
         # than an average — a range that quietly widened would otherwise pass.
-        # ⚠ AUTHOR QUESTION, not a probe failure. This sentence's 75+ range is
-        # asserted against 2023 and 2025 ONLY, because that is what it quotes —
-        # 16.8 and 18.3. The paper's own finer table gives a THIRD off-year,
-        # 2021 = 13.4%, and the derivation reproduces all three exactly
-        # (13.42 / 16.84 / 18.26). So the stated off-year range excludes a third
-        # of the off-year observations and the true span is 13.4–18.3.
-        # The tell is the other half of the same sentence: its 18–24 range
-        # ("~3.7–4.0%") DOES span all three off-years. One clause covers three
-        # elections and the other covers two.
-        # Left as-is and raised rather than silently re-pointed at min/max: the
-        # paper is a public preprint, so whether this is an error or a
-        # deliberate "recent off-years" reading is the author's call.
-        ("prose — 75+ share, presidential and the 2023/2025 off-year pair",
+        # CORRECTED 2026-08-06 (ledger item C1, author answered "fix — include
+        # 2021"). The sentence used to quote 16.8–18.3, which is 2023 and 2025
+        # only; the paper's own finer table gives a THIRD off-year, 2021 = 13.4%,
+        # and the derivation reproduces all three exactly (13.42 / 16.84 /
+        # 18.26). The range is now asserted against the off-year MIN and MAX, and
+        # the two named endpoints in the same clause against 2023 and 2025, so a
+        # range that quietly dropped a member would fail rather than pass.
+        ("prose — 75+ share, presidential and the full off-year range",
          r"the 75\+ share rises from \*\*([\d.]+)%\*\* in the presidential year to "
          r"\*\*([\d.]+)–([\d.]+)%\*\*",
-         ("e24_fine_75+", "e23_fine_75+", "e25_fine_75+"), 0.05),
+         ("e24_fine_75+", "off_fine_75+_min", "off_fine_75+_max"), 0.05),
+        ("prose — 75+ share, the two named off-year endpoints",
+         r"2021 is the low, with 2023 and 2025 at ([\d.]+)% and ([\d.]+)%",
+         ("e23_fine_75+", "e25_fine_75+"), 0.05),
         ("prose — 18-24 share, presidential and off-year range",
          r"the 18–24 share falls from \*\*([\d.]+)%\*\* to \*\*~([\d.]+)–([\d.]+)%\*\*",
          ("e24_fine_18-24", "off_fine_18-24_min", "off_fine_18-24_max"), 0.05),
@@ -567,15 +568,19 @@ def build_probes():
         ("prose — off-year electorate is ~2.5x as age-unrepresentative",
          r"roughly \*\*([\d.]+)× as age-unrepresentative", "off_dissim_ratio", 0.15),
         ("prose — recorded-female share, presidential",
-         r"rising from ([\d.]+)% in the 2024 presidential electorate", "e24_female", 0.05),
-        # ⚠ SECOND AUTHOR QUESTION, same shape as the 75+ one below. See the
-        # note there. "53.0–53.1% in the off-year electorates" covers 2023
-        # (52.97) and 2025 (53.12) but NOT 2021, which reads 52.46 — statistically
-        # indistinguishable from the 52.5 presidential figure the sentence says
-        # it rises FROM. So in one of the three off-years there is no rise.
-        # Asserted against the two the sentence actually quotes.
-        ("prose — recorded-female share, 2023/2025 off-year pair",
-         r"electorate to ([\d.]+)–([\d.]+)% in the off-year electorates",
+         r"at ([\d.]+)% in the 2024 presidential electorate", "e24_female", 0.05),
+        # CORRECTED 2026-08-06 (ledger item C2, author answered "fix the data and
+        # correct the sentence"). It used to read "rising from 52.5% … to
+        # 53.0–53.1%", which covers 2023 (52.97) and 2025 (53.12) but not 2021,
+        # which reads 52.46 — statistically indistinguishable from the
+        # presidential 52.49 the sentence said it rose FROM. So the verb was
+        # wrong for one of the three off-years, not just the range. Now asserted
+        # against the off-year min and max, with the two that do rise named.
+        ("prose — recorded-female share, full off-year range",
+         r"and ([\d.]+)–([\d.]+)% across the off-year electorates",
+         ("off_female_min", "off_female_max"), 0.05),
+        ("prose — recorded-female share, the two off-years that do rise",
+         r"while 2023 and 2025 sit at ([\d.]+)% and ([\d.]+)%",
          ("e23_female", "e25_female"), 0.05),
         ("prose — birth-year Dec-31 check, maximum off-year shift",
          r"moves the off-year 65\+ share by \*\*≤([\d.]+) points\*\*",
@@ -686,9 +691,11 @@ def main() -> int:
         audit_sections[name], offsets[name] = vp.slice_with_offset(norm, start, end)
 
     spans: dict = {}
+    stats: dict = {}
     rc = vp.run("WHO DECIDES WASHINGTON — prose scraped and asserted against the voter file",
                 norm, build_probes(), derive(), UNCHECKED,
                 vp.wants_coverage(), sections=sections, spans_out=spans,
+                stats_out=stats,
                 round_exempt={
                     # The sentence says "ROUGHLY 2.5x", an explicit approximation,
                     # and the basis is ambiguous from the prose: mean-of-off-years
@@ -706,6 +713,7 @@ def main() -> int:
     audit_fails = vp.audit_coverage(
         audit_sections, spans, offsets, AUDITED_SECTIONS,
         COVERAGE_EXEMPT, COVERAGE_EXEMPT_LITERAL, COVERAGE_EXEMPT_SECTIONS)
+    audit_fails += vp.audit_satellite_counts(PAPER.name, stats.get("figures"))
     if audit_fails:
         print("\n" + "=" * 92)
         print(f"COVERAGE AUDIT: {len(audit_fails)} FAILURE(S)")

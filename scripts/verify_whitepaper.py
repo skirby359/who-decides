@@ -318,6 +318,13 @@ def _money_paper(d):
                   r"\*\*\+([\d.]+)\*\* \|", t)
     if m:
         d["money_wa03_resid"] = float(m.group(1))
+    # The allocation-alone cross-cycle holdout cell. Added 2026-08-06 when the white paper
+    # stopped saying "~0.00" — the owning paper's cell is 0.022, which rounds to 0.02, so
+    # the tilde was rounding a number DOWN to a different claim. Scraped rather than
+    # constant so that a re-pin of the money paper's holdout block moves both documents.
+    m = re.search(r"\| allocation shares alone \| ([\d.]+) \*\(r = ", t)
+    if m:
+        d["money_holdout_alloc"] = float(m.group(1))
 
 
 def derive():
@@ -370,6 +377,33 @@ def derive():
         c.close()
     if losses:
         d["discard_lo"], d["discard_hi"] = min(losses), max(losses)
+
+    # Finding 5's "share of voters", RESTATED 2026-08-06 on the author's basis call: matched
+    # donors on the POOLED panel over ALL registrants in that state's voter file. The retired
+    # "~3.5-6%" matched no panel x denominator combination — enumerated in full before the
+    # figure was touched, WA shown because it is the widest end of the range:
+    #
+    #                       pooled  federal  state  pooled_alltier
+    #   voter_scores ld      5.75%    2.70%   3.97%      6.99%
+    #   donor_paper_wa_roll  5.77%    2.71%   3.98%      7.00%   (the pin)
+    #   vrdb.voters all      5.71%    2.68%   3.94%      6.93%   <- the basis now printed
+    #   vrdb.voters active   6.18%    2.90%   4.26%      7.50%
+    #   super-voters only   10.85%    5.09%   7.48%     13.17%
+    #
+    # Pin-vs-live cannot move what is printed (5.77 and 5.71 both round to 5.7); ACTIVE-vs-all
+    # can, and would give 4.0-6.2. Idaho's extract carries no active flag, so its two bases
+    # coincide by construction. Derived per state rather than transcribed, so the range and
+    # its three members can never disagree with each other the way the old one did.
+    for st in ("wa", "ny", "id"):
+        c = duckdb.connect(str(DATA / f"{st}_statewide.duckdb"), read_only=True)
+        c.execute(f"ATTACH '{DATA / (st + '_vrdb.duckdb')}' AS vr (READ_ONLY)")
+        n, = c.execute("SELECT COUNT(DISTINCT state_voter_id) "
+                       "FROM voter_donor_affiliation").fetchone()
+        roll, = c.execute("SELECT COUNT(*) FROM vr.voters").fetchone()
+        d[f"{st}_donor_share"] = 100.0 * n / roll
+        c.close()
+    _sh = [d[f"{st}_donor_share"] for st in ("wa", "ny", "id")]
+    d["donor_share_lo"], d["donor_share_hi"] = min(_sh), max(_sh)
 
     # Occupation blocs (Finding 5) — an OUTFLOW cut over individual_contributions on the
     # paper's own federal filter, not the matched layer above. Different population; that
@@ -482,6 +516,15 @@ PROBES = [
     ("ID Democratic own-party crossover", r"([\d.]+)%\*\* ID → own party", "id_state_dem_donly", 0.05),
     ("recall cost of the primary specification",
      r"discards ([\d]+)–([\d]+)% of matched donors", ("discard_lo", "discard_hi"), 0.5),
+    # Replaces the "3.5" literal exemption. The range and its three members are probed
+    # SEPARATELY against the same derivation, so a range that stopped spanning its own
+    # members fails — which is the defect shape all six of the 2026-08-06 author questions
+    # had, and the one thing a single probe on a span cannot catch.
+    ("donor share of registrants, the cross-state range",
+     r"\*\*~([\d.]+)–([\d.]+)% of voters\*\*", ("donor_share_lo", "donor_share_hi"), 0.05),
+    ("donor share of registrants, the three states named",
+     r"ID \*\*([\d.]+)%\*\*, NY \*\*([\d.]+)%\*\*, WA \*\*([\d.]+)%\*\*",
+     ("id_donor_share", "ny_donor_share", "wa_donor_share"), 0.05),
     ("occupation blocs, RETIRED and NOT EMPLOYED",
      r"RETIRED \(\$([\d.]+)M, ([\d.]+)%\) and NOT EMPLOYED \(\$([\d.]+)M, ([\d.]+)%\)",
      ("occ_retired_m", "occ_retired_pct", "occ_notemp_m", "occ_notemp_pct"), 0.05),
@@ -518,6 +561,11 @@ PROBES = [
      r"\+([\d.]+) is exactly what a true causal effect", "money_r_fundraising", 0.005),
     ("Finding 6 — WA-03 residual (vs does-money-move-votes.md)",
      r"finished \+([\d.]+) pp off its fundamentals", "money_wa03_resid", 0.005),
+    # Replaces the "0.00" literal exemption (author answered 2026-08-06: drop the tilde and
+    # cite the two-decimal round). Tolerance is the paper's printed precision, not a slack
+    # wide enough to let 0.00 back through.
+    ("Finding 6 — allocation holdout R2 (vs does-money-move-votes.md)",
+     r"cross-cycle holdout R² of \*\*([\d.]+)\*\*", "money_holdout_alloc", 0.005),
 ]
 
 
@@ -564,35 +612,24 @@ COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
             "other interval. Owned by cross-state-fec-money.md §F4; the point estimate "
             "42.4% is derived here from voter_donor_affiliation_fec_alltier",
     "44.9": "upper bound of the same withdrawn interval; as above",
-    # --- Finding 6's holdout R2, owned by the money paper.
-    "0.00": "the allocation holdout R2, stated as '~0.00'. does-money-move-votes.md owns "
-            "the cells (0.013 / 0.026 / 0.022) and verify_money_votes.py exempts them by "
-            "the same reasoning, naming the holdout diagnostic. NOTE FOR THE AUTHOR: the "
-            "allocation-alone cell is 0.022, which rounds to 0.02 rather than 0.00 — '~' "
-            "is doing real work here and 'R2 <= 0.03' would say it without rounding down",
+    # --- Finding 6's holdout R2 was HERE until 2026-08-06. The exemption noted that the
+    # allocation-alone cell is 0.022, which rounds to 0.02 and not to the printed '~0.00';
+    # the author answered "drop the tilde, cite the two-decimal round". The paper now says
+    # 0.02, the money paper's cell is scraped by _money_paper, and the figure is PROBED
+    # ("Finding 6 — allocation holdout R2"). Appendix B's restatement was changed with it
+    # and is covered by _restated_outside_the_slice.
 }
 
-# --- 🔴 OPEN AUTHOR QUESTION, left as an exemption rather than silently re-pointed ------
-# "donors are a narrow slice ... **~3.5-6% of voters**" (Finding 5, defensible claim).
-# NO basis tested reproduces that range. Enumerated 2026-08-06, panel x denominator:
+# --- ✅ RESOLVED 2026-08-06 — author chose the cross-state pooled, full-roll basis -------
+# Finding 5's "defensible claim" used to read "~3.5-6% of voters" and NO basis reproduced
+# it; the full panel x denominator enumeration now sits beside the derivation in derive(),
+# where it documents the basis actually chosen rather than an open question. The claim reads
+# "~4.0-5.7% of voters" with ID / NY / WA named, and all five numbers are probed.
 #
-#                       pooled  federal  state  pooled_alltier
-#   voter_scores ld      5.75%    2.70%   3.97%      6.99%
-#   donor_paper_wa_roll  5.77%    2.71%   3.98%      7.00%   (the PIN)
-#   vrdb.voters all      5.71%    2.68%   3.94%      6.93%
-#   vrdb.voters active   6.18%    2.90%   4.26%      7.50%
-#   super-voters only   10.85%    5.09%   7.48%     13.17%
-#
-# Cross-state pooled, which is the reading the range's width suggests: WA 5.71% /
-# NY 4.12% / ID 3.99% -> "~4.0-5.7%", the closest candidate but still not 3.5-6.
-# The prospectus predates BOTH the panel split and the Idaho load (2026-07-19), so the
-# original basis is not recoverable from the tables as they stand. Same shape as the two
-# open range questions on the posted WA paper: a stated span that does not match its
-# members. Author's call — leaving the number, narrowing it to the cross-state pooled
-# range, or restating it per panel.
-COVERAGE_EXEMPT_LITERAL["3.5"] = (
-    "OPEN AUTHOR QUESTION — no panel x denominator basis reproduces '~3.5-6% of voters'; "
-    "closest is cross-state pooled 4.0-5.7%. Full enumeration in the comment above")
+# Why the original was unrecoverable rather than merely wrong: the prospectus predates BOTH
+# the federal/state panel split and the Idaho load (2026-07-19), so the tables it was
+# computed against no longer exist in that form. That is the honest reason it was restated
+# on a current basis instead of being "corrected" to some reconstructed original.
 
 COVERAGE_EXEMPT_SECTIONS: dict[str, str] = {}
 
@@ -628,6 +665,26 @@ def _restated_outside_the_slice(d) -> list[str]:
                          f"does-money-move-votes.md +{want}")
     print(f"\n  restated-outside-the-slice guard: {len(flat)} whole-document occurrence(s) "
           f"of the fundraising correlation, target +{want}")
+
+    # Second figure under the same guard, added 2026-08-06 with the '~0.00' correction: the
+    # allocation holdout R2 is restated in Appendix B's publication sequence, outside the
+    # findings slice — the same blind spot the +0.55 hid in. The Appendix B occurrence was
+    # "≈ 0" before this and would have stayed a rounding-down claim after the finding itself
+    # was fixed, which is exactly the half-fix this guard exists to prevent.
+    if "money_holdout_alloc" not in d:
+        return fails + ["Appendix guard: could not scrape the allocation holdout cell from "
+                        "does-money-move-votes.md — the anchor moved"]
+    hwant = d["money_holdout_alloc"]
+    hhits = [float(x) for x in re.findall(r"allocation holdout R² ([\d.]+)", whole)]
+    if not hhits:
+        fails.append("Appendix guard: no whole-document occurrence of the allocation "
+                     "holdout R² matched — the wording moved, so this guard is disarmed")
+    for got in hhits:
+        if abs(got - hwant) > 0.005:
+            fails.append(f"whole-document allocation holdout R²: paper {got} vs "
+                         f"does-money-move-votes.md {hwant}")
+    print(f"  restated-outside-the-slice guard: {len(hhits)} whole-document occurrence(s) "
+          f"of the allocation holdout R², target {hwant}")
     return fails
 
 
@@ -654,12 +711,15 @@ def main():
     for name, (start, end) in AUDIT_BOUNDS.items():
         audit_sections[name], offsets[name] = vp.slice_with_offset(norm, start, end)
     d = derive()
+    stats: dict = {}
     rc = vp.run("WHITE PAPER — Findings 4-6, prose scraped and asserted against the data",
-                norm, PROBES, d, UNCHECKED, vp.wants_coverage(), spans_out=spans)
+                norm, PROBES, d, UNCHECKED, vp.wants_coverage(), spans_out=spans,
+                stats_out=stats)
     fails = vp.audit_coverage(audit_sections, spans, offsets, tuple(AUDIT_BOUNDS),
                               COVERAGE_EXEMPT, COVERAGE_EXEMPT_LITERAL,
                               COVERAGE_EXEMPT_SECTIONS)
     fails += _restated_outside_the_slice(d)
+    fails += vp.audit_satellite_counts(PAPER.name, stats.get("figures"))
     if fails:
         print("\n" + "=" * 78)
         print(f"WHITE PAPER: {len(fails)} coverage/consistency FAILURE(S)")

@@ -2246,3 +2246,232 @@ anonymisation leaks).
 with an `ANSWER:` line each, since they were spread across three verifiers and a corrections
 ledger. It is in `NEVER`: it lists open defects in an already-public paper, and publishing that
 before the answers exist invites a reader to treat unanswered as unanswerable.
+
+## 2026-08-06 (fifth pass) — all six author figure questions ANSWERED and APPLIED
+
+The author answered "fix" on every one of the six questions in `docs/open-author-questions.md`,
+and all six are applied. Every one had the same shape — **a stated range or approximation that
+no basis reproduced** — and the fix for each is the same in structure: the paper now states a
+value that a derivation reproduces, and the **written exemption that held the question has been
+replaced by a probe**. Series figure counts: WA 242 → **246**, NY 135 → **137**, ID 210 → **211**,
+white paper 88 → **94**. All eight verifiers still exit 0.
+
+**Enumeration first, edit second — the rule that came out of editing a correct paper earlier the
+same day.** Every basis in every enumeration was recomputed before the figure was touched, not
+read back from the previous session's comment. Two of the recomputations mattered: the white
+paper's cross-state shares (WA 5.71 / NY 4.12 / ID 3.99 on the full roll) reproduced exactly,
+and Washington's pinned roll (5.77%) and live roll (5.71%) were shown to print the *same* 5.7,
+so the pin-versus-live axis could not have moved the chosen range whichever way it was answered.
+The axis that could was active-versus-all registrants (4.0–6.2 against 4.0–5.7), which is why
+the question put to the author named it explicitly.
+
+| # | paper | was | now | how it is held |
+|---|---|---|---|---|
+| 1 | WA (POSTED) | 75+ off-year `16.8–18.3%` | `13.4–18.3%`, 2021 named as the low | probe on off-year min/max **and** a second probe on the two named endpoints |
+| 2 | WA (POSTED) | recorded-female `53.0–53.1%` | `52.5–53.1%`, "rising from" replaced | probe on off-year min/max + the two that do rise |
+| 3 | NY | 2025 under-30 `30.8 / 15.9` | `31.5 / 16.1`, basis named in the sentence | probe against §II's own convention (pinned active roll, age = 2025 − birth year, kind GENERAL) |
+| 4 | white paper | `~3.5–6% of voters` | `~4.0–5.7%`, ID/NY/WA named | probe on the range **and** on its three members, from one derivation |
+| 5 | white paper | `holdout R² ~0.00` | `0.02` | probe against the money paper's scraped allocation cell (0.022) |
+| 6 | ID | 2024 cohort `263,315` | `263,322` | the count is now asserted like the other five cohort rows |
+
+**Two of these are corrections to a POSTED paper (SSRN 7149263) and the posted artifact is
+unchanged.** `who-decides-washington.md` carries the corrected sentences; the PDF and the SSRN
+version do not, and per the batching decision they wait for the next revision round together
+with the Appendix D → References and Appendix E rendering items.
+`who-decides-wa-corrections-ledger.md` records C1 and C2 as applied-to-source, not-yet-posted,
+and says plainly which two sentences now differ between source and the public version.
+
+**Where a fix reached past the audited slice.** Finding 6's holdout R² is restated in the white
+paper's Appendix B publication sequence, outside the findings slice the coverage gate can see —
+the same blind spot the retired +0.55 hid in. It read "≈ 0" and would have stayed a rounding-down
+claim after the finding itself was fixed. `_restated_outside_the_slice` now guards that figure
+too, and prints its occurrence count so a wording change that disarms the guard shows up as a
+failure rather than as silence.
+
+**The satellites were updated with the papers, the same day.** `ny-submission-metadata.md` and
+`-notes.md` and `id-submission-metadata.md` and `-notes.md` each carried the open question as a
+blocking checklist item; all four now record the correction and what it was verified against.
+A satellite that still called a resolved question open would be exactly the hours-old staleness
+`check_cross_doc_consistency.py` was pointed at satellites to catch.
+
+**What the enumerations bought, and why they are kept rather than deleted.** Each verifier keeps
+its full basis table as a comment beside the derivation. For Idaho the enumeration is the evidence
+that the *convention* was right and one cell was seven registrants wrong — the opposite of a basis
+defect, and not something recoverable from the corrected paper. For the white paper it is the
+record that the original basis is genuinely unrecoverable (the prospectus predates both the panel
+split and the Idaho load), which is why the figure was restated on a current basis rather than
+"corrected" to a reconstructed original.
+
+### The money paper's §5 and §E gated — and §E's Senate paragraph was stale
+
+`cross-state-fec-money.md` was gated over four of nineteen sections with the other fifteen
+named-with-their-owner. The two the ledger called cheapest are now closed, and the verifier
+goes **139 → 208 figures**, six sections hard-gated. Series total across the eight papers:
+**1,226**.
+
+- **§5 (the presidential rhythm) needed one `GROUP BY election_cycle`** on the filter
+  `outflow()` already uses — the ledger predicted exactly that, and all eight of its dollar
+  figures reproduced to the printed digit. A section can be unverified without being wrong.
+- **§E (the inflow layer) imported the band logic** from `cross_state_common` rather than
+  re-typing it, so the competitiveness definition cannot fork from the one
+  `diag_inflow_vs_competitiveness.py` publishes. The House band table, its two aggregate
+  claims and the Senate table all reproduced.
+
+**Two defects in one Senate paragraph, both from a state being added after the sentence was
+written.** It read "out-of-state share is high *everywhere* (41–54%) and is actually
+**highest in safe NY (53.5%)**". That was a three-state statement. Idaho was loaded
+2026-07-19 at **85.8%** out-of-state, and the paper's *own next bullet* calls Idaho "the
+highest of the four" — so the paragraph contradicted the one after it. Second, NY's share is
+**53.4978%**, which prints 53.5 at one decimal (the table cell, correct) but **53** at whole
+percent; it was printed as 54 twice. The range is now scoped to WA/TX/NY and reads 41–53%.
+
+**A superlative cannot be probed, so it is checked in code.** "The highest of the four" has
+no numeric token for a regex to capture, which is precisely how it survived a coverage gate
+whose unit is the number. `inflow_e()` now computes whether Idaho's share is the maximum and
+the verifier fails if it is not. Worth generalising: the gate's blind spot is *claims about*
+figures — ranges were the last one found, and superlatives are the same shape.
+
+**Four §E tokens stay exempt, each naming its owner:** the donor-side 2.1× ratio (§D's, still
+on the backlog), the two TX Senate results (election outcomes, not measurements), the $250M
+order-of-magnitude restatement of an asserted $253.2M, and the earmark 15E/24T totals, which
+the inflow table cannot re-derive because it carries no transaction-type column. Each was
+checked against the other gated sections before being added, because a context-free literal
+exemption applies document-wide.
+
+**Still open on this paper**, in order: §2 (needs a Census population pin, the way
+`acs_cvap_by_state.py` pins CVAP), §K (151 tokens, largest), the §A–§D and §G–§J follow-on
+tests, and §F's donor-paper restatements as cross-document probes.
+
+## 2026-08-06 (sixth pass) — the TX decision: *Who Returns the Ballot?* is a three-state paper
+
+**Decided by the author: publish as three states; Texas becomes named future work.** The
+earlier draft carried a four-way design with TX "deferred (not yet loaded)", which is a
+placeholder wearing the clothes of a plan. Three things drove the decision, and they are
+recorded here because a scope choice that is not written down gets re-litigated:
+
+1. The paper's claim is about **the gradient within each state's own salience ladder**,
+   harmonized on the two directly comparable classes. Three states already vary both
+   institutional axes the design turns on — whether the state records party of record, and
+   whether its decisive contest is open to every voter.
+2. **A primary-history proxy is not party of record.** Slotting Texas in as a fourth column
+   would put two different measurements in one row; it needs its own validation, which makes
+   it a next paper rather than a fourth case.
+3. The binding constraint on this batch is the **human-verification gate on five unposted
+   papers**, not analytical coverage.
+
+**What changed in the paper.** The Texas row is out of The cases table, replaced by a
+statement of which axis the set does *not* vary. The third research question is now marked
+*not answerable here*, with the reason — Washington is the set's only no-party-registration
+state and its top-two primary records no party ballot, so the question is not merely
+unanswered but unanswerable with this data. Boundary of inference carries Texas as future work
+with what it would add named precisely, so a reader can price its absence instead of
+discovering it. Finding 2 is stated as a claim about **party-registration states**, which is
+what the data supports. The verifier still passes at 74 figures with all five sections mapped.
+
+**Two satellites written and registered the same day** — `who-returns-ballot-submission-
+metadata.md` and `-notes.md`, added to `check_cross_doc_consistency.py`'s pairing table in the
+same commit, per the rule that came out of a money-paper satellite going stale within hours.
+Both are in `sync_public_repo.NEVER` as operational. The paper's own PENDING entry was
+**rewritten rather than ticked**: its release condition was "release when the TX decision
+lands — load, or a documented proxy section", and neither happened. The decision was to scope
+the paper instead, so the condition is *spent*, not met. Whether a pre-human-gate draft
+travels to the public repo is left to the author; New York and Idaho do, on the same footing.
+
+**Group registration carries a caveat worth stating.** `verify_who_returns_ballot.py` grounds
+Findings 1 and 3 against the harmonizer's recomputation but Finding 2 against the three
+single-state **papers' prose**, so a figure this group calls "verified" is, for Finding 2,
+verified one step removed. That is the weaker case the `Group` docstring already describes,
+and it is recorded in the entry rather than glossed.
+
+### Three stale satellite claims found while doing it
+
+None was in scope; all three were false when read.
+
+- **`money-votes-submission-metadata.md` said the paper has "no dedicated verifier".**
+  `verify_money_votes.py` was written 2026-08-01 and asserts 59 figures under a coverage gate.
+  The sentence was three defects out of date the day it was written — building that verifier
+  found five stale Finding 1 figures on a live frame and two overstated claims about the IE
+  record. Corrected, with the correction visible rather than silent.
+- **The NY and ID notes both described the synthesis as a draft that "transcribes rather than
+  recomputes" with "its harmonised-metrics section unbuilt".** True until 2026-08-06, false
+  after the harmonizer landed that morning.
+- **`verify_who_returns_ballot.py`'s own docstring still said it "opens no database"** three
+  paragraphs after explaining that it now opens three through the harmonizer. Corrected rather
+  than deleted: a stale claim about data handling is the kind that gets believed.
+
+**And one maintenance trap closed.** The cross-doc allowlist enumerated verifier figure counts
+(`88|125|135|210`) behind an "of them" needle. Four of those moved in a single day, so the
+enumeration failed loudly for the right reason and the wrong cause. It is now the category —
+any count behind that needle — which is what the neighbouring "figures" and "tests" waivers
+already were. Series figure counts after this pass: WA 246, NY 137, ID 211, safe-seat 197,
+money-votes 59, cross-state money 208, white paper 94, who-returns-ballot 74.
+
+## 2026-08-06 (seventh pass) — who owns a satellite's figure count
+
+**The question this answers: how do you stop a submission document from stating a figure
+count the verifier no longer produces?** The count is the sentence that reaches a journal
+form — "asserts **211 figures**" — and on 2026-08-06 three of them were wrong at once: the New
+York satellites said 135 against 137, Idaho's said 210 against 211, and the cross-state money
+data-availability statement said **125 against 208**.
+
+**Why the cross-doc checker could never have caught it.** Its orphan pass asks "does this
+number appear in the paper?" A verifier's figure count is a property of the RUN and appears
+nowhere in the paper, so it is absent by construction and an allowlist waives it. The waiver,
+not the check, was carrying seven of the eight papers — by not looking.
+
+**The intermediate fix that looked like a fix.** The allowlist ENUMERATED the counts it waived
+(`88|125|135|210`). A changed count therefore failed the checker — loudly, for the right
+reason, at the wrong layer: it reported a *correct* document as unguarded rather than a stale
+one as stale, and four of those counts moved in a single day. Widening it to the category
+stopped the false alarms and widened the blindness. Neither direction is a fix, because the
+orphan pass is structurally the wrong instrument for this class of claim.
+
+**The fix: the verifier owns it.** `_verify_prose.audit_satellite_counts` compares every
+present-tense count claim in a paper's registered satellites against the figure count that run
+just produced, and fails the verifier. The verifier is the only thing that knows the number, it
+already runs in every pre-upload checklist, and the check costs nothing. On its first run it
+found the 125-against-208. Seventeen claims across seven papers are now checked at the moment
+the count changes, which is the one moment somebody is looking.
+
+**Three design points, each of which bit or nearly bit:**
+
+1. **Whitespace must be `\s+`, never a literal space.** These files hard-wrap at 96 columns, so
+   any two words in a claim can be split by a newline — and by `> ` inside a blockquote. The
+   first version used literal spaces and reported "no claim found" for safe-seat, whose
+   sentence wraps between "asserts" and "**197 figures**". A silent downgrade from checked to
+   unchecked is the exact failure the guard exists to stop.
+2. **Only PRESENT-TENSE claims are checked.** A checklist line recording what a past run
+   produced ("Verifier 125 → **139 figures**") is history and must keep saying what it said —
+   the rule the corrections ledgers and this log already live by.
+3. **A missing satellite is a SKIP with a notice, not a failure**, because all of these files
+   are in `sync_public_repo.NEVER` and the public checkout legitimately has none of them. A
+   test asserts the registered names exist in the private tree, so the skip path cannot double
+   as cover for a typo.
+
+`TestSatelliteCountsAreOwnedByTheVerifier` locks in all of it: every series verifier calls the
+guard, its result reaches the exit status, `stats_out=` is passed so it has a count to compare,
+every paper is registered (an empty tuple is a valid answer — the white paper is a prospectus
+with no submission metadata), and every registered satellite exists. The probe-count ratchet
+was raised to the counts measured today: WA 246, NY 137, ID 211, cross-state money 208, white
+paper 94, money-votes 59.
+
+**Two more gate descriptions were false, both found by pointing the guard at them.**
+`safe-seat-submission-metadata.md` named only `diag_seat_competition.py` and never mentioned
+`verify_safe_seat.py` or its 197 figures. `submission-metadata.md` (the posted WA paper's)
+said "every figure is reproduced from scratch" without a count, so there was nothing to check.
+Both now state the count, and both are checked.
+
+**And the donor paper's own counts were stale in four documents** — 1,305 against a build of
+1,324, plus a body word count of 11,337 against 11,370. These are A10's input, so they are
+corrected rather than left for the sign-off to trip over. The methods supplement now also
+explains the 1,305: it is what the PUBLIC checkout produces, where the memo, cover letter and
+metadata are withheld by design and their six probes skip. The 19-figure gap is exactly those
+six probes, and a missing *paper* still fails.
+
+**Measured after the seventh pass.** Full suite **2,030 passed / 7 skipped** (the 7 are the
+opt-in SoS network endpoint tests). All nine verifiers exit 0 — donor 1,324, WA 246, NY 137,
+ID 211, safe-seat 197, money-votes 59, cross-state money 208, white paper 94,
+who-returns-ballot 74; series total **1,226**. `check_cross_doc_consistency.py` reports
+**0 findings** for the first time: every stated build count matches the build, and no satellite
+states a figure the verified documents do not. The six findings it carried at the start of the
+day were the donor counts corrected above.

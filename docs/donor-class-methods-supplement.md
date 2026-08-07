@@ -81,9 +81,14 @@ about this work anywhere.
 
 `scripts/verify_donor_class.py` reaches the databases with from-scratch SQL, imports no
 analysis code, and re-derives the designated results independently of the build path. It
-**scrapes the manuscript's own prose and tables** and asserts **1,305 figures** against the
+**scrapes the manuscript's own prose and tables** and asserts **1,324 figures** against the
 databases — over the manuscript, the supplement, and the submission memo, cover letter and metadata,
 which restate paper figures and were previously unchecked.
+
+A reader running it from the public repository will see **1,305**, not 1,324, and the
+difference is not a discrepancy: the memo, cover letter and metadata are operational documents
+that are withheld by design, so the six probes that read them skip with a printed notice. A
+missing *paper* still fails the run. The 19-figure gap is exactly those six probes.
 
 It also runs a **coverage audit**: every numeric token in the **48** designated result
 sections must either be captured by an assertion or carry a written exemption naming where it

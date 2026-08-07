@@ -498,6 +498,87 @@ HEADLINE_PROBES = [
 ]
 
 
+# --- §5 and §E, gated 2026-08-06 ---------------------------------------------------------
+# Both were "named, not gated" with a written owner and a BACKLOG note. Neither needed
+# anything external — §5 is outflow() with a GROUP BY, §E is the diagnostic's own band logic
+# imported rather than re-typed — which is what made them the two cheapest to close. Every
+# figure in both reproduced on the first run, so the sections needed derivations, not
+# corrections; that is worth stating, because the last three sections closed this way each
+# turned up a defect and the honest record is that these two did not.
+CYCLE_PROBES = [
+    ("§5 — presidential vs off-year dollars, all four states",
+     r"\(WA \$([\d.]+)M/2020 vs \$([\d.]+)M/2018; NY \$([\d.]+)M vs \$([\d.]+)M; "
+     r"TX \$([\d.]+)M vs \$([\d.]+)M; ID \$([\d.]+)M vs \$([\d.]+)M\)",
+     ("cyc_WA_2020", "cyc_WA_2018", "cyc_NY_2020", "cyc_NY_2018",
+      "cyc_TX_2020", "cyc_TX_2018", "cyc_ID_2020", "cyc_ID_2018"), 0.5),
+]
+
+_BAND_ROW = (r" \| (\d+) \| ([\d.]+)% \| \$([\d.]+)M \| {e}\$([\d.]+)M{e} \| "
+             r"([\d.]+)% \| ([\d.]+)% \|")
+
+
+def _band_keys(b):
+    return tuple(f"e_h_{b}_{k}" for k in ("n", "pctdist", "m", "perdist", "pctdol", "oos"))
+
+
+E_PROBES = [
+    ("§E — inflow file scale",
+     r"\*\*([\d.]+)M contributions / \$([\d.]+)B\*\*", ("e_rows_m", "e_dollars_b"), 0.005),
+    ("§E — House window total and district count",
+     r"U\.S\. House, 2022–2026 — \$(\d+)M across (\d+) districts",
+     ("e_h_total_m", "e_h_ndist"), 0.5),
+    ("§E — House band row, Tossup",
+     r"\| Tossup \(<5\)" + _BAND_ROW.format(e=r"\*\*"), _band_keys("Tossup"), 0.05),
+    ("§E — House band row, Lean",
+     r"\| Lean \(5–10\)" + _BAND_ROW.format(e=r"\*\*"), _band_keys("Lean"), 0.05),
+    ("§E — House band row, Likely",
+     r"\| Likely \(10–20\)" + _BAND_ROW.format(e=""), _band_keys("Likely"), 0.05),
+    ("§E — House band row, Solid",
+     r"\| Solid \(≥20\)" + _BAND_ROW.format(e=""), _band_keys("Solid"), 0.05),
+    ("§E — the competitiveness premium, per district",
+     r"Tossup \(\$([\d.]+)M/district\) and Lean\s+\(\$([\d.]+)M\)",
+     ("e_h_Tossup_perdist", "e_h_Lean_perdist"), 0.05),
+    ("§E — safe-seat per-district inflow, first statement",
+     r"per-district inflow of safe seats \(~\$(\d+)M\)", "e_h_Likely_perdist", 0.5),
+    ("§E — safe-seat per-district inflow, restated for Likely vs Solid",
+     r"the \*same\* per district \(~\$(\d+)M\)", "e_h_Solid_perdist", 0.5),
+    # The two aggregate claims. Both are sums of asserted cells, and BOTH are computed from
+    # unrounded shares: 42.105 + 47.368 = 89.47 rounds to the printed 89, while adding the
+    # PRINTED 42.1 + 47.4 gives 89.5, which rounds to 90. The paper is right and an
+    # arithmetic-on-printed-cells check would have called it wrong.
+    ("§E — safe seats' share of dollars and of districts",
+     r"capture ~([\d.]+)% of the money\*\* \(Likely\+Solid\), because they're "
+     r"~([\d.]+)% of districts", ("e_h_safe_pctdol", "e_h_safe_pctdist"), 0.5),
+    ("§E — out-of-state share, range across House bands",
+     r"~([\d.]+)–([\d.]+)% of all inflow is out-of-state",
+     ("e_h_oos_lo", "e_h_oos_hi"), 0.5),
+    ("§E — Senate table, TX",
+     r"\| \*\*TX\*\* \| \*\*\$([\d.]+)M\*\* \| ([\d.]+)% \|", ("e_s_TX_m", "e_s_TX_oos"), 0.05),
+    ("§E — Senate table, NY",
+     r"\| NY \| \$([\d.]+)M \| ([\d.]+)% \|", ("e_s_NY_m", "e_s_NY_oos"), 0.05),
+    ("§E — Senate table, WA",
+     r"\| WA \| \$([\d.]+)M \| ([\d.]+)% \|", ("e_s_WA_m", "e_s_WA_oos"), 0.05),
+    ("§E — Senate table, ID",
+     r"\| \*\*ID\*\* \| \$([\d.]+)M \| \*\*([\d.]+)%\*\* \|",
+     ("e_s_ID_m", "e_s_ID_oos"), 0.05),
+    ("§E — Senate prose, TX against safe NY and WA",
+     r"drew \*\*\$(\d+)M — ~(\d+)× safe\s+NY \(\$(\d+)M\) or WA \(\$(\d+)M\)\*\*",
+     ("e_s_TX_m", "e_s_tx_over_ny", "e_s_NY_m", "e_s_WA_m"), 0.5),
+    ("§E — Senate out-of-state range over WA/TX/NY, and NY as its high point",
+     r"high \*everywhere\* \(([\d.]+)–([\d.]+)% across WA, TX and NY; Idaho,\s+below, is "
+     r"higher still\) and among those three is actually \*\*highest in safe NY \(([\d.]+)%\)\*\*",
+     ("e_s3_oos_lo", "e_s3_oos_hi", "e_s_NY_oos"), 0.5),
+    ("§E — Idaho's own inflow, total and by chamber",
+     r"drew \*\*\$([\d.]+)M\*\* total inflow \(House \$([\d.]+)M, all in the safe bands; "
+     r"Senate \$([\d.]+)M\)", ("e_id_total_m", "e_id_house_m", "e_s_ID_m"), 0.05),
+    ("§E — Idaho's Senate out-of-state share against the other three",
+     r"Senate money is ([\d.]+)% out-of-state.*?\(WA (\d+)%, TX (\d+)%, NY (\d+)%\)",
+     ("e_s_ID_oos", "e_s_WA_oos", "e_s_TX_oos", "e_s_NY_oos"), 0.5),
+    ("§E — the mechanism restated at Idaho's Senate scale",
+     r"operates at \$([\d.]+)M even harder", "e_s_ID_m", 0.05),
+]
+
+
 def verify_individual_layer():
     """Derive the headline table plus F5/F6 and assert both against the paper's prose."""
     d = {
@@ -516,19 +597,28 @@ def verify_individual_layer():
             # loudly, but only because the two happen to differ a lot; a closer pair would
             # have passed on the wrong number.
             d[f"out_{st}_{k}"] = v
+        for cyc, tot in per_cycle(st).items():
+            d[f"cyc_{st}_{cyc}"] = tot
+    inflow_e(d)
+    extra = ([] if d.pop("_id_is_max_oos", False) else
+             ["§E: the paper calls Idaho's Senate out-of-state share 'the highest of the "
+              "four', and it is not — a probe cannot catch a superlative, so it is checked "
+              "here"])
     norm = vp.normalise(PAPER.read_text(encoding="utf-8"))
     audit_sections, offsets, spans = {}, {}, {}
     for name, (start, end) in AUDIT_BOUNDS.items():
         audit_sections[name], offsets[name] = vp.slice_with_offset(norm, start, end)
+    stats: dict = {}
     rc = vp.run("CROSS-STATE - headline table and the individual money-linked layer",
-                norm, HEADLINE_PROBES + F_PROBES, d, F_UNCHECKED, vp.wants_coverage(),
-                spans_out=spans)
+                norm, HEADLINE_PROBES + F_PROBES + CYCLE_PROBES + E_PROBES, d, F_UNCHECKED,
+                vp.wants_coverage(), spans_out=spans, stats_out=stats)
     fails = vp.audit_coverage(audit_sections, spans, offsets, tuple(AUDIT_BOUNDS),
                               COVERAGE_EXEMPT, COVERAGE_EXEMPT_LITERAL,
                               COVERAGE_EXEMPT_SECTIONS)
+    fails += vp.audit_satellite_counts(PAPER.name, stats.get("figures"))
     if rc != 0:
         fails.append("see the figure failures above")
-    return fails
+    return extra + fails
 
 
 # --- Coverage gate, ported 2026-08-06 ----------------------------------------------------
@@ -551,15 +641,16 @@ AUDIT_BOUNDS = {
     "finding3": ("### 3. The retired-donor economy", "### 4. Sector signatures"),
     # Gated: derived by f5()/f6() in this file. The largest section in the paper.
     "individual": ("### F. The individual layer", "### G. The cross-state money-flow matrix"),
+    # Gated 2026-08-06: §5 by per_cycle(), §E by inflow_e().
+    "finding5": ("### 5. A uniform presidential rhythm", "## Follow-on tests"),
+    "test_e": ("### E. Inflow side", "### F. The individual layer"),
     # Named, not gated -- see COVERAGE_EXEMPT_SECTIONS for each one's owner.
     "finding2": ("### 2. Participation is broadest", "### 3. The retired-donor economy"),
     "finding4": ("### 4. Sector signatures", "### 5. A uniform presidential rhythm"),
-    "finding5": ("### 5. A uniform presidential rhythm", "## Follow-on tests"),
     "test_a": ("### A. Is the money concentrating over time?", "### B. Where does each state"),
     "test_b": ("### B. Where does each state", "### C. Top donors, top recipients"),
     "test_c": ("### C. Top donors, top recipients", "### D. Does money chase competitive"),
     "test_d": ("### D. Does money chase competitive", "### E. Inflow side"),
-    "test_e": ("### E. Inflow side", "### F. The individual layer"),
     "test_g": ("### G. The cross-state money-flow matrix", "### H. Sector × competitiveness"),
     "test_h": ("### H. Sector × competitiveness", "### I. Inflow concentration trend"),
     "test_i": ("### I. Inflow concentration trend", "### J. Which side of a safe seat"),
@@ -578,6 +669,26 @@ COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
     # threshold ARE asserted, four states apiece, by the two headline probes above.
     "200": "the <$200 gift-size threshold labelling a cut; the shares at it are asserted",
     "5,000": "the >=$5,000 gift-size threshold, as above",
+    # --- §E, added with that section's gate 2026-08-06. Four tokens, three owners. Each was
+    # checked for blast radius before being added: none of these values occurs unprobed
+    # anywhere else in the six gated sections, which is the cost of a context-free literal
+    # exemption and the reason the list stays this short.
+    "2.1": "the DONOR-side competitiveness ratio, quoted in §E as a contrast. It belongs to "
+           "§D and is derived by scripts/diag_cross_state_money_matrix.py; §D is named, not "
+           "gated, so this is the one figure §E borrows from a section that is still on the "
+           "backlog",
+    "2.6": "the 2018 TX Senate result (Cruz/O'Rourke R+2.6) — an election outcome naming why "
+           "that race is called competitive, not a measurement from any database here",
+    "8.8": "the 2024 TX Senate result (Cruz/Allred R+8.8); as above",
+    "250": "an order-of-magnitude restatement of the TX Senate total ('even harder than at "
+           "$250M'). The figure itself is $253.2M and IS asserted twice above, by the Senate "
+           "table probe and the Senate prose probe",
+    "194": "earmarked (15E) dollars to these candidates in 2024, from the FEC transaction "
+           "types. Owned by scripts/diag_earmark_inspect.py, which the paper cites inline; "
+           "the inflow table carries no transaction-type column, so it cannot be re-derived "
+           "from the data this verifier reads",
+    "150": "the conduit-side (24T) total, deliberately EXCLUDED from the inflow load to "
+           "avoid double-counting; same owner as the 194 above",
     "0.77": "a stated FLOOR ('all four exceed 0.77'), not a measurement. The four Ginis it "
             "bounds are each asserted to three decimals by the headline Gini probe, and the "
             "lowest of them is ID at 0.775 — so the claim is checkable from asserted values "
@@ -611,9 +722,10 @@ COVERAGE_EXEMPT_SECTIONS: dict[str, str] = {
                 "acs_cvap_by_state.py pins CVAP, then this section is closeable.",
     "finding4": "sector signatures. Owned by scripts/cross_state_fec_money.py's employer/"
                 "occupation sector cut, which the paper cites inline. BACKLOG.",
-    "finding5": "the presidential-cycle rhythm - per-cycle dollar totals. Derivable from the "
-                "same outflow() filter with a GROUP BY election_cycle; nothing external is "
-                "needed. BACKLOG, and the cheapest of these to close.",
+    # finding5 CLOSED 2026-08-06 — per_cycle() + CYCLE_PROBES. It was the cheapest, exactly
+    # as the note predicted: one GROUP BY on the filter outflow() already uses.
+    # test_e CLOSED 2026-08-06 — inflow_e() + E_PROBES, importing the band logic from
+    # cross_state_common so the definition cannot fork from the diagnostic's.
     "test_a": "concentration over time. Owned by scripts/cross_state_fec_money.py. BACKLOG.",
     "test_b": "per-state destinations. Owned by scripts/diag_cross_state_money_matrix.py, "
               "which is also where the recipient-state resolution (candidate office state, "
@@ -623,10 +735,6 @@ COVERAGE_EXEMPT_SECTIONS: dict[str, str] = {
               "named anywhere in this paper, which is the 11 C.F.R. § 104.15 boundary. BACKLOG.",
     "test_d": "money x competitiveness, outflow side. Owned by "
               "scripts/diag_cross_state_money_matrix.py. BACKLOG.",
-    "test_e": "the inflow layer. PARTLY derived in main() below (total rows, dollars, "
-              "per-recipient-state totals and out-of-state share are printed against the "
-              "paper's values) but not asserted through the harness. BACKLOG, and the "
-              "highest-value one: it is 93 tokens and the derivation already exists.",
     "test_g": "the cross-state flow matrix. Owned by "
               "scripts/diag_cross_state_money_matrix.py. BACKLOG.",
     "test_h": "sector x competitiveness. Owned by scripts/cross_state_fec_money.py. BACKLOG.",
@@ -703,6 +811,120 @@ def outflow(state):
                 donors=conc, top1=top[0], top10=top[1], gini=gini,
                 total_m=float(tot) / 1e6, total_b=float(tot) / 1e9,
                 contribs_m=int(nrows) / 1e6, median_gift=float(med))
+
+
+def per_cycle(state):
+    """Finding 5's per-cycle dollar totals, on the SAME filter outflow() uses.
+
+    Closes §5, which was named-but-ungated with the note "derivable from the same outflow()
+    filter with a GROUP BY election_cycle; nothing external is needed. BACKLOG, and the
+    cheapest of these to close." It was: this is that GROUP BY. Every one of the eight
+    figures the section quotes reproduces to the printed digit, so the section needed a
+    derivation, not a correction.
+    """
+    con = duckdb.connect(str(DATA / f"{state.lower()}_statewide.duckdb"), read_only=True)
+    filt = ("regexp_matches(COALESCE(fec_candidate_id,''),'^[CPHS][0-9]') "
+            f"AND contributor_state='{state}' AND contribution_amount>0")
+    rows = con.execute(f"""
+        SELECT election_cycle, SUM(contribution_amount)/1e6
+        FROM individual_contributions WHERE {filt} GROUP BY 1""").fetchall()
+    con.close()
+    return {int(c): float(v) for c, v in rows}
+
+
+def inflow_e(d):
+    """§E — the recipient-anchored inflow layer, House by competitiveness band + Senate.
+
+    Closes the section the ledger called "the highest-value one: 93 tokens and the
+    derivation already exists". The derivation existed in TWO places and neither ASSERTED:
+    main() printed the totals beside the paper's values for a human to compare, and
+    diag_inflow_vs_competitiveness.py printed the tables. A printed comparison is not a gate
+    — it is exactly the arrangement that let §F5/§F6 go stale in 2026-07-27 while looking
+    reasonable. The band logic is imported from cross_state_common rather than re-typed, so
+    the competitiveness definition cannot fork from the one the diagnostic publishes.
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from cross_state_common import competitiveness_bands  # noqa: PLC0415
+
+    ic = duckdb.connect(str(DATA / "fec_inflow.duckdb"), read_only=True)
+    nrows, dollars = ic.execute(
+        "SELECT COUNT(*), SUM(contribution_amount) FROM inflow_contributions").fetchone()
+    d["e_rows_m"], d["e_dollars_b"] = nrows / 1e6, float(dollars) / 1e9
+
+    comp = competitiveness_bands()
+    rows = ic.execute("""
+        SELECT recipient_state,
+               'cd' || LPAD(CAST(TRY_CAST(recipient_district AS INTEGER) AS VARCHAR), 2, '0'),
+               SUM(contribution_amount),
+               SUM(CASE WHEN contributor_state <> recipient_state
+                        THEN contribution_amount ELSE 0 END)
+        FROM inflow_contributions
+        WHERE recipient_office='H' AND election_cycle >= 2022 AND contribution_amount > 0
+          AND TRY_CAST(recipient_district AS INTEGER) IS NOT NULL
+        GROUP BY 1, 2""").fetchall()
+    BANDS = ("Tossup", "Lean", "Likely", "Solid")
+    agg = {b: {"d": 0, "tot": 0.0, "oos": 0.0} for b in BANDS}
+    ndist = {b: 0 for b in BANDS}
+    for (_st, _cd), (_m, b) in comp.items():
+        ndist[b] += 1
+    for st, cd, tot, oos in rows:
+        info = comp.get((st, cd))
+        if not info:
+            continue
+        a = agg[info[1]]
+        a["d"] += 1
+        a["tot"] += float(tot)
+        a["oos"] += float(oos)
+    total = sum(a["tot"] for a in agg.values()) or 1.0
+    alldist = sum(ndist.values()) or 1
+    for b in BANDS:
+        a = agg[b]
+        d[f"e_h_{b}_n"] = a["d"]
+        d[f"e_h_{b}_pctdist"] = 100.0 * ndist[b] / alldist
+        d[f"e_h_{b}_m"] = a["tot"] / 1e6
+        d[f"e_h_{b}_perdist"] = a["tot"] / a["d"] / 1e6 if a["d"] else 0.0
+        d[f"e_h_{b}_pctdol"] = 100.0 * a["tot"] / total
+        d[f"e_h_{b}_oos"] = 100.0 * a["oos"] / a["tot"] if a["tot"] else 0.0
+    d["e_h_total_m"] = total / 1e6
+    d["e_h_ndist"] = sum(a["d"] for a in agg.values())
+    # The two aggregate claims the section makes about safe seats. Derived rather than
+    # arithmetic-on-printed-cells: the paper's own convention elsewhere in this series, and
+    # the harmonizer's 2026-08-06 lesson about computing ratios from unrounded shares.
+    d["e_h_safe_pctdol"] = d["e_h_Likely_pctdol"] + d["e_h_Solid_pctdol"]
+    d["e_h_safe_pctdist"] = d["e_h_Likely_pctdist"] + d["e_h_Solid_pctdist"]
+    _oos = [d[f"e_h_{b}_oos"] for b in BANDS]
+    d["e_h_oos_lo"], d["e_h_oos_hi"] = min(_oos), max(_oos)
+
+    for st, tot, oos in ic.execute("""
+        SELECT recipient_state, SUM(contribution_amount),
+               SUM(CASE WHEN contributor_state <> recipient_state
+                        THEN contribution_amount ELSE 0 END)
+        FROM inflow_contributions
+        WHERE recipient_office='S' AND contribution_amount > 0 GROUP BY 1""").fetchall():
+        d[f"e_s_{st}_m"] = float(tot) / 1e6
+        d[f"e_s_{st}_oos"] = 100.0 * float(oos) / float(tot)
+    # The Senate out-of-state range is stated over WA / TX / NY only, because Idaho is the
+    # subject of the bullet that follows and is far outside it (85.8%). That scoping was NOT
+    # in the paper until this gate: the sentence said "high everywhere (41-54%) and actually
+    # highest in safe NY", written when the region was three states, and the Idaho load
+    # (2026-07-19) made the superlative false against the paper's OWN next bullet, which
+    # calls ID "the highest of the four". Same defect shape as the six 2026-08-06 author
+    # questions — a range and a superlative quoting three of four members.
+    _soos = [d[f"e_s_{s}_oos"] for s in ("WA", "NY", "TX")]
+    d["e_s3_oos_lo"], d["e_s3_oos_hi"] = min(_soos), max(_soos)
+    # And the claim the rescoping leans on, checked rather than assumed.
+    d["_id_is_max_oos"] = d["e_s_ID_oos"] == max(
+        d[f"e_s_{s}_oos"] for s in ("WA", "NY", "TX", "ID"))
+    d["e_s_tx_over_ny"] = d["e_s_TX_m"] / d["e_s_NY_m"]
+    # Idaho's own totals, quoted in the "bottom of the size distribution" claim. ID House
+    # is taken over ALL cycles in the inflow file, matching the "$11.5M total inflow" the
+    # sentence pairs it with — not the 2022+ window the band table uses.
+    idh, = ic.execute("""
+        SELECT SUM(contribution_amount)/1e6 FROM inflow_contributions
+        WHERE recipient_state='ID' AND recipient_office='H'""").fetchone()
+    d["e_id_house_m"] = float(idh)
+    d["e_id_total_m"] = d["e_id_house_m"] + d["e_s_ID_m"]
+    ic.close()
 
 
 def main():

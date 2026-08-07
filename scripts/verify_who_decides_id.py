@@ -517,10 +517,11 @@ PROBES = [
      ("coh2020_n", "coh2020_REP", "coh2020_DEM", "coh2020_UNAFF", "coh2020_median"), 0.05),
     ("§VI 2022 cohort", r"\| 2022 \| ([\d,]+) \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| (\d+) \|",
      ("coh2022_n", "coh2022_REP", "coh2022_DEM", "coh2022_UNAFF", "coh2022_median"), 0.05),
-    ("§VI 2024 cohort — party and age (count is an open question, see the gate)",
-     r"\| 2024 \| [\d,]+ \| \*\*([\d.]+)%\*\* \| ([\d.]+)% \| \*\*([\d.]+)%\*\* \| "
-     r"\*\*(\d+)\*\* \|",
-     ("coh2024_REP", "coh2024_DEM", "coh2024_UNAFF", "coh2024_median"), 0.05),
+    # The count is now asserted like the other five (corrected 263,315 -> 263,322 on
+    # 2026-08-06; see the resolved note near COVERAGE_EXEMPT_LITERAL).
+    ("§VI 2024 cohort", r"\| 2024 \| ([\d,]+) \| \*\*([\d.]+)%\*\* \| ([\d.]+)% \| "
+     r"\*\*([\d.]+)%\*\* \| \*\*(\d+)\*\* \|",
+     ("coh2024_n", "coh2024_REP", "coh2024_DEM", "coh2024_UNAFF", "coh2024_median"), 0.05),
     ("§VI newest cohort's Republican share, restated",
      r"less Republican \(([\d.]+)% vs the high-60s", "coh2024_REP", 0.05),
 
@@ -639,9 +640,14 @@ COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
 # audited sections here — the audit covers I-VII plus Boundary. Exempting them would have been
 # dead weight, and the gate says so ("literal exemption(s) no longer fire").
 
-# --- 🔴 OPEN AUTHOR QUESTION -------------------------------------------------------------
-# §VI's 2024 cohort count, printed as 263,315. THIRTEEN bases enumerated 2026-08-06 and none
-# reproduces it; every one gives 263,322, seven higher:
+# --- ✅ RESOLVED 2026-08-06 — author answered "trivial, but the paper is unpublished: fix"
+# §VI's 2024 cohort now prints 263,322 and IS asserted by the "§VI 2024 cohort" probe above,
+# on the same age-banded basis as the other five rows. The exemption this block installed is
+# deleted. The enumeration is KEPT: it is the evidence that the convention was right and one
+# cell was wrong, which is the opposite of what a basis defect looks like.
+#
+# What it used to print — 263,315. THIRTEEN bases enumerated and none reproduced it; every
+# one gives 263,322, seven higher:
 #
 #   plain year(registration_date)=2024                263,322
 #   + age IS NOT NULL / age 18-105 / age 17-105       263,322
@@ -661,9 +667,7 @@ COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
 # A duplicate-id hypothesis looked compelling (the +1 on 2022 and +7 on 2024 matched a
 # dup-count story exactly) and was FALSE when checked. Worth recording: the coincidence was
 # the whole evidence for it.
-COVERAGE_EXEMPT_LITERAL["263,315"] = (
-    "OPEN AUTHOR QUESTION — §VI's 2024 cohort count; no basis of thirteen reproduces it, all "
-    "give 263,322. The row's party shares and median age ARE asserted. Enumeration above")
+# (no literal exemption here any more — the count is probed)
 
 COVERAGE_EXEMPT_SECTIONS: dict[str, str] = {}
 
@@ -685,14 +689,17 @@ def main() -> int:
     # The paper prints two skews with a minus sign the capture group cannot carry.
     d["_neg_unaff_skew"] = -d["don_UNAFF_skew"]
     d["_neg_other_skew"] = -d["don_OTHER_skew"]
+    stats: dict = {}
     rc = vp.run("WHO DECIDES IDAHO — prose scraped and asserted against the voter file",
-                norm, PROBES, d, UNCHECKED, vp.wants_coverage(), spans_out=spans)
+                norm, PROBES, d, UNCHECKED, vp.wants_coverage(), spans_out=spans,
+                stats_out=stats)
     fails = vp.audit_coverage(audit_sections, spans, offsets, tuple(AUDIT_BOUNDS),
                               COVERAGE_EXEMPT, COVERAGE_EXEMPT_LITERAL,
                               COVERAGE_EXEMPT_SECTIONS)
+    fails += vp.audit_satellite_counts(PAPER.name, stats.get("figures"))
     if fails:
         print("\n" + "=" * 78)
-        print(f"WHO DECIDES IDAHO: {len(fails)} coverage FAILURE(S)")
+        print(f"WHO DECIDES IDAHO: {len(fails)} coverage/satellite FAILURE(S)")
         print("=" * 78)
         for f in fails:
             print(f"  - {f}")

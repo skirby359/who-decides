@@ -384,12 +384,15 @@ def main() -> int:
         ("finding 2 — field vs overperformance is unchanged",
          r"field-vs-overperformance −([\d.]+)", "r_field_overperf_abs", 0.005),
     ])
+    stats: dict = {}
     rc = vp.run("DOES MONEY MOVE VOTES — prose scraped and asserted against the warehouse",
-                norm, PROBES, d, UNCHECKED, vp.wants_coverage(), spans_out=spans)
+                norm, PROBES, d, UNCHECKED, vp.wants_coverage(), spans_out=spans,
+                stats_out=stats)
     fails = vp.audit_coverage(audit_sections, spans, offsets, tuple(AUDIT_BOUNDS),
                               COVERAGE_EXEMPT, COVERAGE_EXEMPT_LITERAL)
+    fails += vp.audit_satellite_counts(PAPER.name, stats.get("figures"))
     if fails:
-        print("\nCOVERAGE AUDIT: %d FAILURE(S)" % len(fails))
+        print("\nCOVERAGE / SATELLITE AUDIT: %d FAILURE(S)" % len(fails))
         for f in fails:
             print(f"  - {f}")
         return 1

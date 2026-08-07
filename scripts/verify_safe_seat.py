@@ -534,13 +534,15 @@ def main() -> int:
     audit_sections, offsets, spans = {}, {}, {}
     for name, (start, end) in AUDIT_BOUNDS.items():
         audit_sections[name], offsets[name] = vp.slice_with_offset(norm, start, end)
+    stats: dict = {}
     rc = vp.run("SAFE-SEAT WASHINGTON — prose scraped and asserted against certified returns",
                 norm, build_probes(), d, UNCHECKED, vp.wants_coverage(),
-                sections=sections, spans_out=spans)
+                sections=sections, spans_out=spans, stats_out=stats)
     fails = vp.audit_coverage(audit_sections, spans, offsets, tuple(AUDIT_BOUNDS),
                               COVERAGE_EXEMPT, COVERAGE_EXEMPT_LITERAL)
+    fails += vp.audit_satellite_counts(PAPER.name, stats.get("figures"))
     if fails:
-        print("\nCOVERAGE AUDIT: %d FAILURE(S)" % len(fails))
+        print("\nCOVERAGE / SATELLITE AUDIT: %d FAILURE(S)" % len(fails))
         for f in fails:
             print(f"  - {f}")
         return 1

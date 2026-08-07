@@ -168,7 +168,8 @@ def check_rounding(printed: str, derived: float) -> str | None:
 def run(title: str, norm: str, probes, derived: dict, unchecked=(),
         show_coverage: bool = False, sections: dict[str, str] | None = None,
         round_exempt: dict[str, str] | None = None,
-        spans_out: dict[str | None, list[tuple[int, int]]] | None = None) -> int:
+        spans_out: dict[str | None, list[tuple[int, int]]] | None = None,
+        stats_out: dict | None = None) -> int:
     """Assert every probe against `derived`. Returns a process exit code.
 
     probes: (label, regex, key | (keys...), tolerance[, section]). Each capture group in the
@@ -190,6 +191,9 @@ def run(title: str, norm: str, probes, derived: dict, unchecked=(),
     abbreviated count, a figure the paper states as an approximation, or a documented
     difference between two constructions. A reason is required, so an exemption is a
     decision on the record rather than a silence.
+
+    `stats_out`, when given, receives {"figures": n} — the count this run asserted, which
+    is what `audit_satellite_counts` compares the submission documents' claims against.
 
     `spans_out`, when given, is filled with the character spans this run actually
     asserted, keyed by section name (None = whole document). That is what a caller
@@ -297,6 +301,9 @@ def run(title: str, norm: str, probes, derived: dict, unchecked=(),
         for g in gaps:
             print(f"    {g}")
 
+    if stats_out is not None:
+        stats_out["figures"] = n_checked
+
     print("\n" + bar)
     if fails:
         rnd = f" ({n_round} of them a rounding direction)" if n_round else ""
@@ -312,6 +319,135 @@ def run(title: str, norm: str, probes, derived: dict, unchecked=(),
 
 def wants_coverage(argv=None) -> bool:
     return "--coverage" in (sys.argv[1:] if argv is None else argv)
+
+
+# --------------------------------------------------------------------------
+# Satellite figure-count guard (2026-08-06)
+#
+# THE PROBLEM IT SOLVES, because the shape recurs. Every paper's submission
+# metadata states how many figures its verifier asserts ("asserts **211
+# figures**"), and that sentence reaches a journal form. It is NOT checkable by
+# `check_cross_doc_consistency.py`'s orphan pass: the count is a property of the
+# verifier RUN and appears nowhere in the paper, so the orphan check sees it as
+# absent-by-construction and an allowlist entry waives it. Which means the
+# waiver — not the check — was carrying seven of the eight papers, and it was
+# carrying them by NOT looking. Measured, not assumed: on 2026-08-06 the NY
+# satellites said 135 against 137, the Idaho ones 210 against 211, and the
+# cross-state money data-availability statement said 125 against 208.
+#
+# The failed intermediate fix is worth recording. The allowlist enumerated the
+# counts it waived (`88|125|135|210`), so a changed count failed the checker —
+# loudly, for the right reason, at the wrong layer: it reported a legitimate
+# document as unguarded rather than reporting a stale claim. Widening it to the
+# category stopped the false alarms and widened the blindness. Neither is a fix,
+# because the orphan pass is structurally the wrong instrument here.
+#
+# THE OWNER IS THE VERIFIER. It is the only thing that knows the number, it
+# already runs in every paper's pre-upload checklist, and it costs nothing extra
+# — so a stale count now fails at the moment the count changes, which is the one
+# moment somebody is looking. `check_cross_doc_consistency.py` keeps a waiver for
+# these tokens, but its recorded reason is now true.
+#
+# TWO DELIBERATE LIMITS. (1) Only PRESENT-TENSE claims are checked. A checklist
+# line recording what a past run produced ("Verifier 125 → **139 figures**",
+# 2026-08-06) is history and must keep saying what it said — the same rule the
+# corrections ledgers and the audit log live by. (2) A missing satellite is a
+# SKIP with a notice, not a failure: all of these files are in
+# `sync_public_repo.NEVER`, so the public checkout legitimately has none of them.
+# --------------------------------------------------------------------------
+SATELLITES = {
+    "who-decides-washington.md": ("submission-metadata.md",
+                                  "who-decides-wa-submission-notes.md"),
+    "safe-seat-washington.md": ("safe-seat-submission-metadata.md",
+                                "safe-seat-submission-notes.md"),
+    "does-money-move-votes.md": ("money-votes-submission-metadata.md",
+                                 "money-votes-submission-notes.md"),
+    "who-decides-new-york.md": ("ny-submission-metadata.md",
+                                "ny-submission-notes.md"),
+    "who-decides-idaho.md": ("id-submission-metadata.md",
+                             "id-submission-notes.md"),
+    "cross-state-fec-money.md": ("cross-state-money-submission-metadata.md",
+                                 "cross-state-money-submission-notes.md"),
+    "who-decides-cross-state.md": ("who-returns-ballot-submission-metadata.md",
+                                   "who-returns-ballot-submission-notes.md"),
+    # The white paper is a prospectus and deliberately has no submission metadata
+    # (author's call, 2026-08-06). Present with an empty tuple rather than absent,
+    # so "no satellites" is a recorded decision and not a missing registration.
+    "electoral-health-whitepaper.md": (),
+}
+
+# Each pattern must capture a count a document states about THIS verifier, in the
+# present tense. Whitespace is `\s+` everywhere, never a literal space: these
+# files are hard-wrapped at 96 columns, so any two words in a claim can be split
+# by a newline (and by `> ` when the claim sits in a blockquote). The first
+# version used literal spaces and reported "no claim found" for safe-seat, whose
+# sentence wraps between "asserts" and "**197 figures**" — a silent downgrade
+# from checked to unchecked, which is the failure this whole guard exists to stop.
+_COUNT_CLAIMS = (
+    r"asserts\s+(?:>\s*)?\*\*([\d,]+)\s+figures\*\*",
+    r"asserting\s+(?:>\s*)?\*\*([\d,]+)\s+figures\*\*",
+    r"—\s*(?:\n>\s*)?([\d,]+)\s*(?:\n>\s*)?of them",
+    r"exit 0 = ([\d,]+) figures agree",
+)
+
+# The residual risk, stated because it is real: a claim reworded past every anchor
+# above reports "none found" and is then unchecked. That is why the no-claim case
+# prints a loud notice naming what to do, rather than passing quietly — and why
+# the anchors are deliberately loose about whitespace and tight about wording.
+
+
+def audit_satellite_counts(paper_name: str, figures: int | None) -> list[str]:
+    """Fail when a satellite states a figure count this run did not produce."""
+    print("\n" + "-" * 78)
+    print("SATELLITE FIGURE COUNTS — every present-tense claim must match this run")
+    print("-" * 78)
+    if paper_name not in SATELLITES:
+        msg = (f"satellite guard: {paper_name!r} is not in _verify_prose.SATELLITES. "
+               f"Register it (an empty tuple is a valid answer) so 'no satellites' is a "
+               f"decision rather than an omission.")
+        print(f"  FAIL {msg}")
+        return [msg]
+    names = SATELLITES[paper_name]
+    if not names:
+        print("  n/a  no satellite documents registered for this paper")
+        return []
+    if figures is None:
+        msg = ("satellite guard: the run reported no figure count, so the guard could not "
+               "run. Pass stats_out= to vp.run().")
+        print(f"  FAIL {msg}")
+        return [msg]
+    fails, n_claims, n_present = [], 0, 0
+    for name in names:
+        path = DOCS / name
+        if not path.exists():
+            print(f"  skip {name:44} absent (withheld from this checkout by design)")
+            continue
+        n_present += 1
+        text = path.read_text(encoding="utf-8")
+        for pat in _COUNT_CLAIMS:
+            for m in re.finditer(pat, text):
+                stated = int(m.group(1).replace(",", ""))
+                n_claims += 1
+                line = text[:m.start()].count("\n") + 1
+                if stated == figures:
+                    print(f"  ok   {name}:{line:<4} states {stated:,}")
+                else:
+                    print(f"  FAIL {name}:{line:<4} states {stated:,}, this run asserts "
+                          f"{figures:,}")
+                    fails.append(f"{name}:{line} states {stated:,} figures; this run "
+                                 f"asserts {figures:,}")
+    if not fails and n_claims:
+        print(f"  {n_claims} present-tense claim(s) checked, all matching {figures:,}")
+    elif not n_present:
+        # Distinguished from the reworded-anchor case below on purpose: in the PUBLIC
+        # checkout every satellite is absent by design, and printing "re-anchor
+        # _COUNT_CLAIMS" there reads as a warning about a defect that does not exist.
+        print("  n/a  every registered satellite is withheld from this checkout — "
+              "nothing to check here, which is the expected public-repo result")
+    elif not n_claims:
+        print("  none  no present-tense figure-count claim found in the registered "
+              "satellites — if one was reworded, re-anchor _COUNT_CLAIMS")
+    return fails
 
 
 # --------------------------------------------------------------------------

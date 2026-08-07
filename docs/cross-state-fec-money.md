@@ -323,14 +323,15 @@ competitiveness. `scripts/diag_inflow_vs_competitiveness.py`, now four-state.*
 
 - **Senate echoes the House, louder.** Competitive **TX** Senate races drew **$253M — ~5× safe
   NY ($55M) or WA ($45M)**: at the statewide level, competition is the single biggest money
-  magnet. Yet out-of-state share is high *everywhere* (41–54%) and is actually **highest in
-  safe NY (53.5%)** — national donors fund high-profile safe senators (Schumer/Gillibrand) as
+  magnet. Yet out-of-state share is high *everywhere* (41–53% across WA, TX and NY; Idaho,
+  below, is higher still) and among those three is actually **highest in safe NY (53.5%)** —
+  national donors fund high-profile safe senators (Schumer/Gillibrand) as
   readily as battlegrounds. Same lesson as the House: competition lifts the total, but the
   out-of-state flood is profile-driven and pervasive.
 - **Idaho extends the pattern to the bottom of the size distribution — most sharply of all.**
   ID's federal candidates drew **$11.5M** total inflow (House $4.9M, all in the safe bands;
   Senate $6.6M) — ~1/20th of Texas — yet its **Senate money is 85.8% out-of-state, the highest
-  of the four** (WA 41%, TX 45%, NY 54%), and its House inflow lands only in Likely/Solid (no ID
+  of the four** (WA 41%, TX 45%, NY 53%), and its House inflow lands only in Likely/Solid (no ID
   tossup exists). A small, safe, deep-red state's candidate money is *overwhelmingly*
   non-constituent: the "profile/incumbency pulls national money" mechanism operates at $6.6M
   even harder than at $250M — Crapo and Risch are safe, so almost none of their money needs to

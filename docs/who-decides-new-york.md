@@ -101,7 +101,8 @@ to +33.2 (2025) depending on what's on the ballot — and the unaffiliated, not
 either party, are the ones who drop out (25.5% of the roll, but only 16–22% of
 voters). And in even-year federal contests Republicans out-turn Democrats at
 *every* age, yet that discipline inverts off-cycle: in the 2025 general, Democratic
-under-30 turnout (30.8%) was nearly **double** Republican (15.9%). Party-resolved,
+under-30 turnout (31.5%) was nearly **double** Republican (16.1%) — the share of each
+party's under-30 active registrants who returned a ballot. Party-resolved,
 the signal lives in age structure and youth mobilization, not in a simple
 rightward headcount shift.
 

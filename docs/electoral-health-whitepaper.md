@@ -221,7 +221,9 @@ concrete analysis to run.
 > **2.67×**, Gen Z **0.04×**).
 
 - **Defensible claim.** At the person level, donors are a narrow slice that does not
-  mirror the electorate: **~3.5–6% of voters**, skewed old (pooled WA: Silent **1.96×**,
+  mirror the electorate: **~4.0–5.7% of voters** — matched donors as a share of all
+  registrants on the pooled panels, ID **4.0%**, NY **4.1%**, WA **5.7%** — skewed old
+  (pooled WA: Silent **1.96×**,
   Boomer **1.71×** over-represented; Gen Z **0.09×**, Millennial **0.54×**
   under-represented — 2.67× / 2.04× / 0.04× / 0.35× on the federal panel),
   overwhelmingly super-voters, geographically concentrated (**61.4% of WA donor
@@ -286,7 +288,7 @@ concrete analysis to run.
 - **Defensible claim.** Finance behaves as a marker of pre-existing candidate
   strength, not an independent vote-mover: raw fundraising log2(D/R) correlates
   **+0.58** with overperformance, but spend *allocation* has cross-cycle holdout
-  R² ~**0.00**, and the forecast model zeroes the fundraising term post-redistricting
+  R² of **0.02**, and the forecast model zeroes the fundraising term post-redistricting
   because the baseline already absorbs it. The honest reading — "money follows the
   scoreboard" — is, on the *vote-buying* axis, consistent with the healthy null,
   while leaving the **access/agenda-setting** channel untested.
@@ -434,7 +436,7 @@ signal. Accuracy-weighted failure signal across all findings = **22/100**.*
 4. **Methods/curiosity piece:** Finding 6 — **DRAFTED** as
    [`does-money-move-votes.md`](does-money-move-votes.md) (2026-07-26). The story is the
    honest near-null *and* the data ceiling: money is the strongest single correlate of
-   overperformance (+0.58) yet leaves no causal fingerprint — allocation holdout R² ≈ 0,
+   overperformance (+0.58) yet leaves no causal fingerprint — allocation holdout R² 0.02,
    the forecast model discards the term against a known baseline, and the directional IE
    cross-section runs *negative* (n=7). Directional IE is one cycle deep and the $70.6M of
    PDC legislative IE has no support/oppose flag, so the verdict stays "cannot confirm or

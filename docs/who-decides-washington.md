@@ -230,8 +230,9 @@ one. The index depends on the age bins chosen, so treat its value here as compar
 not absolute.
 
 <sub>Recorded gender shows a much smaller secondary pattern: the electorate is majority
-recorded-female throughout, rising from 52.5% in the 2024 presidential electorate to
-53.0–53.1% in the off-year electorates, concentrated among older voters. Because the
+recorded-female throughout, at 52.5% in the 2024 presidential electorate and
+52.5–53.1% across the off-year electorates — 2021 is level with the presidential year,
+while 2023 and 2025 sit at 53.0% and 53.1% — concentrated among older voters. Because the
 shift is small and administrative gender is not the paper's focus, the analysis treats
 age as the primary dimension.</sub>
 
@@ -267,8 +268,8 @@ The finding does not hinge on the cohort boundaries, the birth-year assumption, 
 off-year, or King County.
 
 **Finer cohorts.** Splitting the endpoints sharpens the pattern: the 75+ share rises from
-**11.8%** in the presidential year to **16.8–18.3%** off-year, while the 18–24 share falls
-from **7.7%** to **~3.7–4.0%**.
+**11.8%** in the presidential year to **13.4–18.3%** off-year — 2021 is the low, with 2023
+and 2025 at 16.8% and 18.3% — while the 18–24 share falls from **7.7%** to **~3.7–4.0%**.
 
 | Election | Type | 18–24 | 25–29 | 30–44 | 45–64 | 65–74 | 75+ |
 |---|---|--:|--:|--:|--:|--:|--:|

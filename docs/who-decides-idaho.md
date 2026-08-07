@@ -265,7 +265,7 @@ Party mix and age of each registration cohort still on the current roll:
 | 2016 | 61,465 | 65.5% | 12.1% | 21.2% | 46 |
 | 2020 | 153,710 | 60.8% | 12.2% | 25.1% | 43 |
 | 2022 | 97,593 | 64.8% | 11.3% | 21.8% | 44 |
-| 2024 | 263,315 | **57.5%** | 12.4% | **28.3%** | **35** |
+| 2024 | 263,322 | **57.5%** | 12.4% | **28.3%** | **35** |
 
 Idaho's newest voters are markedly younger (median age at registration 35 vs
 45–47 a decade earlier) and less Republican (57.5% vs the high-60s/low-70s of
