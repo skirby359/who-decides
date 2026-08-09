@@ -93,8 +93,13 @@ _PARTY_MAP_CSV = (Path(__file__).resolve().parent.parent / "docs" / "reference"
                   / "wa_party_strings_2016-2024.csv")
 
 
-def _party_case_sql(column: str) -> tuple[str, str]:
-    """-> (strict CASE expression, loose CASE expression) built from the frozen mapping."""
+def _party_case_sql(column: str) -> tuple[str, str, str]:
+    """-> (family, expansive, literal) CASE expressions built from the frozen mapping.
+
+    Three specifications since 2026-08-08, not two. See the note in diag_seat_competition.py:
+    folding "Culture Republican" in with "Republican" is a researcher's grouping, not one
+    Washington makes, so the tiers are reported separately rather than argued for.
+    """
     with _PARTY_MAP_CSV.open(newline="", encoding="utf-8") as fh:
         rows = list(csv.DictReader(fh))
     if not rows:
@@ -110,10 +115,10 @@ def _party_case_sql(column: str) -> tuple[str, str]:
         return ("CASE WHEN TRIM(COALESCE(" + column + ",'')) = '' THEN 'O' "
                 + " ".join(arms) + " ELSE 'UNMAPPED' END")
 
-    return build("party_class"), build("party_class_loose")
+    return build("party_class"), build("party_class_loose"), build("party_class_literal")
 
 
-STRICT_SQL, LOOSE_SQL = _party_case_sql("party")
+STRICT_SQL, LOOSE_SQL, LITERAL_SQL = _party_case_sql("party")
 
 # One statement per year: parse the race, read the party, rank candidates, emit one row per
 # seat carrying everything both dimensions need.
@@ -123,7 +128,7 @@ WITH src AS (
     FROM read_csv_auto('{path}', header=true, all_varchar=true, ignore_errors=true)),
 tagged AS (
     SELECT UPPER(race) r, cand, votes,
-           {strict} AS pty_s, {loose} AS pty_l
+           {strict} AS pty_s, {loose} AS pty_l, {literal} AS pty_t
     FROM src
     WHERE votes > 0 AND UPPER(TRIM(COALESCE(cand,''))) <> 'WRITE-IN'),
 keyed AS (
@@ -143,7 +148,7 @@ keyed AS (
            ) AS INTEGER) AS district,
            COALESCE(TRY_CAST(NULLIF(regexp_extract(
              r, 'REPRESENTATIVE,?\\s*POS(?:ITION)?\\.?\\s*(\\d)', 1), '') AS INTEGER), 0) AS position,
-           cand, votes, pty_s, pty_l
+           cand, votes, pty_s, pty_l, pty_t
     FROM tagged),
 u AS (SELECT * FROM keyed WHERE chamber IS NOT NULL),
 ranked AS (
@@ -158,7 +163,9 @@ SELECT chamber, district, position,
        COUNT(*)    FILTER (WHERE pty_s = 'D')          AS nd,
        COUNT(*)    FILTER (WHERE pty_s = 'R')          AS nr,
        COUNT(*)    FILTER (WHERE pty_l = 'D')          AS nd_loose,
-       COUNT(*)    FILTER (WHERE pty_l = 'R')          AS nr_loose
+       COUNT(*)    FILTER (WHERE pty_l = 'R')          AS nr_loose,
+       COUNT(*)    FILTER (WHERE pty_t = 'D')          AS nd_literal,
+       COUNT(*)    FILTER (WHERE pty_t = 'R')          AS nr_literal
 FROM ranked GROUP BY 1, 2, 3
 """
 
@@ -194,9 +201,10 @@ NOT_CLOSE = ("single", "likely", "solid")
 
 def wa_seats(con, year: int) -> list[dict]:
     path = f"{RAW}/{GENERALS[year]}_AllState.csv"
-    sql = SEAT_SQL.format(path=path, strict=STRICT_SQL, loose=LOOSE_SQL)
+    sql = SEAT_SQL.format(path=path, strict=STRICT_SQL, loose=LOOSE_SQL, literal=LITERAL_SQL)
     out = []
-    for ch, dist, pos, ncand, top1, runner, wp, nd, nr, ndl, nrl in con.execute(sql).fetchall():
+    for (ch, dist, pos, ncand, top1, runner, wp, nd, nr, ndl, nrl, ndt,
+         nrt) in con.execute(sql).fetchall():
         out.append(dict(
             chamber=ch, district=dist, position=pos, ncand=int(ncand),
             margin=(None if ncand <= 1 else
@@ -204,6 +212,7 @@ def wa_seats(con, year: int) -> list[dict]:
             band=band(int(ncand), float(top1), float(runner)),
             avail=availability(int(nd), int(nr), int(ncand)),
             avail_loose=availability(int(ndl), int(nrl), int(ncand)),
+            avail_literal=availability(int(ndt), int(nrt), int(ncand)),
             winner=wp))
     return out
 
@@ -309,6 +318,9 @@ def derive_wa(d: dict) -> dict[int, list[dict]]:
         d[f"sens_{y}_strict"] = d[f"d2_{y}_nodr"]
         d[f"sens_{y}_loose"] = 100.0 * sum(1 for x in rows if x["avail_loose"] != "dr") / n
         d[f"sens_{y}_delta"] = d[f"sens_{y}_strict"] - d[f"sens_{y}_loose"]
+        # LITERAL tier, added 2026-08-08: orthography normalised, faction names kept distinct.
+        d[f"sens_{y}_literal"] = 100.0 * sum(
+            1 for x in rows if x["avail_literal"] != "dr") / n
 
     d["notclose_lo"] = min(d[f"d1_{y}_notclose"] for y in YEARS)
     d["notclose_hi"] = max(d[f"d1_{y}_notclose"] for y in YEARS)
@@ -568,9 +580,10 @@ def build_probes():
                     ("single", "tossup", "lean", "likely", "solid")), 0))
     # ---- sensitivity
     for y in YEARS:
+        # Three columns since 2026-08-08: literal | **family (published)** | expansive.
         p.append((f"sensitivity {y}",
-                  rf"\| {y} \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+) \|",
-                  (f"sens_{y}_strict", f"sens_{y}_loose", f"sens_{y}_delta"), 0.05))
+                  rf"\| {y} \| ([\d.]+)% \| \*\*([\d.]+)%\*\* \| ([\d.]+)% \|",
+                  (f"sens_{y}_literal", f"sens_{y}_strict", f"sens_{y}_loose"), 0.05))
     # The 2026-08-08 party-string audit added a paragraph to §Sensitivity recording what the
     # enumeration found. Its figures are restatements of derived values, so they are probed
     # rather than exempted — a paragraph explaining a correction is exactly the place a stale
@@ -662,6 +675,13 @@ COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
             "figure beside it is asserted",
     "26.9": "the adopted 2020 no-D-v-R share as restated in this sentence; "
             "asserted at its table cell in the Dimension-2 block",
+    # --- §Sensitivity's three-tier discussion, added 2026-08-08.
+    "1.5": "a stated BOUND over the expansive-minus-family gaps ('nothing else by more than "
+           "1.5'), not a measurement. Every cell it bounds is asserted by the per-year "
+           "sensitivity probes, so the claim is checkable from asserted values",
+    "35.3": "the 2024 LITERAL cell, restated in the historical note about the regex this "
+            "enumeration replaced. It is asserted in the sensitivity table one paragraph "
+            "above, as sens_2024_literal",
     "150": "the size of the NY Assembly, a chamber fact",
     "149": "Assembly districts carrying a race in the LOADED returns, quoted while "
            "explaining why an earlier draft bounded the figure. The chamber is now complete "

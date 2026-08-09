@@ -69,6 +69,53 @@ PRIMARIES = {2016: "20160802", 2018: "20180807", 2020: "20200804",
 EXPECT_HOUSE = 98          # 49 districts x 2 positions, all up every even year
 EXPECT_USHOUSE = 10        # WA congressional districts
 
+# --- SENATE: an expectation that does NOT come from the file being checked (2026-08-08) ------
+# Until now the Senate expectation was read from the certified file itself and reported rather
+# than asserted, so a missing Senate race would have lowered the expectation and the count
+# together and reconciled cleanly. Given that this paper exists because a supposedly complete
+# source silently omitted races, that was the wrong place to stop.
+#
+# Washington's 49 Senate districts run four-year staggered terms, which partitions them into two
+# cohorts that alternate: cohort A elects in presidential years, cohort B in midterms.
+# 25 + 24 = 49, and each district appears exactly once every four years. That periodicity is a
+# structural fact about the term system, not a property of any one file, so checking the file
+# against it is a real independent test: a dropped Senate race breaks the pattern.
+#
+# HOW THE COHORTS WERE ESTABLISHED, stated plainly because overclaiming here is the exact defect
+# under review. They were derived from these same five certified files and then cross-checked
+# against the term structure — 25 + 24 = 49, disjoint, every district once per four years, and
+# every cycle's roster reproduced exactly. They were NOT taken from an external roster of seats
+# up for election. So this closes the loop for FUTURE files, which is what the gate is for; it
+# is not independent confirmation that the 2016-2024 files were themselves complete.
+#
+# The four off-cycle races are consistent with special elections to fill vacancies. The certified
+# files do not label them as such — the race name is just "State Senator" — so that reading is an
+# inference from periodicity, not something the source states.
+SENATE_CYCLE_CSV = os.path.join("docs", "reference", "wa_senate_cycle_2016-2024.csv")
+
+
+def _load_senate_cycle() -> tuple[dict[str, set[int]], dict[int, set[int]]]:
+    """-> ({cohort: districts}, {year: off-cycle districts})."""
+    cohorts: dict[str, set[int]] = {"A": set(), "B": set()}
+    off: dict[int, set[int]] = {}
+    with open(SENATE_CYCLE_CSV, newline="", encoding="utf-8") as fh:
+        for r in csv.DictReader(fh):
+            d = int(r["district"])
+            cohorts[r["cohort"].strip()].add(d)
+            for y in (r["off_cycle_years"] or "").split(";"):
+                if y.strip():
+                    off.setdefault(int(y), set()).add(d)
+    return cohorts, off
+
+
+SENATE_COHORTS, SENATE_OFF_CYCLE = _load_senate_cycle()
+# Cohort A elects in presidential years, B in midterms.
+SENATE_COHORT_OF_YEAR = {2016: "A", 2018: "B", 2020: "A", 2022: "B", 2024: "A"}
+
+
+def expected_senate_districts(year: int) -> set[int]:
+    return SENATE_COHORTS[SENATE_COHORT_OF_YEAR[year]] | SENATE_OFF_CYCLE.get(year, set())
+
 # --- FROZEN PARTY-STRING MAPPING (2026-08-08) --------------------------------------------
 # Party classification is no longer a regex over unseen text. Every distinct party string in
 # the five certified files is enumerated in docs/reference/wa_party_strings_2016-2024.csv and
@@ -107,15 +154,35 @@ PARTY_MAP_CSV = os.path.join("docs", "reference", "wa_party_strings_2016-2024.cs
 # impossible by construction, and leaves the sensitivity test measuring the one judgment that
 # is actually still open: whether independence-qualified strings and hybrids fold into a major
 # party. Loose must be a superset of strict, and a test asserts it.
-def _load_party_map() -> tuple[dict[str, str], dict[str, str]]:
+def _load_party_map() -> dict[str, dict[str, str]]:
+    """-> {spec: {party_string: D|R|O}} for all three specifications.
+
+    THREE, not two, since 2026-08-08. The second adversarial review made the point that folding
+    "Culture Republican" in with "Republican" is not a statement the STATE makes: Washington's
+    party preference is informational, a candidate may invent the string, and it implies no
+    nomination or endorsement. So calling a Republican-versus-Culture-Republican general a
+    "same-party" race is a researcher's category, and the honest response is to report the
+    tiers separately rather than defend one:
+
+      LITERAL   — orthography only. G.O.P., G.O.P and R normalise to Republican because they
+                  spell the party's own name; faction names stay distinct.
+      FAMILY    — the published rule. Faction qualifiers fold in; independence does not.
+      EXPANSIVE — also folds independence-qualified strings and two-party hybrids.
+
+    Each is a superset of the one before, asserted by tests. The point of showing all three is
+    that the substantive conclusion does not move across them.
+    """
     with open(PARTY_MAP_CSV, newline="", encoding="utf-8") as fh:
         rows = list(csv.DictReader(fh))
-    strict = {r["party_string"].strip(): r["party_class"].strip() for r in rows}
-    loose = {r["party_string"].strip(): r["party_class_loose"].strip() for r in rows}
-    return strict, loose
+    cols = {"literal": "party_class_literal", "strict": "party_class",
+            "loose": "party_class_loose"}
+    return {spec: {r["party_string"].strip(): r[col].strip() for r in rows}
+            for spec, col in cols.items()}
 
 
-PARTY_MAP, PARTY_MAP_LOOSE = _load_party_map()
+PARTY_MAPS = _load_party_map()
+PARTY_MAP = PARTY_MAPS["strict"]            # the published specification
+PARTY_MAP_LOOSE = PARTY_MAPS["loose"]
 
 # MISSPELLINGS in the certified source, normalized before party matching.
 # "(Prefers Democractic Party)" — 2020, LEGISLATIVE DISTRICT 8 State Representative
@@ -157,7 +224,10 @@ def party_of(raw: str, spec: str = "strict") -> str:
     s = (raw or "").strip()
     if not s or s.upper() == "WRITE-IN":
         return "O"
-    table = PARTY_MAP if spec == "strict" else PARTY_MAP_LOOSE
+    try:
+        table = PARTY_MAPS[spec]
+    except KeyError:
+        raise ValueError(f"unknown specification {spec!r}; expected one of {sorted(PARTY_MAPS)}")
     if s in table:
         return table[s]
     raise UnmappedPartyString(
@@ -314,7 +384,8 @@ def main(argv=None) -> int:
     print("=" * 88)
     print("SEAT UNIVERSE — certified statewide summary vs statutory expectation")
     print("=" * 88)
-    print(f"  {'year':<6}{'House':>7}{'(want)':>8}{'Senate':>8}{'USHouse':>9}{'(want)':>8}{'total':>7}")
+    print(f"  {'year':<6}{'House':>7}{'(want)':>8}{'Senate':>8}{'(want)':>8}"
+          f"{'USHouse':>9}{'(want)':>8}{'total':>7}")
     for year in sorted(GENERALS):
         rows, odd, fixed = load_year(con, year)
         allrows += rows
@@ -328,7 +399,22 @@ def main(argv=None) -> int:
         if u != EXPECT_USHOUSE:
             flag += f"  <-- USHouse {u}/{EXPECT_USHOUSE}"
             problems.append(f"{year}: USHouse {u}/{EXPECT_USHOUSE}")
-        print(f"  {year:<6}{h:>7}{EXPECT_HOUSE:>8}{s:>8}{u:>9}{EXPECT_USHOUSE:>8}{h+s+u:>7}{flag}")
+        # Senate: assert district IDENTITIES against the cohort schedule, not merely the count.
+        # A count check cannot catch a swap, and reading the expectation off the file being
+        # checked cannot catch an omission at all.
+        want_sen = expected_senate_districts(year)
+        got_sen = {int(x["district"]) for x in rows if x["chamber"] == "SEN"}
+        if got_sen != want_sen:
+            missing, extra = sorted(want_sen - got_sen), sorted(got_sen - want_sen)
+            bits = []
+            if missing:
+                bits.append(f"missing LD {missing}")
+            if extra:
+                bits.append(f"unexpected LD {extra}")
+            flag += "  <-- Senate " + "; ".join(bits)
+            problems.append(f"{year}: Senate roster {'; '.join(bits)}")
+        print(f"  {year:<6}{h:>7}{EXPECT_HOUSE:>8}{s:>8}{len(want_sen):>8}"
+              f"{u:>9}{EXPECT_USHOUSE:>8}{h+s+u:>7}{flag}")
         if odd:
             print(f"         non-major party strings seen: {', '.join(odd)}")
         if fixed:
@@ -399,34 +485,40 @@ def main(argv=None) -> int:
     print("\n" + "=" * 88)
     print("SENSITIVITY — does the party-string rule change the answer?")
     print("=" * 88)
-    print("  Both specifications are ENUMERATED in the frozen mapping, one column each.")
-    print("  STRICT (published): a string is major iff it carries a variant of the party's")
-    print("  own name and is not qualified by independence. Faction qualifiers do NOT")
-    print("  disqualify, so 'MAGA Republican' and 'Culture Republican' are major; WA's")
-    print("  top-two has no nominees, so 'Independent Dem.', 'Ind. Republican' and the")
-    print("  'GOP/Independent' and 'Dem/Working Fmly' hybrids are OTHER. LOOSE folds exactly")
-    print("  those into the major party, and is the only judgment still varied.")
-    print("  Deltas are computed unrounded, so they need not equal the difference of the")
-    print("  two rounded columns.")
-    print(f"\n  {'year':<6}{'no D-v-R, STRICT':>20}{'no D-v-R, LOOSE':>20}{'delta':>9}")
+    print("  ALL THREE specifications are ENUMERATED in the frozen mapping, one column each.")
+    print("  LITERAL   — orthography only: G.O.P., G.O.P and R normalise to Republican")
+    print("              because they spell the party's own name; faction names stay distinct,")
+    print("              so 'MAGA Republican' and 'Culture Republican' are OTHER.")
+    print("  FAMILY    — THE PUBLISHED RULE: faction qualifiers fold into the major party;")
+    print("              independence qualifiers and two-party hybrids do not.")
+    print("  EXPANSIVE — also folds 'Independent Dem.', 'Ind. Republican', 'GOP/Independent'")
+    print("              and 'Dem/Working Fmly' into their major party.")
+    print("\n  Why three. WA's party preference is INFORMATIONAL — a candidate may write any")
+    print("  string, and it implies no nomination or endorsement — so grouping 'Culture")
+    print("  Republican' with 'Republican' is the researcher's category, not the state's.")
+    print("  Reporting the tiers separately is more honest than defending one, and the point")
+    print("  is that the answer barely moves across them.")
+    print(f"\n  {'year':<6}{'LITERAL':>12}{'FAMILY (pub)':>16}{'EXPANSIVE':>12}")
     for year in sorted(GENERALS):
         path = os.path.join(RAW, f"{GENERALS[year]}_AllState.csv").replace("\\", "/")
         rows = con.execute(f"""
             SELECT "Race", "Party", TRY_CAST("Votes" AS BIGINT) v
             FROM read_csv_auto('{path}', header=true, all_varchar=true, ignore_errors=true)
             WHERE upper("Candidate") <> 'WRITE-IN'""").fetchall()
-        races: dict[tuple, list] = {}
-        for race, party, v in rows:
-            key = parse_race(race or "")
-            if key is None or not v or v <= 0:
-                continue
-            races.setdefault(key, []).append(party_of(party, spec="loose"))
-        n_loose = len(races)
-        nodr_loose = sum(1 for ps in races.values() if not ("D" in ps and "R" in ps))
+        cells = []
+        for spec in ("literal", "loose"):
+            races: dict[tuple, list] = {}
+            for race, party, v in rows:
+                key = parse_race(race or "")
+                if key is None or not v or v <= 0:
+                    continue
+                races.setdefault(key, []).append(party_of(party, spec=spec))
+            n = len(races)
+            cells.append(100.0 * sum(
+                1 for ps in races.values() if not ("D" in ps and "R" in ps)) / n)
         yr = [x for x in allrows if x["year"] == year]
-        nodr_strict = sum(1 for x in yr if x["availability"] != "D-v-R")
-        a, b = 100.0 * nodr_strict / len(yr), 100.0 * nodr_loose / n_loose
-        print(f"  {year:<6}{a:>19.1f}%{b:>19.1f}%{a-b:>8.1f}")
+        fam = 100.0 * sum(1 for x in yr if x["availability"] != "D-v-R") / len(yr)
+        print(f"  {year:<6}{cells[0]:>11.1f}%{fam:>15.1f}%{cells[1]:>11.1f}%")
     print("\n  The rule matters most in 2016, when eight distinct non-major party strings")
     print("  appeared — six Independent-flavored plus TWO two-party hybrids, GOP/Independent")
     print("  and Dem/Working Fmly, all listed under the universe table above; elsewhere it")

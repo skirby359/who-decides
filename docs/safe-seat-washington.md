@@ -7,8 +7,9 @@
 *AI-assisted drafting and analysis review. All figures are reproducible from
 public-record data and from the open-source scripts cited below, including
 `scripts/diag_seat_competition.py`, which builds the seat universe from certified
-statewide returns and fails loudly if any cycle does not reconcile to the statutory
-chamber size. The paper source, code, and data-acquisition recipe are public at
+statewide returns and fails loudly if any cycle does not reconcile — the House and U.S. House
+against their statutory sizes, the Senate seat by seat against the roster its staggered terms
+imply. The paper source, code, and data-acquisition recipe are public at
 <https://github.com/skirby359/who-decides>. Contact: kirby@tikorconsulting.com.*
 
 ***DRAFT — pending human/editorial sign-off.** `scripts/verify_safe_seat.py` scrapes this paper
@@ -102,9 +103,11 @@ neither question well, so this paper reports two dimensions throughout:
 ## The seat universe
 
 Because an earlier version of this analysis under-counted, the universe is now built from
-the **certified statewide summary returns** and asserted against the statutory chamber
-size before anything is computed. Washington elects all 98 House positions and 10 U.S.
-House members every even year; the Senate is staggered.
+the **certified statewide summary returns** and reconciled before anything is computed:
+the House and U.S. House against fixed statutory sizes, the Senate against the roster its
+four-year staggered terms imply. Washington elects all 98 House positions and 10 U.S.
+House members every even year; the Senate elects 25 districts in presidential years and 24 in
+midterms, plus any specials.
 
 | year | House (want 98) | Senate | U.S. House (want 10) | total |
 |---|--:|--:|--:|--:|
@@ -119,18 +122,31 @@ The prior approach derived races from the precinct-results table, where a race a
 the data simply disappeared rather than being detected as missing; Appendix G documents
 what that cost.
 
-**Precisely what is and is not independently asserted.** The House and U.S. House counts are
-checked against **fixed statutory expectations** — 98 and 10 — that do not come from the file
-being checked, so a missing race fails the run. The **Senate count does not have that
-property.** Washington's Senate is staggered and its per-cycle expectation depends on which
-seats were up plus any special elections, so the diagnostic takes the expected number *from the
-certified file itself* and reports it rather than asserting it against an outside figure. A
-Senate race missing from a certified file would therefore lower both the expectation and the
-count together, and reconcile. This is a real gap in the guarantee and it is stated rather than
-glossed, because an under-counted universe is the exact defect that forced this paper's rebuild.
-Closing it means enumerating the seats up in each cycle from an independent source; that is not
-done here, and until it is, the reconciliation claim above should be read as covering the House
-and U.S. House.
+**What is asserted, and how.** The House and U.S. House are checked against **fixed statutory
+expectations** — 98 and 10 — that do not come from the file being checked, so a missing race
+fails the run. The **Senate is now checked by district identity**, not by count.
+
+Washington's 49 Senate districts run four-year staggered terms, which partitions them into two
+alternating cohorts: **25 districts elect in presidential years, 24 in midterms**, and every
+district appears exactly once every four years. That periodicity is a property of the term
+system rather than of any particular file, so the roster expected in each cycle can be written
+down in advance — it is, in `docs/reference/wa_senate_cycle_2016-2024.csv` — and the certified
+file checked against it seat by seat. Four races fall outside the regular rotation (LD 36 in
+2016, LD 39 in 2018, LD 38 in 2020, LD 27 in 2022); each is listed explicitly.
+
+Identity matters here rather than count, because a count check cannot see a substitution. All
+five cycles reconcile exactly, and the check is verified to catch both a dropped district and a
+count-preserving swap.
+
+**Two honest limits on that claim.** First, the cohort assignment was **derived from these same
+five certified files** and then cross-checked against the term structure — 25 + 24 = 49,
+disjoint, every district once per four years, every cycle's roster reproduced exactly. It was
+not taken from an external roster of seats up for election. So this closes the loop for *future*
+files, which is what a gate is for; it is not independent confirmation that these five files
+were themselves complete. Second, the four off-cycle races are **consistent with** special
+elections to fill vacancies, but the certified files do not say so — the race name is just
+"State Senator" — so that reading is an inference from periodicity rather than something the
+source states.
 
 ---
 
@@ -150,10 +166,11 @@ candidate, or a margin of ten points or more.
 - **Defensible claim.** In a typical Washington cycle **roughly five in six legislative
   and congressional seats are not close**. In 2024, of 133 partisan seats only **22 (16.5%)
   were decided by under ten points**. The share runs 79–88% across a decade, with **2018
-  the least foreclosed year** — the blue-wave cycle, when 19 seats landed inside five
+  the least lopsided year** — the blue-wave cycle, when 19 seats landed inside five
   points, more than double any other year in the series.
 - **Safe seats are bipartisan.** Among 2024's not-close seats, **68 were won by Democrats
-  and 43 by Republicans** — the expected product of a geographically sorted electorate.
+  and 43 by Republicans** — consistent with a geographically sorted electorate, a mechanism
+this design does not estimate.
   (Winner party is taken from the leading candidate, not inferred from aggregate party
   vote totals; Appendix G explains why that distinction mattered.)
 
@@ -182,11 +199,15 @@ candidate, or a margin of ten points or more.
   cycles** — the verifier measures it and prints `zero-vote ballot candidates = 0`, and fails
   if that ever stops being true.
 - 2016 is the outlier at 48.5%, and partly for a definitional reason — **eight** distinct
-  non-major party strings appeared on that year's ballot, six of them Independent-flavoured
-  ("Indep't Democrat", "Independent Dem", "Independent Dem.", "Independent GOP",
-  "Independent", "Independent Rep") plus **two** hybrids naming two parties at once
-  ("GOP/Independent" and "Dem/Working Fmly"). An earlier version of this sentence said seven
-  and listed only the first hybrid. See the sensitivity test below.
+  party strings appeared on that year's ballot that name or gesture at a major party without
+  qualifying as one under the published rule: six Independent-flavoured ("Indep't Democrat",
+  "Independent Dem", "Independent Dem.", "Independent GOP", "Independent", "Independent Rep")
+  plus **two** hybrids naming two parties at once ("GOP/Independent" and "Dem/Working Fmly").
+  These are the strings the classification rule has to adjudicate; 2016 also carried ordinary
+  minor-party and no-preference labels ("Libertarian", "States No Party Preference",
+  "Non-Partisan"), which raise no such question and are not counted here. Earlier versions of
+  this sentence said *seven*, listed only the first hybrid, and described the eight as though
+  they were every non-major string on the ballot. See the sensitivity test below.
 
 ### The two dimensions are not the same question
 
@@ -209,20 +230,44 @@ without a partisan choice, and the two-dimension design is what makes it visible
 
 ### Sensitivity: how party preference is read
 
-Washington's top-two system has no nominees, only stated preferences. The published figures
-count a string as major when it carries a variant of the party's own name and is not qualified
-by independence — so "MAGA Republican" and "Culture Republican" are major, while
-"Independent Dem.", "Ind. Republican" and the two-party hybrids "GOP/Independent" and
-"Dem/Working Fmly" are counted as other. Folding those remaining strings into the major
-parties moves the no-D-v-R share by:
+Washington's top-two system has no nominees, only stated preferences, and the preference is
+**informational**: a candidate may write essentially any string, and it implies no nomination,
+endorsement or association by the party named. That matters for how the results below should be
+read. When this paper counts a Republican-versus-"Culture Republican" general as a same-party
+race, it is not asserting that the state treats those as one party. It is applying a
+**researcher-defined party-family category**, and the honest response to that is to report the
+alternatives rather than defend the choice.
 
-| year | strict (published) | loose | delta |
+Three specifications are therefore enumerated string by string in
+`docs/reference/wa_party_strings_2016-2024.csv`, each a superset of the one before:
+
+- **Literal** — orthography only. `G.O.P.`, `G.O.P` and `R` normalise to Republican because
+  they spell the party's own name; faction names stay distinct, so "MAGA Republican" and
+  "Culture Republican" are *other*.
+- **Family** — **the published rule.** Faction qualifiers fold into the major party;
+  independence qualifiers and two-party hybrids do not.
+- **Expansive** — also folds "Independent Dem.", "Ind. Republican", "GOP/Independent" and
+  "Dem/Working Fmly" into their major party.
+
+| year | literal | **family (published)** | expansive |
 |---|--:|--:|--:|
-| 2016 | 48.5% | 38.1% | 10.4 |
-| 2018 | 26.3% | 24.8% | 1.5 |
-| 2020 | 25.4% | 23.9% | 1.5 |
-| 2022 | 35.3% | 35.3% | 0.0 |
-| 2024 | 34.6% | 34.6% | 0.0 |
+| 2016 | 48.5% | **48.5%** | 38.1% |
+| 2018 | 26.3% | **26.3%** | 24.8% |
+| 2020 | 25.4% | **25.4%** | 23.9% |
+| 2022 | 35.3% | **35.3%** | 35.3% |
+| 2024 | 35.3% | **34.6%** | 34.6% |
+
+**The conclusion does not turn on the choice.** Literal and family agree in four of the five
+cycles and differ by three-quarters of a point in the fifth — 2024, where exactly one
+faction-qualified string ("MAGA Republican", in Congressional District 2) changes a race from
+major-versus-other to D-v-R. The expansive column moves 2016 by ten points and nothing else by
+more than 1.5, because 2016 is the year the independence-flavoured labels cluster in.
+
+One historical note, because it explains the shape of the correction. The regex this
+enumeration replaced was **not** any of these three: it treated faction names as other, like
+*literal*, but missed the orthographic variants that *literal* normalises. That is why the
+2024 literal column reproduces the pre-audit published figure of 35.3% while 2018 and 2020 do
+not.
 
 The rule matters in 2016 and is close to immaterial elsewhere. Both specifications are now
 **enumerated string by string** in `docs/reference/wa_party_strings_2016-2024.csv` rather than
@@ -279,7 +324,7 @@ rather than assumed.
 | TX House 2024 | 96 canvass + 54 certified single-candidate | **94.0%** | 40.7% (61) |
 | ID House 2024 | 70 / 70 | **92.9%** | 28.6% (20) |
 
-- **Defensible claim.** Foreclosure is **not a Washington peculiarity** — in every state
+- **Defensible claim.** A low not-close share is **not a Washington peculiarity** — in every state
   examined, **88–94% of lower-chamber seats were not close**, blue and red alike, and
   **more than a quarter offered no D-vs-R option.**
 - **New York is now complete, and the one absent seat turned out to be the chamber's
@@ -321,7 +366,8 @@ legislative and congressional seats are not close, and a third of the ballot off
 choice between the parties.
 
 Where a general election is not close, attention naturally turns to the August top-two
-primary as the round where the outcome is effectively determined. **The primary is much
+primary — the obvious place to look for whether meaningful competition occurred earlier,
+though this design cannot establish that it did. **The primary is much
 the smaller round.** Matching every seat to its own August primary on the corrected
 universe, the median primary race drew this share of the votes cast in the same seat's
 general:
@@ -361,7 +407,7 @@ choice is a question these findings motivate, not one they answer.
   appeared in an earlier version and has been withdrawn. Observed general-election margins
   cannot date the binding decision.
 - **"Not close" is not "illegitimate."** A forty-point margin can mean the voters there
-  genuinely agree. The finding is strongest for the 23 single-candidate seats and the 15
+  genuinely agree. The finding is strongest for the 23 single-candidate seats and the 16
   same-party generals, and weakest as a democratic-deficit reading for lopsided D-vs-R
   contests. Appendix A takes this at full strength.
 - **The partisan analysis is descriptive.** Safe-seat party totals and the seat/vote
@@ -379,7 +425,7 @@ choice is a question these findings motivate, not one they answer.
 - **Margins are between candidates, not parties**, in Dimension 1. Third-party votes count
   toward the margin when a minor-party candidate is one of the top two, and are excluded
   from the denominator otherwise — which can only arise in the comparison states, since a
-  Washington general carries exactly two candidates.
+  Washington general carries at most two named, non-write-in candidates.
 - **Primary participation is measured in race votes, not voters** — see Appendix C.
 
 ---
@@ -458,24 +504,33 @@ why, rather than quietly restating.
 
 ## Appendix C — Methods
 
-- **Universe.** Built from certified statewide summary returns and asserted against the
-  statutory chamber size (98 WA House positions, 10 U.S. House, Senate staggered).
-  `scripts/diag_seat_competition.py` exits non-zero on any mismatch. Write-ins are excluded;
-  candidates with zero votes are excluded.
-- **Party.** Taken from the certified "Prefers ___ Party" string. Only
-  Democratic/Democrat and Republican/GOP count as major; Independent-, GOP/Independent-,
-  Culture- and MAGA-prefixed strings are counted as other, with a sensitivity test reported
-  in the body. Outright misspellings of a major party's own name are normalized first, in
-  both specifications — one such string exists, "Democractic" in 2020, and the body explains
-  it. Because top-two has no nominees, this is a statement about stated preference, not
-  nomination.
+- **Universe.** Built from certified statewide summary returns and reconciled before use: 98 WA
+  House positions and 10 U.S. House against fixed statutory sizes, and the Senate **by district
+  identity** against the roster implied by its four-year staggered terms (25 presidential-year
+  districts, 24 midterm, plus four listed off-cycle races), pinned in
+  `docs/reference/wa_senate_cycle_2016-2024.csv`. Identity rather than count, because a count
+  cannot detect a substitution. `scripts/diag_seat_competition.py` exits non-zero on any
+  mismatch. Write-ins are excluded; candidates with zero votes are excluded.
+- **Party.** Taken from the certified "Prefers ___ Party" string, and resolved against a
+  frozen enumeration of all 32 strings in the five certified files
+  (`docs/reference/wa_party_strings_2016-2024.csv`); an unlisted string is a hard error, not a
+  silent "other". A string counts as major when it carries a variant of the party's own name
+  and is **not** qualified by independence. Faction qualifiers therefore do **not** disqualify
+  — "MAGA Republican" and "Culture Republican" are major — while independence-qualified strings
+  ("Independent Dem.", "Ind. Republican") and two-party hybrids ("GOP/Independent",
+  "Dem/Working Fmly") are other. Spelling and abbreviation are normalized before classification
+  in every specification: "Democractic" (2020), "G.O.P." (2018), "G.O.P" (2016) and "R" (2020).
+  Three specifications are reported in the body's sensitivity test. **Because top-two has no
+  nominees, this is a statement about stated preference, not nomination — and the party-family
+  grouping is the researcher's, not the state's.**
 - **"Safe seat"** is used throughout as shorthand for *a seat that was not close in the
   observed result*. It carries no forward-looking claim; nothing here projects a future
   margin, which is the point of the design.
 - **Dimension 1, candidate competition.** Margin between the top two candidates by votes,
   regardless of party: |first − second| / (first + second). Bands: Tossup <5, Lean 5–10,
   Likely 10–20, Solid 20+. "Not close" = single candidate or margin ≥10. In Washington the
-  general has exactly two candidates, so this is the whole field; in the comparison states,
+  general carries at most two named, non-write-in candidates — 23 seats in 2024 carried one —
+  so this is the whole field; in the comparison states,
   where three or more can appear, votes for candidates below second place are outside the
   denominator and margins are correspondingly slightly wider.
 - **Dimension 2, partisan availability.** Classified from the set of parties actually on
@@ -556,7 +611,8 @@ chambers come from `scripts/diag_safe_seat_robustness.py`.
 | ID House | 95.7% | 92.9% | 92.9% | 91.4% | 90.0% | 70 |
 
 Even at a stringent 15-point cut, **74–90%** of seats are not close; at a loose 5-point
-cut, 93–98%. There is no threshold at which these chambers look competitive.
+cut, 93–98%. Across every tested cutoff from 5 to 15 points, a large majority of seats
+remain not close.
 
 Both New York rows — this sweep and the four-state table above — are now on the complete
 150-seat chamber, and their ≥10-point cells agree at **88.0%**. `diag_safe_seat_robustness.py`
@@ -715,12 +771,16 @@ presented as a statement about competitiveness.
 
 The most consequential change is 2018. The prior version reported a dramatic dip to 75% in
 the blue-wave year; on the complete universe the dip is to **78.9%** — still the least
-foreclosed cycle in the series, but a good part of the apparent drop was 24 missing King
+lopsided cycle in the series, but a good part of the apparent drop was 24 missing King
 County seats, which are disproportionately safe and Democratic. The headline moves from
 "roughly 85%" to **"roughly 84%"**, and the decade range tightens from 75–91% to 79–88%.
 
 The 2024 no-major-choice count moves from 46 to **47**, and is now correctly described:
-23 single-candidate, 15 same-party, 9 major-versus-minor.
+23 single-candidate, 15 same-party, 9 major-versus-minor. *(Correct as of the 2026-07-27
+revision and superseded by the 2026-08-08 party-string audit, which returns the count to **46**
+on a different decomposition — 23 single-candidate, 16 same-party, 7 major-versus-minor. The
+coincidence of arriving back at 46 is worth naming: it is not a reversal, and the two 46s do
+not describe the same set of seats.)*
 
 **Also withdrawn:** the claim that seats were "decided before November," which observed
 November margins cannot establish; and the assertion that the safe-seat ratio is a
@@ -770,7 +830,35 @@ and the four-state section states the result.
 
 Nothing in the abstract changed. The 2016–2024 not-close series, the 2024 headline of 111 of
 133 seats, the 47-seat no-choice count, the cross-tab, and Appendix F's Texas verification
-all reproduce unchanged.
+all reproduce unchanged. *(Historical as of the 2026-08-08 audit: the no-choice count is now
+46 and the cross-tab moved with it. The 111-of-133 headline is genuinely unchanged — margins
+do not depend on party.)*
+
+> **Revision note (2026-08-08) — third revision, the party-string audit.** Party
+> classification was a regex, and a regex cannot report what it fails to match. Enumerating
+> every distinct party string in the five certified files — 32 of them — found **six races**
+> misclassified across four cycles, five of them never suspected: `G.O.P.` (2018), `G.O.P`
+> without the trailing period (2016), `R` twice (2020), `MAGA Republican` (2024) and `Culture
+> Republican` (2024). Each read as a minor party, so a genuine major-party contest was
+> classified as major-versus-other.
+>
+> **Figures that moved:** 2018 no-D-v-R 27.1% → **26.3%**; 2020 26.9% → **25.4%**; 2024 35.3%
+> → **34.6%** (47 seats → **46**, decomposing 23 / 16 / 7 rather than 23 / 15 / 9); the
+> five-cycle range 27–49% → **25–49%**; same-party generals 15 → **16**; the 2024 cross-tab.
+> **Dimension 1 did not move at all** — margins are computed between candidates regardless of
+> party — so 111 of 133 (83.5%) stands, as does the whole not-close series.
+>
+> **What replaced the regex:** both specifications are now enumerated string by string in
+> `docs/reference/wa_party_strings_2016-2024.csv`, each row carrying its reason, and an
+> unlisted string raises rather than defaulting to "other". A third specification was added at
+> the same time (see §Sensitivity), separating orthographic normalisation from the
+> party-family grouping, because folding "Culture Republican" in with "Republican" is a
+> researcher's category and not the state's.
+>
+> Also in this revision: New York Assembly District 23 supplied from the certified NYSBOE
+> contest, retiring the 149-seat bound; Appendix E's contest gap no longer read as candidate
+> non-entry; "foreclosure" removed from the descriptive results; and the Senate universe claim
+> narrowed to what is independently asserted.
 
 ## End note — data, reproduction, and series
 
