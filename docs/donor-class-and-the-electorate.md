@@ -14,10 +14,11 @@ match-validation record. **Every verdict in the match-precision validation is th
 across the original pass, a blind re-rate and an independent rater's pass; the match itself is
 deterministic local code.
 Verdicts are published at row level and both passes and their divergences are reported
-(Appendix F). **No individual-level voter, contribution or linkage record was submitted to any
-hosted AI service** — assistance operated on code, schemas, aggregate outputs and prose. That is
-a statement about practice rather than a technical control, since nothing in the tooling enforces
-it. The author independently verified all sources, code and outputs and is solely responsible for
+(Appendix F). Assistance operated on code, schemas, aggregate outputs and prose. Person-level data
+handling — what the architecture keeps out of a hosted service, where that has rested on practice
+rather than enforcement, and one 2026 instance in which an operational command echoed voter rows
+into an assisted session — is documented in the project's data-use and research-ethics assessment.
+The author independently verified all sources, code and outputs and is solely responsible for
 the content and conclusions.*
 
 *Data and code availability.* Paper source, analysis code, and the data-acquisition recipe are

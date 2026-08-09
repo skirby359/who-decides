@@ -301,9 +301,13 @@ concrete analysis to run.
   races (Schedule E carries support/oppose + district), it regresses the
   *fundamentals-net residual* (actual − model-predicted Dem %, **not** the raw
   margin) on the net pro-Dem IE advantage. **Directional IE on disk spans five cycles
-  (2018–2026 FEC Schedule-E, 34 scorable WA U.S. House races)**, while the $70.6M of
-  PDC state-legislative IE carries a NULL support/oppose flag and cannot enter a
-  directional test at all. The regression **now runs**: the slope is **+0.515 pp per
+  (2018–2026 FEC Schedule-E, 34 scorable WA U.S. House races)**, and the **$51.7M of
+  direction-coded PDC state-legislative IE** (form C-6 section C6.3, ingested 2026-08-09)
+  adds **129 scorable district-cycles** on the same design — see
+  `scripts/diag_pdc_ie_vs_margin.py`. That extension does not settle the question: every
+  interval still spans zero and the **sign becomes specification-dependent** (−3.816 to
+  +4.890 across four specifications), which is evidence the constraint is structural
+  rather than a shortage of cells. The regression **now runs**: the slope is **+0.515 pp per
   $1M net pro-Dem IE (Pearson r +0.186, n=34)**, with a bootstrap interval of
   −0.600 to +2.821 that spans zero. The interval is the result — it admits both no
   effect and effects large enough to decide a close race. The most heavily funded
@@ -439,11 +443,12 @@ signal. Accuracy-weighted failure signal across all findings = **22/100**.*
    verified (§E).
 4. **Methods/curiosity piece:** Finding 6 — **DRAFTED** as
    [`does-money-move-votes.md`](does-money-move-votes.md) (2026-07-26). The story is the
-   honest near-null *and* the data ceiling: money is the strongest single correlate of
-   overperformance (+0.58) yet leaves no causal fingerprint — allocation holdout R² 0.02,
-   the forecast model discards the term against a known baseline, and the directional IE
-   cross-section runs *negative* (n=7). Directional IE is one cycle deep and the $70.6M of
-   PDC legislative IE has no support/oppose flag, so the verdict stays "cannot confirm or
-   refute," and the data ceiling is the citable result.
+   honest near-null: money is the strongest single correlate of overperformance (+0.58) yet
+   leaves no causal fingerprint — allocation holdout R² 0.02, the forecast model discards
+   the term against a known baseline, and the directional test, run across 34 federal
+   district-cycles and a further 129 state-legislative ones, returns intervals that span
+   zero on every specification. The verdict stays "cannot confirm or refute," and the
+   citable result is that the limit is the **design** — outside money concentrates in a few
+   races and is targeted at expected closeness — not the disclosure record.
 5. **Party-of-record boundary questions — DONE** (NY + ID voter files loaded); the
    longitudinal/causal version of Finding 4 remains for a future extension.

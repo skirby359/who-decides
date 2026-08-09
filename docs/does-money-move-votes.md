@@ -40,12 +40,17 @@ independent-expenditure advantage — is estimable across five cycles and thirty
 scorable Washington races, and returns **+0.5 points of residual per $1M of net
 pro-Democratic IE with a bootstrap interval spanning −0.6 to +2.8**. The interval contains
 zero and contains effects large enough to matter, which is the finding: the data bound the
-effect loosely and cannot sign it. A further $70.6M of state legislative IE carries no
-support-or-oppose flag at all and cannot enter the test. The most heavily funded race in
-the panel, Washington's 3rd in 2024, finished 0.06 points from its fundamentals. The honest
-verdict is that money in Washington behaves as a marker of candidate strength rather than a
-demonstrable mover of votes, and that the public data can bound the alternative but not
-exclude it.
+effect loosely and cannot sign it. Extending the same design to Washington's state
+legislative races — **$51.7M of PDC independent expenditure across 129 scorable
+district-cycles, direction-coded on 100% of rows** — nearly quadruples the sample and
+changes nothing: every interval still spans zero, and the sign of the point estimate is
+**specification-dependent**, running from −3.8 to +4.9 depending on whether electioneering
+communication is counted as advocacy and whether money is matched to the contest it named.
+The most heavily funded race in the federal panel, Washington's 3rd in 2024, finished 0.06
+points from its fundamentals. The honest verdict is that money in Washington behaves as a
+marker of candidate strength rather than a demonstrable mover of votes, and that the
+binding constraint is not the disclosure record but the design: outside money concentrates
+in a handful of races and is targeted at expected closeness.
 
 **Keywords:** campaign spending; independent expenditures; electoral effects; endogeneity;
 null results; data availability; state legislative elections; Washington.
@@ -258,14 +263,46 @@ saying otherwise was the draft's own error. What made the earlier figures wrong 
 missing cycles but a de-duplication defect described in the data section below, which
 inflated every independent-expenditure total by roughly a factor of two.
 
-**The state-legislative money is worse.** Washington's PDC records **$70.6M** of
-independent expenditure in legislative races, which would multiply the sample severalfold.
-Its support/oppose flag is **empty on all but 5 of 4,456 rows — $14,212, or 0.02% of the
-dollars.** The database records that money was spent regarding a race, not which side it was
-spent for. It therefore cannot enter a directional test at all without re-derivation from
-sponsor-level data. (An earlier draft said the flag was simply null; five rows carry one,
-which changes nothing about the conclusion and is stated because the absolute form was
-checkable and wrong.)
+**The state-legislative money enters the test too, and it does not rescue it.** Washington's
+PDC records **$51,723,243.45** of independent expenditure identifying a legislative
+candidate across 2018–2024, on **4,653 filed rows carrying a support/oppose direction, a
+named candidate, a filer id and a jurisdiction on 100% of them**. Matched to the same
+fundamentals-net residual, that yields **129 scorable district-cycles** — close to four
+times the 34-race federal panel — and the estimate remains uninformative:
+
+| specification | n | cells with ≥$25K | slope | 95% bootstrap | Pearson r |
+|---|---:|---:|---:|---|---:|
+| **express advocacy, race-matched** | 127 | 17 | **+4.890** | −30.914 to +22.409 | +0.085 |
+| express advocacy, district-aggregate | 129 | 53 | −2.043 | −11.170 to +3.203 | −0.053 |
+| all directional, race-matched | 127 | 28 | −3.816 | −15.117 to +3.824 | −0.083 |
+| all directional, district-aggregate | 129 | 60 | +0.107 | −5.090 to +4.790 | +0.004 |
+
+**Every interval spans zero and the sign is specification-dependent.** Two of the four
+reverse sign on the deletion of a single race. Quadrupling the sample did not narrow the
+answer, because the sample was never the binding constraint: only 13–47% of cells attract
+any material independent expenditure, so the slope is identified by a few dozen contests
+whichever specification is chosen, and those are exactly the contests money selected for
+being close.
+
+Two properties of the PDC record decide the specification and are not incidental. **Three
+quarters of the directional dollars are electioneering communication, not express
+advocacy** — $38.70M against $13.03M — and the two run in opposite directions, express
+advocacy 69% *for* candidates and electioneering 61% *against* them. Pooling them inverts
+the panel's directional balance, which is why the two are reported apart rather than summed.
+And the filing identifies a candidate's *chamber* but not their House position, while the
+outcome is a single contest; the race-matched rows count only money naming a candidate on
+the ballot in the scored race, and the district-aggregate rows show what attributing all
+three seats' money to one seat's residual does instead.
+
+*(An earlier version of this paper reported that this money "carries no support/oppose flag"
+on all but 5 of 4,456 rows and "cannot enter a directional test at all", and treated that as
+a limitation of Washington's disclosure regime. It was a limitation of our own extraction.
+The PDC publishes direction in the **C6.3 "Identified Entities"** section of form C-6, in the
+same dataset the loader was already reading and had been reading all along; the loader
+consumed only the C6.2 itemized-expenditure section. The correction is documented in
+[`pdc-c6-direction-audit.md`](pdc-c6-direction-audit.md), and the ingest is
+`load_pdc_ie_targets`. The conclusion this paper draws is unchanged — the point estimate is
+still unsignable — but the reason is different in kind, and the earlier reason was wrong.)*
 
 **The data defect, and why it is reported rather than quietly fixed.** FEC files most
 independent expenditures **twice** — once as a 24- or 48-hour notice on Form 24, then again
@@ -334,10 +371,14 @@ next-cycle figure at **+0.031**. Washington's outside money does not persist in 
 arrives where a given cycle's contest is expected to be close, and goes elsewhere when it
 is not — which is the endogeneity mechanism visible directly, without a regression.
 
-**What more cycles would and would not fix.** More cycles would narrow the interval in 2c,
-which spans −0.600 to +2.821, and would give the placebo enough same-era pairs to be worth
-running. They are not freely
-available. FEC's Schedule-E record extends back well past this panel, but the binding
+**What more cycles would and would not fix — now partly answered by the legislative panel.**
+The natural objection to a null on 34 races is that 34 is too few. The state-legislative
+extension is the closest thing to a test of that objection this record affords: it holds the
+design fixed and multiplies the cells by nearly four, to 129. The interval did not narrow
+and the sign did not settle; it became *specification*-dependent instead. That is evidence
+that the constraint is structural rather than arithmetic. More cycles would still narrow the
+interval in 2c, which spans −0.600 to +2.821, and would give the placebo enough same-era
+pairs to be worth running. They are not freely available. FEC's Schedule-E record extends back well past this panel, but the binding
 constraint is the *dependent variable*: the residual requires a fundamentals baseline, the
 baseline requires a Cook-style PVI, and PVI requires presidential results from before the
 target year. Washington's loaded results begin with the 2016 general, so a 2016 residual is
@@ -597,8 +638,16 @@ python scripts/diag_overperformance_patterns.py
 # Finding 2a — spend allocation vs residual, cross-cycle holdout:
 python scripts/diag_expenditures_vs_residual.py
 
-# Findings 2c and 3 — IE vs fundamentals-net residual, and the data ceiling:
+# Finding 2c — federal IE vs fundamentals-net residual (34 WA U.S. House cells):
 python scripts/diag_ie_vs_margin.py
+
+# Finding 3 — the same design on WA legislative races (129 cells, PDC C6.3).
+# Load the direction data first; it is a separate section of form C-6:
+python main.py load --district ld01 --pdc-ie-targets
+python scripts/diag_pdc_ie_vs_margin.py
+
+# The C6.3 reconciliation the legislative panel rests on (needs no database):
+python scripts/diag_pdc_c63_reconciliation.py
 
 # The longshot-share figure quoted in "What it means":
 python scripts/diag_loser_side_money.py

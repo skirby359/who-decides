@@ -16,23 +16,31 @@ A real vote-moving effect would show a POSITIVE slope (Dems beat their
 fundamentals where pro-Dem IE outspent pro-Rep IE). The honest expectation, per
 Jacobson (spending is endogenous to expected closeness) and Kalla & Broockman
 (general-election persuasion ≈ 0), is a near-null the data cannot distinguish
-from zero — and, as it turns out, WA's machine-readable IE record is too thin to
-even mount the test. This script reports that ceiling explicitly rather than
-hiding it behind a spuriously precise coefficient.
+from zero.
 
-DATA CEILING (the headline, discovered 2026-06-29):
-  * Directional IE (support/oppose flag set) on disk = FEC Schedule E only, and
-    only the 2024 cycle is loaded → ~7 WA U.S. House districts, one cross-section.
-  * PDC state-legislative IE (4,456 rows / $70.6M) has support_oppose = NULL for
-    every row, so it carries NO pro-D/pro-R direction and cannot enter a
-    directional test at all.
-  * One cycle of ~7 races cannot support the bootstrap CI, the early-vs-late-IE
-    split, or the next-cycle placebo the finding envisions. Those require the
-    multi-cycle FEC Schedule-E backfill documented at the bottom of this file.
+SCOPE: this script covers the FEDERAL panel only — WA U.S. House races, party
+and direction from FEC Schedule E. The state-legislative counterpart is
+``diag_pdc_ie_vs_margin.py``, which runs the same design on 129 district-cycles
+built from the PDC's C6.3 filings.
 
-So this run produces an HONEST DESCRIPTIVE cross-section (2024 WA House) plus an
-explicit statement of why inference is withheld. It auto-expands: if more cycles
-of directional IE are loaded, the inference block fires (n >= MIN_N_FOR_SLOPE).
+**A "DATA CEILING" claim that used to live here was WITHDRAWN 2026-08-09.** This
+docstring asserted that PDC state-legislative IE "has support_oppose = NULL for
+every row, so it carries NO pro-D/pro-R direction and cannot enter a directional
+test at all", and two papers cited that as a fact about Washington's disclosure
+regime. It was a fact about our ETL. The PDC publishes direction in the **C6.3
+"Identified Entities"** section of form C-6 — 4,653 legislative rows,
+$51,723,243.45, direction on 100% of them — in the same dataset the loader was
+already reading; the loader consumed only the C6.2 itemized section. See
+docs/pdc-c6-direction-audit.md.
+
+The narrower thing that remains true is worth keeping: ``support_oppose`` on
+``independent_expenditures`` IS empty for PDC rows, because direction lives in
+``pdc_ie_targets`` instead — a C6.3 target is one-to-many against an expenditure
+and cannot share that table's primary key.
+
+The inference block auto-expands: with n >= MIN_N_FOR_SLOPE scorable cells it
+reports a bootstrap CI, and below that it withholds inference and prints a
+descriptive slope clearly labelled as such.
 
 Reproducible, public-record inputs only (FEC Schedule E + FEC candidate party).
 No PII, no voter file. See docs/electoral-health-whitepaper.md Finding 6 and
@@ -55,13 +63,44 @@ except Exception:  # noqa: BLE001  (older interpreters / redirected streams)
 
 _ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, _ROOT)                       # repo root: config/ lives here
-sys.path.insert(0, os.path.join(_ROOT, "src"))  # wa_analyzer package
 sys.path.insert(0, os.path.dirname(__file__))   # scripts/: backtest_model
 
 from config.districts import get_profile  # noqa: E402
 
+# --- PUBLIC ADAPTATION -------------------------------------------------------------------
+# The private script imports assert_ie_classified from wa_analyzer.db; that package is not
+# published, so the guard is inlined here. It is the SAME check: FEC IE rows loaded before the
+# 2026-08-08 notice/periodic split carry is_notice IS NULL, are excluded by
+# v_independent_expenditures, and would silently yield $0.0M rather than an inflated total.
+# Stopping is safer than reporting a number nobody measured.
+class StaleIEData(RuntimeError):
+    pass
+
+
+def assert_ie_classified(conn) -> None:
+    cols = {r[1] for r in conn.execute("PRAGMA table_info('independent_expenditures')").fetchall()}
+    predicate = "is_notice IS NULL" if "is_notice" in cols else "TRUE"
+    stale = conn.execute(f"""
+        SELECT state, office, district, election_cycle, COUNT(*)
+        FROM independent_expenditures
+        WHERE COALESCE(source,'') NOT ILIKE 'PDC%' AND {predicate}
+        GROUP BY 1,2,3,4 ORDER BY 5 DESC""").fetchall()
+    if stale:
+        raise StaleIEData(
+            "FEC independent-expenditure rows on disk predate the notice/periodic split, so "
+            "they are excluded from every total and no IE figure here is measurable. Re-load "
+            "per cycle with --fec-ie-replace. Groups affected: "
+            + "; ".join(f"{s} {o}-{d} cycle {c}: {n:,} rows" for s, o, d, c, n in stale))
+
 MIN_N_FOR_SLOPE = 10  # below this, inference is withheld (descriptive only)
 DB = "data/wa_statewide.duckdb"
+
+
+# Rows loaded before 2026-08-08 carry `is_notice IS NULL` — the loader could not
+# tell a 24/48-hour notice from the periodic Schedule E row restating it, and
+# stored both, inflating affected totals ~2x (WA-03 2024 read $40.08M against
+# FEC's own $18.3M). They cannot be reclassified in place. Shared with the two
+# paper verifiers so there is one definition of "stale".
 
 
 def net_ie_by_race(conn):
@@ -71,12 +110,18 @@ def net_ie_by_race(conn):
     pro_dem = pro-Dem support + anti-Rep oppose; pro_rep is the mirror. Party is
     resolved by joining the IE candidate name to candidate_finance (FEC carries
     party for federal candidates). Dedup on ie_id (the loader stores S/O pairs).
+
+    Reads ``v_independent_expenditures``, NOT the base table: the base table
+    retains FEC's 24/48-hour notice rows, which restate the same expenditures
+    that appear on the periodic Schedule E and would double every total here.
+    Guarded by ``assert_ie_classified`` at the call site rather than left to
+    whoever edits this query next.
     """
     q = """
     WITH ie AS (
         SELECT DISTINCT ie_id, election_cycle, district, candidate_name,
                support_oppose, expenditure_amount
-        FROM independent_expenditures
+        FROM v_independent_expenditures
         WHERE source = 'FEC' AND office = 'H' AND state = 'WA'
           AND support_oppose IN ('S', 'O')
     ),
@@ -179,6 +224,7 @@ def bootstrap_slope_ci(xs, ys, iters=5000, seed=12345):
 def main():
     conn = duckdb.connect(DB, read_only=True)
 
+    assert_ie_classified(conn)
     races = net_ie_by_race(conn)
     cycles = sorted({r["cycle"] for r in races})
     print("=" * 78)
@@ -260,15 +306,36 @@ def main():
                   "crosses_zero": crosses_zero}
 
     # ---- Data-availability ceiling (the citable finding) ------------------
+    #
+    # DERIVED, not narrated. These bullets were hardcoded literals asserting
+    # "2024 only (~7 WA House races)" — and they went on printing that sentence
+    # verbatim after the 2018/2020/2022 backfill landed, under a table showing
+    # four cycles. A script that states its own data inventory in a string
+    # cannot notice when the inventory changes, which is the same defect the
+    # paper verifiers exist to catch in prose.
     print("\n" + "=" * 78)
-    print("DATA CEILING (cite this — it IS the Finding-6 result for WA today):")
-    print("  • Directional IE on disk = FEC Schedule-E, 2024 only (~7 WA House races).")
-    print("  • PDC state-legislative IE ($70.6M) has NO support/oppose flag → unusable")
-    print("    for a directional test; would need re-derivation from PDC sponsor data.")
-    print("  • UNLOCK: backfill FEC Schedule-E for 2018/2020/2022 via")
-    print("    load_fec_independent_expenditures(conn, cycle=YYYY, profile=...) per WA")
-    print("    CD (FEC API, rate-limited, federal House only). Even then n stays small")
-    print("    and uninstrumented — the verdict ('cannot confirm or refute') is robust.")
+    print("DATA INVENTORY (derived from the rows actually on disk):")
+    cyc_list = ", ".join(str(c) for c in cycles) or "(none)"
+    print(f"  • Directional FEC Schedule-E covers {len(cycles)} cycle(s): {cyc_list}")
+    print(f"    across {len(races)} district-cycles, {n} of them scorable.")
+    print("  • PDC state-legislative IE carries direction in form C-6 section C6.3,")
+    print("    loaded into `pdc_ie_targets` (4,653 legislative rows / $51.72M,")
+    print("    2018-2024). It is NOT on independent_expenditures.support_oppose,")
+    print("    because a C6.3 target is one-to-many against an expenditure. Run the")
+    print("    state-legislative panel with scripts/diag_pdc_ie_vs_margin.py.")
+    if n < MIN_N_FOR_SLOPE:
+        print(f"  • UNLOCK: n={n} is below the {MIN_N_FOR_SLOPE}-observation floor for")
+        print("    inference. Backfill more cycles —")
+        print("      python main.py load --fec-ie --statewide --fec-ie-cycle YYYY \\")
+        print("             --fec-ie-replace")
+        print("    Runtime is minutes, not hours; it was never the constraint. The")
+        print("    thing to get right is the notice/periodic de-duplication.")
+    print("  • Verify any of this WITHOUT an API key via")
+    print("    scripts/diag_fec_ie_bulk_crosscheck.py, which reconciles the loaded")
+    print("    totals against FEC's public bulk files.")
+    print("  • Sample stays uninstrumented whatever its size: with no exogenous")
+    print("    variation these observations cannot identify a causal effect, only")
+    print("    sharpen the descriptive picture.")
 
     out = os.path.join(tempfile.gettempdir(), "ie_vs_margin.json")
     json.dump({"races": rows, "result": result}, open(out, "w"), indent=2, default=str)

@@ -19,16 +19,22 @@ coverage report.
 SCOPE. Findings 4, 5 and 6 — the money/donor findings that restate verified cuts. Findings
 1-3 are prospectus items whose realized analyses are covered by their own papers' verifiers.
 
-Finding 6 is checked in two halves, and the split is deliberate. Its **data-ceiling facts**
-(the scorable-race count, WA-03's IE dollars, the PDC IE that carries no support/oppose
-flag) are re-derived here from scratch — and by the paper's own argument those ARE the
-citable result. Its **slope and correlation** are not re-derived: they regress a
+Finding 6 is checked in two halves, and the split is deliberate. Its **panel-inventory
+facts** (the scorable-race count, WA-03's IE dollars, and the size of the direction-coded
+PDC state-legislative panel) are re-derived here from scratch. Until 2026-08-09 the third
+of those was derived the other way round — as the *absence* of direction on PDC rows, which
+the paper then cited as a limit of Washington's disclosure. Direction is filed in form C-6
+section C6.3 and had simply never been loaded; the derivation now reads `pdc_ie_targets`.
+See `docs/pdc-c6-direction-audit.md`. Its **slope and correlation** are not re-derived: they regress a
 fundamentals-net residual that only the forecast model produces, and reimplementing that
 here would fork the model rather than check it. Those are instead asserted to agree with
 `does-money-move-votes.md`, which is the paper that owns them and whose independent
 derivation is `diag_ie_vs_margin.py`. That is a CONSISTENCY check, not a re-derivation, and
 it is labelled as such in the output — but it is the check that matters, because the white
-paper had drifted to -0.42/-0.43 against the money paper's correct -0.39/-0.39.
+paper had drifted to -0.42/-0.43 against the money paper's then-correct -0.39/-0.39. Both
+figures are now +0.515/+0.186 on a five-cycle panel; the sign reversed when the panel grew,
+which is what an n=7 estimate does and why this check reads the owning paper rather than a
+constant.
 
 Run:  python scripts/verify_whitepaper.py       (~40s; the bootstrap block dominates)
 """
@@ -237,9 +243,42 @@ def _bootstrap(d):
         d[f"{tag}_gini_pt"] = _gini_np(x)
 
 
+# --- PUBLIC ADAPTATION -------------------------------------------------------------------
+# The private script imports StaleIEData / assert_ie_classified from the unpublished
+# wa_analyzer package, so the guard is inlined here. It is the SAME check: FEC IE rows
+# loaded before the 2026-08-08 notice/periodic split carry is_notice IS NULL, are excluded by
+# v_independent_expenditures, and would silently yield $0.0M rather than an inflated total.
+# Stopping is safer than reporting a number nobody measured. Kept character-comparable with
+# the copy in diag_ie_vs_margin.py so there is one public definition to read.
+class StaleIEData(RuntimeError):
+    pass
+
+
+def assert_ie_classified(conn) -> None:
+    cols = {r[1] for r in conn.execute("PRAGMA table_info('independent_expenditures')").fetchall()}
+    predicate = "is_notice IS NULL" if "is_notice" in cols else "TRUE"
+    stale = conn.execute(f"""
+        SELECT state, office, district, election_cycle, COUNT(*)
+        FROM independent_expenditures
+        WHERE COALESCE(source,'') NOT ILIKE 'PDC%' AND {predicate}
+        GROUP BY 1,2,3,4 ORDER BY 5 DESC""").fetchall()
+    if stale:
+        raise StaleIEData(
+            "FEC independent-expenditure rows on disk predate the notice/periodic split, so "
+            "they are excluded from every total and no IE figure here is measurable. Re-load "
+            "per cycle with --fec-ie-replace. Groups affected: "
+            + "; ".join(f"{s} {o}-{d} cycle {c}: {n:,} rows" for s, o, d, c, n in stale))
+# --- end public adaptation ---------------------------------------------------------------
+
+
 def _finding6(d):
     """Finding 6's data-ceiling facts — the part the paper itself calls the citable result."""
     c = duckdb.connect(str(DATA / "wa_statewide.duckdb"), read_only=True)
+    # Reads go through v_independent_expenditures, which drops FEC's 24/48-hour
+    # notice rows (they restate the periodic Schedule E and double the totals)
+    # AND any row loaded before that distinction was recorded. Without this stop
+    # a stale table asserts $0.0M rather than failing.
+    assert_ie_classified(c)
     # WA-03 2024: the most IE-saturated US House race in the country that cycle.
     tot, net = c.execute("""
         WITH p AS (SELECT DISTINCT election_cycle, UPPER(candidate_name) cn, party
@@ -248,7 +287,7 @@ def _finding6(d):
                SUM(CASE WHEN (p.party='Democratic' AND ie.support_oppose='S')
                           OR (p.party='Republican' AND ie.support_oppose='O') THEN ie.expenditure_amount
                         ELSE -ie.expenditure_amount END)/1e6
-        FROM independent_expenditures ie
+        FROM v_independent_expenditures ie
         LEFT JOIN p ON p.election_cycle=ie.election_cycle
                    AND p.cn=UPPER(ie.candidate_name)
         WHERE ie.source='FEC' AND ie.office='H' AND ie.state='WA'
@@ -257,15 +296,20 @@ def _finding6(d):
     d["wa03_ie_total"], d["wa03_ie_net"] = float(tot), float(net)
     # Directional FEC IE exists for one cycle only — the ceiling itself.
     d["fec_ie_cycles"], = c.execute("""
-        SELECT COUNT(DISTINCT election_cycle) FROM independent_expenditures
+        SELECT COUNT(DISTINCT election_cycle) FROM v_independent_expenditures
         WHERE source='FEC' AND office='H' AND state='WA' AND support_oppose IN ('S','O')
     """).fetchone()
-    # PDC state-legislative IE: large, and unusable for a directional test because the
-    # support/oppose flag is null on every row.
-    pdc_m, pdc_flagged = c.execute("""
-        SELECT SUM(expenditure_amount)/1e6, COUNT(*) FILTER (WHERE support_oppose IN ('S','O'))
-        FROM independent_expenditures WHERE source <> 'FEC'""").fetchone()
-    d["pdc_ie_m"], d["pdc_ie_flagged"] = float(pdc_m), int(pdc_flagged)
+    # PDC state-legislative IE, direction-coded. It is NOT unusable for a directional
+    # test, and a previous version of this derivation said so: it read
+    # `support_oppose` off `independent_expenditures`, found it null, and the
+    # whitepaper called that a property of Washington's disclosure regime. Direction
+    # is filed in form C-6 section C6.3 and lives in `pdc_ie_targets`, one-to-many
+    # against an expenditure. See docs/pdc-c6-direction-audit.md.
+    pdc_m, pdc_rows = c.execute("""
+        SELECT SUM(portion_of_amount)/1e6, COUNT(*) FROM pdc_ie_targets
+        WHERE candidate_office_type = 'Legislative'
+          AND election_year BETWEEN 2018 AND 2024""").fetchone()
+    d["pdc_c63_m"], d["pdc_c63_rows"] = float(pdc_m), int(pdc_rows)
     c.close()
 
 
@@ -307,10 +351,38 @@ def _money_paper(d):
     written for, surviving because no probe pointed at it.
     """
     t = re.sub(r"\s+", " ", MONEY_PAPER.read_text(encoding="utf-8"))
-    m = re.search(r"−([\d.]+) points of residual per \$1M net pro-Democratic IE "
-                  r"\(Pearson r = −([\d.]+), n = (\d+)\)", t)
+    # The owning paper's slope sentence. It was NEGATIVE and single-cycle until
+    # 2026-08-08, when a three-cycle backfill reversed the sign; the capture is
+    # written to require an explicit sign rather than assuming one, so a future
+    # reversal fails here instead of silently flipping a restated figure.
+    m = re.search(r"the slope is \*\*\+([\d.]+) points of residual per \$1M net\s*"
+                  r"pro-Democratic IE, with a 95% bootstrap interval of −([\d.]+) to "
+                  r"\+([\d.]+) and Pearson r = \+([\d.]+)\*\*", t)
     if m:
-        d["ie_slope"], d["ie_r"], d["ie_n"] = -float(m.group(1)), -float(m.group(2)), int(m.group(3))
+        d["ie_slope"], d["ie_ci_lo"], d["ie_ci_hi"], d["ie_r"] = (
+            float(m.group(1)), -float(m.group(2)), float(m.group(3)), float(m.group(4)))
+        d["_ie_ci_lo_abs"] = abs(d["ie_ci_lo"])
+    m = re.search(r"Across the (\d+) scorable district-cycles", t)
+    if m:
+        d["ie_n"] = int(m.group(1))
+    # The state-legislative panel, added 2026-08-09 when the PDC C6.3 ingest
+    # replaced the retired "no support/oppose flag" ceiling claim. Scraped from
+    # the owning paper for the same reason the slope is: this document restates
+    # figures it does not derive, and an unprobed restatement is how +0.55
+    # survived here after the owning paper moved to +0.58.
+    m = re.search(r"that yields \*\*(\d+) scorable district-cycles\*\*", t)
+    if m:
+        d["leg_n"] = int(m.group(1))
+    # The sign range comes from the owning paper's TABLE, not its abstract: the
+    # abstract rounds to one decimal ("−3.8 to +4.9") and this document prints
+    # three, so scraping the abstract would compare 3.8 against 3.816 and fail
+    # on a rounding difference rather than on drift.
+    m = re.search(r"\| all directional, race-matched \| \d+ \| \d+ \| −([\d.]+) \|", t)
+    if m:
+        d["leg_slope_lo_abs"] = float(m.group(1))
+    m = re.search(r"\| \*\*express advocacy, race-matched\*\* \| \d+ \| \d+ \| \*\*\+([\d.]+)\*\* \|", t)
+    if m:
+        d["leg_slope_hi"] = float(m.group(1))
     m = re.search(r"\| \*\*fundraising, log2\(D receipts / R receipts\)\*\* \| \*\*\+([\d.]+)\*\* \|", t)
     if m:
         d["money_r_fundraising"] = float(m.group(1))
@@ -421,11 +493,22 @@ def derive():
     wa.close()
 
     _bootstrap(d)
-    _finding6(d)
+    # Not a paper defect and not tolerance-absorbable: Finding 6's IE figures are
+    # unmeasurable until the rows are re-loaded. Surfaced as a gate failure with
+    # the repair command rather than as a traceback.
+    try:
+        _finding6(d)
+    except StaleIEData as exc:
+        print("\nIE DERIVATION BLOCKED — Finding 6's IE figures are not verifiable.\n")
+        print(exc)
+        raise SystemExit(1) from None
     _money_paper(d)
     # The prose writes "−0.39"; the capture group yields "0.39". Compare magnitudes.
-    if "ie_slope" in d:
-        d["_neg_ie_slope"], d["_neg_ie_r"] = -d["ie_slope"], -d["ie_r"]
+    # The negated aliases existed because the money paper's slope and r were both
+    # NEGATIVE and the white paper printed the minus sign as prose, outside the
+    # capture group. Both are positive since the 2026-08-08 backfill, so the
+    # aliases are gone rather than kept as an identity — a "_neg_" name holding a
+    # positive number is how a sign error survives review.
     return d
 
 
@@ -544,16 +627,29 @@ PROBES = [
      ("state_gini_lo", "state_gini_hi"), 0.0005),
 
     # ---- Finding 6 ----------------------------------------------------------------------
-    ("Finding 6 — scorable races (single-cycle ceiling)",
-     r"single cycle \(2024 FEC Schedule-E, (\d+) WA U\.S\. House races\)", "ie_n", 0),
+    ("Finding 6 — scorable races (five-cycle panel)",
+     r"2018–2026 FEC Schedule-E, (\d+) scorable WA U\.S\. House races", "ie_n", 0),
     ("Finding 6 — WA-03 total and net IE",
      r"WA-03 2024 \(\$([\d.]+)M total IE, \+\$([\d.]+)M net pro-Dem\)",
      ("wa03_ie_total", "wa03_ie_net"), 0.05),
-    ("Finding 6 — PDC IE with no support/oppose flag",
-     r"\$([\d.]+)M of PDC state-legislative IE", "pdc_ie_m", 0.05),
+    # The corrected total restated inside the correction note. Probed rather than
+    # exempted: a correction that quotes a figure the data no longer supports is a
+    # worse defect than the one it corrects, so this occurrence is asserted too.
+    ("Finding 6 — corrected WA-03 total, in the correction note",
+     r"At the true \$([\d.]+)M it ranks 22nd of 387", "wa03_ie_total", 0.05),
+    ("Finding 6 — the direction-coded PDC legislative panel",
+     r"\*\*\$([\d.]+)M of\s+direction-coded PDC state-legislative IE\*\*", "pdc_c63_m", 0.05),
+    ("Finding 6 — legislative scorable cells (vs does-money-move-votes.md)",
+     r"adds \*\*(\d+) scorable district-cycles\*\*", "leg_n", 0),
+    ("Finding 6 — legislative sign range (vs does-money-move-votes.md)",
+     r"specification-dependent\*\* \(−([\d.]+) to \+([\d.]+) across four\s+specifications\)",
+     ("leg_slope_lo_abs", "leg_slope_hi"), 0.005),
     ("Finding 6 — slope and r (vs does-money-move-votes.md)",
-     r"\*\*negative\*\* \(−([\d.]+) pp per \$1M net pro-Dem IE, Pearson r −([\d.]+), n=(\d+)\)",
-     ("_neg_ie_slope", "_neg_ie_r", "ie_n"), 0.005),
+     r"\*\*\+([\d.]+) pp per\s+\$1M net pro-Dem IE \(Pearson r \+([\d.]+), n=(\d+)\)\*\*",
+     ("ie_slope", "ie_r", "ie_n"), 0.005),
+    ("Finding 6 — bootstrap interval (vs does-money-move-votes.md)",
+     r"bootstrap interval of\s+−([\d.]+) to \+([\d.]+) that spans zero",
+     ("_ie_ci_lo_abs", "ie_ci_hi"), 0.005),
     ("Finding 6 — fundraising correlation (vs does-money-move-votes.md)",
      r"log2\(D/R\) correlates \*\*\+([\d.]+)\*\* with overperformance",
      "money_r_fundraising", 0.005),
@@ -588,6 +684,28 @@ COVERAGE_EXEMPT = [
 # Every literal here names WHERE the figure is checked, or the open question that closes it.
 # "Not a result" with no reason is how a real figure hides — see verify_who_decides_wa.
 COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
+    # Form C-6's section identifier, not a measurement. It appears in Finding 6
+    # because naming the section is what makes the 2026-08-09 correction
+    # reproducible — a reader has to know which part of the form carries the
+    # direction data that this bullet previously said did not exist. Verified
+    # structurally by tests/test_etl/test_pdc_ie_targets.py, which fails if the
+    # loader stops reading C6.3 rows.
+    "6.3": "form C-6 section identifier (C6.3, Identified Entities), not a figure",
+    # --- Finding 6's correction paragraph (2026-08-08). All four are figures the
+    # correction EXISTS to record as retired, so they are historical by construction
+    # in exactly the sense the Finding 5 withdrawals below are. The replacements are
+    # asserted: +0.515 / +0.186 / n=34 by the slope probe, $18.61M by the WA-03 probe.
+    "0.39": "the RETIRED single-cycle slope and Pearson r, quoted in the correction "
+            "note as what this bullet used to say. The replacements (+0.515, +0.186) "
+            "are asserted against does-money-move-votes.md by the slope probe",
+    "40.1": "the RETIRED WA-03 IE total, inflated ~2x by the notice/periodic "
+            "double-count. Its replacement $18.61M is asserted by the WA-03 probe; "
+            "this figure can never be re-derived because the load that produced it "
+            "was wrong, which is precisely why the correction states it",
+    "387": "count of U.S. House races drawing any IE in 2024, supporting the rank "
+           "that replaced the retired 'most IE-saturated in the country' claim. Owned "
+           "by scripts/diag_fec_ie_bulk_crosscheck.py --national-rank, which reads "
+           "FEC's national bulk file; no warehouse here holds out-of-state IE",
     # --- Finding 5's two WITHDRAWN occupation figures. Deliberately retired values, and
     # the reason they cannot be re-derived is visible in which half still reproduces:
     # `individual_contributions` has GROWN since 2026-07-27, so the scale-invariant

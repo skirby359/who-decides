@@ -2815,3 +2815,68 @@ defers a load, which is harmless.
 Verified both ways against the real warehouse: clean run unaffected, genuine cross-process write
 lock aborts with exit 4 and no spurious errors. On Windows the conflict arrives as a plain
 `IO Error`, not anything catchable by exception type.
+
+
+---
+
+## 2026-08-08 (third pass) — the AI data-handling claim asserted more than could be verified
+
+**The defect.** Four submission documents and the ethics assessment carried an unqualified
+negative: *"No individual-level voter, contribution or linkage record was submitted to any hosted
+AI service."* On 2026-08-03 the `cure-list` and `chase-list` commands were found to print a
+preview block of individual voters — name, precinct, rejection reason — to standard output, which
+an agentic session returns verbatim; roughly 41 voter rows across five runs. The claim was false
+from that date. The tooling is campaign GOTV software, feeds no figure in any paper, and no
+published output contains those rows, but the sentence did not say so.
+
+**Two things were wrong with it, and the second is the one worth keeping.** The first is the
+factual error. The second is that *no version of that sentence was ever verifiable.* It asserts
+the complete absence of an event across many sessions, with no log to audit — and the author's
+confidence in it was formed under a mistaken model of the mechanism, since the preview went
+unnoticed precisely because it looked like a local terminal display. Confidence formed that way
+does not transfer to "and there were no others." **Scoping the claim to the paper, or qualifying
+it with the known exception, would both have left an unverifiable negative at the front of the
+sentence.** Both were drafted and both were rejected for that reason.
+
+**The fix inverts what is claimed.** The submission documents now assert only what is checkable
+by reading the code — what assistance operated on, and that the restricted files, contribution
+tables, linked panels and validation evidence are not analysed through a hosted service — then
+name the one known instance in a clause and point to the data-use assessment for the account. The
+cover letter's trailing clause was deleted outright rather than reworded: that sentence's logic
+was that the adjudication was single-rater and the matcher deterministic, and the data-handling
+claim had been bolted onto a "so" that never carried it.
+
+**A second reason to move the discussion, raised by the author.** A data-handling-to-hosted-model
+clause is not a standard element of journal AI disclosure — SAGE, Elsevier and ICMJE ask for the
+tool, the use, and the authorship affirmation. It is justified here because the inputs are
+restricted voter files. What was not justified was *"Because the tooling does not enforce this,
+it is a statement of practice rather than a technical control"* sitting in a title page: an
+unprompted admission in a vocabulary reviewers have no frame for, which reads as unusual rigor to
+one reader and as a flag to another. That discussion belongs in the assessment, at length, and
+now lives only there.
+
+**The ethics assessment row is rewritten rather than annotated**, and its header changes from
+*"Implemented as practice, not as a technical control"* to a control for the enumerable shapes
+and practice for the rest. Two layers now stand where a standing instruction stood alone: the
+previews are withheld unless `--preview` is passed, and a `PreToolUse` hook refuses the dangerous
+command shapes at the session level — harness-executed, so it holds against intent rather than
+relying on it, which is the distinction that row is about. Both are locked in by
+`tests/test_infrastructure/test_person_level_stdout_guard.py`. The round-15 entry withdrawn
+earlier is a *different* claim about AI adjudication and stays withdrawn.
+
+**The title page is generated.** `docs/donor-class-elj-title-page.md` carries a do-not-edit-by-hand
+header; the edit went into `scripts/build_elj_submission.py` and the file was regenerated.
+Editing the artifact would have survived exactly until the next build.
+
+**A10 is not reopened.** The 2026-08-08 signature covers 1,324 figures over 48 sections, and a
+disclosure sentence carries no figure — the verifier and the cross-doc checker were both checked
+and neither anchors on this text. Recorded here so the sequence is legible rather than inferred.
+**Where this change actually landed, recorded because the commit messages do not say.** It was
+one edit across six files in two halves, and neither half is committed under a message that
+describes it. The builder hunk — `scripts/build_elj_submission.py`, which regenerates the title
+page — is in **`64ed221`** ("ADAPTED must report drift..."). The five documents and this entry
+are in **`43e889b`** ("PDC C-6 audit..."). Both commits are about the independent-expenditure
+work and mention none of this. Nothing is lost and the content is complete, but `git log` on the
+disclosure wording leads to two unrelated subjects, so the mapping is written here instead.
+Verified at `43e889b`: the retired sentence survives nowhere under `docs/` except as the
+quotation above.
