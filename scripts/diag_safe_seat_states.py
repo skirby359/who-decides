@@ -19,6 +19,25 @@ districts appear in the warehouse. scripts/diag_tx_safe_seat_backfill.py complet
 TX to 150 (the 54 absent seats are uncontested -> no_major_choice; holding party by
 2024 presidential lean from the on-disk TLC r206 report). This script imports that
 completion so the TX row is the full 150.
+
+!! TWO CELLS HERE ARE SUPERSEDED — do not quote them (2026-07-28) !!
+
+  * The WA row (88.8%) reads `precinct_results`, where King County is largely absent
+    from the 2016/2018 statewide precinct files, AND scores every no-major-choice seat
+    as non-competitive regardless of margin. Both were corrected in the paper. WA's
+    published figure is **87.8%** from `diag_seat_competition.py` on the certified
+    statewide summaries. The definition above also conflates the paper's two dimensions:
+    a CONTESTED same-party general decided by under 10 points is "close" in the paper
+    and "non-competitive" here. `diag_safe_seat_robustness.py` section (3) measures
+    whether that shortcut changes any comparison state's answer — it does not (0 seats),
+    but the WA cell differs for the data reason regardless.
+  * The TX safe D/R split (51/90) uses holding party IMPUTED from presidential lean.
+    That imputation is retired: it was wrong in 5 of 54 backfilled seats. The observed
+    split from certified returns is **56 D / 85 R** — see
+    `diag_tx_backfill_verification.py` and `diag_safe_seat_party_ratio.py`.
+
+The NY and ID rows, and every state's not-close percentage other than WA's, are current.
+This script is retained because the paper's four-state table cites it for those.
 """
 import os
 import sys
@@ -118,7 +137,8 @@ def main():
                 if cat in ("no_major_choice", "Likely", "Solid"):
                     d_safe, r_safe = (d_safe + 1, r_safe) if lean_d else (d_safe, r_safe + 1)
         n, noncomp, comp, ds, rs = summarize(cats, d_safe, r_safe)
-        note = "  (TX backfilled to 150)" if st == "TX" else ""
+        note = {"TX": "  (backfilled to 150; safe D/R SUPERSEDED -> 56/85 observed)",
+                "WA": "  (% SUPERSEDED -> 87.8% certified; safe D/R -> 53/33)"}.get(st, "")
         print(f"{st:3} {CHAMBER_NAME[st][0]:9} {date:10} {n:>5} | {cats['no_major_choice']:>9} "
               f"{cats['Tossup']:>6} {cats['Lean']:>5} {cats['Likely']:>6} {cats['Solid']:>5} | "
               f"{noncomp:>8} {noncomp/n*100:5.1f}% {f'{ds}/{rs}':>10}{note}")
@@ -134,6 +154,12 @@ def main():
 
     print("\nNon-competitive = no-major-choice + Likely + Solid (>=10pt). "
           "Competitive = Tossup+Lean (<10pt).")
+    print("NB: that definition scores a no-major-choice seat as non-competitive at ANY "
+          "margin,\nwhich is NOT the paper's Dimension 1 — a contested same-party general "
+          "under 10 pts is\nCLOSE in the paper. It changes no comparison state's answer "
+          "(0 such seats; see\ndiag_safe_seat_robustness.py section 3), but the WA cell "
+          "above is superseded for a\nseparate DATA reason: use 87.8% from "
+          "diag_seat_competition.py.")
     print("TX House: actual-race contestation (94% non-comp) is WORSE than the district "
           "presidential lean (84% >=10pt safe) — parties leave winnable seats uncontested. "
           "See scripts/diag_tx_safe_seat_backfill.py.")

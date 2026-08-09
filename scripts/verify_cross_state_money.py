@@ -56,6 +56,7 @@ a different population (voter_donor_affiliation) — that's verify_donor_class.p
 Run:  python scripts/verify_cross_state_money.py
 """
 from pathlib import Path
+import csv
 import sys
 
 import duckdb
@@ -65,6 +66,10 @@ import _verify_prose as vp  # noqa: E402
 
 vp.stdout_utf8()
 PAPER = Path(__file__).resolve().parent.parent / "docs" / "cross-state-fec-money.md"
+
+# §2's population denominators. Pinned, not fetched — see scripts/acs_state_population.py.
+POP_PIN = (Path(__file__).resolve().parent.parent / "docs" / "reference"
+           / "state_population_acs2024.csv")
 
 DATA = Path(__file__).resolve().parent.parent / "data"
 # paper §Headline (all cycles pooled): <200 / >=5000 / retired $ share; top1 / top10 / Gini
@@ -491,6 +496,12 @@ HEADLINE_PROBES = [
      ("out_ID_lt200", "out_WA_lt200", "out_NY_lt200"), 0.05),
     ("§1 — NY's ≥$5,000 share",
      r"≥\$5,000 gifts are \*\*([\d.]+)%\*\* of NY's money", "out_NY_ge5000", 0.05),
+    # Added 2026-08-07 with the size-effect answer, which restates the sub-$200 pair a third
+    # time. Three restatements of one derived value is exactly why each gets its own probe.
+    ("§1 — sub-$200 pair restated in the size-effect answer",
+     r"most\s+retail\s+on\s+those\s+cuts\s+too\s+—\s+([\d.]+)%\s+under\s+\$200\s+against\s+"
+     r"New\s+York's\s+([\d.]+)%",
+     ("out_ID_lt200", "out_NY_lt200"), 0.05),
     ("§3 — retired-donor shares, all four states",
      r"\*\*([\d.]+)%\*\* of Idaho's federal donor dollars.*?followed by \*\*([\d.]+)%\*\* in "
      r"Washington, \*\*([\d.]+)%\*\* in Texas, and just \*\*([\d.]+)%\*\* in New York",
@@ -505,6 +516,48 @@ HEADLINE_PROBES = [
 # figure in both reproduced on the first run, so the sections needed derivations, not
 # corrections; that is worth stating, because the last three sections closed this way each
 # turned up a defect and the honest record is that these two did not.
+# --- §2, gated 2026-08-07 ----------------------------------------------------------------
+# The donor counts were already derived (they are headline cells); only the denominators were
+# external, and pinning them is what closed the section. Restating the counts here rather than
+# leaning on the headline probe is deliberate: coverage spans are per-section, so §2's own
+# occurrences need their own probe or they read as unmapped — and a prose restatement drifting
+# from the table above it is precisely the defect the §1/§3 probes were added to catch.
+ABSTRACT_PROBES = [
+    # The abstract was moved into the paper 2026-08-07 (it had lived only in the metadata file).
+    # It restates ten headline cells, so it is gated on arrival rather than later: an abstract
+    # drifting from the table it summarises is the same defect as §1 and §3, in the one place a
+    # referee reads first.
+    ("abstract — top-1% ordering, all four states, and the two extreme Ginis",
+     r"supply\s+\*\*([\d.]+)%\*\*\s+of\s+its\s+federal\s+dollars,\s+against\s+"
+     r"\*\*([\d.]+)%\*\*\s+in\s+Texas,\s+\*\*([\d.]+)%\*\*\s+in\s+Washington,\s+and\s+"
+     r"\*\*([\d.]+)%\*\*\s+in\s+Idaho,\s+with\s+Gini\s+coefficients\s+from\s+"
+     r"\*\*([\d.]+)\*\*\s+down\s+to\s+\*\*([\d.]+)\*\*",
+     ("out_NY_top1", "out_TX_top1", "out_WA_top1", "out_ID_top1",
+      "out_NY_gini", "out_ID_gini"), 0.05),
+    ("abstract — Idaho vs New York sub-$200 share",
+     r"including\s+a\s+\*\*([\d.]+)%\*\*\s+share\s+of\s+dollars\s+from\s+gifts\s+under\s+"
+     r"\$200\s+against\s+New\s+York's\s+\*\*([\d.]+)%\*\*",
+     ("out_ID_lt200", "out_NY_lt200"), 0.05),
+    ("abstract — retired-donor shares, Idaho against New York",
+     r"\*\*([\d.]+)%\*\*,\s+come\s+from\s+donors\s+reporting\s+their\s+occupation\s+as\s+"
+     r"retired,\s+against\s+\*\*([\d.]+)%\*\*\s+in\s+New\s+York",
+     ("out_ID_retired", "out_NY_retired"), 0.05),
+]
+
+
+PARTICIPATION_PROBES = [
+    ("§2 — donors, population and rate, all four states",
+     r"\*\*([\d,]+)\*\* donors in a state of \*\*([\d.]+)M\*\* \(\*\*([\d.]+)%\*\*\) versus "
+     r"NY \*\*([\d,]+)\*\*/\*\*([\d.]+)M\*\* \(\*\*([\d.]+)%\*\*\), TX "
+     r"\*\*([\d,]+)\*\*/\*\*([\d.]+)M\*\* \(\*\*([\d.]+)%\*\*\), and ID "
+     r"\*\*([\d,]+)\*\*/\*\*([\d.]+)M\*\* \(\*\*([\d.]+)%\*\*\)",
+     ("out_WA_donors", "pc_WA_pop_m", "pc_WA_rate",
+      "out_NY_donors", "pc_NY_pop_m", "pc_NY_rate",
+      "out_TX_donors", "pc_TX_pop_m", "pc_TX_rate",
+      "out_ID_donors", "pc_ID_pop_m", "pc_ID_rate"), 0.05),
+]
+
+
 CYCLE_PROBES = [
     ("§5 — presidential vs off-year dollars, all four states",
      r"\(WA \$([\d.]+)M/2020 vs \$([\d.]+)M/2018; NY \$([\d.]+)M vs \$([\d.]+)M; "
@@ -579,6 +632,35 @@ E_PROBES = [
 ]
 
 
+def participation(d):
+    """§2's per-capita cut: donor counts from outflow(), denominators from the pinned ACS file.
+
+    The denominators are the only figures in this section external to every database in the
+    repo, which is why §2 sat named-but-ungated with exactly this fix prescribed. They are read
+    from the pin rather than fetched, so a re-fetch cannot move a published percentage silently.
+
+    Two things this derivation is NOT allowed to become. It must not substitute CVAP for total
+    residents to make the rates look better — the paper's basis is total residents and its
+    objection block concedes the resulting downward bias. And it must not fall back to a
+    hard-coded population if the pin is missing: a missing pin is a failure, because a figure
+    nobody can re-derive is what the audit exists to refuse.
+    """
+    if not POP_PIN.exists():
+        return [f"§2: population pin missing ({POP_PIN.name}). "
+                f"Run scripts/acs_state_population.py — the section cannot be asserted without it."]
+    pops = {}
+    with POP_PIN.open(encoding="utf-8") as fh:
+        for row in csv.DictReader(fh):
+            pops[row["state"]] = int(row["population"])
+    missing = [s for s in HEADLINE_STATES if s not in pops]
+    if missing:
+        return [f"§2: population pin covers {sorted(pops)}, missing {missing}"]
+    for st in HEADLINE_STATES:
+        d[f"pc_{st}_pop_m"] = pops[st] / 1e6
+        d[f"pc_{st}_rate"] = 100.0 * d[f"out_{st}_donors"] / pops[st]
+    return []
+
+
 def verify_individual_layer():
     """Derive the headline table plus F5/F6 and assert both against the paper's prose."""
     d = {
@@ -600,7 +682,8 @@ def verify_individual_layer():
         for cyc, tot in per_cycle(st).items():
             d[f"cyc_{st}_{cyc}"] = tot
     inflow_e(d)
-    extra = ([] if d.pop("_id_is_max_oos", False) else
+    pin_fail = participation(d)
+    extra = (pin_fail if pin_fail else []) + ([] if d.pop("_id_is_max_oos", False) else
              ["§E: the paper calls Idaho's Senate out-of-state share 'the highest of the "
               "four', and it is not — a probe cannot catch a superlative, so it is checked "
               "here"])
@@ -610,7 +693,8 @@ def verify_individual_layer():
         audit_sections[name], offsets[name] = vp.slice_with_offset(norm, start, end)
     stats: dict = {}
     rc = vp.run("CROSS-STATE - headline table and the individual money-linked layer",
-                norm, HEADLINE_PROBES + F_PROBES + CYCLE_PROBES + E_PROBES, d, F_UNCHECKED,
+                norm, HEADLINE_PROBES + F_PROBES + CYCLE_PROBES + E_PROBES
+                + PARTICIPATION_PROBES + ABSTRACT_PROBES, d, F_UNCHECKED,
                 vp.wants_coverage(), spans_out=spans, stats_out=stats)
     fails = vp.audit_coverage(audit_sections, spans, offsets, tuple(AUDIT_BOUNDS),
                               COVERAGE_EXEMPT, COVERAGE_EXEMPT_LITERAL,
@@ -635,6 +719,10 @@ def verify_individual_layer():
 # 0.0004 -- and it was concealing Idaho's top-1% printed as 36.0 against a derived 36.1. Do not
 # re-adopt it in any form.
 AUDIT_BOUNDS = {
+    # Gated 2026-08-07, on the abstract's arrival in the paper. It ends at the scope section,
+    # which is the next heading -- the byline and AI-assistance block sit ABOVE the abstract and
+    # so stay outside every span, which is correct: they carry no results.
+    "abstract": ("## Abstract", "## Scope and method"),
     # Gated: derived by outflow() in this file.
     "headline": ("## The headline", "## Findings"),
     "finding1": ("### 1. New York is the most top-heavy", "### 2. Participation is broadest"),
@@ -644,8 +732,9 @@ AUDIT_BOUNDS = {
     # Gated 2026-08-06: §5 by per_cycle(), §E by inflow_e().
     "finding5": ("### 5. A uniform presidential rhythm", "## Follow-on tests"),
     "test_e": ("### E. Inflow side", "### F. The individual layer"),
-    # Named, not gated -- see COVERAGE_EXEMPT_SECTIONS for each one's owner.
+    # Gated 2026-08-07: §2 by participation(), once its denominators were pinned.
     "finding2": ("### 2. Participation is broadest", "### 3. The retired-donor economy"),
+    # Named, not gated -- see COVERAGE_EXEMPT_SECTIONS for each one's owner.
     "finding4": ("### 4. Sector signatures", "### 5. A uniform presidential rhythm"),
     "test_a": ("### A. Is the money concentrating over time?", "### B. Where does each state"),
     "test_b": ("### B. Where does each state", "### C. Top donors, top recipients"),
@@ -689,6 +778,10 @@ COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
            "from the data this verifier reads",
     "150": "the conduit-side (24T) total, deliberately EXCLUDED from the inflow load to "
            "avoid double-counting; same owner as the 194 above",
+    # --- §2, added with that section's gate 2026-08-07.
+    "01003": "the ACS TABLE NUMBER (B01003, Total Population) naming where §2's denominators "
+             "come from, not a measurement. The four populations it sources are each asserted "
+             "against docs/reference/state_population_acs2024.csv by the participation probe",
     "0.77": "a stated FLOOR ('all four exceed 0.77'), not a measurement. The four Ginis it "
             "bounds are each asserted to three decimals by the headline Gini probe, and the "
             "lowest of them is ID at 0.775 — so the claim is checkable from asserted values "
@@ -715,11 +808,14 @@ COVERAGE_EXEMPT_SECTIONS: dict[str, str] = {
                   "THIS paper's own (F5 donor skew, F6 giving-vs-turnout) are asserted by "
                   "F_PROBES. BACKLOG: convert the restatements to cross-document probes "
                   "against donor-class-and-the-electorate.md rather than re-deriving them.",
-    "finding2": "per-capita donor participation. The donor COUNTS are derived here by "
-                "outflow() and asserted in the headline table; the population denominators "
-                "(~7.9M WA / ~19.6M NY / ~30.5M TX / ~1.96M ID) are Census state population, "
-                "external to every database in this repo. BACKLOG: pin them the way "
-                "acs_cvap_by_state.py pins CVAP, then this section is closeable.",
+    # finding2 CLOSED 2026-08-07 — participation() + PARTICIPATION_PROBES, exactly as this
+    # entry prescribed: pin the denominators the way acs_cvap_by_state.py pins CVAP. Closing it
+    # turned up what the ungated state had been hiding — the old denominators named NO SOURCE
+    # anywhere in the paper, the owning script or the notes, so there was no basis to reproduce
+    # them against. Three of the four were consistent with Census PEP 2023 (NY 19.57M, TX
+    # 30.50M, ID 1.965M); WA's stated 7.9M matched neither that nor ACS (both give 7.8M), and
+    # it ran the paper's own headline claim LOW, 4.58% against 4.63%. All four are now on one
+    # pinned ACS release. Only TX's printed rate moved, 2.7% -> 2.8%.
     "finding4": "sector signatures. Owned by scripts/cross_state_fec_money.py's employer/"
                 "occupation sector cut, which the paper cites inline. BACKLOG.",
     # finding5 CLOSED 2026-08-06 — per_cycle() + CYCLE_PROBES. It was the cheapest, exactly

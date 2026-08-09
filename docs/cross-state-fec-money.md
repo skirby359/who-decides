@@ -9,12 +9,47 @@ public-record data and from the open-source scripts cited below, including
 are public at <https://github.com/skirby359/who-decides>; the underlying voter files are
 not redistributed. Contact: kirby@tikorconsulting.com.*
 
+***DRAFT — pending human/editorial sign-off.** `scripts/verify_cross_state_money.py` scrapes this
+paper and asserts its figures against the data, with the exceptions the script names in its own
+output; that gate is automated and is not the sign-off. The sign-off is a person reading the paper end to end, recorded in
+[`cross-state-money-submission-notes.md`](cross-state-money-submission-notes.md) §Sign-off.*
+
 *Companion to [the electoral-health prospectus](electoral-health-whitepaper.md). This
 realizes that paper's cross-state money thread, which was previously data-blocked
 (NY/TX had zero contributions loaded). Source: `scripts/cross_state_fec_money.py`.
 **Idaho added 2026-07-19** (FEC outflow + inflow loaded to parity) as the small,
 deep-red pole; **all sections (headline, Findings 1–5, Tests A–I, and the flow
 matrix G) are now four-state** — every table carries WA/NY/TX/ID.*
+
+---
+
+## Abstract
+
+Campaign-finance concentration is usually reported nationally, which conceals that states
+differ in the shape of their donor economies and not merely in their size. This paper measures
+federal individual contributions made by residents of four deliberately dissimilar states —
+Washington, New York, Texas, and Idaho — across the 2018 through 2026 cycles, from Federal
+Election Commission bulk records, and then measures the money flowing the other way, into those
+states' congressional races, from a recipient-anchored dataset built for the purpose. The
+concentration ordering is stable and does not track partisanship. New York is the most
+top-heavy: its top one percent of donors supply **47.5%** of its federal dollars, against
+**41.7%** in Texas, **39.3%** in Washington, and **36.1%** in Idaho, with Gini coefficients from
+**0.848** down to **0.775**. Idaho, the smallest and reddest of the four, is the most retail on
+every measure, including a **29.0%** share of dollars from gifts under $200 against New York's
+**13.8%** — so retail-versus-whale structure is not a partisan property. Washington has the
+broadest donor participation relative to population. Nearly a third of Idaho's donor dollars,
+**31.7%**, come from donors reporting their occupation as retired, against **11.8%** in New
+York, and each state carries a distinct sector signature. Two methodological points are
+load-bearing. A committee's recipient state must be resolved through the candidate's office
+state rather than the committee's registration address, because compliance vendors cluster
+registrations in Washington DC and Virginia. And earmarked conduit gifts are recorded by the
+Commission under the candidate committee, so a conduit's share of receipts cannot be read as
+conduit reliance even though the money itself is fully captured. The paper reports
+distributional structure, not influence, and identifies no individual donor.
+
+**Keywords.** campaign finance; political contributions; donor concentration; small-dollar
+donors; out-of-state money; Federal Election Commission; inequality; state comparison;
+Washington; New York; Texas; Idaho
 
 ---
 
@@ -35,6 +70,12 @@ complementary **INFLOW** side — out-of-state money flowing *into* each state's
 flow matrix G**, built from the recipient-anchored `fec_inflow.duckdb`. Both directions now
 exist; they use different committee universes, so read shares *within* each rather than
 subtracting one from the other.
+
+**The four states are a PURPOSIVE selection, not a sample.** They were chosen to spread the
+design across access and partisanship — high-access blue (WA), large blue (NY), large red (TX),
+small red (ID) — so the claim throughout is about *variation in shape* across a deliberately
+dissimilar set, never about a population of states from which these were drawn. No inference to
+the other forty-six is offered or supported.
 
 Donor identity is a `name + zip5` proxy (over-merges common names, so concentration is, if
 anything, slightly understated). Figures are 2018–2026 federal cycles.
@@ -84,18 +125,34 @@ Big Tech (WA), Wall Street (NY), Energy/Industrial (TX), MLM/timber (ID).**
   small-dollar share is sensitive to how conduit (ActBlue/WinRed) earmarks are recorded (see
   Limits) — though the gift-size *amount* cut is computed directly from the dollar value and
   is unaffected by that.
+- **Why the size effect does not carry the Idaho result.** The concession above is real for the
+  top-1% and Gini measures, which are rank statistics over a donor pool and therefore do depend
+  on how many donors there are to rank. It does not extend to the **gift-size** cuts, which are
+  ratios of dollars to dollars at a fixed threshold: the share of money arriving in gifts under
+  $200, or in gifts of $5,000 and up, is computed from the amounts themselves and has no
+  mechanical dependence on pool size. Idaho is the most retail on those cuts too — 29.0% under
+  $200 against New York's 13.8%. So the finding survives the objection on the measure the
+  objection cannot reach, which is the reason to report both kinds of cut rather than only the
+  concentration statistics.
 
 ### 2. Participation is broadest, per capita, in Washington
 - **Defensible claim.** New York and Texas raise ~3× Washington's federal dollars in
   absolute terms, but Washington has the widest donor *participation* relative to its size:
-  ~362K donors in a state of ~7.9M (~4.6%) versus NY ~671K/~19.6M (~3.4%), TX
-  ~837K/~30.5M (~2.7%), and ID ~54K/~1.96M (~2.8%). Fewer dollars, more givers. Idaho sits
-  near Texas — small-population but not disproportionately participatory; WA remains the
-  standout.
+  **361,818** donors in a state of **7.82M** (**4.6%**) versus NY **671,488**/**19.85M**
+  (**3.4%**), TX **836,784**/**30.19M** (**2.8%**), and ID **54,155**/**1.93M** (**2.8%**).
+  Fewer dollars, more givers. Texas and Idaho land level with each other — small-population
+  is not the same as disproportionately participatory — while WA remains the standout, a
+  third again more participatory than either.
+- **The denominators, stated rather than assumed.** Total resident population, ACS 2020–2024
+  5-year (table B01003), pinned to `docs/reference/state_population_acs2024.csv` by
+  `scripts/acs_state_population.py` — the same ACS release the series' CVAP benchmark uses.
+  Earlier drafts of this section carried denominators with no source recorded; they are
+  restated here on a basis that can be re-fetched and diffed.
 - **Strongest objection.** The name+zip donor proxy over-merges common names unevenly across
-  states; population denominators are total residents, not voting-eligible adults; and WA's
-  lower dollar total partly just reflects fewer ultra-wealthy households, not broader civic
-  habit.
+  states; population denominators are total residents, not voting-eligible adults, so every
+  rate is biased downward and by an amount that varies with each state's share of children
+  and non-citizens; and WA's lower dollar total partly just reflects fewer ultra-wealthy
+  households, not broader civic habit.
 
 ### 3. The retired-donor economy is largest in Idaho, then Washington
 - **Defensible claim.** **31.7%** of Idaho's federal donor dollars come from donors who list
@@ -879,8 +936,14 @@ scripts behind each figure): [Data Sources & Reproducibility](data-sources-and-r
   the **money itself is fully captured** (under the candidates). **Do not read the
   ActBlue/WinRed-as-recipient share as "conduit reliance."** The sub-$200 *amount* share
   (Finding 1) is computed from the dollar value and is unaffected.
-- **Donor proxy.** name+zip5 over-merges common names, modestly understating donor counts and
-  overstating concentration.
+- **Donor proxy, and how much it actually moves.** name+zip5 over-merges common names, so it
+  understates donor counts and overstates concentration, and the bias runs the same direction
+  in all four states — which is why the *ordering* is robust even where the levels are not.
+  That much was argued rather than measured until 2026-08-02, when it was checked against an
+  independent derivation of the same quantities: **donor counts came back exact in all four
+  states, and the worst Gini gap was 0.0004.** Stating the measurement rather than the worry is
+  the honest version, and it is a stronger answer: the concentration ordering does not rest on
+  the key being generous, because on this evidence the key is not doing the work.
 - **WA & ID composition.** WA's FEC subset draws from both a donor-filtered bulk load and an
   earlier per-candidate load; ID's is bulk-only (donor-filtered, loaded 2026-07-19) and shares
   its `individual_contributions` table with state Sunshine rows, which the FEC-committee-id

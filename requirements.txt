@@ -6,3 +6,7 @@ markdown
 pandas
 numpy
 httpx
+# config/ (published 2026-08-08 so scripts importing config.districts run from a bare clone):
+pydantic
+pydantic-settings
+PyYAML

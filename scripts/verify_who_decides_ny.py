@@ -16,38 +16,69 @@ party-resolved result; the age-composition replication became Appendix A and §I
 because `electoral-health-audit-log.md` is append-only and cites the OLD numbers — a
 pre-2026-08-06 reference to "NY §III/§IV" means what are now §II and §III.
 
-WHAT THE CONVERSION FOUND, and how it was resolved. Section II's table and Section III's
-participation rates did not reproduce on the roll as it stands, on either the active or the
-full basis, and every deviation ran one way: the roll is younger and less participating than
-the one those tables were computed on. Section V supplies the mechanism — registrants added
-since are 39.7% Democratic and 35.6% unaffiliated against a roll at 47.6% and 25.3%, and by
-definition none of them voted in 2024.
+WHAT THE CONVERSION FOUND. Section II's table and Section III's participation rates did not
+reproduce on the roll as it stands, on either the active or the full basis, and every
+deviation ran one way. Appendix A and Section I are ELECTORATE-denominated — the set of people
+who voted in a past election cannot change when registrants are added — and all thirty-nine of
+their cells reproduced exactly. Sections II and III are ROLL-denominated and every cell was
+off. Both blocks were recomputed against the roll as it then stood, and the divergence was
+attributed to growth in the file.
 
-The decisive evidence was WHICH blocks failed. Appendix A and Section I are
-ELECTORATE-denominated — the set of people who voted in a past election cannot change when
-registrants are added — and all thirty-nine of their cells reproduced exactly. Sections II
-and III are ROLL-denominated and every cell was off. The split fell precisely on the
-denominator, which is what a roll change looks like and is not what a coding error looks like.
+THE 2026-08-01 RECOMPUTATION WAS ITSELF WRONG, AND WAS CORRECTED 2026-08-08 AFTER EXTERNAL
+REVIEW. Read this before touching a denominator in this file.
 
-Both blocks were recomputed on the current active roll on 2026-08-01 and the paper now states
-the direction and cause. The donors-per-thousand column moved for a second, unrelated reason:
-it was still built on the pre-2026-07-27 New York match (308,032) rather than the full-name
-key now used across the series (558,017). No finding changed in either case.
+A participation rate is voters divided by the people who COULD have voted: active registrants
+enrolled on or before the contest. The recomputed figures were denominated on the whole
+current active roll, so someone who registered in 2025 counted as a 2021-primary non-voter.
+20.55% of the active roll registered after the 2021 primary. Restoring the cutoff moves the
+eight major-party primary cells by +0.13 to +2.67 points, and §I's under-30 pair from
+31.53/16.07 to 32.84/16.63.
+
+Three checks make that a defect rather than a preference between bases, and all three are
+derived here rather than asserted:
+
+  1. The contemporaneous basis reproduces the figures the paper carried BEFORE 2026-08-01 —
+     16.9 and 17.9 — exactly. Probed as "§III note — the pre-correction figures it reproduces".
+  2. Roll growth explains none of the gap. The pinned and live rolls both return the
+     uncorrected 14.26%, to the last digit, so the mechanism recorded in 2026-08-01's note
+     ("the file has grown") cannot be what moved those cells.
+  3. `diag_ny_primary_participation.py`, which the paper's Methods block names as §III's
+     provenance, has applied the cutoff since its FIRST commit. So for one week the paper and
+     its own cited script disagreed by up to 2.67 points — and both are published in the
+     public reproduction repo, where a reader following the Methods block would have hit it.
+
+The general lesson, which is the opposite of the one 2026-08-01 drew: when a paper and a
+verifier disagree, the verifier is not automatically right. The convention this series already
+has — "fix the paper or fix the derivation, never the tolerance" — is silent on which of the
+two is wrong, and here it was the derivation.
+
+The 2026-08-01 note also lacked probes on its OWN figures, which is why a wrong mechanism
+stayed in print: "the roll grew" is a sentence, and the coverage gate cannot assert a sentence.
+Every figure in the replacement note is derived, including the uncorrected values (`raw_*`),
+which the earlier round had exempted as unreproducible. They were reproducible the whole time
+— by dropping the cutoff.
 
 WHAT WAS NOT CLAIMED, and still is not. Which roll snapshot the original tables were computed
-on is not recoverable from the artifacts, and this script never asserted it.
-`data/ny_vrdb.duckdb` was last written 2026-07-30, the day of the date-of-birth minimisation,
-but the minimisation cannot produce this: `date_diff('year', ...)` returns the difference of
-year parts, so it read the birth YEAR before and after — which is why the donor paper's twelve
-New York age-band figures came through it identical to six decimal places. Ask the author
-rather than inferring it from file timestamps.
+on is not recoverable from the artifacts, and this script never asserted it. Nor does anything
+here assert what any past session intended; the claims above are about file contents and
+commit history, which are checkable. `data/ny_vrdb.duckdb` was last written 2026-07-30, the day
+of the date-of-birth minimisation, but the minimisation cannot produce this:
+`date_diff('year', ...)` returns the difference of year parts, so it read the birth YEAR before
+and after — which is why the donor paper's twelve New York age-band figures came through it
+identical to six decimal places. Ask the author rather than inferring it from file timestamps.
 
-CLOSED THE SAME DAY: NEW YORK'S ROLL IS NOW PINNED. It had none, on the assumption that a
+The donors-per-thousand column moved on 2026-08-01 for a second, unrelated reason: it was
+still built on the pre-2026-07-27 New York match (308,032) rather than the full-name key now
+used across the series (558,017). That change stands and no finding turned on it.
+
+NEW YORK'S ROLL IS PINNED. It had no snapshot, on the assumption that a
 static FOIL extract cannot move. It moved. `scripts/pin_ny_roll.py` freezes it the way
-Washington's is — `ny_paper_roll`, 2026-08-01, 13,540,505 registrants of whom 12,448,034 are
+Washington's is — `ny_paper_roll`, 13,540,505 registrants of whom 12,448,034 are
 active — and every roll-denominated derivation below reads that snapshot rather than `voters`.
 Appendix A and Section I still read `voters` directly and correctly: they are
-electorate-denominated and cannot drift.
+electorate-denominated and cannot drift. The snapshot was re-taken 2026-08-08 to add
+`registration_date`, whose absence is what made the wrong denominator unavoidable; the re-pin
+is value-identical on every column it already carried.
 
 The pin is the DENOMINATOR only. Participation is still joined live from
 `voter_participation`, because past elections do not change, and the donor panel is still
@@ -89,6 +120,16 @@ PARTY = ("CASE WHEN party='DEM' THEN 'DEM' WHEN party='REP' THEN 'REP' "
          "WHEN party='BLK' THEN 'NOPARTY' ELSE 'OTHER' END")
 GENERALS = [("2024-11-05", 2024, "g24"), ("2022-11-08", 2022, "g22"),
             ("2025-11-04", 2025, "g25"), ("2023-11-07", 2023, "g23")]
+
+# Contemporaneous-eligibility cutoffs, added 2026-08-08. A participation RATE is
+# voters / people who could have voted, so every denominator below is restricted to
+# registrants enrolled on or before the contest. These dates are the same ones
+# `diag_ny_primary_participation.py` has carried since its first commit; the two scripts
+# now agree by construction, and before this they disagreed by up to 2.67 points on a
+# figure the paper attributed to that script.
+PRIMARY_DATE = {"ppres24": "2024-04-02", "pp24": "2024-06-25",
+                "pp22": "2022-06-28", "pp21": "2021-06-22"}
+G25_DATE = "2025-11-04"
 
 
 def _require_pin(con) -> None:
@@ -178,14 +219,19 @@ def derive() -> dict:
         d[f"bloc_{p}_median"], d[f"bloc_{p}_65"] = float(med), float(p65)
         d[f"bloc_{p}_1829"], d[f"bloc_{p}_turn"] = float(p1829), float(turn)
 
-    # Section I — 2025 general under-30 turnout by party. RESTATED 2026-08-06 on §II's
-    # convention (the pinned ACTIVE roll, age = election year minus birth_year, participation
-    # kind GENERAL), because the printed 30.8 / 15.9 reproduced on none of fourteen bases —
-    # see the note at the foot of this file for the full enumeration and why it was a real
-    # defect rather than a basis difference. This is the only roll-denominated RATE in an
-    # otherwise electorate-denominated section, which is how it survived the 2026-08-01
-    # recompute. The live `voters` table agrees with the pin here to 2dp; the pin is used
-    # because every other roll-denominated figure in this paper does.
+    # Section I — 2025 general under-30 turnout by party. This is the only roll-denominated
+    # RATE in an otherwise electorate-denominated section, which is how it survived the
+    # 2026-08-01 recompute untouched.
+    #
+    # DENOMINATOR CORRECTED 2026-08-08 to contemporaneously eligible registrants. It was
+    # computed against the whole pinned active roll, which counts everyone who registered
+    # AFTER 4 Nov 2025 — 1.89% of the active roll — as a 2025 non-voter. That basis was
+    # enumerated when the pair was restated on 2026-08-06 (it is the "live active, registered
+    # on/before 2025-11-04" line in the note at the foot of this file) and the whole-roll
+    # basis was printed instead. It understates every party's rate: DEM 31.53 -> 32.84,
+    # REP 16.07 -> 16.63. The FINDING is untouched — the ratio moves 1.96x to 1.97x, so
+    # "nearly double" holds either way — but a rate whose denominator includes people who
+    # could not have voted is not the rate the sentence claims to report.
     for p, r in con.execute(f"""
         WITH e AS (
             SELECT v.party p,
@@ -193,7 +239,9 @@ def derive() -> dict:
                         SELECT DISTINCT state_voter_id FROM voter_participation
                         WHERE election_year=2025 AND kind='GENERAL') THEN 1 ELSE 0 END v25
             FROM {PIN} v
-            WHERE v.is_active AND v.birth_year IS NOT NULL AND 2025 - v.birth_year < 30)
+            WHERE v.is_active AND v.birth_year IS NOT NULL AND 2025 - v.birth_year < 30
+              AND (v.registration_date IS NULL
+                   OR v.registration_date <= DATE '{G25_DATE}'))
         SELECT p, 100.0*SUM(v25)/COUNT(*) FROM e GROUP BY 1""").fetchall():
         d[f"u30_g25_{p}"] = float(r)
 
@@ -201,10 +249,21 @@ def derive() -> dict:
     # New York's presidential primary is a distinct `kind`, so the paper's four rows are four
     # different contests rather than three; grouping by year alone would silently merge the
     # April presidential and June state primaries into one 2024 figure.
+    #
+    # DENOMINATOR CORRECTED 2026-08-08 — the same defect as §I's under-30 pair, and the one
+    # that mattered most. Each rate is now denominated on active registrants enrolled on or
+    # before that primary, which is the specification
+    # `diag_ny_primary_participation.py` — the script this paper names as §III's provenance —
+    # has used since its first commit, and which the verifier could not apply while the pin
+    # carried no registration date. Sizes: +0.13 to +2.67 points, largest on the oldest
+    # cycles, because 20.55% of today's active roll registered after the 2021 primary.
     for year, tag in ((2024, "ppres24"), (2024, "pp24"), (2022, "pp22"), (2021, "pp21")):
         kind = "PRES_PRIMARY" if tag == "ppres24" else "PRIMARY"
         rows = con.execute(f"""
-            WITH reg AS (SELECT party p, state_voter_id FROM {PIN} WHERE is_active),
+            WITH reg AS (SELECT party p, state_voter_id FROM {PIN}
+                         WHERE is_active
+                           AND (registration_date IS NULL
+                                OR registration_date <= DATE '{PRIMARY_DATE[tag]}')),
                  voted AS (SELECT DISTINCT state_voter_id FROM voter_participation
                            WHERE election_year={year} AND kind='{kind}')
             SELECT p, 100.0*COUNT(*) FILTER (
@@ -212,6 +271,24 @@ def derive() -> dict:
             FROM reg GROUP BY 1""").fetchall()
         for p, v in rows:
             d[f"{tag}_{p}"] = float(v)
+
+    # §III's NOPARTY cells, re-read as a SWITCHING bound. Under NY Elec. Law § 5-304 a closed
+    # primary is open only to enrollees, so a voter now enrolled blank who is recorded in one
+    # demonstrably changed enrollment afterwards. This is derived because the paper used to
+    # attribute those cells to "nonpartisan/special races" and that reading is refuted by the
+    # 2024 PRESIDENTIAL primary, which carries no nonpartisan contest anywhere in the state
+    # and still shows a non-zero blank cell. Reported as the share of each primary's surviving
+    # voters who are blank today — the direction of drift the reviewer flagged, and the only
+    # direction this file can observe. D<->R switching leaves no trace here and is NOT bounded.
+    for year, tag in ((2024, "ppres24"), (2024, "pp24"), (2022, "pp22"), (2021, "pp21")):
+        kind = "PRES_PRIMARY" if tag == "ppres24" else "PRIMARY"
+        d[f"switch_{tag}"], = con.execute(f"""
+            SELECT 100.0*COUNT(*) FILTER (WHERE party='NOPARTY')/COUNT(*)
+            FROM {PIN} WHERE state_voter_id IN (
+                SELECT DISTINCT state_voter_id FROM voter_participation
+                WHERE election_year={year} AND kind='{kind}')""").fetchone()
+    d["switch_lo"] = min(d[f"switch_{t}"] for t in ("ppres24", "pp24", "pp22", "pp21"))
+    d["switch_hi"] = max(d[f"switch_{t}"] for t in ("ppres24", "pp24", "pp22", "pp21"))
 
     # Section II's donor column: matched donors per 1,000 active registrants of each party.
     # The PANEL is the donor paper's (full-name key, 558,017 New York voters) and that paper
@@ -229,9 +306,31 @@ def derive() -> dict:
         WHERE v.is_active GROUP BY 1""").fetchall():
         d[f"bloc_{p}_donors"] = float(per)
 
+    # §II's footnote answers "is the blank bloc's low donor rate an artifact of the full-name
+    # match key?" — a fair question, because that key is known to discard donors who are
+    # younger than those it retains, and NOPARTY is the youngest bucket. Derived on BOTH
+    # panels rather than argued: if the ordering were an artifact it would narrow on the
+    # retired all-tier panel, and it widens.
+    for tbl, tag in (("voter_donor_affiliation", "primary"),
+                     ("voter_donor_affiliation_alltier", "alltier")):
+        rows = dict(con.execute(f"""
+            SELECT v.party,
+                   1000.0 * COUNT(DISTINCT CASE WHEN a.state_voter_id IS NOT NULL
+                                                THEN v.state_voter_id END) / COUNT(*)
+            FROM {PIN} v LEFT JOIN sw.{tbl} a ON a.state_voter_id = v.state_voter_id
+            WHERE v.is_active GROUP BY 1""").fetchall())
+        d[f"donor_ratio_{tag}"] = rows["NOPARTY"] / rows["DEM"]
+
     # Section IV — districts banded by registration lean, active roll. Reads `voters`, not the
-    # pin: the pin deliberately carries no district column, and §V's cells are integer district
+    # pin: the pin deliberately carries no district column, and §IV's cells are integer district
     # COUNTS that a 36-registrant change cannot move.
+    #
+    # BANDS SYMMETRISED 2026-08-08. They were 40+ / 20-40 / 5-20 / ±5 on the Democratic side
+    # against 5-20 / 20+ on the Republican, so a D+25 district read "Likely D" while an R+25
+    # read "Safe R" — an avoidable methodology objection on a table whose actual finding
+    # (21 of 176 districts inside ±5) is symmetric and unaffected. The seventh band is not
+    # cosmetic: NO New York district is R+40 at either level, so on the paper's own D-side
+    # threshold the state has ZERO safe-Republican seats, and the old table showed seven.
     for col, tag in (("congressional_district", "cd"), ("assembly_district", "ad")):
         row = con.execute(f"""
             WITH dd AS (
@@ -244,9 +343,15 @@ def derive() -> dict:
                    COUNT(*) FILTER (WHERE net>=5 AND net<20),
                    COUNT(*) FILTER (WHERE net>-5 AND net<5),
                    COUNT(*) FILTER (WHERE net<=-5 AND net>-20),
-                   COUNT(*) FILTER (WHERE net<=-20), COUNT(*) FROM dd""").fetchone()
-        for k, v in zip(("safe_d", "likely_d", "lean_d", "comp", "lean_r", "safe_r", "n"), row):
+                   COUNT(*) FILTER (WHERE net<=-20 AND net>-40),
+                   COUNT(*) FILTER (WHERE net<=-40), COUNT(*) FROM dd""").fetchone()
+        for k, v in zip(("safe_d", "likely_d", "lean_d", "comp", "lean_r", "likely_r",
+                         "safe_r", "n"), row):
             d[f"{tag}_{k}"] = v
+    # "only 21 of 176" — derived from the band counts so a boundary change moves both.
+    d["comp_total"] = d["cd_comp"] + d["ad_comp"]
+    d["seat_total"] = d["cd_n"] + d["ad_n"]
+    d["safe_d_total"] = d["cd_safe_d"] + d["ad_safe_d"]
 
     # Section V — party mix of each registration cohort.
     for year in (2008, 2016, 2020, 2024):
@@ -259,6 +364,162 @@ def derive() -> dict:
         d[f"new{year}_median"], = con.execute(f"""
             SELECT median(date_diff('year', birthdate, registration_date)) FROM voters
             WHERE year(registration_date)={year} AND birthdate IS NOT NULL""").fetchone()
+
+    # §V — the re-registration share of each cohort, and whether it biases the trend
+    # (2026-08-08). `registration_date` is the most recent registration TRANSACTION, not
+    # necessarily an initial one, so a "cohort" is not a set of first-time registrants. The
+    # test is exact rather than inferred: voting requires being registered, so a cohort member
+    # with a participation record predating their own registration_date was registered earlier.
+    #
+    # A LOWER BOUND, and the bound's tightness depends on the detection window — 2024 can look
+    # back to 2016, 2020 only to 2016 as well but across four years rather than eight. The
+    # paper says so, because otherwise the two percentages read as a trend and they are not
+    # comparable. 2008 and 2016 are not computed at all: this file's vote history starts in
+    # 2016, so there is no prior window and a "0.00%" would be an artifact reported as a fact.
+    for year in (2020, 2024):
+        n, prior = con.execute(f"""
+            SELECT COUNT(*), COUNT(*) FILTER (WHERE v.state_voter_id IN (
+                       SELECT DISTINCT state_voter_id FROM voter_participation
+                       WHERE election_year < {year}))
+            FROM voters v WHERE year(v.registration_date) = {year}""").fetchone()
+        d[f"rereg{year}_share"] = 100.0 * prior / n
+    # Direction of the bias: if re-registrants were indistinguishable from first-time
+    # registrants the split would be flat, and the caveat would be pedantic rather than
+    # load-bearing. They are not, so the paper states which way it runs.
+    for grp, op in (("new", "NOT IN"), ("rereg", "IN")):
+        rows = dict(con.execute(f"""
+            SELECT {PARTY} p, COUNT(*) FROM voters v
+            WHERE year(v.registration_date) = 2024
+              AND v.state_voter_id {op} (SELECT DISTINCT state_voter_id
+                  FROM voter_participation WHERE election_year < 2024)
+            GROUP BY 1""").fetchall())
+        tot = sum(rows.values()) or 1
+        for p in ("DEM", "NOPARTY"):
+            d[f"c24_{grp}_{p}"] = 100.0 * rows.get(p, 0) / tot
+        d[f"c24_{grp}_medage"], = con.execute(f"""
+            SELECT median(date_diff('year', v.birthdate, v.registration_date))
+            FROM voters v WHERE year(v.registration_date) = 2024
+              AND v.state_voter_id {op} (SELECT DISTINCT state_voter_id
+                  FROM voter_participation WHERE election_year < 2024)""").fetchone()
+
+    # Boundary of inference — SURVIVORSHIP, MEASURED RATHER THAN ASSERTED (2026-08-08).
+    # The paper claimed composition shares were "robust" and that the survivorship bias "hits
+    # every group equally". Neither was established, and the second is testable. Voters who
+    # were purged outright are invisible in a single extract, but INACTIVE status is the
+    # visible pre-purge state, so the inactive rate among a past election's voters is a proxy
+    # for who leaves the roll. It is a proxy and the paper now says so.
+    #
+    # By PARTY the spread is small (~0.3pp on a ~3.3% base for 2021 voters), which is roughly
+    # what "hits every group equally" wanted to claim, so the paper now prints the number
+    # instead of asserting the property. By AGE it is NOT small — the youngest band leaves at
+    # about twice the rate of the 45-64 band — so the age shares carry a real bias, in the
+    # direction of UNDERSTATING youth in past electorates. That runs against the paper's
+    # headline rather than for it, which is why it is disclosed rather than bounded away.
+    att = dict(con.execute("""
+        SELECT CASE WHEN v.party='DEM' THEN 'DEM' WHEN v.party='REP' THEN 'REP'
+                    WHEN v.party='BLK' THEN 'NOPARTY' ELSE 'OTHER' END p,
+               100.0*COUNT(*) FILTER (WHERE v.status_code<>'A')/COUNT(*)
+        FROM voters v WHERE v.state_voter_id IN (
+            SELECT DISTINCT state_voter_id FROM voter_participation
+            WHERE election_year=2021 AND kind='GENERAL')
+        GROUP BY 1""").fetchall())
+    d["att21_lo"], d["att21_hi"] = min(att.values()), max(att.values())
+    d["att21_spread"] = d["att21_hi"] - d["att21_lo"]
+    for band, lo, hi in (("young", 18, 29), ("mid", 45, 64)):
+        d[f"att23_{band}"], = con.execute(f"""
+            SELECT 100.0*COUNT(*) FILTER (WHERE v.status_code<>'A')/COUNT(*)
+            FROM voters v WHERE v.birthdate IS NOT NULL
+              AND 2023-EXTRACT(year FROM v.birthdate) BETWEEN {lo} AND {hi}
+              AND v.state_voter_id IN (
+                SELECT DISTINCT state_voter_id FROM voter_participation
+                WHERE election_year=2023 AND kind='GENERAL')""").fetchone()
+    d["att23_ratio"] = d["att23_young"] / d["att23_mid"]
+
+    # The size of the denominator error the 2026-08-08 correction removes: the share of
+    # today's active roll that registered after the oldest contest the paper rates.
+    d["post21_share"], = con.execute(f"""
+        SELECT 100.0*COUNT(*) FILTER (WHERE registration_date > DATE '{PRIMARY_DATE["pp21"]}')
+               /COUNT(*) FROM {PIN} WHERE is_active""").fetchone()
+
+    # The §III note quantifies the correction, so the correction is itself derived rather than
+    # remembered — including the UNCORRECTED figures, which are otherwise unreproducible once
+    # the verifier stops computing them. Same queries as above with the cutoff removed.
+    deltas = []
+    for year, tag in ((2024, "ppres24"), (2024, "pp24"), (2022, "pp22"), (2021, "pp21")):
+        kind = "PRES_PRIMARY" if tag == "ppres24" else "PRIMARY"
+        for p, v in con.execute(f"""
+            WITH reg AS (SELECT party p, state_voter_id FROM {PIN} WHERE is_active),
+                 voted AS (SELECT DISTINCT state_voter_id FROM voter_participation
+                           WHERE election_year={year} AND kind='{kind}')
+            SELECT p, 100.0*COUNT(*) FILTER (
+                     WHERE state_voter_id IN (SELECT state_voter_id FROM voted))/COUNT(*)
+            FROM reg GROUP BY 1""").fetchall():
+            d[f"raw_{tag}_{p}"] = float(v)
+            if p in ("DEM", "REP"):
+                deltas.append(d[f"{tag}_{p}"] - float(v))
+    # MAJOR-PARTY cells only, and the paper says so. Over all sixteen the span would read
+    # "-0.00 to +2.67", because the NOPARTY and OTHER rates are ~0.1-2% figures whose
+    # numerator and denominator shrink together and can round the other way. Quoting a range
+    # that straddles zero would imply the correction is directionless; it is not, on every
+    # cell the paper's argument uses.
+    d["fix_lo"], d["fix_hi"] = min(deltas), max(deltas)
+
+    # §I's under-30 ratio on both bases — the note claims the finding is untouched, and a
+    # claim of "untouched" needs the before as well as the after.
+    raw = dict(con.execute(f"""
+        WITH e AS (
+            SELECT v.party p, CASE WHEN v.state_voter_id IN (
+                     SELECT DISTINCT state_voter_id FROM voter_participation
+                     WHERE election_year=2025 AND kind='GENERAL') THEN 1 ELSE 0 END v25
+            FROM {PIN} v
+            WHERE v.is_active AND v.birth_year IS NOT NULL AND 2025 - v.birth_year < 30)
+        SELECT p, 100.0*SUM(v25)/COUNT(*) FROM e GROUP BY 1""").fetchall())
+    d["u30_ratio_raw"] = raw["DEM"] / raw["REP"]
+    d["u30_ratio_fixed"] = d["u30_g25_DEM"] / d["u30_g25_REP"]
+
+    # Appendix C — external validation against NYSBOE's published enrollment series.
+    #
+    # The published shares are EXTERNAL ground truth, so they cannot be derived from the voter
+    # file and are imported from the diagnostic that documents their provenance rather than
+    # transcribed a second time here. Two copies of a hand-typed constant is exactly the drift
+    # this series keeps finding. What IS derived independently is the file side and every gap.
+    from diag_ny_enrollment_validation import PUBLISHED, _published_shares  # noqa: E402
+    hist = []
+    for row in PUBLISHED:
+        date, tag = row[0], "nysboe_" + row[0].replace("-", "")
+        pub = _published_shares(row)
+        obs = dict(con.execute(f"""
+            SELECT CASE WHEN v.party='DEM' THEN 'DEM' WHEN v.party='REP' THEN 'REP'
+                        WHEN v.party='BLK' THEN 'NOPARTY' ELSE 'OTHER' END p,
+                   100.0*COUNT(*)/SUM(COUNT(*)) OVER ()
+            FROM voters v
+            WHERE v.status_code='A' AND v.registration_date <= DATE '{date}'
+            GROUP BY 1""").fetchall())
+        n_file, = con.execute(f"""
+            SELECT COUNT(*) FROM voters v
+            WHERE v.status_code='A' AND v.registration_date <= DATE '{date}'""").fetchone()
+        for b in ("DEM", "REP", "NOPARTY", "OTHER"):
+            d[f"{tag}_{b}"] = obs.get(b, 0.0) - pub[b]
+            if date != "2026-02-20":
+                hist.append(abs(d[f"{tag}_{b}"]))
+        d[f"{tag}_retain"] = 100.0 * n_file / row[8]
+    d["nysboe_worst"] = max(hist)
+
+    # The FOIL extract's own identity, so a reproduction starts from the same bytes. Size is
+    # checked live (instant); the SHA-256 is not, because hashing 928 MB on every verifier run
+    # would cost more than the whole rest of this script — see its exemption for the one-line
+    # command that reproduces it.
+    src = vp.DATA / "raw" / "ny" / "ALLNYVOTERS20260629.zip"
+    d["src_bytes"] = src.stat().st_size if src.exists() else -1
+
+    # Appendix A — the two odd-year electorates are not one treatment. Sizes, not shares:
+    # 2025 turned out far more voters than 2023, which is the paper's own evidence that
+    # "odd year" does not name a single condition.
+    for year in (2023, 2025):
+        d[f"n_g{year % 100}"], = con.execute(f"""
+            SELECT COUNT(DISTINCT state_voter_id) FROM voter_participation
+            WHERE election_year={year} AND kind='GENERAL'""").fetchone()
+    d["odd_ratio"] = d["n_g25"] / d["n_g23"]
 
     # ------------------------------------------------------------------ coverage gate, 2026-08-06
     # Everything below was added to close the audit. Grouped rather than folded into the
@@ -354,6 +615,26 @@ def _companion_docs(d: dict) -> None:
 
 
 PROBES = [
+    # --- Abstract, gated 2026-08-07 when it moved in from the metadata file. Every figure here
+    # is a restatement of one asserted elsewhere in the paper, which is exactly why each gets
+    # its own probe rather than riding on the section probe: the two can drift apart, and the
+    # abstract is where a drift is most expensive.
+    ("abstract — roll size, exact",
+     r"vote history for \*\*([\d,]+)\*\* registrants", "roll_all", 0),
+    ("abstract — 65+ share, 2024 presidential against the 2023 odd-year",
+     r"65-and-over share rises from \*\*([\d.]+)%\*\* of the 2024 presidential electorate to "
+     r"\*\*([\d.]+)%\*\* in the 2023 odd-year general",
+     ("g24_65+", "g23_65+"), 0.05),
+    ("abstract — under-30 share, same two electorates",
+     r"under-30 share collapses from \*\*([\d.]+)%\*\* to \*\*([\d.]+)%\*\*",
+     ("g24_18-29", "g23_18-29"), 0.05),
+    # ACTIVE-roll key, not mixF_NOPARTY. The two differ — 25.3 against 25.49 — and the abstract
+    # says "of the active roll", so the full-roll key would have failed on a real distinction.
+    ("abstract — NOPARTY share of the active roll",
+     r"A quarter of registrants, \*\*([\d.]+)%\*\* of the active roll", "mixA_NOPARTY", 0.05),
+    ("abstract — the competitive count over both chambers",
+     r"only \*\*(\d+)\*\* of \*\*(\d+)\*\* congressional and Assembly districts are\s+"
+     r"within five points", ("comp_total", "seat_total"), 0),
     ("roll size", r"statewide file \(([\d.]+)M registrants", "roll_m", 0.005),
     ("blank share, active and full roll",
      r"\(([\d.]+)% of the active roll; ([\d.]+)% of the full roll\)",
@@ -426,12 +707,24 @@ PROBES = [
      ("pp21_DEM", "pp21_REP", "pp21_NOPARTY", "pp21_OTHER"), 0.05),
 
     # ---- Section V
-    ("§IV congressional districts by lean",
-     r"\| Congressional \(26\) \| (\d+) \| (\d+) \| (\d+) \| \*\*(\d+)\*\* \| (\d+) \| (\d+) \|",
-     ("cd_safe_d", "cd_likely_d", "cd_lean_d", "cd_comp", "cd_lean_r", "cd_safe_r"), 0),
-    ("§IV assembly districts by lean",
-     r"\| Assembly \(150\) \| (\d+) \| (\d+) \| (\d+) \| \*\*(\d+)\*\* \| (\d+) \| (\d+) \|",
-     ("ad_safe_d", "ad_likely_d", "ad_lean_d", "ad_comp", "ad_lean_r", "ad_safe_r"), 0),
+    ("§IV congressional districts by lean (symmetric bands)",
+     r"\| Congressional \(26\) \| (\d+) \| (\d+) \| (\d+) \| \*\*(\d+)\*\* \| (\d+) \| (\d+) \| "
+     r"(\d+) \|",
+     ("cd_safe_d", "cd_likely_d", "cd_lean_d", "cd_comp", "cd_lean_r", "cd_likely_r",
+      "cd_safe_r"), 0),
+    ("§IV assembly districts by lean (symmetric bands)",
+     r"\| Assembly \(150\) \| (\d+) \| (\d+) \| (\d+) \| \*\*(\d+)\*\* \| (\d+) \| (\d+) \| "
+     r"(\d+) \|",
+     ("ad_safe_d", "ad_likely_d", "ad_lean_d", "ad_comp", "ad_lean_r", "ad_likely_r",
+      "ad_safe_r"), 0),
+    ("§IV — the competitive count over both chambers",
+     r"Only \*\*(\d+) of (\d+)\*\* congressional and Assembly districts",
+     ("comp_total", "seat_total"), 0),
+    ("§IV — the two chamber-level competitive counts, and both chamber sizes",
+     r"— (\d+) of (\d+) and (\d+) of (\d+) — are within\s+five points",
+     ("cd_comp", "cd_n", "ad_comp", "ad_n"), 0),
+    ("§IV — safe-D seats on the symmetric 40+ threshold, both chambers",
+     r"makes (\d+) seats\s+safe for Democrats", "safe_d_total", 0),
 
     # ---- Section VI
     ("§V 2008 registration cohort",
@@ -472,19 +765,26 @@ PROBES = [
      r"NOPARTY [\d.]+\), ~([\d.]+)pp higher", "dg_base_gap", 0.05),
     ("§IV — Assembly chamber size, three restatements",
      r"\| Assembly \((\d+)\) \|", "ad_n", 0),
-    ("§IV — Assembly size in the competitive-count sentence",
-     r"17 of (\d+) Assembly districts", "ad_n", 0),
     ("§IV — Assembly size in the lean-Democratic sentence",
      r"105/(\d+) lean Democratic", "ad_n", 0),
     ("§III — the decisive-contest restatement, 2021 then 2024",
      r"2021 odd-year DEM ([\d.]+)% vs REP ([\d.]+)%; 2024 state DEM ([\d.]+)% vs REP ([\d.]+)%",
      ("pp21_DEM", "pp21_REP", "pp24_DEM", "pp24_REP"), 0.05),
-    ("recompute note — new-registrant mix against the roll mix",
-     r"Recent registrants are ([\d.]+)% Democratic and ([\d.]+)% unaffiliated against a roll "
-     r"at ([\d.]+)% and ([\d.]+)%",
-     ("new2024_DEM", "new2024_NOPARTY", "mixA_DEM", "mixA_NOPARTY"), 0.05),
-    ("recompute note — the CURRENT side of the two primary-rate arrows",
-     r"\(16\.9 → ([\d.]+) and 17\.9 → ([\d.]+)\)", ("pp21_DEM", "pp22_DEM"), 0.05),
+    # The 2026-08-08 note quantifies its own correction. These probes exist because the note
+    # they replace carried its figures UNPROBED, which is how it kept a wrong mechanism in
+    # print: "the roll grew" was a sentence no assertion could reach.
+    ("§III note — the size of the denominator correction, both endpoints",
+     r"moves the rates \*\*\+([\d.]+) to \+([\d.]+) points\*\*", ("fix_lo", "fix_hi"), 0.005),
+    ("§III note — the pre-correction figures it reproduces",
+     r"carried \*before\* 2026-08-01 — ([\d.]+) and ([\d.]+) — exactly",
+     ("pp21_DEM", "pp22_DEM"), 0.05),
+    ("§III note — the uncorrected 2021 rate the two rolls agree on",
+     r"return the uncorrected ([\d.]+)% alike", "raw_pp21_DEM", 0.005),
+    ("§III note — the disagreement against the paper's own cited script",
+     r"disagreed by up to ([\d.]+) points", "fix_hi", 0.005),
+    ("§III note — the under-30 ratio, before and after the correction",
+     r"under-30 ratio moves from ([\d.]+)× to ([\d.]+)×",
+     ("u30_ratio_raw", "u30_ratio_fixed"), 0.005),
     ("§IV — districts leaning Democratic, congressional then assembly",
      r"([\d]+)/26 and ([\d]+)/150 lean Democratic",
      ("cd_lean_dem_total", "ad_lean_dem_total"), 0),
@@ -494,12 +794,117 @@ PROBES = [
      r"holds ([\d,]+) registrants against the file's ([\d,]+) rows",
      ("roll_all", "file_rows"), 0),
     ("Methods — the pin's registrant and active counts",
-     r"taken 2026-08-01 at ([\d,]+) registrants, of whom ([\d,]+) are active",
+     r"`ny_paper_roll`, ([\d,]+) registrants, of whom ([\d,]+) are\s+active",
      ("roll_all", "roll_active"), 0),
+    ("Methods — the source extract's byte count, checked against the file on disk",
+     r"\.zip`, ([\d,]+) bytes", "src_bytes", 0),
+    ("§III — the NOPARTY residual span, where the paper reinterprets it",
+     r"read the ([\d.]+)–([\d.]+)% residual as", ("np_primary_lo", "np_primary_hi"), 0.05),
+    ("Boundary — the switching bound restated in the limitations list",
+     r"for the bound: ([\d.]+)–([\d.]+)% of each closed primary's voters",
+     ("switch_lo", "switch_hi"), 0.05),
     ("Boundary — parser validation against known 2024 turnout",
      r"2024 presidential ≈ ([\d.]+)M", "turn24_m", 0.05),
     ("abstract — roll scale restated",
      r"individual-record measurement on ([\d.]+)M New York", "roll_m", 0.05),
+
+    # ---- added 2026-08-08, the external-review round. Every claim introduced by that round
+    # is probed, on the rule that a caveat carrying a number is a result: the 2026-08-01
+    # round's own recompute note carried unprobed figures and that is how it kept a wrong
+    # mechanism in print for a week.
+    ("front matter — the switching bound, both endpoints",
+     r"\*\*([\d.]+)–([\d.]+)% of them are enrolled blank today\*\*",
+     ("switch_lo", "switch_hi"), 0.05),
+    ("§III — the switching bound restated on its own cells",
+     r"\*\*([\d.]+)% \(2024\) to ([\d.]+)% \(2021\) are enrolled blank today\*\*",
+     ("switch_pp24", "switch_pp21"), 0.05),
+    ("front matter — attrition spread across parties",
+     r"near-flat across parties \(([\d.]+)pp spread\)", "att21_spread", 0.005),
+    ("Boundary — the party attrition span, 2021 general voters",
+     r"the inactive rate spans ([\d.]+)–([\d.]+)% across the four party buckets",
+     ("att21_lo", "att21_hi"), 0.005),
+    ("Boundary — the same spread restated as a gap",
+     r"a ([\d.]+)pp spread, which is what an earlier version", "att21_spread", 0.005),
+    ("Boundary — age attrition, under-30 against 45-64",
+     r"([\d.]+)% of the under-30 band is now inactive against ([\d.]+)% of the 45–64 band",
+     ("att23_young", "att23_mid"), 0.005),
+    ("§III note — the share of today's roll registered after the 2021 primary",
+     r"\*\*([\d.]+)%\*\* of today's active roll registered after the 2021", "post21_share", 0.005),
+    ("Appendix A — the two odd-year electorate sizes and their ratio",
+     r"turned out ([\d,]+) voters at [\d.]+% aged 65\+, while 2025\s+turned out ([\d,]+) — "
+     r"\*\*([\d.]+)×\*\*",
+     ("n_g23", "n_g25", "odd_ratio"), 0.005),
+    ("Appendix A — the 65+ shares named beside those two sizes",
+     r"at ([\d.]+)% aged 65\+, while 2025\s+turned out [\d,]+ — \*\*[\d.]+×\*\* as many — at "
+     r"([\d.]+)%", ("g23_65+", "g25_65+"), 0.05),
+    ("§II footnote — the donor ratio on both match panels",
+     r"NOPARTY-to-DEM ratio is ([\d.]+) against ([\d.]+) here",
+     ("donor_ratio_alltier", "donor_ratio_primary"), 0.005),
+    ("§II footnote — the retired panel size it names",
+     r"on the retired ([\d,]+)-voter panel", "_prev_panel", 0),
+
+    # ---- Appendix C, the NYSBOE external validation. Every cell of the table is probed:
+    # it is the answer to the survivorship objection, so an unchecked cell here would be an
+    # unchecked limitation, which is the category this paper has already been burned by.
+    # NB the gap cells are written with an ASCII hyphen-minus, not U+2212. The prose elsewhere
+    # in this paper uses the typographic minus, but a captured value has to parse as a number
+    # and U+2212 does not — the first version of these probes captured '-0.17' as a string and
+    # failed with "not a number", which is the right failure and worth not re-causing.
+    ("App. C — 2026-02-20 control row",
+     r"\| 2026-02-20 \| \*\*control\*\* \| (-[\d.]+) \| \+([\d.]+) \| (-[\d.]+) \| "
+     r"\+([\d.]+) \| \*\*([\d.]+)%\*\* \|",
+     ("nysboe_20260220_DEM", "nysboe_20260220_REP", "nysboe_20260220_NOPARTY",
+      "nysboe_20260220_OTHER", "nysboe_20260220_retain"), 0.005),
+    ("App. C — 2025-11-01 row",
+     r"\| 2025-11-01 \| the 2025 general \| (-[\d.]+) \| \+([\d.]+) \| (-[\d.]+) \| "
+     r"\+([\d.]+) \| ([\d.]+)% \|",
+     ("nysboe_20251101_DEM", "nysboe_20251101_REP", "nysboe_20251101_NOPARTY",
+      "nysboe_20251101_OTHER", "nysboe_20251101_retain"), 0.005),
+    ("App. C — 2024-02-27 row",
+     r"\| 2024-02-27 \| both 2024 primaries \| (-[\d.]+) \| \+([\d.]+) \| (-[\d.]+) \| "
+     r"(-[\d.]+) \| ([\d.]+)% \|",
+     ("nysboe_20240227_DEM", "nysboe_20240227_REP", "nysboe_20240227_NOPARTY",
+      "nysboe_20240227_OTHER", "nysboe_20240227_retain"), 0.005),
+    ("App. C — 2022-02-21 row",
+     r"\| 2022-02-21 \| the 2022 primary \| (-[\d.]+) \| \+([\d.]+) \| \+([\d.]+) \| "
+     r"(-[\d.]+) \| ([\d.]+)% \|",
+     ("nysboe_20220221_DEM", "nysboe_20220221_REP", "nysboe_20220221_NOPARTY",
+      "nysboe_20220221_OTHER", "nysboe_20220221_retain"), 0.005),
+    ("App. C — 2021-02-21 row",
+     r"\| 2021-02-21 \| the 2021 primary \| (-[\d.]+) \| \*\*\+([\d.]+)\*\* \| \+([\d.]+) \| "
+     r"(-[\d.]+) \| \*\*([\d.]+)%\*\* \|",
+     ("nysboe_20210221_DEM", "nysboe_20210221_REP", "nysboe_20210221_NOPARTY",
+      "nysboe_20210221_OTHER", "nysboe_20210221_retain"), 0.005),
+    # Bounded digit groups, not [\d.]+ — the sentence ends right after the value and a greedy
+    # character class captures the full stop, giving "0.33." and a "not a number" failure.
+    ("App. C — the control row's gap span, quoted in prose",
+     r"its gaps are (-\d+\.\d+) to \+(\d+\.\d+)",
+     ("nysboe_20260220_NOPARTY", "nysboe_20260220_OTHER"), 0.005),
+    ("App. C — the largest historical gap, twice",
+     r"largest historical gap is \*\*([\d.]+) points\*\*", "nysboe_worst", 0.005),
+    ("App. C — the same bound restated against the median-age effect",
+     r"a ([\d.]+)-point share gap against an", "nysboe_worst", 0.005),
+    ("App. C — Feb 2021 retention, restated in prose",
+     r"Only \*\*([\d.]+)%\*\* of the registrants NYSBOE", "nysboe_20210221_retain", 0.005),
+    ("App. C — the same bound in the attrition sentence",
+     r"moved by at most ([\d.]+) points", "nysboe_worst", 0.005),
+    # The front matter is NOT inside AUDIT_BOUNDS, so the coverage gate cannot reach these two
+    # restatements and they would be unchecked by default — which is the precise shape of the
+    # defect this round corrected in the §III note. Probed explicitly instead.
+    ("front matter — Appendix C's ceiling, restated in caveat (2)",
+     r"external\s+ceiling of \*\*([\d.]+) points\*\*", "nysboe_worst", 0.005),
+
+    # ---- §V's re-registration caveat, 2026-08-08.
+    ("§V — re-registration lower bound, both measurable cohorts",
+     r"at least \*\*([\d.]+)%\*\* of the 2020 cohort and\s+\*\*([\d.]+)%\*\* of the 2024 cohort",
+     ("rereg2020_share", "rereg2024_share"), 0.005),
+    ("§V — the 2024 split that gives the bias its direction",
+     r"\*\*([\d.]+)%\*\* Democratic and \*\*([\d.]+)%\*\* no-party against \*\*([\d.]+)%\*\* "
+     r"and\s+\*\*([\d.]+)%\*\*",
+     ("c24_rereg_DEM", "c24_rereg_NOPARTY", "c24_new_DEM", "c24_new_NOPARTY"), 0.05),
+    ("§V — median registration age of each group",
+     r"median registration age of (\d+) against (\d+)",
+     ("c24_rereg_medage", "c24_new_medage"), 0),
 ]
 
 UNCHECKED = [
@@ -524,38 +929,60 @@ UNCHECKED = [
 # stale anchor the first time the restructured paper was verified, which is the behaviour to
 # keep: a silent slice would have audited the wrong text. Appendix B carries the old->new map.
 AUDIT_BOUNDS = {
+    # Gated 2026-08-07, when the abstract moved into the paper from the metadata file. It
+    # restates results from four different sections, so it is gated on arrival rather than
+    # later: an abstract drifting from the tables it summarises is the same defect as a prose
+    # restatement, in the one place a referee always reads.
+    "abstract":   ("## Abstract", "## The question"),
     "party":      ("## I. The graying is not partisan-neutral",
                    "## II. The unaffiliated quarter"),
     "blank_bloc": ("## II. The unaffiliated quarter", "## III. The nominating electorate"),
-    "nominating": ("## III. The nominating electorate", "## IV. Safe-seat New York"),
-    "safe_seat":  ("## IV. Safe-seat New York", "## V. A leading indicator"),
+    "nominating": ("## III. The nominating electorate", "## IV. The registration map"),
+    "safe_seat":  ("## IV. The registration map", "## V. A leading indicator"),
     "registrants": ("## V. A leading indicator", "## Boundary of inference"),
     "boundary":   ("## Boundary of inference", "## What it means"),
     # The replication, now an appendix. Audited exactly as it was when it led the paper —
     # moving a section must not be a way to stop checking it.
-    "appendix_a": ("## Appendix A — Validation", "## Appendix B — Section numbering"),
+    "appendix_a": ("## Appendix A — Validation", "## Appendix C — External validation"),
+    # Appendix C is placed BEFORE Appendix B in the document — substance ahead of the
+    # numbering map — so that both appendices have a following anchor to slice against.
+    # A slice whose end anchor does not exist runs to end-of-document and silently swallows
+    # whatever follows, which is one of the three coverage rules this gate already encodes.
+    "appendix_c": ("## Appendix C — External validation", "## Appendix B — Section numbering"),
 }
 
 COVERAGE_EXEMPT = [
     (r"^(?:19|20)\d{2}$", "a calendar year, not a result"),
     (r"^\d{1,2}$", "small integer — chamber sizes, band edges, list ordinals"),
+    # Added 2026-08-08 with the source-identity block. A SHA-256 tokenises into runs of
+    # digits, so the gate sees '256', '027', '4807' and so on as unmapped figures. They are
+    # fragments of one opaque identifier, not results, and the identifier IS checkable — the
+    # byte count beside it is asserted against the file on disk by the probe "Methods — the
+    # source extract's byte count", and the digest itself reproduces with:
+    #     sha256sum data/raw/ny/ALLNYVOTERS20260629.zip
+    # Deliberately narrow: 3-4 digit runs only, and only because the hex string is confined
+    # to one sentence. It cannot swallow a rate, a share or a district count, which are all
+    # either decimal or comma-grouped.
+    (r"^[0-9a-f]{3,4}$", "fragment of the source extract's SHA-256 or its filename date "
+                         "stamp; the digest reproduces with sha256sum and the byte count "
+                         "beside it is asserted live"),
 ]
 
 COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
-    # The recompute note's before/after DELTAS and the retired left-hand sides of its two
-    # arrows. These describe a state of the roll that no longer exists, so they are history
-    # in the sense the corrections ledger is: re-deriving them would need the pre-2026-08-01
-    # file. The CURRENT side of each arrow IS asserted, one probe above.
-    "16.9": "retired 2021 DEM primary rate, pre-recompute; the 14.3 it fell to is asserted",
-    "17.9": "retired 2022 DEM primary rate, pre-recompute; the 15.6 it fell to is asserted",
-    "0.6": "lower bound of the recompute's turnout-rate fall (0.6-1.1 pts). A DELTA against "
-           "a roll state that no longer exists on disk; the post-recompute rates themselves "
-           "are all asserted in §III and §IV",
-    "1.1": "upper bound of the same fall; as above",
-    "0.7": "lower bound of the recompute's youth-share rise (0.7-1.6 pts); as above",
-    "1.6": "upper bound of the same rise; as above. NB the same token is a §IV table cell "
-           "(2024 state REP 1.6%) and IS asserted there — this exemption only reaches the "
-           "occurrences the probes do not cover",
+    # PRUNED 2026-08-08. The six literals that used to sit here covered the 2026-08-01
+    # recompute note's deltas and the retired sides of its two arrows. That note has been
+    # replaced: its figures are now derived — including the UNCORRECTED ones, by
+    # `raw_*` — so nothing in it needs exempting. The rule that produced them was sound
+    # ("a delta against a roll state that no longer exists cannot be re-derived"); what it
+    # missed is that the state could be reconstructed by simply dropping the cutoff, which is
+    # what `raw_*` does. An exemption is a last resort, and this one had a derivation
+    # available the whole time.
+    "741": "the chapter number of a New York session law (Chapter 741 of the Laws of 2023), "
+           "not a measurement. The statute's content and litigation history are cited in "
+           "'What it means'; nothing numeric is claimed of it",
+    "20260629": "the date stamp inside the FOIL extract's filename (ALLNYVOTERS20260629.zip), "
+                "which is an identifier rather than a result. The file it names is checked "
+                "live by the probe 'Methods — the source extract's byte count'",
 }
 
 # --- ✅ RESOLVED 2026-08-06 — author answered "paper not yet published, so fix" ----------

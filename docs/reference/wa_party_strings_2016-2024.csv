@@ -1,0 +1,33 @@
+party_string,party_class,party_class_loose,reason
+(Prefers Conservative Party),O,O,names no major party
+(Prefers Culture Republican Party),R,R,"faction-qualified variant of the party's own name; author decision 2026-08-08"
+(Prefers DEMOCRATIC Party),D,D,case variant of the party's own name
+(Prefers Dem/Working Fmly Party),O,D,"hybrid naming two parties; strict keeps it OTHER, loose folds it to the major party"
+(Prefers Democractic Party),D,D,"misspelling of Democratic in the certified 2020 file; normalised before classification"
+(Prefers Democrat Party),D,D,variant of the party's own name
+(Prefers Democratic  Party),D,D,double-space variant in the certified 2018 file
+(Prefers Democratic Party),D,D,the party's own name
+(Prefers Election Integrity Party),O,O,names no major party
+(Prefers G.O.P Party),R,R,"punctuated abbreviation of the party's own name, no trailing period (2016)"
+(Prefers G.O.P. Party),R,R,punctuated abbreviation of the party's own name (2018)
+(Prefers GOP Party),R,R,abbreviation of the party's own name
+(Prefers GOP/Independent Party),O,R,"hybrid naming a major party and independence; strict OTHER, loose folds to major"
+(Prefers Ind Republican Party),O,R,"independence-qualified; strict OTHER, loose folds to major"
+(Prefers Ind. Republican Party),O,R,"independence-qualified; strict OTHER, loose folds to major"
+(Prefers Indep&#39;t Democrat Party),O,D,"independence-qualified; strict OTHER, loose folds to major"
+(Prefers Independent Dem Party),O,D,"independence-qualified; strict OTHER, loose folds to major"
+(Prefers Independent Dem. Party),O,D,"independence-qualified; strict OTHER, loose folds to major"
+(Prefers Independent GOP Party),O,R,"independence-qualified; strict OTHER, loose folds to major"
+(Prefers Independent Party),O,O,"names no major party at all, so loose has nothing to fold it into"
+(Prefers Independent Rep Party),O,R,"independence-qualified; strict OTHER, loose folds to major"
+(Prefers Libertarian Party),O,O,names no major party
+(Prefers MAGA Republican Party),R,R,"faction-qualified variant of the party's own name; author decision 2026-08-08"
+(Prefers Non Partisan Party),O,O,names no major party
+(Prefers Non-Partisan Party),O,O,names no major party
+(Prefers R Party),R,R,"single-letter abbreviation of the party's own name; author decision 2026-08-08"
+(Prefers REPUBLICAN Party),R,R,case variant of the party's own name
+(Prefers Republican Party),R,R,the party's own name
+(Prefers Seattle People&#39;s Party),O,O,names no major party
+(Prefers The Alliance Party),O,O,names no major party
+(Prefers WA Progressive Party),O,O,names no major party
+(States No Party Preference),O,O,expressly no preference

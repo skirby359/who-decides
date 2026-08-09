@@ -371,6 +371,24 @@ def _section_vii(con, d: dict) -> None:
 
 
 PROBES = [
+    # --- Abstract, gated 2026-08-07 when it moved in from the metadata file. Each figure is a
+    # restatement of one asserted in a section below, and each gets its own probe for that
+    # reason: the abstract is the most-read and least-revised part of a paper.
+    ("abstract — roll size, exact",
+     r"statewide voter file for \*\*([\d,]+)\*\* registrants", "roll_n", 0),
+    ("abstract — party-neutral 65+ share among 2024 general voters",
+     r"65-and-over share, \*\*([\d.]+)%\*\* against \*\*([\d.]+)%\*\*",
+     ("e24_REP_65", "e24_DEM_65"), 0.05),
+    ("abstract — 2024 primary electorate against the roll, REP share",
+     r"primary electorate runs \*\*([\d.]+)%\*\* Republican by registration against "
+     r"\*\*([\d.]+)%\*\* of the roll", ("p24_REP", "roll_REP"), 0.05),
+    ("abstract — Republican-minus-Democratic margin, primary against roll",
+     r"margin of \*\*([\d.]+)\*\* points against \*\*([\d.]+)\*\* on the rolls",
+     ("p24_RminusD", "roll_RminusD"), 0.05),
+    ("abstract — Republican-ballot primary voters, 65+ share",
+     r"with \*\*([\d.]+)%\*\* aged 65 or over", "rballot24_65+", 0.05),
+    ("abstract — roll contraction, current extract",
+     r"from about 1\.18 to ([\d.]+) million", "roll_m", 0.005),
     ("registration roll size", r"file with history \(([\d,]+) registrants", "roll_n", 0),
     ("unaffiliated registrants and roll share",
      r"Idaho's ([\d,]+) unaffiliated registrants \(([\d.]+)% of the roll\)",
@@ -602,6 +620,10 @@ UNCHECKED = [
 # Sections I-VII, partitioned so no slice overlaps another: spans are per-section coordinates,
 # so a slice that swallows another reports the inner one's probed cells as unmapped.
 AUDIT_BOUNDS = {
+    # Gated 2026-08-07, when the abstract moved into the paper from the metadata file. Same
+    # reasoning as the New York companion: the abstract restates results from five sections, and
+    # a drift there is the most expensive kind because it is what a referee reads first.
+    "abstract": ("## Abstract", "## The question"),
     "sec1": ("## I. The off-year electorate is older", "## II. In Idaho the age gap"),
     "sec2": ("## II. In Idaho the age gap", "## III. The unaffiliated quarter"),
     "sec3": ("## III. The unaffiliated quarter", "## IV. The closed primary"),

@@ -2475,3 +2475,343 @@ who-returns-ballot 74; series total **1,226**. `check_cross_doc_consistency.py` 
 **0 findings** for the first time: every stated build count matches the build, and no satellite
 states a figure the verified documents do not. The six findings it carried at the start of the
 day were the donor counts corrected above.
+
+---
+
+## 2026-08-08 — New York external review: a repair that broke a denominator, and five other defects
+
+An outside reviewer read `who-decides-new-york.md` and returned twelve objections. Ten hold in
+some form. The largest finding of the round is not among them: it was found while checking the
+reviewer's arithmetic, and it is that **the 2026-08-01 recomputation of §III introduced the
+defect it was correcting for, and recorded a mechanism the artifacts do not support.**
+
+### The denominator, and why the paper was right before it was fixed
+
+A participation rate is voters over the people who *could* have voted — active registrants
+enrolled on or before the contest. On 2026-08-01 §II and §III were recomputed against the
+whole current active roll instead, which counts a 2025 registrant as a 2021-primary
+non-voter. **20.55%** of the active roll registered after the 2021 primary. Restoring the
+cutoff raises the eight major-party primary cells by **+0.13 to +2.67 points** and §I's
+under-30 pair from 31.53/16.07 to **32.84/16.63**.
+
+Three checks, all now derived in the verifier rather than argued:
+
+1. The contemporaneous basis reproduces the figures the paper carried *before* 2026-08-01 —
+   **16.9** and **17.9** — exactly, on two independent cells.
+2. Roll growth explains none of the gap. Pinned and live rolls both return the uncorrected
+   **14.26%**, to the last digit. The recorded mechanism ("the file has grown") cannot be what
+   moved those cells.
+3. `diag_ny_primary_participation.py` — named in the paper's own Methods block as §III's
+   provenance — has applied the cutoff since its first commit and was never edited. So the
+   paper and its cited script disagreed by up to 2.67 points for a week, **and both are
+   published in the public reproduction repo**, where a reader following the Methods block
+   would have hit it. `ny-turnout-by-party-age.md`, generated from that script, carried the
+   correct figures throughout.
+
+Two rules come out of this, and they are the reason the round is logged at length.
+
+**When a paper and a verifier disagree, the verifier is not automatically right.** The existing
+convention — *fix the paper or fix the derivation, never the tolerance* — is silent on which of
+the two is wrong. Here it was the derivation, and the paper was edited to match it.
+
+**A caveat carrying a number is a result, and must be probed.** The 2026-08-01 note explained
+itself in prose the coverage gate could not reach: "the roll has grown" is a sentence, and no
+assertion can contradict a sentence. Its figures were held by six literal exemptions on the
+reasoning that a delta against a vanished roll state cannot be re-derived. It could — by
+dropping the cutoff. All six exemptions are deleted and the uncorrected values are now derived
+(`raw_*`), so the replacement note is asserted end to end.
+
+### What the pin actually froze
+
+`ny_paper_roll` carried party, birth year and active status but **not** registration date, so
+the correct denominator was unavailable to the verifier by construction. Re-pinned 2026-08-08
+with `registration_date` (100% populated; 0 nulls). The re-pin is **value-identical** on every
+column it already carried — verified by fingerprinting party × active-status × birth-year
+aggregates before and after — because the new field was *appended* to the `MIN(STRUCT_PACK(…))`
+tie-break key rather than inserted into it, so it can only break ties the old key resolved
+arbitrarily among identical triples.
+
+### The reviewer's other objections
+
+| # | Objection | Disposition |
+|---|---|---|
+| 1 | Party of record is 2026 party, not party at the election | **Holds.** Unrecoverable from one extract — the loader reads a single `enrollment` field and the 47-field layout carries no enrollment history. **Bounded rather than conceded**: a closed primary admits only enrollees, so 0.7–1.4% of each primary's voters being blank today caps drift *out of* the major parties at well under half a point a year among primary participants. D↔R movement is unbounded and is now disclosed as such in the front matter. |
+| 2 | "Composition shares are robust / bias hits every group equally" | **Holds — replaced with a measurement.** Using inactive status as the visible pre-purge state: across parties the spread is 0.35pp (3.23–3.58% among 2021 voters), which supports within-year cross-party comparison. Across age it does not hold — 2.69% of the under-30 band against 1.34% of 45–64 — so age shares **understate** youth in past electorates. Disclosed because it runs against the headline. |
+| 3, 4 | Post-election registrants in the 2025 and primary denominators | **Holds — this is the denominator defect above.** |
+| 5 | "The primary is the election" repeats the withdrawn safe-seat inference | **Holds, and it was the stronger error.** Safe-seat withdrew "decided before November" on *observed margins*; NY asserted it on *registration*, which is weaker evidence. §IV retitled "The registration map", the inference withdrawn, and the seat-tracing test that would settle it named as future work. |
+| 6 | Chapter 741 makes the conclusion outdated | **Holds, and more strongly than stated.** Not "partially done": effective 2025-01-01, upheld unanimously by the Court of Appeals in *County of Onondaga v. State of New York* (2025-10-16), cert denied 2026-03-23, federal challenge dismissed 2026-06-29, first operative cycle 2026. NYC and the constitutionally-fixed offices are excluded. Rewritten as the paper's ending: the 2023 and 2025 electorates are the **pre-transition baseline** for a live natural experiment. |
+| 7 | "Largest state whose voter file records party" | **False; deleted.** California 23,155,447 and Florida 15,042,734 both record party, DOB and vote history against New York's ~13.5M. Note the fallback also fails — Florida is a closed-primary state and is larger — so there is no narrowing on size, and none was attempted. |
+| 8 | Asymmetric competitiveness bands | **Holds, and symmetrising favours the paper.** Was 40+/20–40/5–20 on the D side against 5–20/20+ on the R. **No New York district at either level is R+40**, so on the same threshold that makes 64 seats safe for Democrats, none is safe for Republicans; the old table showed seven. The ±5 count — the actual finding — is unchanged at 21 of 176. |
+| 9 | Citation conflates two papers | **Holds.** Huber, Meredith, Morse & Steele, *Science Advances* 7(8):eabe4498 (2021) is the list-maintenance-errors paper; Feder & Miller, *American Politics Research* 48(6):687–692 (2020) is "Voter Purges After *Shelby*". Zero shared authors. Both now cited, and Feder & Miller is the apter one for differential attrition. |
+| 10 | "The young choose not to vote off-cycle" is causal | **Holds, and the paper's own table refutes the premise.** 2023 turned out 2,336,272 voters at 41.6% aged 65+; 2025 turned out 4,039,285 — **1.73×** — at 34.4%. "Odd year" is a bundle, not a treatment. Narrowed to consistency with the literature; Chapter 741 named as the design that would identify it. |
+| 11 | The pin does not cover §IV, §V or Appendix A | **Holds.** Adopted the reviewer's fix rather than more pinning: the dated FOIL extract is now identified in the paper — `ALLNYVOTERS20260629.zip`, 928,142,538 bytes, SHA-256 `ea0b97cc…4807` — which covers every section that reads the file directly, without redistributing restricted data. The byte count is asserted live against the file on disk; the digest carries a written exemption naming the one-line command that reproduces it. |
+| 12 | Six claims overstated | **Five hold and are narrowed** — "not high-information independents" (never measured; removed), "least likely to donate" to lowest rate of appearing in matched contribution records, "abandoning party labels" to recent cohorts less likely to enroll, "what no survey-based design has shown" to "what we have not found shown", "locked out" to ineligible while unaffiliated, with the February re-enrollment deadline stated. **One does not hold**: the donor gap is not an artifact of the full-name match key, a fair worry since that key discards younger donors and NOPARTY is the youngest bucket. Measured on both panels — NOPARTY-to-DEM 0.412 on the current panel against 0.375 on the retired all-tier one. It widens. Now a probed footnote. |
+
+### State after the round
+
+`verify_who_decides_ny.py` asserts **179 figures** (was 137), coverage fully mapped across all
+eight audited sections, exit 0. Every figure introduced by this round is probed, including the
+correction's own before-and-after values. The satellite count guard caught all four stale
+restatements of the old total, which is the behaviour it was built for.
+
+**Still open, and it is the fork the reviewer named:** individual party enrollment at the time
+of each historical election cannot be recovered from a single extract. NYSBOE publishes
+aggregate enrollment by county, Assembly, Senate and Congressional district twice yearly back
+to at least 2006, split active/inactive, which is the external validation target — the paper's
+own file gives DEM 48.99 / REP 23.50 / NOPARTY 22.61 / OTHER 4.90 among actives registered on
+or before 2021-02-14, and the gap against NYSBOE's February 2021 publication is the combined
+party-drift-and-differential-survivorship signal. Not yet incorporated; `elections.ny.gov`
+blocks scripted fetches, so it needs a browser-driven or manual pull.
+
+### Appendix C added the same round: the external validation, and what it settles
+
+The open item above was closed the same day. NYSBOE's published enrollment series was pulled for
+five snapshot dates and compared against the file, giving the paper a new **Appendix C**.
+
+**The control row is the reason to believe the rest.** At 2026-02-20 — about four months before
+the extract — the gaps between published shares and the file's are -0.26 to +0.33 points. A
+mis-specified method (wrong active filter, wrong party bucketing, wrong denominator) would show
+up there, and it does not.
+
+| Snapshot | DEM | REP | NOPARTY | OTHER | file/published actives |
+|---|--:|--:|--:|--:|--:|
+| 2026-02-20 (control) | -0.17 | +0.10 | -0.26 | +0.33 | 98.08% |
+| 2025-11-01 | -0.17 | +0.10 | -0.24 | +0.31 | 96.63% |
+| 2024-02-27 | -0.34 | +0.57 | -0.16 | -0.07 | 91.89% |
+| 2022-02-21 | -1.02 | +1.15 | +0.20 | -0.33 | 84.89% |
+| 2021-02-21 | -1.06 | **+1.39** | +0.11 | -0.44 | **78.64%** |
+
+Three results, and the second is the one to carry forward.
+
+1. **The combined drift-plus-survivorship bound is 1.39 points**, five and a half years back.
+   Gaps grow monotonically with lookback, which is what the mechanism predicts and a coding
+   error would not.
+2. **The direction runs WITH the paper's headline, so it is a caution and not a comfort.** The
+   surviving sample under-represents Democrats and over-represents Republicans at every
+   historical date, so a 2026-labelled reconstruction makes past electorates look slightly more
+   Republican — and §I's finding is that the Republican electorate ages hardest. It is an order
+   of magnitude smaller than the effects §I reports (1.39 points of share against an eight-year
+   median-age gap), and it is why §I leads with within-party median age and 65+ share rather
+   than with the parties' relative sizes. Stated in the paper in those terms.
+3. **Attrition is large and composition is not.** Only **78.64%** of the registrants NYSBOE
+   counted active in February 2021 are active in this file — over a fifth of that roll is gone —
+   yet composition moved at most 1.39 points. That is the evidence the retired word "robust"
+   was asserting without.
+
+What it does not do is recover any individual's party at a past election. Aggregate enrollment
+validates composition; it cannot close the reviewer's fork. That remains genuinely open.
+
+**Mechanics worth keeping.** `elections.ny.gov` returns 403 to every scripted client, including
+a browser-User-Agent urllib request, so the workbooks were read through the in-app browser: the
+`/voters-registered-county-<date>` URLs serve .xlsx directly, and the zip was parsed in-page
+with `DecompressionStream('deflate-raw')` to pull the "Statewide Total / Active" row. Two traps.
+The 2024 workbook uses **unprefixed** SpreadsheetML tags where the others use `x:`, so a parser
+anchored on `<x:row>` returns zero rows and looks like an empty file rather than an error. And
+the published constants live in ONE place — `scripts/diag_ny_enrollment_validation.py` — which
+`verify_who_decides_ny.py` imports rather than transcribing a second time; two hand-typed copies
+of an external constant is a drift this series has already been bitten by more than once.
+
+`verify_who_decides_ny.py` now asserts **210 figures** across nine audited sections, all
+coverage mapped, exit 0.
+
+**One more stale artifact, found by sweeping rather than by the gate.** The paste-ready SSRN
+abstract in `ny-submission-metadata.md` was still the pre-round text — superlative, "least
+donating", "in most of the state is decisive", the old competitiveness phrasing. The verifier
+scrapes the PAPER, so a stale copy of the abstract in a satellite is invisible to it, and the
+orphan check could not see it either because every number in it still appears somewhere in the
+paper. It is corrected and now carries an instruction to edit both copies in one action. **This
+is a real gap in the gate**: a satellite that restates prose rather than figures is unchecked.
+
+## 2026-08-08 (second pass) — the money paper: a 2x data defect, a backfill, and a sign that reversed
+
+`does-money-move-votes.md` had every independent-expenditure figure inflated by roughly a
+factor of two, and the defect was invisible to every check this series runs. Fixing it made
+the paper's own prescribed backfill cheap, the backfill reversed the sign of its headline
+coefficient, and the correction chain reached the white paper's Finding 6. The verdict —
+*cannot confirm or refute* — is the one thing that survived unchanged.
+
+### FEC files most independent expenditures twice
+
+The same expenditure appears as a 24/48-hour notice (Form 24) and again on the committee's
+periodic Schedule E (Form 3X), under different `sub_id`s. Nothing about the pair looks
+duplicated: different ids, different filing dates, different forms. The loader pulled both
+and summed them.
+
+Measured against FEC's own `schedules/schedule_e/by_candidate/` aggregate, every Washington
+House candidate checked came out at **2.0–2.2x**:
+
+| candidate | FEC's aggregate | loaded | ratio |
+|---|--:|--:|--:|
+| H2WA03100 | $11.75M | $24.91M | 2.1x |
+| H2WA03217 | $6.56M | $14.55M | 2.2x |
+| H2WA04165 | $2.00M | $3.98M | 2.0x |
+| H4WA06117 | $2.68M | $5.56M | 2.1x |
+
+The mechanism is exact rather than approximate: H2WA03100's 2024 Schedule E holds 223 rows,
+**132 with `is_notice=false` and 91 with `is_notice=true`**, and the 132 sum to $11.78M
+against FEC's $11.75M — the three-cent-scale gap being seven `memo_code='X'` subtotal rows.
+
+**Why no internal check could have caught it.** Every figure derived from the contaminated
+table agreed with every other figure derived from it. The verifier's probes passed, the
+coverage audit passed, the cross-document consistency check passed. A doubling that is
+uniform across a table is invisible to any test that compares the table to itself. It took
+an external source — first FEC's per-candidate aggregate, then its bulk files — and the
+reproduction path added this round exists because of that: `diag_fec_ie_bulk_crosscheck.py`
+reconciles loaded totals against FEC's public bulk downloads and **needs no API key**, so it
+does not share the warehouse's assumptions and a reader can run it.
+
+### A truncation that had been silently discarding the earliest spending
+
+`max_per_candidate` defaulted to 200. WA-03 2024 has 223 periodic rows, so the cap bound —
+and because the fetch sorts `-expenditure_date`, the discarded rows were the **earliest**,
+which is precisely the axis the early-versus-late spending split the paper contemplates
+would need. The row count simply read 200 and nothing said otherwise. The default is now
+uncapped; a binding cap warns and is reported in the loader's return value.
+
+### The backfill the paper prescribed, and what it did to the finding
+
+With the double-count fixed, the 2018/2020/2022 Schedule-E backfill — which the paper called
+"the single highest-value data acquisition remaining in this series" and framed as a
+rate-limited API job — was run. **It took about five minutes.** The cost framing was wrong;
+the difficulty was always the de-duplication, and the paper now says so.
+
+The panel went from one scorable cycle to five cycles, 2,215 countable rows and $75.7M, all
+five reconciling exactly to FEC's bulk `pas2` files. `diag_ie_vs_margin.py` crossed its own
+`MIN_N_FOR_SLOPE=10` floor and began reporting inference:
+
+| | before (n=7, 2024 only) | after (n=34) |
+|---|--:|--:|
+| slope | **−0.39** pp per $1M net pro-D IE | **+0.515** |
+| Pearson r | −0.39 | +0.186 |
+| 95% bootstrap CI | withheld | [−0.600, +2.821] |
+
+**The sign reversed.** The paper had predicted exactly this in its own words — *"at n = 7 the
+sign flips on a single race"* — and then reported the n=7 sign anyway, as "the textbook
+endogeneity signature". Both readings are consistent with the truth, which is that the
+interval is the only honest summary at these sample sizes. The conclusion is unchanged
+because the interval still spans zero; everything supporting it was rewritten.
+
+### The superlative was manufactured by the defect
+
+The paper called WA-03 2024 "the most IE-saturated House race in the country". Against FEC's
+national bulk file it ranks **22nd of 387** House races drawing any IE, behind CA-45 at
+$34.46M. But at the doubled $40.1M, **no race in the country exceeded it** — so the
+double-count did not merely inflate the claim, it created it. This is the second superlative
+in the series to fail on checking (after §E's "highest of the four" in the cross-state
+paper), and the shape is identical: a claim about figures, with no token a numeric probe can
+capture.
+
+### What was rewritten
+
+Finding 3 is retitled **"The test runs now, and is still underpowered"**. The limitation
+changed in kind — not missing data, but an interval too wide to sign — and that reframing
+propagated to the subtitle, the abstract, Finding 2c's heading, two rebuttals, the
+limitations, the methods, and Appendix E (one cycle → four, 40 rows). The white paper's
+Finding 6 was rewritten in step. Retired figures are stated in correction notes and asserted
+as historical literals, the same pattern as the pinned Finding 1 correlations — a correction
+that quotes a figure the data no longer supports is worse than the error it corrects.
+
+### Three gate gaps, all closed
+
+Every numeric probe passed throughout this episode while the sentences built on them went
+false. That is the finding of the round, not an aside.
+
+1. **Spelled-out numbers are invisible to the gate.** The abstract's "exists for a single
+   cycle and seven scorable Washington races" carried no digit for a probe to capture or the
+   coverage audit to demand. `verify_money_votes._claim_checks` now parses the spelled-out
+   cycle count against the derived one, and blocks the superlative from returning.
+2. **The cycle inventory derived only the cycles that happened to be on disk** (2024 and
+   2026), so after the backfill the paper's table was three rows wider than anything asserted
+   against it. It now derives every cycle in the panel.
+3. **A diagnostic stated its own data inventory in a hardcoded string** and went on
+   announcing "2024 only (~7 WA House races)" beneath a four-cycle table. Derived now. A
+   script that narrates its inventory cannot notice when the inventory changes — the same
+   defect the verifiers exist to catch in prose, one layer down.
+
+A fourth is structural and worth naming: **the warehouse holds no out-of-state IE**, so any
+"most expensive race in the country"-shaped claim is unfalsifiable from in-repo data.
+`diag_fec_ie_bulk_crosscheck.py --national-rank` now owns that class of claim.
+
+### An unrelated credential exposure, found by running the load
+
+`httpx` logs every request at INFO as the full URL, and the FEC API takes its credential in
+the query string, so `main.py load --fec-ie` printed a **live API key several hundred times**
+— to the terminal, to any redirected log, and into the session transcript. `httpx` and
+`httpcore` are now raised to WARNING, pinned by
+`tests/test_infrastructure/test_no_credential_logging.py`. Silenced rather than redacted: a
+redacting filter must enumerate every parameter name that is ever secret and is wrong the
+first time a loader adds one. **The exposed key has been rotated** (owner, 2026-08-08), which
+closes the exposure; the logging fix is what stops it recurring.
+
+### State after the round
+
+`verify_money_votes.py` asserts **76 figures** (was 59), coverage fully mapped across
+Findings 1–3, exit 0. `verify_whitepaper.py` exit 0. Full suite 2,048 passed. All five IE
+cycles reconcile to FEC's bulk files at 0.0%. Committed as `3d3db52`.
+
+**Still open.** The rewrite was a figures-and-framing revision by an assistant; the DRAFT
+markers stand and the human sign-off in `money-votes-submission-notes.md` §Sign-off has not
+been done. The early-versus-late spending split and the next-cycle placebo are now runnable
+for the first time and are the obvious next tests — neither was attempted this round.
+
+### §V's "new registrants" was the wrong label, and measuring it strengthened the finding
+
+Drafting the FOIL request surfaced a defect in §V that has nothing to do with the Board.
+`registration_date` is the most recent registration TRANSACTION, not an original registration:
+**3.16%** of 2021 primary voters carry a registration date *after* the primary they voted in,
+which is only explicable as re-registration. §V read `year(registration_date)` as "new
+registrants".
+
+The test is exact rather than inferential. Voting requires being registered, so a cohort member
+with a participation record predating their own `registration_date` was registered earlier. On
+that test **at least 9.96% of the 2020 cohort and 13.91% of the 2024 cohort are
+re-registrations** — lower bounds, since a re-registrant who never voted before leaves no trace.
+
+**Those two percentages are not comparable to each other**, and the paper says so, because
+otherwise they read as a rise. 2024 has an eight-year detection window against 2020's four. The
+2008 and 2016 rows cannot be tested at all: this file's vote history begins in 2016, so a
+computed "0.00%" would be an artifact printed as a fact. The verifier does not compute them.
+
+**The bias runs against the finding, which is what makes this a clarification rather than a
+correction.** In the 2024 cohort, re-registrants are **48.9%** Democratic and **25.1%** no-party
+against **38.2%** and **37.3%** for the rest, at a median registration age of 38 against 28.
+They pull the printed figures toward the party column and away from the blank one, so the
+genuine first-time trend is *steeper* than §V's table shows, not shallower.
+
+**The table stays on the whole-cohort basis, deliberately.** Splitting only the two testable
+rows would publish a four-row table on two different bases — a worse defect than the imprecision
+it fixed, and the same shape as the tier/panel confusions the donor paper has already been
+burned by. §V is relabelled "registration cohort", the measurement is stated inline, and every
+figure in it is probed.
+
+Also worth recording: this is the second defect in this paper found by *drafting a document
+about it* rather than by running a check. The first was the paste-ready abstract, found by
+sweeping the satellites after the gate went green. Neither was reachable by the coverage gate —
+one because a satellite restating prose carries no unmapped token, the other because "new
+registrants" is a label, not a figure. **The gate cannot see a wrong noun.**
+
+`verify_who_decides_ny.py`: **219 figures**, nine sections coverage-mapped, exit 0.
+
+### Also this round: the suite now fails fast on a locked warehouse
+
+A `load --fec-ie` backfill in a second terminal took an exclusive lock on
+`data/wa_statewide.duckdb` mid-suite, and every module-scoped read-only fixture failed at setup
+— **3 failures and 39 errors** across `test_reports/`, none real. CLAUDE.md already records the
+same shape costing ten minutes and producing a false regression report.
+
+`pytest_sessionstart` now probes each warehouse database read-only and aborts with one sentence.
+It does **not** enforce "never touch data/ while the suite runs" — nothing in-process can, and a
+scheduled job or a second terminal will always win the race. It removes the misleading failure,
+not the collision. Session start only; a missing database is not an error.
+
+One trap, caught by its own test: the lock markers must be PHRASES, not the bare word "lock".
+DuckDB puts the full path in its message, so any checkout or temp directory containing "lock"
+reads as a conflict — which fired immediately, because pytest names `tmp_path` after the test
+function and the test is called `test_a_non_lock_error_is_not_reported_as_a_lock`. That test now
+asserts its own path carries the trap, so a rename cannot silently remove the coverage.
+`scripts/refresh_sos_results.py` still carries the looser list; there a false positive only
+defers a load, which is harmless.
+
+Verified both ways against the real warehouse: clean run unaffected, genuine cross-process write
+lock aborts with exit 4 and no spurious errors. On Windows the conflict arrives as a plain
+`IO Error`, not anything catchable by exception type.

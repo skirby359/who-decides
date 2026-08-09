@@ -130,14 +130,23 @@ primary). Participation rate by enrollment (`scripts/diag_ny_primary_participati
 
 **Findings.** (1) Primary turnout is in the single digits to high teens — the
 electorate that *nominates* is a small fraction of the one that elects. (2) The
-**25.3% of active registrants enrolled "blank" are excluded by law** (≈0.1–0.6%
-participation, the residual being nonpartisan/special races) — a structural
-democratic-health fact: a quarter of the registered population has no voice at
-the nominating stage. (3) In blue NY the **Democratic primary is frequently the
-decisive contest** (2021 odd-year DEM 16.9% vs REP 5.0%; 2024 state DEM 7.7% vs
-REP 1.7%), echoing the safe-seat finding that where one party dominates, the
-real election is its primary — decided by a doubly-small, enrollment-gated
-electorate.
+**25.3% of active registrants enrolled "blank" are ineligible while unaffiliated**
+(≈0.1–0.6% participation) — a structural democratic-health fact: a quarter of the registered
+population has no voice at the nominating stage unless it re-enrolls before the February
+deadline. (3) In blue NY the **Democratic primary draws far more participation than the
+Republican** in the state and odd-year contests (2021 odd-year DEM 16.9% vs REP 5.0%; 2024
+state DEM 7.7% vs REP 1.7%).
+
+<sub>**Two prose corrections, 2026-08-08.** The residual blank participation was previously
+described as "nonpartisan/special races." A closed primary admits only enrollees, so a
+now-blank voter recorded in one changed enrollment afterwards — and the 2024 *presidential*
+primary, which carries no nonpartisan contest anywhere in the state, still shows a non-zero
+blank cell. These cells are principally enrollment change, and the main paper now uses them as
+its switching bound. Separately, "the real election is its primary" was dropped: participation
+asymmetry is not evidence about which stage decides a seat, and the companion safe-seat paper
+withdrew a stronger form of that inference on better evidence. The rate figures in the table
+above are unchanged — this document has carried the contemporaneous-eligibility denominator
+since it was written.</sub>
 
 ## Why this matters (electoral-health framing)
 
@@ -151,7 +160,7 @@ lever that can override it. It moves the WA finding from "weak-against-null"
 (older, party unknown) toward a concrete, falsifiable party-resolved claim.
 
 **Follow-ons:** (1) NY FEC donor-class × party — **done**
-([`ny-donor-class-by-party.md`](ny-donor-class-by-party.md)); (2) closed-primary
+([`donor-class-and-the-electorate.md` Finding 3](donor-class-and-the-electorate.md)); (2) closed-primary
 participation by enrollment — **done** (§E above); (4) district-level registration vs
 the safe-seat map — **done** ([`ny-electorate-extras.md`](ny-electorate-extras.md) §5).
 (3) The NOPARTY bloc's behavior/age/geography remains partly open (largely addressed in

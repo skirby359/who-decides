@@ -52,6 +52,7 @@ Run:  python scripts/verify_safe_seat.py [--coverage]
 """
 from __future__ import annotations
 
+import csv
 import re
 import sys
 from pathlib import Path
@@ -73,20 +74,46 @@ PRIMARIES = {2016: "20160802", 2018: "20180807", 2020: "20200804",
              2022: "20220802", 2024: "20240806"}
 YEARS = sorted(GENERALS)
 
-# Certified-source transcription errors, corrected before any party is read. Only a spelling
-# variant of a major party's own name belongs here; a hybrid like 2016's "GOP/Independent" is
-# a real stated preference and is priced by the loose column instead.
-TYPO_SQL = "regexp_replace(UPPER(COALESCE(party,'')), 'DEMOCRACTIC', 'DEMOCRATIC', 'g')"
+# --- FROZEN PARTY-STRING MAPPING ---------------------------------------------------------
+# Party classification is a LOOKUP against docs/reference/wa_party_strings_2016-2024.csv, the
+# same frozen enumeration diag_seat_competition.py reads. It is not a regex, and the reason is
+# that regexes here failed silently six times across four cycles: "Democractic" (2020),
+# "G.O.P." (2018), "G.O.P" with no trailing period (2016), "R" twice (2020), "MAGA Republican"
+# (2024) and "Culture Republican" (2024). Every one read as a minor party. A regex cannot
+# report what it did not match; an enumeration can, and this one is asserted to be exhaustive
+# against the certified files by tests/test_analysis/test_wa_party_strings.py.
+#
+# THE TWO SCRIPTS SHARE THE SPECIFICATION, NOT THE IMPLEMENTATION -- which is the point. This
+# file reads the mapping into SQL and derives every figure through DuckDB; the diagnostic reads
+# the same mapping into a Python dict and derives them in Python. They are independent
+# derivations of one written rule, which is the only sense in which "two implementations" is
+# worth anything. Before this, they implemented DIFFERENT rules and nothing noticed: the public
+# diagnostic did not apply the typo normalisation this file already did.
+_PARTY_MAP_CSV = (Path(__file__).resolve().parent.parent / "docs" / "reference"
+                  / "wa_party_strings_2016-2024.csv")
 
-STRICT_SQL = f"""
-    CASE WHEN regexp_matches({TYPO_SQL}, 'PREFERS\\s+(INDEPENDENT|CULTURE)\\s')  THEN 'O'
-         WHEN regexp_matches({TYPO_SQL}, 'PREFERS\\s+(DEMOCRATIC|DEMOCRAT)\\s+PARTY') THEN 'D'
-         WHEN regexp_matches({TYPO_SQL}, 'PREFERS\\s+(REPUBLICAN|GOP)\\s+PARTY')  THEN 'R'
-         ELSE 'O' END"""
-LOOSE_SQL = f"""
-    CASE WHEN regexp_matches({TYPO_SQL}, 'DEMOCRA')            THEN 'D'
-         WHEN regexp_matches({TYPO_SQL}, 'REPUBLICAN|GOP')     THEN 'R'
-         ELSE 'O' END"""
+
+def _party_case_sql(column: str) -> tuple[str, str]:
+    """-> (strict CASE expression, loose CASE expression) built from the frozen mapping."""
+    with _PARTY_MAP_CSV.open(newline="", encoding="utf-8") as fh:
+        rows = list(csv.DictReader(fh))
+    if not rows:
+        raise SystemExit(f"empty party mapping: {_PARTY_MAP_CSV}")
+
+    def build(col: str) -> str:
+        arms = []
+        for r in rows:
+            lit = r["party_string"].strip().replace("'", "''")
+            arms.append(f"WHEN TRIM(COALESCE({column},'')) = '{lit}' THEN '{r[col].strip()}'")
+        # An unmapped, non-empty string must NOT fall to 'O'. It becomes 'UNMAPPED', which the
+        # seat classifier can neither read as major nor quietly ignore -- the run fails instead.
+        return ("CASE WHEN TRIM(COALESCE(" + column + ",'')) = '' THEN 'O' "
+                + " ".join(arms) + " ELSE 'UNMAPPED' END")
+
+    return build("party_class"), build("party_class_loose")
+
+
+STRICT_SQL, LOOSE_SQL = _party_case_sql("party")
 
 # One statement per year: parse the race, read the party, rank candidates, emit one row per
 # seat carrying everything both dimensions need.
@@ -227,10 +254,40 @@ def primary_general_medians(con, d: dict) -> None:
         d[f"pg_{y}"] = statistics.median(ratios) if ratios else -1.0
 
 
+def _assert_no_zero_vote_ballot_candidates(con, d: dict) -> None:
+    """Both implementations drop candidates with zero recorded votes. That is only harmless
+    if no such candidate exists.
+
+    The paper calls the single-candidate count "the hardest number" because those seats
+    presented voters with *exactly one name*. That sentence and the count are the same
+    proposition ONLY if there is no ballot-listed, non-write-in candidate carrying zero votes —
+    otherwise a seat with two printed names could be counted as single-candidate. It happens to
+    be true in all five certified files, but "happens to be true" is what a reader cannot check.
+    So it is measured, recorded, and printed as `zero-vote ballot candidates = N`.
+    """
+    total = 0
+    for y in YEARS:
+        path = f"{RAW}/{GENERALS[y]}_AllState.csv"
+        n, = con.execute(f"""
+            WITH src AS (
+                SELECT "Race" race, "Candidate" cand, TRY_CAST("Votes" AS BIGINT) votes
+                FROM read_csv_auto('{path}', header=true, all_varchar=true, ignore_errors=true))
+            SELECT COUNT(*) FROM src
+            WHERE COALESCE(votes, 0) = 0
+              AND UPPER(TRIM(COALESCE(cand, ''))) <> 'WRITE-IN'
+              AND TRIM(COALESCE(cand, '')) <> ''
+              AND regexp_matches(UPPER(race), '(LEGISLATIVE|CONGRESSIONAL) DISTRICT\\s+\\d+')
+        """).fetchone()
+        d[f"zerovote_{y}"] = n
+        total += n
+    d["zerovote_total"] = total
+
+
 def derive_wa(d: dict) -> dict[int, list[dict]]:
     con = duckdb.connect()
     by_year = {y: wa_seats(con, y) for y in YEARS}
     primary_general_medians(con, d)
+    _assert_no_zero_vote_ballot_candidates(con, d)
     con.close()
 
     for y, rows in by_year.items():
@@ -296,6 +353,66 @@ CMP_SPECS = [
 ]
 
 
+_NY_AD23_CSV = (Path(__file__).resolve().parent.parent / "docs" / "reference"
+                / "ny_ad23_2022.csv")
+_NY_AD23_CACHE: dict[str, int] = {}
+
+
+def _check_spelled_out_counts(raw: str, d: dict) -> list[str]:
+    """Assert the abstract's SPELLED-OUT counts against the derived ones.
+
+    The abstract writes these as words, so no numeric probe can reach them — and the empty-key
+    probe that used to stand in for one was silently dropped by build_probes(), which is how
+    "fifteen same-party generals" survived the count moving to sixteen. A claim a regex cannot
+    compare has to be checked in code or not claimed; this is the same conclusion the money
+    paper reached about superlatives.
+    """
+    words = {n: w for w, n in {
+        "ten": 10, "eleven": 11, "twelve": 12, "thirteen": 13, "fourteen": 14, "fifteen": 15,
+        "sixteen": 16, "seventeen": 17, "eighteen": 18, "nineteen": 19, "twenty": 20}.items()}
+    same_party = d["d2_2024_dd"] + d["d2_2024_rr"]
+    lopsided = same_party - 1          # exactly one same-party general was close; asserted below
+    want = (f"of {words[same_party]} same-party generals, {words[lopsided]} were also "
+            f"lopsided, but one was decided by six points")
+    # Collapse whitespace on both sides: the sentence is wrapped across lines in the source,
+    # so a literal substring test against the raw text fails on the newline alone.
+    flat = re.sub(r"\s+", " ", raw)
+    if want in flat:
+        return []
+    return [f"abstract's spelled-out same-party sentence does not match the data; expected "
+            f"“{want}”"]
+
+
+def _ny_ad23_supplement(tag: str) -> list[tuple]:
+    """New York Assembly District 23, 2022 — the one seat absent from the loaded returns.
+
+    The ingested NY warehouse carries 149 of 150 Assembly districts for the 2022 general; a
+    check confirms the missing one is exactly AD-23 and nothing else. Earlier drafts handled
+    that by BOUNDING the result — reporting 149/150 and a range wide enough to cover either
+    outcome for the absent seat. That was honest but unnecessary, because the seat is not
+    unknowable: NYSBOE publishes the certified contest, and it is the closest race in the
+    chamber, decided by FIFTEEN votes (Pheffer Amato 16,185, Sullivan 16,170 — candidate
+    totals across all ballot lines, not the Democratic and Republican lines alone, which sum
+    to less). Filling it in is strictly better than bounding it: the denominator becomes the
+    real 150 and the bound disappears.
+
+    It is supplied from a pinned CSV carrying the source URL and retrieval date rather than
+    hard-coded here, so the provenance travels with the figure. It is deliberately NOT loaded
+    into the warehouse: a single hand-fetched race in a bulk-loaded table is a landmine for
+    every other query, and this one is needed by exactly one derivation.
+    """
+    if tag != "ny":
+        return []
+    with _NY_AD23_CSV.open(newline="", encoding="utf-8") as fh:
+        rows = list(csv.DictReader(fh))
+    dv = sum(int(r["votes"]) for r in rows if r["party"].strip().upper().startswith("DEM"))
+    rv = sum(int(r["votes"]) for r in rows if r["party"].strip().upper().startswith("REP"))
+    if not dv or not rv:
+        raise SystemExit(f"{_NY_AD23_CSV.name}: expected both a D and an R total")
+    _NY_AD23_CACHE.update({"ny_ad23_d": dv, "ny_ad23_r": rv})
+    return [("NY-AD23-2022-supplement", 2, dv, rv)]
+
+
 def derive_comparison(d: dict) -> None:
     """NY / TX / ID lower chambers, on the rule the paper states for them: a seat with no
     D-v-R option is not close whatever its margin, plus Likely and Solid on top."""
@@ -317,6 +434,7 @@ def derive_comparison(d: dict) -> None:
                    COALESCE(SUM(vv) FILTER (WHERE pty = 'R'), 0) rv
             FROM v GROUP BY 1""").fetchall()
         con.close()
+        rows += _ny_ad23_supplement(tag)
         loaded = len(rows)
         n_nodr = n_notclose = 0
         for _, ncand, dv, rv in rows:
@@ -336,10 +454,14 @@ def derive_comparison(d: dict) -> None:
         d[f"fs_{tag}_nodr"] = 100.0 * n_nodr / n
         d[f"fs_{tag}_notclose"] = 100.0 * n_notclose / n
 
-    # New York is one Assembly seat short; the paper bounds the effect rather than hiding it.
-    ny_nc = d["fs_ny_notclose"] * d["fs_ny_seats"] / 100.0
-    d["fs_ny_bound_lo"] = 100.0 * ny_nc / 150.0
-    d["fs_ny_bound_hi"] = 100.0 * (ny_nc + 1) / 150.0
+    # New York is now complete at 150 Assembly seats — AD-23 supplied from the certified
+    # NYSBOE contest (see _ny_ad23_supplement). The bound this used to compute is retired: it
+    # existed only because one seat was absent, and a fetched certified result beats a range.
+    if d["fs_ny_seats"] != 150:
+        raise SystemExit(
+            f"NY Assembly seat count is {d['fs_ny_seats']}, expected 150. The AD-23 "
+            "supplement exists to close a gap of exactly one seat; a different gap means the "
+            "loaded returns changed and the supplement may now be double-counting.")
 
 
 def derive_wa_house(d: dict, by_year: dict[int, list[dict]]) -> None:
@@ -365,9 +487,13 @@ def build_probes():
         ("abstract — 2024 no D-v-R",
          r"and (\d+) \(([\d.]+)%\) offered no Democratic-versus-Republican option",
          ("nodr24_n", "d2_2024_nodr"), 0.05),
-        ("abstract — same-party lopsided / the one contest",
-         r"of fifteen same-party generals, (\w+) were also lopsided, but one was decided by "
-         r"(\w+) points", (), 0),      # worded, not numeric; checked numerically below
+        # REMOVED 2026-08-08: an empty-key probe used to sit here for the abstract's
+        # spelled-out same-party counts. It never ran — build_probes() ends with
+        # `return [x for x in p if x[2]]`, which drops any probe with an empty key tuple — so
+        # when the counts moved from fifteen to sixteen, its regex went on naming "fifteen"
+        # and the suite stayed green. A probe that cannot fail is worse than no probe, because
+        # it reads as coverage. The word forms are now checked in code by
+        # _check_spelled_out_counts(), which is where a claim no regex can compare belongs.
         ("abstract — five-cycle not-close range",
          r"the not-close share runs (\d+)–(\d+)%", ("notclose_lo", "notclose_hi"), 0.5),
         ("abstract — five-cycle no-choice range",
@@ -445,9 +571,26 @@ def build_probes():
         p.append((f"sensitivity {y}",
                   rf"\| {y} \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+) \|",
                   (f"sens_{y}_strict", f"sens_{y}_loose", f"sens_{y}_delta"), 0.05))
-    p.append(("sensitivity, unrounded 2024 delta",
-              r"\(2024: ([\d.]+) − ([\d.]+) = ([\d.]+)\)",
-              ("sens_2024_strict", "sens_2024_loose", "sens_2024_delta"), 0.0005))
+    # The 2026-08-08 party-string audit added a paragraph to §Sensitivity recording what the
+    # enumeration found. Its figures are restatements of derived values, so they are probed
+    # rather than exempted — a paragraph explaining a correction is exactly the place a stale
+    # number would survive unnoticed.
+    p.append(("sensitivity, party-audit paragraph — the three moved shares",
+              r"moves 2018 to \*\*([\d.]+)%\*\*, 2020 to \*\*([\d.]+)%\*\* and 2024 to "
+              r"\*\*([\d.]+)%\*\*",
+              ("d2_2018_nodr", "d2_2020_nodr", "d2_2024_nodr"), 0.05))
+    p.append(("sensitivity, party-audit paragraph — Dimension 1 unchanged",
+              r"the headline (\d+) of (\d+) stands unchanged",
+              ("notclose24_n", "d1_2024_seats"), 0))
+    p.append(("sensitivity, 2024 delta is exactly zero",
+              r"the 2024 delta is ([\d.]+):", "sens_2024_delta", 0.0005))
+    # Retargeted to 2016 on 2026-08-08. The illustration used to be 2024, whose delta is now
+    # exactly 0.0 — the faction-qualified strings that separated strict from loose are major
+    # under both specifications — so 2024 no longer demonstrates the rounding point at all.
+    # 2016 carries the largest delta and is the year the rule actually matters.
+    p.append(("sensitivity, unrounded 2016 delta",
+              r"\(2016: ([\d.]+) − ([\d.]+) = ([\d.]+)\)",
+              ("sens_2016_strict", "sens_2016_loose", "sens_2016_delta"), 0.0005))
     # ---- four-state
     p += [
         ("four-state, WA House",
@@ -467,9 +610,14 @@ def build_probes():
         ("four-state range across all four",
          r"in every state examined, \*\*(\d+)–(\d+)% of lower-chamber seats were not close",
          ("fs_all_lo", "fs_all_hi"), 0.5),
-        ("NY AD-23 bounds",
-         r"if AD-23 was close the chamber reads \*\*([\d.]+)%\*\* not close, if it was not "
-         r"close, \*\*([\d.]+)%\*\*", ("fs_ny_bound_lo", "fs_ny_bound_hi"), 0.05),
+        # AD-23 is supplied from the certified NYSBOE contest as of 2026-08-08, so the bound
+        # this used to assert no longer exists. What replaces it asserts the filled figures.
+        ("NY AD-23 — the supplied certified result",
+         r"Pheffer Amato\s+\*\*([\d,]+)\*\* to Thomas P\. Sullivan \*\*([\d,]+)\*\*",
+         ("ny_ad23_d", "ny_ad23_r"), 0),
+        ("NY AD-23 — the completed chamber",
+         r"the chamber reads\s+\*\*([\d.]+)%\*\* not close with \*\*([\d.]+)%\*\* offering "
+         r"no D-vs-R option", ("fs_ny_notclose", "fs_ny_nodr"), 0.05),
     ]
     return [x for x in p if x[2]]      # drop the prose-only anchor placeholder
 
@@ -515,8 +663,12 @@ COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
     "26.9": "the adopted 2020 no-D-v-R share as restated in this sentence; "
             "asserted at its table cell in the Dimension-2 block",
     "150": "the size of the NY Assembly, a chamber fact",
-    "149": "Assembly districts carrying a race in the loaded returns; the one "
-           "absent seat (AD 23) is named in the same sentence",
+    "149": "Assembly districts carrying a race in the LOADED returns, quoted while "
+           "explaining why an earlier draft bounded the figure. The chamber is now complete "
+           "at 150 via the certified AD-23 supplement, and 150 is asserted as fs_ny_seats",
+    "0.046": "the AD-23 margin in percentage points, a restatement of the 15-vote gap "
+             "between the two candidate totals, both of which are asserted from "
+             "docs/reference/ny_ad23_2022.csv by the AD-23 probe",
 }
 
 
@@ -525,7 +677,9 @@ def main() -> int:
     by_year = derive_wa(d)
     derive_comparison(d)
     derive_wa_house(d, by_year)
+    d.update(_NY_AD23_CACHE)
     raw = PAPER.read_text(encoding="utf-8")
+    _spelled = _check_spelled_out_counts(raw, d)
     # One slice, for the one pattern that is genuinely ambiguous document-wide: the universe
     # table's four-cell row is shaped exactly like the year-header row of the primary/general
     # table 150 lines later.
@@ -538,8 +692,20 @@ def main() -> int:
     rc = vp.run("SAFE-SEAT WASHINGTON — prose scraped and asserted against certified returns",
                 norm, build_probes(), d, UNCHECKED, vp.wants_coverage(),
                 sections=sections, spans_out=spans, stats_out=stats)
+    print(f"\n  zero-vote ballot candidates = {d['zerovote_total']}  "
+          f"(by cycle: " + ", ".join(f"{y}:{d[f'zerovote_{y}']}" for y in YEARS) + ")")
+    print("  Both implementations drop zero-vote candidates. At 0 this is a no-op, which is "
+          "what\n  makes the paper's 'exactly one name' reading of the single-candidate count "
+          "exact\n  rather than merely probable.")
     fails = vp.audit_coverage(audit_sections, spans, offsets, tuple(AUDIT_BOUNDS),
                               COVERAGE_EXEMPT, COVERAGE_EXEMPT_LITERAL)
+    fails += _spelled
+    if d["zerovote_total"]:
+        fails.append(
+            f"zero-vote ballot candidates = {d['zerovote_total']}, not 0. The "
+            "single-candidate count can no longer be read as 'exactly one name on the "
+            "ballot' — a seat with a printed candidate who drew no votes now classifies as "
+            "single-candidate. Fix the paper's wording or the exclusion, not this check.")
     fails += vp.audit_satellite_counts(PAPER.name, stats.get("figures"))
     if fails:
         print("\nCOVERAGE / SATELLITE AUDIT: %d FAILURE(S)" % len(fails))

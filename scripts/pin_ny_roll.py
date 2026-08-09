@@ -20,13 +20,33 @@ thing that drifted.
 
 WHAT IS CAPTURED, and what deliberately is not. One row per registrant — ALL of them, with an
 `is_active` flag, not just the active ones — carrying only what the paper's roll-denominated
-cuts read: the party bucket and the birth year. All of them, because §III states the blank
-share on both bases ("25.3% of the active roll; 25.5% of the full roll") and pinning only the
-active side would leave half the sentence free to drift. Nothing else. Participation is not copied — `voter_participation` records past elections and does not
+cuts read: the party bucket, the birth year, and the registration date. All of them, because
+§III states the blank share on both bases ("25.3% of the active roll; 25.5% of the full roll")
+and pinning only the active side would leave half the sentence free to drift. Nothing else. Participation is not copied — `voter_participation` records past elections and does not
 drift, so joining to it live is correct and copying it would only create a second thing to
 keep in step. Neither is the donor panel: its specification is the donor paper's to set (the
 full-name key, 558,017 New York voters) and freezing a copy here would let the two diverge
 silently, which is the failure this script exists to prevent, one level up.
+
+REGISTRATION DATE WAS ADDED 2026-08-08, and its absence was a defect rather than an omission.
+Every rate in §III, and the under-30 pair in §I, is a participation rate against a past
+election, so its denominator must be the people who could have voted in that election —
+active registrants enrolled on or before it. `diag_ny_primary_participation.py`, which the
+paper names as §III's provenance, has applied that cutoff since its first commit. The pin
+carried no registration date, so the verifier could not apply it and computed against the
+whole current roll instead, counting people who registered years later as non-voters. On the
+2021 primary that is 20.55% of the active roll, and it moves the Democratic rate from 16.93%
+to 14.26%.
+
+The correction is checkable rather than argued: the contemporaneous basis reproduces the
+figures the paper carried BEFORE 2026-08-01 (16.9 and 17.9) exactly, and roll growth explains
+none of the gap — the pinned and live rolls return 14.26% alike, to the last digit. See the
+2026-08-08 round in `docs/electoral-health-audit-log.md`.
+
+`registration_date` is 100% populated in the NYSVOTER extract (0 nulls in 13,540,558 rows),
+so the `IS NULL OR` guard in the consuming queries is defensive and never fires. It is kept
+anyway: a future extract that drops the field should widen the denominator visibly rather
+than silently emptying it.
 
 Birth YEAR rather than date of birth, because that is all the analysis reads —
 `date_diff('year', ...)` returns the difference of year parts — and because New York's full
@@ -60,9 +80,11 @@ NY_DB = ROOT / "data" / "ny_vrdb.duckdb"
 TABLE = "ny_paper_roll"
 META = "ny_paper_roll_meta"
 
-NOTE = ("all registrants, one row per state_voter_id, with party bucket, is_active "
-        "and birth year, pinned so who-decides-new-york.md's roll-denominated sections III "
-        "and IV do not drift when the NYSVOTER extract is reloaded; duplicate identifiers "
+NOTE = ("all registrants, one row per state_voter_id, with party bucket, is_active, "
+        "birth year and registration date, pinned so who-decides-new-york.md's "
+        "roll-denominated sections II and III do not drift when the NYSVOTER extract is "
+        "reloaded; registration date added 2026-08-08 so participation rates can be "
+        "denominated on contemporaneously eligible registrants; duplicate identifiers "
         "collapsed deterministically via MIN(STRUCT_PACK(...))")
 
 
@@ -110,6 +132,13 @@ def main() -> int:
         # exists. MIN over a STRUCT rather than column-wise MIN: column-wise MIN is stable
         # but can invent a (party, birth_year) pair no record has, which is the determinism
         # trap already recorded in CLAUDE.md.
+        #
+        # `registration_date` is APPENDED to the struct, not inserted. STRUCT comparison is
+        # lexicographic by field order, so a trailing field can only break ties in which the
+        # first three already agree — cases where the previous key returned an arbitrary one
+        # of two identical (party, birth_year, is_active) triples. Every value this snapshot
+        # carried before therefore survives the re-pin unchanged, which is the property that
+        # lets a column be added without republishing the figures built on it.
         con.execute(f"DROP TABLE IF EXISTS {TABLE}")
         con.execute(f"""
             CREATE TABLE {TABLE} AS
@@ -118,15 +147,18 @@ def main() -> int:
                        CASE WHEN party = 'DEM' THEN 'DEM' WHEN party = 'REP' THEN 'REP'
                             WHEN party = 'BLK' THEN 'NOPARTY' ELSE 'OTHER' END AS party,
                        EXTRACT(year FROM birthdate)::INTEGER AS birth_year,
-                       (status_code = 'A') AS is_active
+                       (status_code = 'A') AS is_active,
+                       registration_date
                 FROM voters),
             picked AS (
                 SELECT state_voter_id,
                        MIN(STRUCT_PACK(party := party, birth_year := birth_year,
-                                       is_active := is_active)) AS r
+                                       is_active := is_active,
+                                       registration_date := registration_date)) AS r
                 FROM src GROUP BY 1)
             SELECT state_voter_id, r.party AS party, r.birth_year AS birth_year,
-                   r.is_active AS is_active FROM picked""")
+                   r.is_active AS is_active,
+                   r.registration_date AS registration_date FROM picked""")
         n, = con.execute(f"SELECT COUNT(*) FROM {TABLE}").fetchone()
 
         # One row per registrant, or every denominator built on this is wrong.

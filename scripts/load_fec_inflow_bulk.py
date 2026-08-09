@@ -23,7 +23,7 @@ import zipfile
 import duckdb
 import httpx
 
-TMP = "data/_fec_bulk"
+TMP = "C:/Users/kirby/AppData/Local/Temp/fec_bulk"
 CYCLES = [2018, 2020, 2022, 2024, 2026]
 # Recipient states to load. Default WA/NY/TX (the original cross-state set);
 # override via FEC_INFLOW_STATES (comma-separated) to add a state WITHOUT

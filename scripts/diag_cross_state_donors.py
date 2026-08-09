@@ -20,7 +20,7 @@ import httpx
 
 from cross_state_common import region_states, region_codes, broadly_funded_min
 
-TMP = "data/_fec_bulk"
+TMP = "C:/Users/kirby/AppData/Local/Temp/fec_bulk"
 CYCLES = [2018, 2020, 2022, 2024, 2026]
 STATES = region_states()
 W = lambda st: f"regexp_matches(COALESCE(fec_candidate_id,''),'^[CPHS][0-9]') AND contributor_state='{st}' AND contribution_amount>0"

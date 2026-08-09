@@ -35,7 +35,11 @@ Party is taken from the certified "Prefers ___ Party" string, matched strictly: 
 "Democratic"/"Democrat" and "Republican"/"GOP" count as major. WA's top-two system has
 no nominees, so a candidate preferring e.g. "Independent Dem." or "Culture Republican"
 is counted as OTHER and listed in the output, rather than silently folded into a major
-party. Write-ins are excluded.
+party. Write-ins are excluded. Outright MISSPELLINGS of a major party's name in the
+certified file are normalized first — see SOURCE_MISSPELLINGS.
+
+Also reports the primary/general participation ratio per cycle, on the same certified
+universe, so the paper's table has a derivation rather than a remembered number.
 
 Usage:  python scripts/diag_seat_competition.py [--csv reports/seat_competition.csv]
 """
@@ -45,6 +49,7 @@ import argparse
 import csv
 import os
 import re
+import statistics
 import sys
 
 import duckdb
@@ -55,28 +60,110 @@ RAW = os.path.join("data", "raw", "election_results")
 GENERALS = {2016: "20161108", 2018: "20181106", 2020: "20201103",
             2022: "20221108", 2024: "20241105"}
 
+# The matching August top-two primary, same source and same race-name grammar.
+PRIMARIES = {2016: "20160802", 2018: "20180807", 2020: "20200804",
+             2022: "20220802", 2024: "20240806"}
+
 # Statutory chamber sizes. The Senate is staggered, so its expected count varies by
 # cycle and is taken from the certified file itself rather than asserted.
 EXPECT_HOUSE = 98          # 49 districts x 2 positions, all up every even year
 EXPECT_USHOUSE = 10        # WA congressional districts
 
-MAJOR_D = re.compile(r"PREFERS\s+(DEMOCRATIC|DEMOCRAT)\s+PARTY", re.I)
-MAJOR_R = re.compile(r"PREFERS\s+(REPUBLICAN|GOP)\s+PARTY", re.I)
-# "Independent Dem.", "Independent Rep", "Culture Republican" etc. are NOT major.
-NOT_MAJOR_PREFIX = re.compile(r"PREFERS\s+(INDEPENDENT|CULTURE)\s", re.I)
+# --- FROZEN PARTY-STRING MAPPING (2026-08-08) --------------------------------------------
+# Party classification is no longer a regex over unseen text. Every distinct party string in
+# the five certified files is enumerated in docs/reference/wa_party_strings_2016-2024.csv and
+# classified explicitly; a string absent from that file is a hard error, not a silent "O".
+#
+# WHY. Regex classification failed silently and repeatedly. It missed "(Prefers Democractic
+# Party)" (2020, found in an earlier round) and it also missed FIVE more that no one had
+# looked for: "(Prefers G.O.P. Party)" (2018), "(Prefers G.O.P Party)" (2016, no trailing
+# period — a G.O.P. patch would not have caught it), "(Prefers R Party)" twice (2020),
+# "(Prefers MAGA Republican Party)" (2024, CD-2) and "(Prefers Culture Republican Party)"
+# (2024). Each read as a minor party, so a real major-party contest was classified as
+# major-versus-other. The defect is not any one pattern; it is that a regex cannot report
+# what it did not match. An enumeration can, and this one fails loudly on a new string.
+#
+# THE RULE the enumeration encodes, decided by the author 2026-08-08:
+#   a string names a major party iff it contains a variant of that party's OWN NAME and is
+#   not qualified by an INDEPENDENCE marker or a hybrid naming two parties.
+# So faction qualifiers do not disqualify ("MAGA Republican", "Culture Republican" -> R) but
+# independence qualifiers do ("Ind. Republican", "Independent Dem." -> O), as do hybrids
+# ("GOP/Independent", "Dem/Working Fmly" -> O).
+#
+# The independence exclusion is what keeps the classification SYMMETRIC across parties, and
+# that is the point of it rather than a detail: a rule reading any string containing
+# "Republican" as R while leaving "Independent Dem"/"Indep't Democrat" as O would flip nine
+# Republican-flavoured races and no Democratic ones. It would also contradict the paper's own
+# published account of 2016, which explains that year's 48.5% outlier by listing exactly those
+# Independent-flavoured strings as non-major.
+PARTY_MAP_CSV = os.path.join("docs", "reference", "wa_party_strings_2016-2024.csv")
 
 
-def party_of(raw: str) -> str:
+# BOTH specifications are enumerated, not just the published one. The sensitivity test used to
+# define LOOSE with its own regexes, and once the strict rule was fixed that became incoherent:
+# `REPUBLICAN|GOP` does not match "(Prefers G.O.P Party)" or "(Prefers R Party)", so LOOSE
+# would have classified as OTHER two strings STRICT now classifies as R — a "more generous"
+# specification returning a less generous answer. Enumerating both columns makes that
+# impossible by construction, and leaves the sensitivity test measuring the one judgment that
+# is actually still open: whether independence-qualified strings and hybrids fold into a major
+# party. Loose must be a superset of strict, and a test asserts it.
+def _load_party_map() -> tuple[dict[str, str], dict[str, str]]:
+    with open(PARTY_MAP_CSV, newline="", encoding="utf-8") as fh:
+        rows = list(csv.DictReader(fh))
+    strict = {r["party_string"].strip(): r["party_class"].strip() for r in rows}
+    loose = {r["party_string"].strip(): r["party_class_loose"].strip() for r in rows}
+    return strict, loose
+
+
+PARTY_MAP, PARTY_MAP_LOOSE = _load_party_map()
+
+# MISSPELLINGS in the certified source, normalized before party matching.
+# "(Prefers Democractic Party)" — 2020, LEGISLATIVE DISTRICT 8 State Representative
+# Pos. 1, Shir Regev (26,979 votes against Brad Klippert's 51,981) — is a transcription
+# error for "Democratic", not a distinct stated preference. Reading it literally made
+# MAJOR_D miss it, so a real D-vs-R general was classified R-v-other and the 2020
+# no-D-v-R share read 27.6% instead of 26.9%. The fix is applied in BOTH the strict and
+# the loose specification, because normalizing a typo is data cleaning, not a judgment
+# about how generously to read a party label — the strict/loose sensitivity test is only
+# meaningful if it varies the JUDGMENT and holds the cleaning constant.
+# Only add a key here that is a spelling variant of a major party's own name. A hybrid
+# like 2016's "(Prefers GOP/Independent Party)" is a real stated preference and stays
+# OTHER; it is a judgment call and belongs in the sensitivity test, not here.
+SOURCE_MISSPELLINGS = {"DEMOCRACTIC": "DEMOCRATIC"}
+_MISSPELL_RE = {re.compile(k, re.I): v for k, v in SOURCE_MISSPELLINGS.items()}
+
+
+def normalize_source_typos(raw: str) -> tuple[str, bool]:
+    """-> (corrected string, whether a known misspelling was corrected)."""
+    s = raw or ""
+    hit = False
+    for pat, repl in _MISSPELL_RE.items():
+        s, n = pat.subn(repl, s)
+        hit = hit or bool(n)
+    return s, hit
+
+
+class UnmappedPartyString(RuntimeError):
+    """A certified file carries a party string the frozen mapping does not classify."""
+
+
+def party_of(raw: str, spec: str = "strict") -> str:
+    """Classify a certified party string as D, R or O against the frozen mapping.
+
+    Raises rather than defaulting. A silent "O" is what let six major-party candidates be
+    counted as minor-party ones across four cycles; an unmapped string is a data event that
+    needs a decision, and the only safe default is to stop.
+    """
     s = (raw or "").strip()
     if not s or s.upper() == "WRITE-IN":
         return "O"
-    if NOT_MAJOR_PREFIX.search(s):
-        return "O"
-    if MAJOR_D.search(s):
-        return "D"
-    if MAJOR_R.search(s):
-        return "R"
-    return "O"
+    table = PARTY_MAP if spec == "strict" else PARTY_MAP_LOOSE
+    if s in table:
+        return table[s]
+    raise UnmappedPartyString(
+        f"party string not in {PARTY_MAP_CSV}: {s!r}. Classify it there explicitly — "
+        f"do not add a regex. See the frozen-mapping note above for the rule."
+    )
 
 
 def parse_race(race: str):
@@ -131,10 +218,10 @@ def availability(parties: list[str]) -> str:
     return "other-only"
 
 
-def load_year(con, year: int) -> tuple[list[dict], list[str]]:
+def load_year(con, year: int) -> tuple[list[dict], list[str], list[str]]:
     path = os.path.join(RAW, f"{GENERALS[year]}_AllState.csv").replace("\\", "/")
     if not os.path.exists(path):
-        return [], [f"missing certified file: {path}"]
+        return [], [f"missing certified file: {path}"], []
     rows = con.execute(f"""
         SELECT "Race" race, "Candidate" cand, "Party" party, TRY_CAST("Votes" AS BIGINT) votes
         FROM read_csv_auto('{path}', header=true, all_varchar=true, ignore_errors=true)
@@ -142,6 +229,7 @@ def load_year(con, year: int) -> tuple[list[dict], list[str]]:
 
     races: dict[tuple, list] = {}
     oddities: set[str] = set()
+    fixed: set[str] = set()
     for race, cand, party, votes in rows:
         key = parse_race(race or "")
         if key is None:
@@ -149,8 +237,17 @@ def load_year(con, year: int) -> tuple[list[dict], list[str]]:
         if (cand or "").strip().upper() == "WRITE-IN":
             continue
         p = party_of(party)
-        if p == "O" and party and party.strip() and party.strip() != "-":
-            if NOT_MAJOR_PREFIX.search(party) or "REPUBLIC" in party.upper() or "DEMOCRA" in party.upper():
+        _, was_fixed = normalize_source_typos(party or "")
+        if was_fixed:
+            fixed.add(f"{(party or '').strip()} -> major {p}")
+        elif p == "O" and party and party.strip() and party.strip() != "-":
+            # Report every near-miss — a string naming a major party that is still counted as
+            # OTHER — so the transparency list is complete. The substring test is deliberately
+            # WIDER than the classifier: it catches anything party-flavoured, including the
+            # hybrids and independence-qualified strings the frozen mapping deliberately keeps
+            # as OTHER, so a reader can see what was excluded and disagree with it.
+            up = party.upper()
+            if any(s in up for s in ("REPUBLIC", "DEMOCRA", "GOP", "G.O.P", "IND", "DEM")):
                 oddities.add(party.strip())
         races.setdefault(key, []).append((cand, p, int(votes or 0)))
 
@@ -179,7 +276,30 @@ def load_year(con, year: int) -> tuple[list[dict], list[str]]:
             "d_votes": d, "r_votes": r,
             "dr_margin": None if dr_margin is None else round(dr_margin, 2),
         })
-    return out, sorted(oddities)
+    return out, sorted(oddities), sorted(fixed)
+
+
+def race_vote_totals(con, stamp: str) -> dict[tuple, int]:
+    """Total votes cast per seat in one certified summary file (write-ins excluded).
+
+    Keyed by the same (chamber, district, position) tuple as the general universe, so a
+    primary and its general match on office identity rather than on race-name spelling —
+    which is what makes the 2020 "Representative, Position N" variant harmless here.
+    """
+    path = os.path.join(RAW, f"{stamp}_AllState.csv").replace("\\", "/")
+    rows = con.execute(f"""
+        SELECT "Race" race, "Candidate" cand, TRY_CAST("Votes" AS BIGINT) votes
+        FROM read_csv_auto('{path}', header=true, all_varchar=true, ignore_errors=true)
+    """).fetchall()
+    totals: dict[tuple, int] = {}
+    for race, cand, votes in rows:
+        key = parse_race(race or "")
+        if key is None or not votes or votes <= 0:
+            continue
+        if (cand or "").strip().upper() == "WRITE-IN":
+            continue
+        totals[key] = totals.get(key, 0) + int(votes)
+    return totals
 
 
 def main(argv=None) -> int:
@@ -196,7 +316,7 @@ def main(argv=None) -> int:
     print("=" * 88)
     print(f"  {'year':<6}{'House':>7}{'(want)':>8}{'Senate':>8}{'USHouse':>9}{'(want)':>8}{'total':>7}")
     for year in sorted(GENERALS):
-        rows, odd = load_year(con, year)
+        rows, odd, fixed = load_year(con, year)
         allrows += rows
         h = sum(1 for x in rows if x["chamber"] == "HSE")
         s = sum(1 for x in rows if x["chamber"] == "SEN")
@@ -211,6 +331,8 @@ def main(argv=None) -> int:
         print(f"  {year:<6}{h:>7}{EXPECT_HOUSE:>8}{s:>8}{u:>9}{EXPECT_USHOUSE:>8}{h+s+u:>7}{flag}")
         if odd:
             print(f"         non-major party strings seen: {', '.join(odd)}")
+        if fixed:
+            print(f"         source misspellings normalized: {', '.join(fixed)}")
 
     print("\n" + "=" * 88)
     print("DIMENSION 1 — CANDIDATE COMPETITION (top-two margin, any party)")
@@ -277,13 +399,16 @@ def main(argv=None) -> int:
     print("\n" + "=" * 88)
     print("SENSITIVITY — does the party-string rule change the answer?")
     print("=" * 88)
-    print("  STRICT (published): only 'Prefers Democratic/Democrat Party' and")
-    print("  'Prefers Republican/GOP Party' count as major. WA's top-two has no nominees,")
-    print("  so 'Independent Dem.', 'Ind. Republican', 'Culture Republican' and 'MAGA")
-    print("  Republican' are counted as OTHER. LOOSE folds those into the major party.")
+    print("  Both specifications are ENUMERATED in the frozen mapping, one column each.")
+    print("  STRICT (published): a string is major iff it carries a variant of the party's")
+    print("  own name and is not qualified by independence. Faction qualifiers do NOT")
+    print("  disqualify, so 'MAGA Republican' and 'Culture Republican' are major; WA's")
+    print("  top-two has no nominees, so 'Independent Dem.', 'Ind. Republican' and the")
+    print("  'GOP/Independent' and 'Dem/Working Fmly' hybrids are OTHER. LOOSE folds exactly")
+    print("  those into the major party, and is the only judgment still varied.")
+    print("  Deltas are computed unrounded, so they need not equal the difference of the")
+    print("  two rounded columns.")
     print(f"\n  {'year':<6}{'no D-v-R, STRICT':>20}{'no D-v-R, LOOSE':>20}{'delta':>9}")
-    loose_d = re.compile(r"DEMOCRA|DEMOCRACT", re.I)
-    loose_r = re.compile(r"REPUBLICAN|GOP", re.I)
     for year in sorted(GENERALS):
         path = os.path.join(RAW, f"{GENERALS[year]}_AllState.csv").replace("\\", "/")
         rows = con.execute(f"""
@@ -295,17 +420,41 @@ def main(argv=None) -> int:
             key = parse_race(race or "")
             if key is None or not v or v <= 0:
                 continue
-            s = party or ""
-            races.setdefault(key, []).append(
-                "D" if loose_d.search(s) else "R" if loose_r.search(s) else "O")
+            races.setdefault(key, []).append(party_of(party, spec="loose"))
         n_loose = len(races)
         nodr_loose = sum(1 for ps in races.values() if not ("D" in ps and "R" in ps))
         yr = [x for x in allrows if x["year"] == year]
         nodr_strict = sum(1 for x in yr if x["availability"] != "D-v-R")
         a, b = 100.0 * nodr_strict / len(yr), 100.0 * nodr_loose / n_loose
         print(f"  {year:<6}{a:>19.1f}%{b:>19.1f}%{a-b:>8.1f}")
-    print("\n  The rule matters most in 2016, when six different Independent-flavored")
-    print("  party strings appeared; elsewhere it moves the figure by under a point.")
+    print("\n  The rule matters most in 2016, when eight distinct non-major party strings")
+    print("  appeared — six Independent-flavored plus TWO two-party hybrids, GOP/Independent")
+    print("  and Dem/Working Fmly, all listed under the universe table above; elsewhere it")
+    print("  moves the figure by")
+    print("  under a point.")
+
+    print("\n" + "=" * 88)
+    print("PRIMARY PARTICIPATION — August top-two votes vs the same seat's November race")
+    print("=" * 88)
+    print("  A ratio of VOTES CAST IN A CONTEST, not of distinct voters: roll-off and")
+    print("  undervoting mean a race's vote total is not a headcount of participants.")
+    print("  Each general seat is matched to its same-office, same-district primary on the")
+    print("  same certified universe; 'matched' must equal 'seats' for the median to")
+    print("  describe the whole chamber rather than a convenience sample.")
+    print(f"\n  {'year':<6}{'seats':>7}{'matched':>9}{'median primary/general':>25}")
+    ratio_by_year: dict[int, float] = {}
+    for year in sorted(GENERALS):
+        gen = race_vote_totals(con, GENERALS[year])
+        pri = race_vote_totals(con, PRIMARIES[year])
+        ratios = sorted(100.0 * pri[k] / gen[k] for k in gen if k in pri and gen[k])
+        med = statistics.median(ratios)
+        ratio_by_year[year] = med
+        flag = "" if len(ratios) == len(gen) else "  <-- UNMATCHED SEATS, do not publish"
+        print(f"  {year:<6}{len(gen):>7}{len(ratios):>9}{med:>24.1f}%{flag}")
+        if len(ratios) != len(gen):
+            problems.append(f"{year}: primary match {len(ratios)}/{len(gen)} seats")
+    print("\n  The primary is the smaller round in every cycle. That it is smaller does NOT")
+    print("  establish that it is where the decision was made — see the paper's limits.")
 
     os.makedirs(os.path.dirname(args.csv), exist_ok=True)
     with open(args.csv, "w", newline="", encoding="utf-8") as fh:

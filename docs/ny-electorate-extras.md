@@ -4,8 +4,18 @@
 against `data/ny_vrdb.duckdb` (voters, voter_participation) +
 `data/ny_statewide.duckdb` (voter_donor_affiliation, forecast_predictions).
 Companion to [`ny-turnout-by-party-age.md`](ny-turnout-by-party-age.md),
-[`ny-donor-class-by-party.md`](ny-donor-class-by-party.md), and
+[`donor-class-and-the-electorate.md` Finding 3](donor-class-and-the-electorate.md), and
 [`donor-class-and-the-electorate.md`](donor-class-and-the-electorate.md).*
+
+> **Donor cuts here are on the POOLED, all-tier match — superseded for publication
+> (noted 2026-07-28).** `diag_ny_electorate_extras.py` reads `voter_donor_affiliation`,
+> which stacks federal and state giving into one donor total, and these figures predate the
+> 2026-07-27 full-name-key switch. So the competitiveness numbers below (Tossup 57.7%,
+> Solid 71.6%, 205K of 308K) are **not** the paper's. `donor-class-and-the-electorate.md`
+> recomputes them per panel: federal Tossup **58.7%** / Solid **72.6%** with 177,918 of
+> 269,218 in Solid districts, state 51.3% / 66.9% with 233,275 of 378,383. Quote the paper,
+> not this file, and never compare a figure here to a panel-scoped one. Retained as the
+> record of what that script currently outputs.
 
 ---
 
@@ -65,9 +75,10 @@ the rolls are differently composed. This is the institutional, on-cycle-timing-
 fixable diagnosis — and it is **strongest for Republicans**, whose electorate
 ages +10.2 points off-cycle (almost entirely behavior).
 
-## 4. New registrants are abandoning party labels — a secular shift to "blank"
+## 4. Recent registration cohorts are choosing no party — a secular shift to "blank"
 
-Party mix and age of each year's *new* registrants still on the roll:
+Party mix and age of each year's *registration cohort* still on the roll — the people whose
+registration record carries that year:
 
 | reg year | new regs | %DEM | %REP | %NOPARTY | median age at reg |
 |---|--:|--:|--:|--:|--:|
@@ -78,32 +89,52 @@ Party mix and age of each year's *new* registrants still on the roll:
 | 2020 | 903,928 | 40.9% | 21.3% | 33.7% | 30 |
 | 2024 | 893,119 | **39.7%** | 22.1% | **35.6%** | 29 |
 
-The Democratic share of new registrants has fallen **~18 points** (57.8% in 2008
+The Democratic share of each cohort has fallen **~18 points** (57.8% in 2008
 → 39.7% in 2024) while the no-party share rose **~15 points** (20.7% → 35.6%);
-Republican share is roughly flat. New entrants register at a stable ~29–30. The
+Republican share is roughly flat. Cohorts register at a stable ~29–30. The
 unaffiliated bloc (§1) is not a legacy artifact — it is **growing through new
 registration**, a leading indicator that the snapshot electorate understates.
 (Caveat: survivorship — only registrants still on the current roll appear, so
 older cohorts are thinned by moves/purges; read the *trend in party mix*, which
 is composition-based, as the robust cut.)
 
-## 5. Safe-seat New York, from registration alone
+<sub>**"Cohort" ≠ "first-time registrant" (clarified 2026-08-08).** `registration_date` is the
+most recent registration transaction, so a move, name change or party change can write a new
+date. Measured by the exact test — a cohort member who voted *before* their own registration
+date was registered earlier — at least 9.96% of the 2020 cohort and 13.91% of the 2024 cohort
+are re-registrations. Those two figures are **not comparable to each other**: 2024 has an
+eight-year detection window against 2020's four, and 2004–2016 cannot be tested at all because
+this file's vote history begins in 2016. Re-registrants are more Democratic and less
+unaffiliated than the rest of their cohort, so the contamination *understates* the trend above
+rather than manufacturing it. Full treatment in the paper's §V.</sub>
 
-District counts by registration lean (DEM% − REP%, active roll):
+## 5. The New York registration map
 
-**Congressional (26):** Safe D (D+40+) **9** · Likely D **3** · Lean D **7** ·
-Competitive (<5) **4** · Lean/Likely R **3** · Safe R 0.
+District counts by registration lean (DEM% − REP%, active roll), on **symmetric** bands —
+the same 40+ / 20–40 / 5–20 / ±5 cut on each side, matching
+[`who-decides-idaho.md`](who-decides-idaho.md) §IV:
 
-**Assembly (150):** Safe D **55** · Likely D **31** · Lean D **19** ·
-Competitive (<5) **17** · Lean/Likely R **21** · Safe R **7**.
+**Congressional (26):** D+40+ **9** · D+20–40 **3** · D+5–20 **7** ·
+within ±5 **4** · R+5–20 **3** · R+20–40 **0** · R+40+ **0**.
 
-By registration alone, **only 4 of 26 congressional and 17 of 150 Assembly
-districts (11%) are competitive**; 19/26 and 105/150 lean Democratic. This is the
-registration-side corroboration of the observed safe-seat map
-([`safe-seat-washington.md`](safe-seat-washington.md)): the general election is a
-foregone conclusion in the large majority of NY districts, which (per
-[`ny-turnout-by-party-age.md`](ny-turnout-by-party-age.md) §E) throws the real
-decision to a small, enrollment-gated primary electorate.
+**Assembly (150):** D+40+ **55** · D+20–40 **31** · D+5–20 **19** ·
+within ±5 **17** · R+5–20 **21** · R+20–40 **7** · R+40+ **0**.
+
+By registration alone, **only 21 of 176 congressional and Assembly districts are within five
+points**; 19/26 and 105/150 lean Democratic, and **no district at either level is R+40**.
+
+<sub>**Corrected 2026-08-08.** The bands were asymmetric — 40+/20–40/5–20 on the Democratic
+side against 5–20/20+ on the Republican — so a D+25 district was labelled "Likely D" while an
+R+25 was labelled "Safe R", and the seven Assembly seats shown as "Safe R" are R+20–40. The
+underlying counts are unchanged. Also withdrawn: the sentence that read the map as making "the
+general election a foregone conclusion" which "throws the real decision" to the primary.
+Registration is not a vote result, the dominant party's primary may itself be uncontested, and
+the companion safe-seat paper withdrew a stronger form of this inference on observed margins —
+better evidence than registration.</sub>
+
+This is the registration-side corroboration of the observed safe-seat map
+([`safe-seat-washington.md`](safe-seat-washington.md)): a structural proxy for where a general
+election is likely to be one-sided, not a measurement of where seats are decided.
 
 ---
 

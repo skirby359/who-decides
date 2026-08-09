@@ -16,9 +16,18 @@ off-year electorate is **older**; New York (deep blue) showed *whose* electorate
 ages and who is locked out. Idaho completes the set from the other pole: a state
 where the November general is a formality and the **closed Republican primary is
 the real election** — so the question "who decides" has a sharper, more literal
-answer than in any two-party state. **DRAFT — AI-side reproduction verified (all `verify_*`
-scripts re-run, exit 0; see [`electoral-health-audit-log.md`](electoral-health-audit-log.md)); pending
-human/editorial sign-off.***
+answer than in any two-party state. **DRAFT — pending human/editorial sign-off.
+`scripts/verify_who_decides_id.py` scrapes this paper and asserts its figures against the voter
+file, with the exceptions the script names in its own output; see
+[`electoral-health-audit-log.md`](electoral-health-audit-log.md). That gate is automated and is
+not the sign-off. The sign-off is a person reading the paper end to end, recorded in
+[`id-submission-notes.md`](id-submission-notes.md) §Sign-off.***
+
+*This line previously read "AI-side reproduction verified (all `verify_*` scripts re-run, exit
+0)". That formulation is worth nothing and the New York companion says so in its own front
+matter: a script with no assertions and no failing exit path returns 0 whatever the data says,
+so "exit 0" is a claim about the script, not the paper. What replaces it names the assertion,
+which is the thing a reader can check.*
 
 *Provenance. All figures from `data/id_vrdb.duckdb` — Idaho's statewide voter
 file with history (1,029,938 registrants; individual party affiliation + age +
@@ -41,6 +50,36 @@ publishes **age**, not date of birth; election-time age is
 approximated as `age − (2026 − year)`, accurate to ~1 year — fine for bands, and
 we never claim exact ages. (3) "UNAFF" = Idaho's unaffiliated registration; its
 partisan lean is never imputed.*
+
+---
+
+## Abstract
+
+In a one-party state, the general election is not where governing choices are made. Idaho is
+**63%** Republican and **12%** Democratic by registration, and its officeholders are chosen in a
+closed May Republican primary that most of the state cannot or does not enter. Using the
+statewide voter file for **1,029,938** registrants, with party of record and the party ballot
+each voter actually pulled, this paper measures who enters that decisive contest. Two findings
+are specific to Idaho rather than replications of the off-cycle turnout literature. First, the
+age gap is party-neutral: Republicans and Democrats among 2024 general voters are within a
+fraction of a point on the 65-and-over share, **31.7%** against **31.5%**, and four years apart
+on median age, so Idaho's youth sits in the unaffiliated bloc rather than in either party —
+inverting the national older-is-more-Republican pattern and reversing what the New York
+companion finds. Second, because the file records ballot choice, the exclusion of unaffiliated
+registrants from the decisive primary is measured rather than inferred. The May 2024 primary
+electorate runs **85.2%** Republican by registration against **62.9%** of the roll, a
+Republican-minus-Democratic margin of **76.8** points against **51.1** on the rolls, and its
+Republican-ballot voters have a median age of **63** with **46.7%** aged 65 or over. Yet the
+primary decides only where it is contested: of **99** Republican legislative primaries in 2024,
+**52** were contested and **47** offered a single candidate, so for roughly half of
+Republican-held seats the binding choice occurred at candidate filing. Every one of the **35**
+legislative districts leans Republican and none is competitive by registration. The paper
+reports composition shares and deliberately reports no turnout rates, because a current-extract
+roll that has contracted from about 1.18 to 1.03 million inflates every rate.
+
+**Keywords.** one-party dominance; closed primaries; nominating electorate; voter file; party
+registration; unaffiliated voters; uncontested elections; turnout composition; election timing;
+Idaho
 
 ---
 

@@ -21,7 +21,7 @@ import httpx
 
 from cross_state_common import region_states, competitiveness_bands, write_json
 
-TMP = "data/_fec_bulk"
+TMP = "C:/Users/kirby/AppData/Local/Temp/fec_bulk"
 CYCLES = [2018, 2020, 2022, 2024, 2026]
 STATES = region_states()
 TARGET_STATES = {c for c, _ in STATES}

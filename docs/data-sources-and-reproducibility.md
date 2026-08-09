@@ -40,7 +40,8 @@ Each paper names the exact script under its figures (e.g. `scripts/diag_safe_sea
 | Asset | Issuing agency | Access | Used in |
 |---|---|---|---|
 | **Statewide Voter Registration Database (VRDB)** — registrants + cumulative vote history (~5.5M voters, ~27.1M vote records, ~100% **year of birth** — not full date of birth; stored as a July-1 sentinel) | WA Secretary of State | Standard statewide **VRDB extract** (the single public extract; regenerated monthly) via the SoS extract-request form (`sos.wa.gov/washington-voter-registration-database-extract`). Includes year of birth by statute — full DOB withheld (RCW 29A.08.710); use restricted to political/scholarly purposes, not redistributable (RCW 29A.08.720; penalties .740). *April 2026 extract, requested April 8 2026; vote history through the Feb 2026 special.* | Who Decides WA; cross-state §F |
-| **Precinct-level election results, 2014–2025** | WA Secretary of State | `results.vote.wa.gov` per-election exports (e.g. `…/results/20241105/export/20241105_AllState.csv`) | Safe-Seat WA |
+| **Certified statewide summary returns, 2014–2025** (`*_AllState.csv`) — one row per candidate per race, all seats. **This, not the precinct file, is the safe-seat universe.** The precinct exports (`*_AllStatePrecincts.csv`) are loaded for other papers but are NOT the seat universe: King County is absent from them for 2016 and 2018, which cost 24 House seats a cycle and is the defect that forced this paper's rebuild. | WA Secretary of State | `results.vote.wa.gov` per-election exports (e.g. `…/results/20241105/export/20241105_AllState.csv`) | Safe-Seat WA |
+| **Frozen WA party-string mapping** — all 32 distinct "Prefers … Party" strings across the five certified generals, classified explicitly under both the published and the loose specification, each with a reason | derived from the certified files above; author-adjudicated 2026-08-08 | `docs/reference/wa_party_strings_2016-2024.csv` | Safe-Seat WA |
 | **Campaign-finance contributions** | WA Public Disclosure Commission | PDC open data via `data.wa.gov` (Socrata); statewide contributions + the Campaign Finance Summary dataset (`3h9x-7bvm`, full filer universe: candidates, party/caucus committees, PACs, ballot committees). Portal: `pdc.wa.gov/political-disclosure-reporting-data` | cross-state money (WA PDC layer) |
 | **King County precinct crosswalk** (`cidw-fyff`) | King County Elections / Open Data | `data.kingcounty.gov` | VRDB precinct bridging |
 
@@ -67,6 +68,7 @@ to full federal parity with the other three.*
 | Asset | Source | Access | Used in |
 |---|---|---|---|
 | Precinct/county election results (incl. Assembly & Senate, 2022) | NYS Board of Elections, via **OpenElections-NY** | `github.com/openelections/openelections-data-ny` | Safe-Seat four-state map |
+| **Assembly District 23, 2022 general — certified contest** | NYS Board of Elections (direct) | `results.elections.ny.gov/contest/116`, retrieved 2026-08-08 → pinned at `docs/reference/ny_ad23_2022.csv` | Safe-Seat four-state map |
 | NY federal contributions | FEC bulk (donor `state='NY'`) | as above | cross-state money |
 | **NYSVOTER statewide voter file** — 13.54M registrants with **individual party enrollment**, **full date of birth**, status code, and vote history *(loaded via `scripts/load_ny_voters.py` → `data/ny_vrdb.duckdb`)* | NYS Board of Elections | Public-records request under FOIL (N.Y. Pub. Off. Law art. 6), subject to the Board's elections-purpose certification. *Production `ALLNYVOTERS20260629.zip`, **dated 2026-06-29**.* The delivered columns are a property of this production, not a documented statutory layout — the Board's public request page does not publish the file layout. 91.9% of records are `status_code='A'`. Not redistributed. | Who Decides NY; donor-class F1/F3/F4 |
 | **NYSBOE contribution disclosure feed** — transaction-level, 12.6M rows back to 1999; 3,954,090 individual Schedule A rows / $880.3M loaded for cycles 2018–2026 *(via `scripts/load_ny_contributions.py`)* | NYS Board of Elections, via data.ny.gov | Socrata dataset **`4j2b-6a2j`**. Itemization threshold: contributor aggregate **> $99** (N.Y. Elec. Law § 14-102); $99 or less reportable in the aggregate. | donor-class state panel |
@@ -81,8 +83,17 @@ to full federal parity with the other three.*
 
 *Why the TX backfill is needed and sound: TLC's canvass-grade VTD returns omit **uncontested** races
 (no precinct tally is published when a seat is unopposed), so 96/150 House districts appear in the VTD
-file. The 54 absent seats are uncontested by construction, cross-checked against the press-reported 2024
-unopposed list; the r206 report supplies the partisan lean used to label their holding party.*
+file. The 54 absent seats are verified **seat by seat against the Texas Secretary of State's certified
+results**, which independently show exactly those 54 districts as single-candidate and supply each
+one's **observed winning party**.*
+
+*That method replaced an earlier one, and the replacement changed a published figure — which is why
+the old description is recorded here rather than simply overwritten. The earlier backfill cross-checked
+the 54 against a **press-reported unopposed list** and used the r206 report's **presidential lean** to
+label each seat's holding party. Lean is a proxy for the winner, not the winner, and it was wrong often
+enough to matter: the certified split is **56 D / 85 R**, against **51 D / 90 R** under the lean proxy.
+Do not reintroduce the press-list-plus-lean method; Appendix F of the safe-seat paper documents the
+correction.*
 
 ### Idaho
 

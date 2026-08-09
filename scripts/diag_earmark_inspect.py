@@ -11,7 +11,7 @@ Keeps itcont2024.txt for reuse by the reload.
 import csv, glob, io, os, zipfile
 import duckdb, httpx
 
-TMP = "data/_fec_bulk"
+TMP = "C:/Users/kirby/AppData/Local/Temp/fec_bulk"
 CY = 2024
 TARGET = {"WA", "NY", "TX"}
 CONDUITS = ("C00401224", "C00694323")  # ActBlue, WinRed

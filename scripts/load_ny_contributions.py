@@ -34,6 +34,25 @@ for _p in (os.path.join(_ROOT, "src"), _ROOT):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
+# --- PROVENANCE-ONLY GUARD (2026-08-08) -------------------------------------------------
+# This script loads the NYSBOE disclosure feed, which lives in the private
+# analysis package src/wa_analyzer. That package is NOT published: scripts/donor_matcher.py
+# exists precisely so the donor panels rebuild without shipping the product schema, and the
+# same decision applies here. So this file is published for PROVENANCE — so the derivation
+# behind the paper's figures can be read — and not for execution.
+#
+# Without this guard the reader gets a bare ModuleNotFoundError, which looks like a packaging
+# bug rather than a deliberate boundary. Saying so plainly is the honest version.
+try:
+    import wa_analyzer as _wa  # noqa: F401
+except ModuleNotFoundError:
+    raise SystemExit(
+        __file__.rsplit("/", 1)[-1].rsplit("\\\\", 1)[-1]
+        + ": requires the private analysis package (src/wa_analyzer), which this public\n"
+        "repository does not ship. Published for provenance, not execution — the code below\n"
+        "documents how the figure was derived. See README.md, 'What can and cannot be re-run'."
+    )
+
 from wa_analyzer.etl.adapters.ny_finance import (  # noqa: E402
     DONOR_PANEL_CYCLES,
     load_ny_individual_contributions,

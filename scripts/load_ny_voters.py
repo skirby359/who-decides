@@ -28,7 +28,7 @@ import duckdb
 
 ZIP_PATH = "data/raw/ny/ALLNYVOTERS20260629.zip"
 INNER_TXT = "ALLNYVOTERS20260629/ALLNYVOTERS20260629.txt"
-TMP_DIR = "data/_ny_voters"
+TMP_DIR = "C:/Users/kirby/AppData/Local/Temp/ny_voters"
 TMP_TXT = f"{TMP_DIR}/ALLNYVOTERS20260629.txt"
 NY_VRDB = "data/ny_vrdb.duckdb"
 
@@ -126,7 +126,18 @@ def load() -> None:
             UPPER(TRIM(r.first_name))                  AS first_name,
             UPPER(TRIM(r.middle_name))                 AS middle_name,
             NULLIF(TRIM(r.name_suffix), '')            AS name_suffix,
-            TRY_STRPTIME(r.dob, '%Y%m%d')::DATE        AS birthdate,
+            -- DATA MINIMISATION (2026-07-30). The FOIL production carries a full date of
+            -- birth; the analysis has only ever read the YEAR, because DuckDB's
+            -- date_diff('year', a, b) returns b.year - a.year rather than a completed age.
+            -- So the day and month are stored generalised to 1 July of the birth year —
+            -- Washington's existing convention, since RCW 29A.08.710 releases year of birth
+            -- only, which makes the two state files share one representation.
+            --
+            -- Verified lossless before the migration: all twelve NY age-band figures
+            -- (both panels plus the roll baseline) are identical to six decimal places.
+            -- The raw production stays in data/raw/ as the restricted source of record.
+            -- Do NOT revert to the exact date without a reason that needs day precision.
+            MAKE_DATE(YEAR(TRY_STRPTIME(r.dob, '%Y%m%d')::DATE), 7, 1) AS birthdate,
             NULLIF(TRIM(r.gender), '')                 AS gender,
             UPPER(NULLIF(TRIM(r.enrollment), ''))      AS party,
             UPPER(NULLIF(TRIM(r.otherparty), ''))      AS other_party,

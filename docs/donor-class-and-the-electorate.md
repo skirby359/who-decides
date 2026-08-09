@@ -1966,13 +1966,17 @@ behavioral one.
   donors, 234 rather than 233.03. Second, `NTILE` breaks ties on `total_donated`
   arbitrarily. Both were quantified rather than argued: against an exact cutoff that takes
   precisely n/100 donors' worth of weight, pro-rating the donor straddling the boundary, the
-  top-1% figures move **−0.001 to −0.046 points** — largest in Idaho, where n is smallest,
-  and below the one-decimal precision this paper prints at in all six panels. The number of
+  top-1% figures move **−0.001 to −0.046 points** — largest in Idaho, where n is smallest.
+  That movement is smaller than one decimal place in every panel, but smaller than a decimal
+  place is not the same as invisible at one: Idaho's federal cell sits astride a rounding
+  boundary, and is the one panel of the six whose printed digit differs between the two
+  estimators. The bootstrap note in Appendix E gives that cell both ways. The number of
   donors sharing the boundary value is 1 to 26 depending on the panel, so tie order cannot
   move the estimate materially either. Both comparisons are recomputed and asserted on every
   run of `verify_donor_class.py`, which **fails** if any panel's two estimators ever diverge
   by more than 0.05 points. The published figures are the `NTILE` ones; the point is that the
-  choice does not currently matter, not that it could never.
+  choice moves no finding, and in five of the six panels no printed digit either — not that
+  it could never matter.
 - **Reconstructing recipient party on the state panels.** Neither NYSBOE nor Idaho
   Sunshine publishes the recipient's party, so the crossover cut needs it inferred.
   `backfill_ny_recipient_party.py` works in four uniqueness-guarded tiers — an explicit

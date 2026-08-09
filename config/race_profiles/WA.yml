@@ -1,0 +1,39 @@
+# Checked-in registry of local (race-xxx) district profiles.
+#
+# Race profiles are built at runtime by race_profile() and held in an
+# in-memory registry, so a fresh process cannot resolve `race-<slug>` from the
+# slug alone. Anything that reads a district_id back out of the database — the
+# lean recompute, a scheduled job, a rebuild — then fails with "Race profile
+# not found" and silently skips the district.
+#
+# The `variants` list is the load-bearing part. A local race is often filed
+# under different names across cycles, and rebuilding from the display name
+# alone silently drops the cycles filed under the other name: Spokane's
+# prosecutor profile went from 1,073 precincts to 977 and lost 2018 entirely,
+# which moved its composite lean by 11 points. That failure looks like a
+# plausible answer, not an error, so the variant set is recorded here rather
+# than rediscovered.
+#
+# Add entries with:
+#     python main.py save-race-profile --race "Spokane Prosecuting Attorney"
+# which auto-detects variants via race_discovery; pass --variants "A,B" to fold
+# in aliases the normalizer cannot match, and --notes to say why.
+#
+# `name` is the display label. `variants` must include the display name itself.
+# `notes` is free text for humans — put rationale HERE, not in a YAML comment:
+# `save-race-profile` rewrites the data block with safe_dump, which preserves
+# this header but drops inline comments.
+
+races:
+- name: City of Seattle Mayor
+  variants:
+  - City of Seattle Mayor
+- name: Spokane Prosecuting Attorney
+  variants:
+  - Spokane Prosecuting Attorney
+  - County Wide Prosecuting Attorney
+  notes: 2018 general + primary are filed under the county's generic form, which normalize_race_name
+    cannot map to the 2022 name without causing false positives elsewhere. Verified
+    to appear in SPOKANE only (362 precincts, 2018-08-07 .. 2018-11-06), so folding
+    it in cannot widen the profile into another county. Dropping it costs the 2018
+    cycle and 96 precincts.

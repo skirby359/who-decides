@@ -198,11 +198,13 @@ show("WA federal, persons only", wa_fed_ppl, "39.3% statewide top-1%, Gini 0.800
 
 # G4 -----------------------------------------------------------------------------------
 print("""
-G4. WINSORIZATION COUNTERFACTUAL -- what would a per-gift cap do mechanically?
-    Re-run WA's federal layer with every single gift trimmed to Idaho's statutory
-    per-election caps. This isolates the pure truncation effect of a cap, holding the
-    donor population fixed, and gives the benchmark that G3's observed capped layers
-    should be read against.""")
+G4. STYLIZED TRANSACTION CLIPPING -- NOT a simulation of any contribution limit.
+    Re-run WA's federal layer with each transaction trimmed at a series of thresholds.
+    A statutory limit caps a donor's AGGREGATE giving to one recipient committee PER
+    ELECTION, and the FEC individual file pools recipient types governed by different
+    limits; neither recipient type nor election designation is persisted here. So these
+    rows are arithmetic on an unchanged file and carry no statutory label (review #3,
+    2026-07-29). See G4c for the aggregate-level variant.""")
 wins = {}
 for cap in (5000, 3500, 1000):
     m = wa.execute(f"""
@@ -217,11 +219,93 @@ for cap in (5000, 3500, 1000):
                100.0 * SUM(t) FILTER (WHERE p <= 10) / SUM(t), SUM(t) / 1e6
         FROM r""").fetchone()
     wins[cap] = (float(m[0]), float(m[1]), float(m[2]))
-    note = "  <-- ID legislative cap" if cap == 1000 else (
-        "  <-- ID statewide cap" if cap == 5000 else "  <-- federal per-election limit")
+    note = "  <-- threshold only; not Idaho law applied to Idaho recipients" if (
+        cap in (1000, 5000)) else (
+        "  <-- flat threshold; the federal amount varied by cycle, see G4b")
     print(f"    per-gift cap ${cap:>6,}:  top-1% {m[0]:5.1f}%   top-10% {m[1]:5.1f}%   "
           f"${m[2]:.0f}M retained{note}")
 print(f"    uncapped (actual):     top-1% {wa_fed_ppl[3]:5.1f}%   top-10% {wa_fed_ppl[4]:5.1f}%")
+
+# G4b — the historically exact version. Added 2026-07-28 on external review: the federal
+# individual per-election limit is INDEXED and changed every cycle, so trimming a
+# 2017-2026 layer at a flat $3,500 applies a limit that did not exist for most of the
+# window. The flat rows above are counterfactual thresholds and are relabelled as such;
+# this row trims each gift at the limit in force in ITS OWN cycle.
+#   2017-18 $2,700 | 2019-20 $2,800 | 2021-22 $2,900 | 2023-24 $3,300 | 2025-26 $3,500
+# (FEC archived limit charts; 2015-16 was also $2,700 but predates this layer.)
+FED_LIMIT_BY_CYCLE = {2018: 2700, 2020: 2800, 2022: 2900, 2024: 3300, 2026: 3500}
+_cycle = ("CASE WHEN EXTRACT(year FROM contribution_date) % 2 = 0 "
+          "THEN EXTRACT(year FROM contribution_date) "
+          "ELSE EXTRACT(year FROM contribution_date) + 1 END")
+_limit_case = " ".join(
+    f"WHEN {y} THEN {v}" for y, v in sorted(FED_LIMIT_BY_CYCLE.items()))
+hist = wa.execute(f"""
+    WITH g AS (SELECT UPPER(contributor_name) || '|' ||
+                      SUBSTR(COALESCE(contributor_zip, ''), 1, 5) AS k,
+                      LEAST(contribution_amount,
+                            CASE {_cycle} {_limit_case} ELSE 3500 END) AS amt
+               FROM individual_contributions
+               WHERE {layer_sql('FEC', 'WA')} AND {PERSONS_COMMA}
+                 AND contribution_date IS NOT NULL),
+         d AS (SELECT k, SUM(amt) t FROM g GROUP BY 1),
+         r AS (SELECT t, NTILE(100) OVER (ORDER BY t DESC) p FROM d)
+    SELECT 100.0 * SUM(t) FILTER (WHERE p = 1) / SUM(t),
+           100.0 * SUM(t) FILTER (WHERE p <= 10) / SUM(t), SUM(t) / 1e6
+    FROM r""").fetchone()
+print(f"""
+    Cycle-varying amount: each transaction trimmed at the federal individual per-election
+    amount in force in its own cycle -- 2017-18 $2,700 / 2019-20 $2,800 / 2021-22 $2,900 /
+    2023-24 $3,300 / 2025-26 $3,500. This removes a flat-$3,500 anachronism but does NOT
+    make the row historically exact, because the amount still attaches per transaction
+    rather than per donor-committee-election, and to every recipient type alike.
+    cycle-specific limit:  top-1% {float(hist[0]):5.1f}%   top-10% {float(hist[1]):5.1f}%   """
+      f"${float(hist[2]):.0f}M retained")
+
+# G4c -- the AGGREGATE variant. Added 2026-07-29 on external review #3, whose criticism is
+# correct and is the reason none of the rows above may carry a statutory label: a statutory
+# limit caps a donor's AGGREGATE giving to one recipient committee per election, not each
+# transaction independently. Clipping transactions therefore under-counts the bite of a real
+# cap on a donor who splits a large sum into several gifts to the same committee.
+#
+# This row aggregates by donor x recipient committee x cycle FIRST, then clips. It is
+# materially closer to the statutory structure. TWO GAPS REMAIN and cannot be closed from the
+# loaded data, so this is still a stylized exercise and not a simulation of any law:
+#   (1) recipient TYPE is not persisted. `fec_candidate_id` holds the recipient COMMITTEE id
+#       (C00...), and candidate committees, PACs, state party committees and national party
+#       committees are governed by DIFFERENT limits. Applying one number to all of them is
+#       not the law.
+#   (2) the primary/general ELECTION designation is not persisted, so a per-election cap
+#       cannot be separated from a per-cycle one. Clipping per cycle applies roughly half the
+#       headroom a candidate committee actually has (primary and general count separately),
+#       so this row OVER-states the bite for candidate committees while under-stating it for
+#       recipients whose limit is annual.
+# Reported so the direction and rough size of the aggregation effect are visible, with both
+# gaps named at the point of use rather than in a caveat paragraph.
+print("""
+G4c. AGGREGATE-LEVEL CLIPPING -- donor x recipient committee x cycle, then clip.
+     Closer to how a statutory limit actually attaches. Still NOT a statutory simulation:
+     recipient TYPE and the primary/general ELECTION designation are both absent from the
+     loaded data (see the comment above this block for what each omission does).""")
+for cap in (5000, 3500, 1000):
+    m = wa.execute(f"""
+        WITH pairagg AS (
+            SELECT UPPER(contributor_name) || '|' ||
+                   SUBSTR(COALESCE(contributor_zip, ''), 1, 5) AS k,
+                   fec_candidate_id AS cmte, election_cycle AS cyc,
+                   SUM(contribution_amount) AS pair_total
+            FROM individual_contributions
+            WHERE {layer_sql('FEC', 'WA')} AND {PERSONS_COMMA}
+            GROUP BY 1, 2, 3),
+        clipped AS (SELECT k, LEAST(pair_total, {cap}) AS amt FROM pairagg),
+        d AS (SELECT k, SUM(amt) t FROM clipped GROUP BY 1),
+        r AS (SELECT t, NTILE(100) OVER (ORDER BY t DESC) p FROM d)
+        SELECT 100.0 * SUM(t) FILTER (WHERE p = 1) / SUM(t),
+               100.0 * SUM(t) FILTER (WHERE p <= 10) / SUM(t), SUM(t) / 1e6
+        FROM r""").fetchone()
+    pertx = wins[cap][0]
+    print(f"    cap ${cap:>6,}:  aggregate top-1% {float(m[0]):5.1f}%   "
+          f"top-10% {float(m[1]):5.1f}%   ${float(m[2]):.0f}M retained   "
+          f"(per-transaction was {pertx:5.1f}%, diff {float(m[0]) - pertx:+5.1f})")
 wa.close()
 
 # Read-out ------------------------------------------------------------------------------
@@ -229,21 +313,30 @@ print(f"""
 {"=" * 100}
 READ-OUT
 
-  1. The cap binds, visibly. {int(bunch.get(1000, 0)):,} Idaho state gifts land on exactly $1,000 against
-     {int(bunch.get(750, 0)):,} at $750 and {int(bunch.get(999, 0)):,} at $999 -- a spike on the round statutory value, which
-     is what a binding constraint looks like. Only {int(bunch.get(1001, 0)):,} gift sits at $1,001.
+  1. SOME cap binds, visibly. {int(bunch.get(1000, 0)):,} Idaho state gifts land on exactly $1,000 against
+     {int(bunch.get(750, 0)):,} at $750 and {int(bunch.get(999, 0)):,} at $999 -- a spike on a round statutory value, which
+     is what a binding constraint looks like. Only {int(bunch.get(1001, 0)):,} gift sits at $1,001. WHICH cap is not
+     established: $1,000 is Idaho's legislative/judicial/local candidate limit, and these rows
+     carry neither the recipient's type nor the election designation, so a $1,000 gift to a
+     PAC or a party committee is not governed by it (review #3, 2026-07-29).
 
-  2. A cap WOULD compress the top, mechanically. Trimming WA's federal gifts to Idaho's
-     legislative cap pulls the top-1% share from {wa_fed_ppl[3]:.1f}% to {wins[1000][0]:.1f}% ({wa_fed_ppl[3] - wins[1000][0]:.1f} points);
-     at Idaho's statewide cap, to {wins[5000][0]:.1f}%. So truncation is not a small effect.
+  2. Clipping compresses the top, arithmetically. Trimming WA's federal transactions at
+     $1,000 pulls the top-1% share from {wa_fed_ppl[3]:.1f}% to {wins[1000][0]:.1f}%; at $5,000, to {wins[5000][0]:.1f}%.
+     These are thresholds, NOT Idaho law applied to Idaho recipients, and the aggregate-level
+     variant (G4c) bites 2-4 points harder still. No difference between an observed layer and
+     a clipped layer is quoted, because the clipped layer is not a legally matched
+     counterfactual for any regime.
 
-  3. And yet observed capped layers are NOT compressed. Idaho's actually-capped state
-     money runs top-1% {id_state_ppl[3]:.1f}% among persons -- ABOVE its own uncapped-aggregate federal
-     layer ({id_fed_ppl[3]:.1f}%) and {id_state_ppl[3] - wins[1000][0]:.1f} points above what pure truncation predicts. The
-     compression the cap should produce is undone in practice: nothing limits a donor's
-     TOTAL (McCutcheon), so the same people max out across many recipients, and the tail
-     displaces into vehicles Idaho does not cap at all -- {share[1]:.0f}% of Sunshine dollars sit in
-     gifts above $5,000, and with committees included the state layer reaches {id_state_all[3]:.1f}%.
+  3. Observed capped layers are NOT compressed relative to their federal counterparts.
+     Idaho supports the like-for-like comparison: its state money runs top-1% {id_state_ppl[3]:.1f}% among
+     persons, ABOVE its own federal layer's {id_fed_ppl[3]:.1f}% persons-only figure. Washington does NOT
+     support one -- its persons split is a weak heuristic, so its state row is all-filer
+     against a persons-only federal row, and the two states must not be pooled as equal
+     evidence. A reading consistent with this, though not demonstrated here: nothing limits a
+     donor's TOTAL (McCutcheon), so the same people can reach a cap across many recipients,
+     and the tail can displace into vehicles Idaho does not cap at all -- {share[1]:.0f}% of Sunshine
+     dollars sit in gifts above $5,000, and with committees included the state layer reaches
+     {id_state_all[3]:.1f}%.
 
   4. So the paper's original explanation fails twice over. Beyond (3), the state/federal
      distinction cannot explain the gap it was invoked for: Idaho is the least concentrated

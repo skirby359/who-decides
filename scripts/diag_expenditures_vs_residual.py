@@ -45,6 +45,25 @@ sys.path.insert(0, str(project_root / "scripts"))
 
 import numpy as np  # noqa: E402
 
+# --- PROVENANCE-ONLY GUARD (2026-08-08) -------------------------------------------------
+# This script reads the forecast model's residual fit (via diag_overperformance_patterns), which lives in the private
+# analysis package src/wa_analyzer. That package is NOT published: scripts/donor_matcher.py
+# exists precisely so the donor panels rebuild without shipping the product schema, and the
+# same decision applies here. So this file is published for PROVENANCE — so the derivation
+# behind the paper's figures can be read — and not for execution.
+#
+# Without this guard the reader gets a bare ModuleNotFoundError, which looks like a packaging
+# bug rather than a deliberate boundary. Saying so plainly is the honest version.
+try:
+    import wa_analyzer as _wa  # noqa: F401
+except ModuleNotFoundError:
+    raise SystemExit(
+        __file__.rsplit("/", 1)[-1].rsplit("\\\\", 1)[-1]
+        + ": requires the private analysis package (src/wa_analyzer), which this public\n"
+        "repository does not ship. Published for provenance, not execution — the code below\n"
+        "documents how the figure was derived. See README.md, 'What can and cannot be re-run'."
+    )
+
 from wa_analyzer.db import get_connection  # noqa: E402
 from wa_analyzer.analysis.national_model import _name_tokens  # noqa: E402
 # Importing dop sets _nm._PERSONAL_VOTE_ENABLED=False (keeps the residual stable +

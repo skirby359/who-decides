@@ -22,7 +22,7 @@ and Cornyn-TX both register in VA). This matches how fec_inflow's recipient_stat
 was built, so inflow and outflow are apples-to-apples. PAC/party/JFC committees
 (no single connected candidate) drop out of the H/S/P candidate cuts by design.
 Masters rebuilt from cached cm*.zip + cn*.zip in
-data/_fec_bulk (no download)."""
+C:/Users/kirby/AppData/Local/Temp/fec_bulk (no download)."""
 import duckdb
 import io
 import os
@@ -34,7 +34,7 @@ from cross_state_common import (
     region_states, region_codes, region_sql, broadly_funded_min, write_json,
 )
 
-TMP = "data/_fec_bulk"
+TMP = "C:/Users/kirby/AppData/Local/Temp/fec_bulk"
 CYCLES = [2018, 2020, 2022, 2024, 2026]
 CM_NAMED = f"{TMP}/committees_named.csv"
 # Region discovered dynamically (every data/*_statewide.duckdb, or the
@@ -209,7 +209,10 @@ def main():
         p = pct(inflow[st]); t = sum(inflow[st].values())
         print(f"{st:10} {t/1e6:9.1f} {p['in_state']:9.1f}% {p['in_region_other']:10.1f}% {p['rest_of_us']:10.1f}%")
     print("\n  (in-region cross detail — $M from each region state into each recipient state)")
-    print(f"  {'recip\\donor':12}" + "".join(f"{s:>10}" for s in REGION))
+    # A backslash inside an f-string expression needs Python 3.12+, and this repo
+    # supports 3.11 (pyproject requires-python), so the label is hoisted out.
+    recip_hdr = "recip\\donor"
+    print(f"  {recip_hdr:12}" + "".join(f"{s:>10}" for s in REGION))
     for rst in REGION:
         print(f"  {rst:12}" + "".join(f"{inflow_cross[rst].get(s,0)/1e6:9.1f}" for s in REGION))
 
@@ -221,7 +224,10 @@ def main():
         p = pct(outflow[st]); t = sum(outflow[st].values())
         print(f"{st:10} {t/1e6:9.1f} {p['in_state']:9.1f}% {p['in_region_other']:10.1f}% {p['rest_of_us']:10.1f}%")
     print("\n  (in-region cross detail — $M from each donor state to each recipient state)")
-    print(f"  {'donor\\recip':12}" + "".join(f"{s:>10}" for s in REGION))
+    # A backslash inside an f-string expression needs Python 3.12+, and this repo
+    # supports 3.11 (pyproject requires-python), so the label is hoisted out.
+    donor_hdr = "donor\\recip"
+    print(f"  {donor_hdr:12}" + "".join(f"{s:>10}" for s in REGION))
     for dst in REGION:
         print(f"  {dst:12}" + "".join(f"{outflow_cross[dst].get(s,0)/1e6:9.1f}" for s in REGION))
 

@@ -300,22 +300,26 @@ concrete analysis to run.
 - **First analysis — DONE** (`scripts/diag_ie_vs_margin.py`). For FEC-attributed
   races (Schedule E carries support/oppose + district), it regresses the
   *fundamentals-net residual* (actual − model-predicted Dem %, **not** the raw
-  margin) on the net pro-Dem IE advantage. The run surfaced a harder boundary than
-  the design assumed: **directional IE on disk exists for a single cycle (2024 FEC
-  Schedule-E, 7 WA U.S. House races)**, and the $70.6M of PDC state-legislative IE
-  carries a NULL support/oppose flag — so it cannot enter a directional test at all.
-  One cross-section of 7 races cannot bear the bootstrap CI, the early-vs-late split,
-  or the next-cycle placebo, so **inference is withheld** (the script says so rather
-  than reporting a coin-flip slope). What the descriptive cross-section *shows* still
-  cuts toward the null: the association is, if anything, **negative** (−0.39 pp per
-  $1M net pro-Dem IE, Pearson r −0.39, n=7) — money flowing toward the side that is
-  *behind*, the textbook endogeneity signature — and the single most IE-saturated
-  House race in the country, **WA-03 2024 ($40.1M total IE, +$16.2M net pro-Dem),
-  finished +0.06 pp off its fundamentals: dead-on.** The citable Finding-6 result for
-  WA today is therefore the *data ceiling itself*: the public machine-readable IE
-  record is too thin to move the verdict off "cannot confirm or refute." Unlock =
-  multi-cycle FEC Schedule-E backfill (`load_fec_independent_expenditures(cycle=…)`,
-  rate-limited, federal House only); even then n stays small and uninstrumented.
+  margin) on the net pro-Dem IE advantage. **Directional IE on disk spans five cycles
+  (2018–2026 FEC Schedule-E, 34 scorable WA U.S. House races)**, while the $70.6M of
+  PDC state-legislative IE carries a NULL support/oppose flag and cannot enter a
+  directional test at all. The regression **now runs**: the slope is **+0.515 pp per
+  $1M net pro-Dem IE (Pearson r +0.186, n=34)**, with a bootstrap interval of
+  −0.600 to +2.821 that spans zero. The interval is the result — it admits both no
+  effect and effects large enough to decide a close race. The most heavily funded
+  race in the panel, **WA-03 2024 ($18.61M total IE, +$6.09M net pro-Dem), finished
+  +0.06 pp off its fundamentals: dead-on.** The citable Finding-6 result for WA is
+  therefore that the public record can *bound* the persuasion effect but not sign it,
+  and that endogeneity — spending aimed at expected closeness — makes even a narrower
+  interval an association rather than an effect.
+  **Two corrections against the earlier version of this bullet, both material.** It
+  reported a single cycle and 7 races; three further cycles were simply not loaded,
+  and the backfill took about five minutes. And it reported a *negative* slope
+  (−0.39, r −0.39, n=7) read as the endogeneity signature; the sign reversed on the
+  fuller panel, which is what a coin-flip estimate does. It also called WA-03 the
+  most IE-saturated House race in the country at $40.1M — an artifact of a
+  notice/periodic double-count that inflated every IE total roughly twofold. At the
+  true $18.61M it ranks 22nd of 387.
 - **Key literature.** Jacobson (spending endogeneity); Kalla & Broockman (≈zero
   average general-election persuasion across 49 experiments); Bonica (money as
   information, not purchase).
