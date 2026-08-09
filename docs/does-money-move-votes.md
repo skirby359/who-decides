@@ -638,7 +638,10 @@ python scripts/diag_overperformance_patterns.py
 # Finding 2a — spend allocation vs residual, cross-cycle holdout:
 python scripts/diag_expenditures_vs_residual.py
 
-# Finding 2c — federal IE vs fundamentals-net residual (34 WA U.S. House cells):
+# Finding 2c — federal IE vs fundamentals-net residual (34 WA U.S. House cells).
+# In the public repo this reads the pinned panel and recomputes the slope, the
+# bootstrap interval and Pearson r from it; the residual itself needs the
+# forecast model, which is not published.
 python scripts/diag_ie_vs_margin.py
 
 # Finding 3 — the same design on WA legislative races (129 cells, PDC C6.3).

@@ -31,7 +31,7 @@ regime. It was a fact about our ETL. The PDC publishes direction in the **C6.3
 "Identified Entities"** section of form C-6 — 4,653 legislative rows,
 $51,723,243.45, direction on 100% of them — in the same dataset the loader was
 already reading; the loader consumed only the C6.2 itemized section. See
-docs/pdc-c6-direction-audit.md.
+``docs/pdc-c6-direction-audit.md``.
 
 The narrower thing that remains true is worth keeping: ``support_oppose`` on
 ``independent_expenditures`` IS empty for PDC rows, because direction lives in
@@ -221,7 +221,84 @@ def bootstrap_slope_ci(xs, ys, iters=5000, seed=12345):
     return lo, hi
 
 
+# The pinned federal panel. Written by --cells-csv here, read by --from-cells and
+# by the PUBLIC copy of this script, which cannot import backtest_model.
+#
+# Why it exists: the residual is `actual_dem_pct - model predicted_dem_pct`, and
+# only the forecast model produces the second term. Publishing that model means
+# publishing ~19,000 lines of wa_analyzer including db.py, the campaign tooling
+# and the voter-file ETL — the boundary donor_matcher.py exists to hold. Pinning
+# the CELLS instead lets a reader recompute the slope, the bootstrap interval and
+# Pearson r for themselves, which is the part of the finding that is contestable.
+# Same arrangement as Findings 1, 2a and 3.
+CELLS_PIN = os.path.join(_ROOT, "docs", "reference", "ie_vs_residual_2026-08-09.csv")
+
+_CELL_COLUMNS = [
+    "cycle", "district_id", "district_num", "pro_dem", "pro_rep", "total",
+    "unmatched", "net_pro_dem_m", "total_m", "residual_pp", "actual_dem_pct",
+    "predicted_dem_pct", "actual_margin",
+]
+
+
+def write_cells(rows, path):
+    """Pin the scorable cells. Deterministic order — the file is checked in."""
+    import csv
+    scored = sorted((r for r in rows if r.get("residual_pp") is not None),
+                    key=lambda r: (r["cycle"], r["district_num"]))
+    with open(path, "w", encoding="utf-8", newline="") as fh:
+        w = csv.DictWriter(fh, fieldnames=_CELL_COLUMNS, lineterminator="\n",
+                           extrasaction="ignore")
+        w.writeheader()
+        for r in scored:
+            w.writerow({k: r.get(k) for k in _CELL_COLUMNS})
+    return len(scored)
+
+
+def read_cells(path):
+    """Load the pinned cells. The public copy of this script uses only this path."""
+    import csv
+    out = []
+    with open(path, encoding="utf-8", newline="") as fh:
+        for r in csv.DictReader(fh):
+            out.append({
+                "cycle": int(r["cycle"]), "district_id": r["district_id"],
+                "district_num": int(r["district_num"]),
+                "pro_dem": float(r["pro_dem"]), "pro_rep": float(r["pro_rep"]),
+                "total": float(r["total"]), "unmatched": float(r["unmatched"]),
+                "net_pro_dem_m": float(r["net_pro_dem_m"]),
+                "total_m": float(r["total_m"]),
+                "residual_pp": float(r["residual_pp"]),
+                "actual_margin": float(r["actual_margin"]),
+                "skip": None,
+            })
+    if not out:
+        raise SystemExit(f"pinned panel is empty: {path}")
+    return out
+
+
 def main():
+    # PUBLIC ADAPTATION: always read the pinned panel. The warehouse path needs
+    # backtest_model -> wa_analyzer, which is not published; --from-warehouse is
+    # accepted only so the flag is not silently ignored by anyone who copies a
+    # command line out of the private repo.
+    from_cells = "--from-warehouse" not in sys.argv
+    cells_out = None
+    if "--cells-csv" in sys.argv:
+        cells_out = sys.argv[sys.argv.index("--cells-csv") + 1]
+
+    if from_cells:
+        rows = read_cells(CELLS_PIN)
+        races = rows
+        cycles = sorted({r["cycle"] for r in rows})
+        print("=" * 78)
+        print("Finding 6 — Does money move votes? Net IE advantage vs model residual")
+        print("=" * 78)
+        print(f"Reading the PINNED panel: {os.path.relpath(CELLS_PIN, _ROOT)}")
+        print("The residual needs the forecast model, which is not published; the")
+        print("cells are pinned so the statistics below are recomputed, not restated.")
+        print(f"Cycles: {cycles}   scorable district-cycles: {len(rows)}\n")
+        return _report(rows, races, cycles, cells_out)
+
     conn = duckdb.connect(DB, read_only=True)
 
     assert_ie_classified(conn)
@@ -246,6 +323,11 @@ def main():
         rows.append(r)
     conn.close()
 
+    return _report(rows, races, cycles, cells_out)
+
+
+def _report(rows, races, cycles, cells_out=None):
+    """Everything downstream of building the panel, shared by both entry paths."""
     scored = [r for r in rows if r.get("residual_pp") is not None]
 
     hdr = (f"{'race':>10} | {'net pro-D IE':>12} | {'total IE':>9} | "
@@ -336,6 +418,10 @@ def main():
     print("  • Sample stays uninstrumented whatever its size: with no exogenous")
     print("    variation these observations cannot identify a causal effect, only")
     print("    sharpen the descriptive picture.")
+
+    if cells_out:
+        n = write_cells(rows, cells_out)
+        print(f"\nwrote {cells_out}  ({n} scorable cells)")
 
     out = os.path.join(tempfile.gettempdir(), "ie_vs_margin.json")
     json.dump({"races": rows, "result": result}, open(out, "w"), indent=2, default=str)
