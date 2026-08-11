@@ -219,6 +219,27 @@ def derive() -> dict:
         d[f"bloc_{p}_median"], d[f"bloc_{p}_65"] = float(med), float(p65)
         d[f"bloc_{p}_1829"], d[f"bloc_{p}_turn"] = float(p1829), float(turn)
 
+    # The unaffiliated bloc's share OF THE ROLL, and its share of each general
+    # electorate. The paper contrasts the two ("25.5% of the roll, but only
+    # 16-22% of voters"); until strict_units was enabled here the band endpoints
+    # were bare integers and auto-exempt, so nothing checked the contrast.
+    # Roll share: the pin stores NORMALIZED party labels (the loader has already
+    # mapped NYSBOE's 'BLK' to 'NOPARTY'), so read `mixF_NOPARTY`. FULL roll, not
+    # active: the two are 25.49 and 25.32, and only the full roll rounds to the
+    # printed 25.5. The abstract's neighbouring sentence says "of the ACTIVE roll"
+    # and is probed against `mixA_NOPARTY` — the paper distinguishes them, so the
+    # probes must too. Getting this backwards is what the first draft of this
+    # block did.
+    d["bloc_NOPARTY_roll"] = d["mixF_NOPARTY"]
+    # Share of each GENERAL electorate that is blank-enrolled.
+    for date, year, tg in GENERALS:
+        d[f"unaff_{tg}"], = con.execute(f"""
+            SELECT 100.0 * COUNT(*) FILTER (WHERE v.party = 'BLK') / COUNT(*)
+            FROM voters v {_voted(year)}
+            WHERE v.birthdate IS NOT NULL AND {_age(date)} BETWEEN 18 AND 105""").fetchone()
+    _uv = [d[f"unaff_{tg}"] for _, _, tg in GENERALS]
+    d["unaff_voter_lo"], d["unaff_voter_hi"] = min(_uv), max(_uv)
+
     # Section I — 2025 general under-30 turnout by party. This is the only roll-denominated
     # RATE in an otherwise electorate-denominated section, which is how it survived the
     # 2026-08-01 recompute untouched.
@@ -615,6 +636,20 @@ def _companion_docs(d: dict) -> None:
 
 
 PROBES = [
+    # Surfaced by strict_units 2026-08-10. Every endpoint below is a bare one- or
+    # two-digit integer, so COVERAGE_EXEMPT's small-integer rule auto-exempted it
+    # and both audited sections reported "fully mapped" without looking.
+    ("§party — the GOP 65+ share across classes",
+     r"GOP's 65\+ share jumps from (\d+)%\s*\(presidential\) to (\d+)% \(odd-year\)",
+     ("g24_REP_65", "g25_REP_65"), 0.5),
+    ("§party — the unaffiliated drop-off band",
+     r"\(([\d.]+)% of the roll, but only (\d+)–(\d+)% of\s*voters\)",
+     ("bloc_NOPARTY_roll", "unaff_voter_lo", "unaff_voter_hi"), 0.5),
+    ("appendix A — the composition gradient in prose",
+     r"under-30 share\s*collapses \((\d+)% → (\d+)% by 2023\) and the 65\+ share swells "
+     r"\((\d+)% → (\d+)%\)",
+     ("g24_18-29", "g23_18-29", "g24_65+", "g23_65+"), 0.5),
+
     # --- Abstract, gated 2026-08-07 when it moved in from the metadata file. Every figure here
     # is a restatement of one asserted elsewhere in the paper, which is exactly why each gets
     # its own probe rather than riding on the section probe: the two can drift apart, and the
@@ -1047,7 +1082,7 @@ def main() -> int:
                 stats_out=stats)
     fails = vp.audit_coverage(audit_sections, spans, offsets, tuple(AUDIT_BOUNDS),
                               COVERAGE_EXEMPT, COVERAGE_EXEMPT_LITERAL,
-                              COVERAGE_EXEMPT_SECTIONS)
+                              COVERAGE_EXEMPT_SECTIONS, strict_units=True)
     fails += vp.audit_satellite_counts(PAPER.name, stats.get("figures"))
     if fails:
         print("\n" + "=" * 78)

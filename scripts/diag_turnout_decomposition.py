@@ -13,10 +13,19 @@ observed share change into a RATE effect and a COMPOSITION effect.
 If the rate effect dominates and composition ~ 0, the skew is a turnout/salience
 problem (fixable by on-cycle timing), not a registration problem.
 """
+import argparse
+
 import duckdb
 
 DB = "data/wa_vrdb.duckdb"
+# Defaults reproduce the body's headline pair. The dates are ARGUMENTS as of
+# 2026-08-09: they used to be module constants, so the paper's 2023 and 2021
+# decomposition figures had no reproducible path in the repo at all — the script
+# it cited could only ever produce the 2025 pair. That is the "a load-bearing
+# claim no check could fail" shape, and it is why the 2023 and 2021 figures were
+# published under the wrong definition for two rounds.
 PRES, OFF = "2024-11-05", "2025-11-04"
+OFF_YEARS = ("2025-11-04", "2023-11-07", "2021-11-02")
 BUCKETS = ["18-29", "30-44", "45-64", "65+"]
 
 
@@ -49,17 +58,32 @@ def share(roll, rate, target):
 
 
 def main():
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
+    ap.add_argument("--pres", default=PRES, help="presidential election date (YYYY-MM-DD)")
+    ap.add_argument("--off", default=None,
+                    help="off-year election date; repeatable via --all-off-years")
+    ap.add_argument("--all-off-years", action="store_true",
+                    help=f"run every off-year in {OFF_YEARS} against --pres")
+    args = ap.parse_args()
+
+    targets = list(OFF_YEARS) if args.all_off_years else [args.off or OFF]
     c = duckdb.connect(DB, read_only=True)
-    P = cohort_table(c, PRES)
-    O = cohort_table(c, OFF)
+    P = cohort_table(c, args.pres)
+    for off in targets:
+        _report(c, P, args.pres, off)
     c.close()
+
+
+def _report(c, P, pres, off):
+    O = cohort_table(c, off)
 
     rollP = {c: P[c][0] for c in BUCKETS}
     rollO = {c: O[c][0] for c in BUCKETS}
     rateP = {c: P[c][1] / P[c][0] for c in BUCKETS}
     rateO = {c: O[c][1] / O[c][0] for c in BUCKETS}
 
-    print("Within-cohort turnout and roll share, 2024 presidential vs 2025 off-year:\n")
+    print(f"\n{'=' * 78}\nWithin-cohort turnout and roll share, "
+          f"{pres} presidential vs {off} off-year:\n")
     print(f"{'cohort':7} {'roll%P':>7} {'roll%O':>7} {'turnoutP':>9} {'turnoutO':>9} {'O/P ret.':>9}")
     tP = sum(rollP.values()); tO = sum(rollO.values())
     for c in BUCKETS:
@@ -77,13 +101,23 @@ def main():
               f"{S_OO*100:.1f}% (off-year), change {(S_OO-S_PP)*100:+.1f}pp ===")
         print(f"   turnout-rate (behavior) effect : {rate*100:+5.1f} pp")
         print(f"   roll-composition effect        : {comp*100:+5.1f} pp")
+        # TWO ratios, printed separately and named differently on purpose. They
+        # coincide only when both effects share a sign. Reporting the second under
+        # the first's name is the defect corrected 2026-08-09: with a negative roll
+        # effect, behaviour must account for MORE than 100% of the rise, so any
+        # sub-100% figure called "share of the rise" is self-contradictory.
+        of_rise = rate / (S_OO - S_PP) * 100 if (S_OO - S_PP) else float("nan")
+        of_move = abs(rate) / (abs(rate) + abs(comp)) * 100
+        print(f"   rate effect / observed change  : {of_rise:5.0f}%"
+              f"   {'(>100% because the roll effect runs the other way)' if of_rise > 100 else ''}")
+        print(f"   rate share of total movement   : {of_move:5.0f}%"
+              f"   |rate| / (|rate| + |roll|)")
         dom = "turnout BEHAVIOR" if abs(rate) > abs(comp) else "roll COMPOSITION"
-        print(f"   -> dominated by {dom} "
-              f"({abs(rate)/(abs(rate)+abs(comp))*100:.0f}% of the absolute shift)")
-    print("\nReading: the off-year electorate is older almost entirely because the young "
-          "turn out\nfar less (behavior under low salience), not because the registered roll "
-          "is older.\nThat is the signature of a TIMING/salience problem — the lever is "
-          "on-cycle consolidation,\nnot registration policy.")
+        print(f"   -> dominated by {dom}")
+    print("\nReading: the off-year electorate is older principally because the young turn "
+          "out\nfar less (behaviour under low salience), not because the registered roll is "
+          "older.\nThat locates the mechanism; it does NOT identify what moving the election "
+          "would do —\na decomposition is an accounting identity, not a counterfactual.")
 
 
 if __name__ == "__main__":

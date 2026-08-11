@@ -287,7 +287,7 @@ being close.
 Two properties of the PDC record decide the specification and are not incidental. **Three
 quarters of the directional dollars are electioneering communication, not express
 advocacy** — $38.70M against $13.03M — and the two run in opposite directions, express
-advocacy 69% *for* candidates and electioneering 61% *against* them. Pooling them inverts
+advocacy 78% *for* candidates and electioneering 61% *against* them. Pooling them inverts
 the panel's directional balance, which is why the two are reported apart rather than summed.
 And the filing identifies a candidate's *chamber* but not their House position, while the
 outcome is a single contest; the race-matched rows count only money naming a candidate on

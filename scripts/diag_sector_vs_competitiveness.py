@@ -39,7 +39,14 @@ SECTORS = {
              "APPLE COMPUTER", "ORACLE", "SALESFORCE", "NVIDIA", "INTEL", "ADOBE", "NETFLIX",
              "SOFTWARE", "TECHNOLOGIES", "TECHNOLOGY", "DATA", "AMAZON WEB", "AWS", "TESLA",
              "SEMICONDUCTOR", "CISCO", "IBM", "DELL", "HEWLETT", "QUALCOMM", "UBER", "AIRBNB",
-             "STRIPE", "PALANTIR", "ZILLOW", "EXPEDIA", "ZUMIEZ",
+             "STRIPE", "PALANTIR", "ZILLOW", "EXPEDIA",
+             # ZUMIEZ removed 2026-08-09: it is a teen-apparel retailer, which
+             # cross-state-fec-money.md's own Section C says ("Tom Campion/Zumiez"),
+             # and the paper's tech row carries a claim about how tech money
+             # travels. 78 rows / $158,100 — 2.2% of the tech row, so no printed
+             # figure moves at one decimal, but a named retailer in the tech
+             # bucket is a specific correctable error rather than the "indicative,
+             # not audited" imprecision the map is allowed.
              # AI / newer tech surfaced as unclassified blind spots
              "ANTHROPIC", "OPENAI", "DATABRICKS", "SNOWFLAKE", "COINBASE", "DOORDASH",
              "INSTACART", "DROPBOX", "PINTEREST", "SNAP INC", "SPACEX"],

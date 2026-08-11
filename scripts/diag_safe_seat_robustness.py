@@ -7,8 +7,14 @@ killers for safe-seat-washington.md.
     headline isn't an artifact of the 10-pt cut. (no-major-choice is threshold-free.)
 
 (2) CONTEST GAP. Actual-race non-competitive % vs the % of seats whose district
-    PRESIDENTIAL lean is >=10pt safe. If actual > presidential, parties are leaving
-    presidentially-winnable seats uncontested (the TX finding — is it universal?).
+    PRESIDENTIAL lean is >=10pt safe. A positive gap means legislative contests are less
+    competitive than the partisan geography alone would predict (the TX finding — is it
+    universal?). It does NOT identify a mechanism: the comparison is between two aggregate
+    shares and observes nobody's filing decision. Non-entry is one candidate; incumbency,
+    candidate quality, spending, differential turnout and ticket-splitting are others.
+    (This read "parties are leaving presidentially-winnable seats uncontested" until
+    2026-08-10 — withdrawn in the paper's Appendix E as "more than the statistic supports",
+    and still asserted here for two days after the paper stopped saying it.)
     Feasible where district presidential results exist on matching boundaries:
     TX (r206, all 150) + WA (precinct_results President 2024 x precinct_district_map)
     + ID (attempt). NY skipped: President loaded only thru 2020, pre-2022-redistricting,
@@ -241,8 +247,13 @@ def main():
                   f"{WA_CERTIFIED_NOTCLOSE_10-presafe:8.1f}  <-- PAPER: certified universe "
                   f"(diag_seat_competition.py)")
     print("NY: skipped — President loaded only through 2020 (pre-2022 lines), can't match "
-          "2022 Assembly.\nA POSITIVE gap = parties leave presidentially-winnable seats "
-          "uncontested (worse than the map).")
+          "2022 Assembly.\nA POSITIVE gap = legislative contests are less competitive than "
+          "district presidential lean alone would predict. It compares two AGGREGATE shares "
+          "and does NOT observe who filed — non-entry is one mechanism consistent with it, "
+          "alongside incumbency, candidate quality, spending, differential turnout and "
+          "office-specific ticket-splitting.\n(Was 'parties leave presidentially-winnable "
+          "seats uncontested' until 2026-08-10: the reading Appendix E withdrew as 'more "
+          "than the statistic supports'.)")
 
     print("\n" + "=" * 70)
     print("(3) COMPARABILITY — does 'no-major-choice is never close' change any answer?")

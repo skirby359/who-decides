@@ -14,19 +14,21 @@ underlying voter file is not redistributed. Contact: kirby@tikorconsulting.com.*
 
 Many of Washington's local offices are filled in odd-year November elections, when
 turnout runs far below presidential years. This paper asks *who returns those ballots*.
-Using Washington's statewide voter-registration database, a 5.51-million-voter roll
-linked to 27.1 million individual vote-history records with the voter's year of
-birth, it measures the age make-up of every November general electorate from 2021
-through 2025. The central finding is descriptive: Washington's odd-year electorate is
+Using Washington's statewide voter-registration database — a 5.51-million-voter roll
+carrying each voter's year of birth, linked to 27.1 million individual vote-history
+records, of which 26.3 million resolve to a roll row and so to an age — it measures the
+age make-up of every November general electorate from 2021 through 2025. The central finding is descriptive: Washington's odd-year electorate is
 markedly older than its presidential one. Voters 65 and older were 36.7%, 40.2%, and
 40.3% of the 2021, 2023, and 2025 odd-year electorates, against 28.5% in 2024; voters
 18–29 fell from 14.2% in 2024 to about 7.6% off-cycle. The result survives
 voter-file coverage validation against certified ballot counts, formal bounds for
-current-roll survivorship, a closer-in-time roll cross-check, alternative birth-year
+current-roll survivorship, a closer-in-time roll cross-check that sizes the survivorship
+effect, alternative birth-year
 assumptions, county-level checks, and exclusion of any single off-year. The off-year electorate is
 also older than the registered roll and the citizen voting-age population. Individual
 records show it is largely the presidential electorate's *habitual core* (92–97% of
-off-year voters also vote in presidential years), while the peripheral voters who drop
+off-year voters also cast a 2024 presidential ballot — a single presidential comparison, not
+a regularity across years), while the peripheral voters who drop
 off off-cycle skew young. The paper measures ballot return, not votes cast in specific
 down-ballot contests, and does not estimate partisan or policy consequences. Its
 contribution is a validated, individual-record measurement of age composition across the
@@ -57,20 +59,31 @@ is an older one.
 voter cast a November ballot, one voter at a time. It does *not* tell us whether that
 voter actually marked a specific city-council, school-board, port, fire, judicial, or
 county race; the voter file records that someone voted in an *election*, not in a given
-*contest* (Lucero et al. 2025). That gap matters most for the **even-year what-if**: if
-local races were moved onto the longer even-year ballot, some of the added voters would
-return a ballot but skip the local race. For the **odd-year electorate described here**
-the gap is smaller. Washington's odd-year ballot is mostly local and district contests,
-with only the occasional statewide measure so ballot return is a closer stand-in for
-local-race participation, though it is still an election-level measure, not a
-contest-level one. Appendix F takes up roll-off as the live counterargument.
+*contest* (Lucero et al. 2025). That gap matters for the **even-year what-if** — if local
+races were moved onto the longer even-year ballot, some of the added voters would return a
+ballot but skip the local race — and it matters within the odd-year measurement too. It
+would be convenient to argue that the odd-year gap is the smaller of the two, on the
+reasoning that Washington's odd-year ballot is mostly local and district contests so
+ballot return is a close stand-in for local-race participation. **Measured, that holds for
+statewide measures and fails for local offices.** Against a conservative per-precinct
+ballot floor, odd-year roll-off across 2021/2023/2025 runs about **4–25%** for mayor,
+**16–20%** for port commissioner, **10–36%** for city council, **19–36%** for school
+director and **30–44%** for fire district — while the statewide item on the odd-year
+ballot rolls off only **4.9–6.6%**, about what an even-year statewide measure does
+(`scripts/diag_wa_rolloff_oddyear.py`; Appendix F). So the offices this paper is about are
+exactly the ones where ballot return is *not* a close stand-in. Every result below is
+therefore about **who returns an odd-year ballot**, not about who votes in any particular
+local contest. Appendix F takes up roll-off as the live counterargument, on both sides of
+the comparison.
 
 ---
 
 ## Data and validation
 
-**Source.** `voting_history` (27.1M records) joined to `voters` (year of birth,
-~100% coverage) from Washington's standard statewide VRDB extract (April 2026;
+**Source.** `voting_history` (27.1M records across 24 election dates, of which 26.3M —
+96.9% — resolve to a current-roll voter and therefore to an age) joined to `voters`
+(year of birth, ~100% coverage of the roll) from Washington's standard statewide VRDB
+extract (April 2026;
 provenance and use terms in Appendix B). Age is based on election year − birth year;
 cohorts are assigned per election. November generals only, 2021–2025.
 
@@ -128,7 +141,9 @@ every unobserved voter (official − analyzable) were under 65, then if every on
 
 <sub>"Observed" is the 65+ share of the analyzable electorate from the validation
 table (2021 = 36.8%; the composition table's 36.7% adds a "registered on/before the
-election" filter, a 0.1-point difference). Min/max apply the extreme assumption to
+election" filter, whose real effect is about **0.001** points — the two figures are 36.7508
+and 36.7497 and straddle a rounding boundary, so the printed tenth of a point is an artifact
+of rounding, not the filter). Min/max apply the extreme assumption to
 the residual = official − analyzable.</sub>
 
 Even under the most hostile assumption, in which every unobserved off-year ballot was cast by
@@ -139,9 +154,13 @@ voters are assigned. Two points follow: given the attrition evidence, the observ
 estimates are **likely conservative**, and the **formal worst-case bound** keeps the
 finding either way.
 
-**A direct check: the composition barely moves under a closer-in-time roll.** The bound
-above says nothing about the missing residual; a separate check asks whether
-reconstructing from a *current* roll skews the composition at all. The database's
+**Quantifying the attrition: the composition barely moves under a closer-in-time roll.**
+The bound above says nothing about the missing residual. This check asks how much the
+attrition just described actually costs the composition estimate. It is **not
+independent** of that attrition table — its population is the current-roll electorate
+plus the very drop-offs tabulated above, so blending those two published numbers
+reproduces the snapshot column to within 0.2 points. What it adds is the *size* of the
+effect, not a second source of evidence for it. The database's
 Sept-2023 snapshot (`voters_20230901`) still holds voters who have since dropped off the
 2026 roll, so it rebuilds the 2021–2023 electorates from a roll much closer to those
 elections. The two reconstructions agree to within ~1.4 points, and what movement there
@@ -182,8 +201,10 @@ cycles, and (per the validation above) survives an explicit worst-case bound.
 - **The off-year electorate is a senior-plurality electorate, and stably so.** Voters
   65+ make up **~37–40%** of it (36.7 / 40.2 / 40.3% across 2021 / 2023 / 2025) versus
   **28.5%** in the presidential year; the 18–29 share falls from **14.2%** to **~7.6%**.
-- **The senior-to-youth ratio roughly triples off-cycle** from about **2:1** in the
-  presidential year to **~5:1** off-year with the midterm in between (31.0% 65+). The
+- **The senior-to-youth ratio widens by about two and a half times off-cycle**, from
+  about **2:1** in the presidential year (28.5/14.2 = 2.0) to about **5:1** off-year
+  (39.1/7.6 = 5.1, a 2.55× widening; the individual off-years run 4.9 / 5.5 / 5.0), with
+  the midterm in between (31.0% 65+). The
   *off-year* figure is stable across three cycles; the presidential and midterm points
   are single elections (2024, 2022), so read the ordering as consistent with a salience
   gradient, not as a smoothly estimated curve.
@@ -209,7 +230,20 @@ eligible-electorate benchmark, which excludes non-citizens) from table B29001. M
 ages for the two ACS rows are interpolated from the age brackets and the roll and
 ballot-returner medians are computed from year of birth and are integer-year (±1)
 approximations. Roll and ballot-returner figures from the VRDB
-(`scripts/verify_who_decides_wa.py` #23).</sub>
+(`scripts/verify_who_decides_wa.py`).
+
+**The roll row is the FULL roll, including inactive registrants — and that matters,
+because "registered" does not mean the same thing everywhere in this paper.** The 5.51M
+roll carries 416,492 inactive registrants (7.6%), who are much younger than active ones
+(median 38 against 49; 13.2% are 65+ against 27.3%; 25.1% are under 30 against 16.1%).
+Every official turnout rate quoted here — 39.38 / 63.82 / 36.41 / 78.95 / 39.24%, and the
+headline ~38% — has the **active** roll as its denominator, which the arithmetic confirms:
+2,001,425 ballots ÷ 39.24% = 5,100,471 against an active roll of 5,098,276, a 0.04% match.
+On that active basis the row would read 65+ **27.3%**, 18–29 **16.1%**, median **49**. The
+full-roll version is retained for consistency with the rest of the series, which uses it
+deliberately, but it makes the roll look about a point younger at each end than the
+population the word "registered" denotes in the turnout figures — i.e. it flatters the
+electorate-versus-roll contrast this table exists to show, by roughly one point.</sub>
 
 The 65+ share climbs **21.1% → 22.6% → 26.3% → 28.5% → 39.1%** across the five rows; the
 18–29 share falls **20.0% → 19.8% → 16.7% → 14.2% → 7.6%**. The median off-year
@@ -218,14 +252,16 @@ and more than a decade older than the median citizen-voting-age adult (~47). Res
 eligible citizens, registrants, and voters are four different populations, and what moves
 the composition is participation, not the roll. The roll's senior share is low and steady
 (26.3% on the full April 2026 roll; ~22–25% on the per-election eligible roll in these
-years) while the off-year returner share reaches ~40%.
+years) while the off-year returner share reaches ~39%.
 
 **One number for "how unrepresentative."** We can collapse the ladder into a single
 dissimilarity index, that is how far each electorate's age distribution sits from the citizen
 voting-age population, taken as half the summed absolute differences across cohorts, where
 0 means identical. It comes out **7.4** for the 2024 presidential electorate, **13.2** at
 the midterm, and **18.5–19.9** across the three off-years. The off-year electorate is
-roughly **2.5× as age-unrepresentative** of the eligible population as the presidential
+roughly **2.5× as age-unrepresentative** — that is the least favourable of the two natural
+readings, the lowest off-year against the presidential year; the three-off-year mean gives
+2.6× — of the eligible population as the presidential
 one. The index depends on the age bins chosen, so treat its value here as comparative,
 not absolute.
 
@@ -252,13 +288,43 @@ composition finding; they do not carry it:
 | Nov 2025 | Off-year | 16.4% | 27.0% | 39.0% | 59.3% | 36.7% |
 
 **These are not official turnout rates.** The denominator is the age-eligible **April
-2026 roll**, not the roll as it stood on each election day, so a later (larger) roll
-mechanically pulls them down: the "All" column (e.g., 75.0% in 2024) generally sits below
-Washington's official general-election turnout (39.38% 2021, 63.82% 2022, 36.41% 2023,
-78.95% 2024, 39.24% 2025); the exception is 2021, where the reconstruction lands at about
-the official 39.38%. Read the table as a current-roll *reconstruction* of
-within-cohort participation. It also rests on a single presidential (2024) and single
-midterm (2022) cycle.
+2026 roll** filtered to voters registered on or before each election, not the roll as it
+stood on election day, and the numerator is the vote-history reconstruction rather than
+the certified count. The "All" column sits below Washington's official general-election
+turnout in every year (39.38% 2021, 63.82% 2022, 36.41% 2023, 78.95% 2024, 39.24% 2025),
+but **not for one single reason**, and three effects are in play at once:
+
+| | roll vs official registered, **as built** | roll vs official registered, **matched (active only)** | voters vs certified ballots | reconstructed rate | official rate |
+|---|--:|--:|--:|--:|--:|
+| 2021 | −9.2% | **−15.4%** | −9.2% | 39.35% | 39.38% |
+| 2022 | −3.9% | **−10.9%** | −6.0% | 62.42% | 63.82% |
+| 2023 | +0.2% | **−7.4%** | −4.1% | 34.87% | 36.41% |
+| 2024 | +3.1% | **−4.9%** | −2.1% | 74.98% | 78.95% |
+| 2025 | +6.4% | **−1.8%** | −0.4% | 36.74% | 39.24% |
+
+Reading the first column alone invites a wrong story, and an earlier version of this
+paragraph told it: that the denominator pushes the rate up in 2021–22 and down from 2023,
+so the two error sources oppose each other. **The apparent sign flip is a population
+mismatch.** The reconstruction's denominator counts every registrant, active or inactive;
+official registered counts only active ones (§*Residents, registrants, voters* above shows
+the arithmetic). The reconstruction therefore carries 298K–415K inactive registrants the
+official figure never had. Put both on the same footing — column two — and the
+reconstructed roll is **smaller in all five years**, shrinking monotonically as the
+registration-date filter has less history to discard.
+
+So the three effects are: a **numerator** shortfall (vote-history coverage, from the
+validation table), a **denominator** shortfall (the registration-date filter, which drops
+everyone who registered later), and **inactive inclusion**, which inflates the denominator
+by 7.3 to 8.4 points and partly masks the second. On a fully matched active basis the
+reconstructed rates run *above* official in every year (41.1 / 65.0 / 37.1 / 79.2 / 39.7%),
+which is what a denominator missing later registrants should do.
+
+The table is retained on the as-built basis because that is the denominator the rate table
+above actually uses. But 2021's near-exact agreement with the official 39.38% is a
+coincidence of three effects cancelling in the year with the weakest coverage (90.8%), not
+a validation of anything. Read the table as a current-roll *reconstruction* of within-cohort
+participation, not as a turnout estimate. It also rests on a single presidential (2024) and
+single midterm (2022) cycle.
 
 ---
 
@@ -291,17 +357,33 @@ Because November falls late in the year, the true value should sit *closer to th
 convention* than to this all-younger extreme, barring unusual late-year birthday
 clustering.
 
-**Off-year stability, and statewide measures.** The three off-years land on the same
-result (65+ share 36.7 / 40.2 / 40.3%) despite *different* statewide ballot content: 2021
-and 2023 carried only the state's non-binding tax "advisory votes," and
-2025's only statewide item was a single fiscal constitutional amendment (SJR 8201, on
-investing the WA Cares trust fund; approved per the WA Secretary of State's certified
-November 4, 2025 results, `results.vote.wa.gov`, where it was the only statewide
-contest). None is a high-salience, mobilizing contest, and the fact that the
-65+ share barely moves across all three is direct evidence that none of them drives the
-composition. Dropping any one off-year leaves the conclusion intact.
+**Off-year stability, and statewide measures.** The three off-years land close together
+(65+ share 36.7 / 40.2 / 40.3%) despite statewide ballot content that differs more than
+is usually noticed:
 
-**Geography.** King County (the largest and youngest) runs younger than the rest at every
+- **2021** carried three of the state's non-binding tax "advisory votes" (Nos. 36, 37
+  and 38).
+- **2023** carried **no statewide contest at all.** Washington abolished advisory votes
+  in 2023 (SB 5082, eff. July 2023), so nothing statewide appeared that November — a
+  fact confirmed here directly: in the loaded precinct returns the best-covered 2023
+  general race reaches 4 counties, against 38 for each of the three 2021 advisory votes and
+  38 for SJR 8201; the certified SoS export agrees, carrying no 2023 statewide item at all.
+- **2025**'s only statewide item was a single fiscal constitutional amendment (SJR 8201,
+  on investing the WA Cares trust fund; approved per the WA Secretary of State's
+  certified November 4, 2025 results, `results.vote.wa.gov`).
+
+So the contrast is three low-salience measures, then none, then one — a wider range of
+ballot content than "the advisory votes were always there" would suggest, and none of it
+a high-salience mobilizing contest. Across that range the 65+ share moves 36.7 → 40.2 →
+40.3, a **3.6-point spread**, with the low year (2021) also being the year with the
+weakest voter-file coverage (90.8%) and the widest bound (33.4–42.6%). That is
+**consistent with** statewide ballot content not driving the composition, and it is what
+the paper claims; it is not a test of the proposition, because three off-years with no
+counterfactual cannot isolate one. Dropping any one off-year leaves the conclusion
+intact.
+
+**Geography.** King County (the largest, and the lowest 65+ share — on median age it is not
+the state's youngest county) runs younger than the rest at every
 salience level, but the gradient shows up everywhere, and is steeper outside the urban
 core.
 
@@ -328,15 +410,39 @@ decomposition that separates the two (Kitagawa–Das Gupta;
 `scripts/diag_turnout_decomposition.py`) puts it almost entirely on behavior. Of the
 **+11.8-point** rise in the 65+ share from 2024 to 2025, **+10.9 points (92%) come from
 turnout rates** and only **+0.9 from a changing roll**; for 18–29 the split is **−6.0 of
-−6.2 points (97%) behavioral.** The pattern holds across all three off-years as the turnout
-accounts for **92% (2025), 95% (2023), and 79% (2021)** of the 65+ rise and in 2021
-and 2023 the roll effect is actually slightly *negative* (the roll was marginally
-younger, so behavior more than accounts for the shift). This is robust to the
-survivorship worry: both years in each comparison are read off nearly the same recent
-roll, so any current-roll distortion is shared and largely cancels, and correcting the
-older-skewing attrition described earlier would only *raise* the senior turnout rate,
-not move weight onto the roll. The skew is a turnout-and-salience story, which is why the
-lever is **when you hold the election**, not registration policy.
+−6.2 points (96.9%) behavioral.** The pattern holds across all three off-years, and in
+2021 and 2023 it holds *more* than completely, because the roll effect there runs the
+other way:
+
+| 65+, 2024 → | observed rise | rate effect | roll effect | rate ÷ rise | rate share of total movement |
+|---|--:|--:|--:|--:|--:|
+| 2025 | +11.8 | +10.9 | **+0.9** | 92.0% | 92.0% |
+| 2023 | +11.7 | +12.4 | **−0.7** | **105.9%** | 94.7% |
+| 2021 | +8.2 | +11.1 | **−2.9** | **134.8%** | 79.5% |
+
+<sub>Two different ratios, kept apart deliberately. "rate ÷ rise" is the rate effect as
+a fraction of the observed change; it exceeds 100% whenever the roll effect is negative,
+because behaviour then has to overcome the roll as well as produce the rise. "Rate share
+of total movement" is |rate| ÷ (|rate| + |roll|), which is bounded by 100% and is the
+comparable figure when the two effects have opposite signs. The two must not be quoted
+under one name: a negative roll effect requires the rate share of the *rise* to exceed
+100%, so a sub-100% figure described as a share of the rise is self-contradictory.
+Decomposition for all three off-years by
+`scripts/diag_turnout_decomposition.py --off <date>`.</sub>
+
+Note that the 2021 roll effect (−2.9 points against an +8.2-point rise) is not
+negligible: a third of the behavioural effect there is spent offsetting a roll that had
+grown younger. This is largely robust to the survivorship worry — both years in each
+comparison are read off nearly the same recent roll, so much of any current-roll
+distortion is shared, and correcting the older-skewing attrition described earlier would
+only *raise* the senior turnout rate rather than move weight onto the roll. It is not
+fully robust: the decomposition's "roll" is the April-2026 roll filtered by registration
+date, so registrants who left between the two election dates are invisible to it, which
+biases the roll component toward zero and therefore flatters the behavioural share. The
+skew is, on this evidence, principally a turnout-and-salience story rather than a
+registration one. Whether *changing* the timing would change the electorate is a
+different question, which this decomposition cannot answer and which the quasi-
+experimental literature below is cited for.
 
 **The off-year electorate is the presidential electorate's habitual core.** Because we
 can follow individual voters, we can see surge-and-decline directly rather than infer it
@@ -404,8 +510,17 @@ and age-as-proxy.)
   the same limit.
 - **Cycle coverage.** The vote history begins in 2021, so the presidential row rests
   on **2024 alone** and the midterm on **2022 alone**; only the off-year row averages
-  three cycles. King County 2020 presidential is not loaded and is excluded (all
-  figures are 2021+).
+  three cycles.
+- **King County is missing from the results database, though not from the voter file.**
+  Two distinct gaps, and the second is the one that constrains this paper. King's 2020
+  presidential returns are not loaded, which is moot here because all figures are 2021+.
+  The **precinct-level** gap is separate and is ours, not the state's: King publishes no
+  precinct detail in the Secretary of State's statewide export in *any* year — its rows
+  there are countywide totals — and this project's King precinct rows come from a separate
+  county file that exists for the even-year generals only. So every contest-level cut in
+  Appendix F's odd-year table runs on 38 of 39 counties, and that is an acquisition gap
+  rather than a disclosure gap. The body's composition, rate and habitual-core results are **not** affected: they
+  come from the voter file, where King is fully present.
 - **Uncertainty.** The VRDB figures are near-complete counts and carry no sampling
   error; the ACS resident/CVAP rows are 5-year *estimates* with margins of error (small
   at this geography and level of aggregation, but not zero); and the county roll-off
@@ -457,13 +572,20 @@ the closest even-year stand-in for the local nonpartisan races (city council, sc
 board) that consolidation would add, and probably an upper bound, since voters know least
 about judges. That is higher than the classic ~2–10% estimate (Wattenberg, McAllister &
 Salvanto 2000, who tie roll-off largely to *information*), and we do not assume it is
-age-neutral for Washington's local races, as that is untested. **Even so, the net effect is
-almost certainly a bigger electorate**, though how much bigger depends on whether local
-races land on a presidential or a midterm-year ballot (Appendix F). Even at the worst
-roll-off observed (34%), the electorate actually deciding the race is ~52% of
-registered voters on a presidential ballot and ~42% on a midterm one. In either case the deciding
-electorate remains above the ~38% who turn out off-cycle today. The gain survives heavy roll-off unless local roll-off
-runs far above the contested-nonpartisan mark.
+age-neutral for Washington's local races, as that is untested. **The comparison has to be
+made symmetrically, and originally was not:** the ~38% odd-year figure is *ballot return*,
+while the even-year figures are contest-level, so subtracting roll-off from one side only
+biased the comparison toward enlargement. Odd-year **local** contests roll off too — 4–44%
+on a conservative floor, and 30–44% for fire districts (Appendix F). The odd-year
+*statewide* item does not, at 4.9–6.6%, so the asymmetry is specific to the class of
+contest this paper is about rather than general.
+Applied to both sides, the direction survives: at a common 34% the deciding electorate is
+~52% of registered voters on a presidential ballot and ~42% on a midterm one, against an
+odd-year ~25% rather than the ~38% the one-sided version compared against. **The net
+effect is very likely a bigger electorate; the size of the increase is not pinned down
+here**, and depends on whether local races land on a presidential or a midterm-year ballot
+and on how local-contest roll-off differs from the statewide-judicial analog both columns
+are built on.
 
 **3. Age is not a clean proxy for whose interests matter.** Seniors are heavily affected
 by local taxes, emergency services, transit, utilities, public safety, housing supply,
@@ -501,7 +623,9 @@ a measurement of its size.
   Mar. 25, 2026). In our file every birth value resolves to a July-1 sentinel (a storage
   placeholder marking year-only granularity, not a birthday; ages in this paper are
   computed from birth year alone, as described in Section II), confirming that **no full
-  date of birth was obtained, stored, or used.**
+  date of birth is stored or used here.** The stronger claim — that none was *obtained*
+  — rests on RCW 29A.08.710, which limits what the state releases; a sentinel in the
+  loaded table cannot establish it, and is not offered as doing so.
 - **What is released.** Only aggregate cohort counts, with cell sizes in the thousands
   to millions; no individual-level records, addresses, or names. The analysis scripts
   emit aggregates only, and the repository's product layer additionally enforces a PII
@@ -529,11 +653,14 @@ a measurement of its size.
   the residual's composition.
 - **Decomposition.** The behavior-vs-rolls split is the symmetric two-factor
   (Kitagawa–Das Gupta) standardization (Appendix D).
-- **Reproduction.** `scripts/verify_who_decides_wa.py` re-derives every count in the
+- **Reproduction.** `scripts/verify_who_decides_wa.py` re-derives the great majority of the counts in the
   tables above from scratch (validation, survivorship, bounding, finer cohorts,
   imputation, geography, decomposition, habitual-core overlap, snapshot cross-validation,
-  gender, representativeness index, single-year-of-age curve), independently of the
-  analysis code; the ecological
+  gender, representativeness index, the 39-county table, and Appendix H's
+  banding-robustness ratios), independently of the analysis code. **What it does not
+  re-derive it declares, in its own `UNCHECKED` list:** the row-by-row single-year
+  retention curve (printed by `scripts/diag_wa_age_curve.py`) and the two external ACS
+  benchmark rows. The ecological
   roll-off correlation is in `scripts/diag_wa_rolloff_2024.py`, and the precinct-level
   SES-controlled sequel (Appendix F) in `scripts/diag_wa_rolloff_precinct.py`.
 
@@ -590,7 +717,7 @@ paper shows the age-composition result is not an artifact of current-roll surviv
 
 The off-cycle senior tilt is not a King County artifact or a rural artifact: the
 presidential→off-year shift toward seniors is **positive in all 39 counties**
-(`scripts/verify_who_decides_wa.py` #24). Counties are sorted by their 2024 presidential
+(all 39 rows re-derived by `scripts/verify_who_decides_wa.py`). Counties are sorted by their 2024 presidential
 65+ share; the last column is the average off-year (2023, 2025) share minus the
 presidential share. The off-year average uses 2023 and 2025 because their analyzable
 coverage is much higher than 2021's (99.6% and 95.9% vs 90.8%); adding 2021 does not
@@ -622,7 +749,9 @@ county (King +7.5 to Franklin +16.1).
 | Lewis | 34.7% | 50.0% | 51.9% | +16.2 | | | | | |
 | Skamania | 34.5% | 48.9% | 49.8% | +14.9 | | | | | |
 
-The off-year 65+ share ranges from **30.7% (King)** to **66% (Jefferson)**, and every
+On the two high-coverage off-years this table reports, the county 65+ share averages
+**31.4% (King)** to **65.9% (Jefferson)**; taking all three off-years cell by cell the
+span widens to **28.7%** (King 2021) to **66.1%** (Jefferson 2023). Every
 county moves toward seniors off-cycle (gaps +8.4 to +17.7 points). The result is a
 statewide phenomenon; King is simply its youngest instance.
 
@@ -643,7 +772,8 @@ in a contest) / ballots counted (official 2024 ballots = 3,961,569).
 | **Nonpartisan statewide, contested** | Supreme Court Pos. 2; Supt. of Public Instruction | **16.6–17.2%** |
 | **Nonpartisan statewide, uncontested** | Supreme Court Pos. 8, 9 | **33.7–34.4%** |
 
-<sub>Court of Appeals (regional; only one division votes) and Lt. Governor (loaded in
+<sub>Court of Appeals (eight contests across all three divisions in 2024, but each voted only
+within its own district, so none spans the state) and Lt. Governor (loaded in
 only 5,355 of 8,111 precincts / 38 of 39 counties, a partial-load artifact, not
 roll-off) are excluded; see the script header.</sub>
 
@@ -665,19 +795,66 @@ in the local contest):
 |---|--:|--:|--:|
 | Presidential-year, 2024 (~79%) | ~75% | ~66% | ~52% |
 | Midterm-year, 2022 (~64%) | ~61% | ~53% | ~42% |
-| Odd-year, 2021/23/25 avg (~38%), current baseline | — | — | — |
+| Odd-year, 2021/23/25 avg (~38%), current baseline | ~36% | ~32% | ~25% |
 
-The enlargement claim is strongest for presidential-year consolidation, still plausible
-for midterm-year consolidation, and weakest for low-salience or uncontested local
-races placed on a *midterm* ballot (~42% vs the ~38% off-year baseline). The grid also
-treats roll-off as *fixed* across scenarios, which it is not: a presidential electorate
-contains more peripheral voters, people who turn out only for the highest-salience
-contest and skip down-ballot races at higher rates, so its
-true roll-off is likely higher than a midterm electorate's, making the presidential row
-an upper bound and the presidential–midterm gap narrower than shown. The better
-conclusion is not that roll-off is second-order in every case, but that even
-substantial roll-off does not erase the turnout advantage unless local-contest roll-off
-runs far higher than the contested-nonpartisan benchmark.
+**The odd-year row is the one that used to be blank, and leaving it blank was the grid's
+worst flaw.** It applied 5–34% roll-off to the two hypothetical rows and zero to the
+status-quo row it was being compared against — an asymmetry that flatters the enlargement
+claim by construction, and one the paper had justified in prose rather than measured.
+Measuring it (`scripts/diag_wa_rolloff_oddyear.py`) shows the assumption was wrong:
+
+**King County is absent from this project's odd-year precinct data, and every figure below
+is scoped around it.** `precinct_results` holds no King rows at all for the 2021 and 2023
+generals, and for 2025 only the Seattle mayoral race, so King — 29–33% of each odd-year
+electorate — contributes no votes to any odd-year contest measured here, and all three
+columns run on the same 38-county footprint. **This is a limitation of our acquisition, not
+of the public record.** King publishes no precinct detail in the SoS statewide export in any
+year (its rows there are countywide totals), and the project's even-year King precincts come
+from a separate county file that was never obtained for odd years. The statewide row's
+denominator is accordingly the certified statewide count scaled by King's ballot share,
+which makes it an **estimate**; King's certified countywide totals for these same contests
+are in the SoS export and would make it exact, which is unbuilt work rather than an
+unavailable source.
+
+| odd-year contest | 2021 | 2023 | 2025 | denominator |
+|---|--:|--:|--:|---|
+| Statewide item (advisory votes / SJR 8201) | 4.9–6.6% | *none on the ballot* | 4.9% | non-King certified ballots (estimated) |
+| Fire district | 32.7% | 30.3% | 44.1% | per-precinct ballot floor |
+| School director | 21.5% | 19.1% | 35.6% | per-precinct ballot floor |
+| City council | 9.6% | 13.0% | 35.6% | per-precinct ballot floor |
+| Port commissioner | 17.8% | 16.3% | 19.6% | per-precinct ballot floor |
+| Mayor | 4.2% | 3.8% | 25.2% | per-precinct ballot floor |
+
+<sub>The floor is the best-attended contest in each precinct, which itself rolls off, so
+those rows are **lower bounds**. They also pool contested with uncontested races, which
+the even-year table above deliberately separates (16.6–17.2% contested against 33.7–34.4%
+uncontested), so they are not like-for-like with the 17% column — a large part of the
+2025 city-council and school-director figures is uncontested races, which is this
+series' companion subject.</sub>
+
+**The two rows say different things, and only one of them is a problem for the grid.** A
+*statewide measure* on an odd-year ballot rolls off 4.9–6.6%, which is essentially what a
+statewide measure on an even-year ballot does (4.1–5.6%) — so for that class of contest the
+paper's original reasoning was right. *Local offices* are the ones this paper is about, and
+several of them roll off far more: fire district 30–44%, school director and city council up
+to 36%. Those are the contests consolidation would move, and treating their odd-year
+participation as equal to ballot return is the assumption that does not survive.
+
+**What this does to the conclusion.** Applying roll-off to both sides rather than one
+narrows every comparison but does not reverse the direction: at a common 17%, presidential
+consolidation still reads ~66% against an odd-year ~32%, and midterm consolidation ~53%
+against ~32%. What it removes is the *margin of safety*. On the old one-sided grid the
+midterm/uncontested worst case (~42%) still beat the odd-year baseline (~38%); on a
+symmetric reading the comparison is between two numbers carrying the same unmeasured
+uncertainty about how local-contest roll-off differs from the statewide-judicial analog
+each column is built on. The grid also treats roll-off as *fixed* across scenarios, which
+it is not: a presidential electorate contains more peripheral voters — people who turn out
+only for the highest-salience contest and skip down-ballot races at higher rates — so its
+true roll-off is likely higher than a midterm electorate's, making the presidential row an
+upper bound and the presidential–midterm gap narrower than shown. The defensible
+conclusion is narrower than "consolidation enlarges the contest-level electorate": it is
+that the turnout advantage is large enough to survive symmetric roll-off assumptions,
+while the size of the enlargement is not pinned down by anything in this paper.
 
 **Does roll-off skew young? An ecological first look.** The concern behind this
 objection is that the young voters consolidation would add are also the ones most likely
@@ -699,35 +876,63 @@ records, because ballot secrecy prevents linking contest choices to voter age.
 **A closer look, precinct by precinct.** The county number has one real weakness: in
 Washington the older counties are also the rural ones, so a county-level correlation cannot
 tell whether roll-off follows *age* or just *rural*. The +0.6 blends the two; the earlier
-county cut said as much. Precincts let us separate them. Across the ~4,900 precincts that
-have both a 2024 presidential vote and Census demographics
+county cut said as much. Precincts let us separate them. Across 4,859 precincts — **60% of the state's 8,111**. Every precinct has a 2024
+presidential vote, so the losses are two: 5,355 precincts carry apportioned Census
+demographics, and a floor of 50 presidential votes removes a further 496 of those
 (`scripts/diag_wa_rolloff_precinct.py`), roll-off in the Supreme Court Pos. 2 race averages
-16.4%, in line with the roughly 17% we see statewide once both are measured the same way,
-a good check that the precinct data holds together. The county cut's *direction* survives;
-its *strength* does not. On the same yardstick the county used (the share of a precinct's
-2024 voters who are 65 or older), the correlation falls from +0.6 to about +0.09, under a
-sixth as strong, because moving from 39 counties down to thousands of precincts strips out
-the lumping-together that had exaggerated it. (Measured against a precinct's older
-*residents* instead of its older *voters*, it is about +0.26, which is small but pointing
-the same way.)
+**16.4%**. The statewide comparison has to be made carefully, because the two cuts use
+different denominators: the table above divides by *certified ballots counted* (giving
+17.2% for this race), while the precinct cut divides by *President votes in the same
+precinct*. Put statewide on the precinct cut's own basis — 3,279,291 Supreme Court votes
+against 3,918,934 presidential votes — and it is **16.3%**, against the precinct mean of
+16.4%. The two agree closely; what does not transfer between them is the 17.2% figure,
+which belongs to the ballots basis. (President itself rolls off 1.1% against ballots,
+which is the whole of the difference.)
+
+The county cut's *direction* survives; its *strength* does not. On the same yardstick the
+county used (the share of a precinct's 2024 voters who are 65 or older), the correlation
+falls from +0.6 to about **+0.09**, under a sixth as strong, because moving from 39
+counties down to thousands of precincts strips out the lumping-together that had
+exaggerated it. A second, different predictor — a precinct's older *residents* rather than
+its older *voters*, from the Census — gives **+0.26**, also small and pointing the same
+way. The two are not interchangeable, and the next paragraph controls both separately.
 
 The real value of working at the precinct level is that we can account for how
 urban and how well-off a place is. Put the age figures next to each precinct's income,
 education, home values, share of renters, and size as a stand-in for the urban-versus-rural
-and rich-versus-poor divide, and ask what age still explains on its own. Under that analysis
-almost nothing is left, with a correlation of only about +0.11 in the contested court race and +0.02 for Superintendent. So
-the big county number does not hold up either way and the little that remains still points the *opposite*
-way from the worry: if anything, older precincts skip the race slightly *more*, not less.
-The takeaway is the same as the county version, just on firmer ground: nothing in these
-ecological checks supports the fear that the young voters consolidation would bring in
-are the ones who would skip a local race. The usual cautions still apply, and they stack up rather than fade: this is
+and rich-versus-poor divide, and ask what age still explains on its own. Almost nothing is
+left, on either yardstick:
+
+| predictor | raw r | partial r, net of income / education / home value / renter share / log(pop) |
+|---|--:|--:|
+| Precinct **electorate** 65+ share (the county cut's own yardstick) | +0.09 | **−0.02** |
+| Precinct **resident** 65+ share (ACS), contested court race | +0.26 | **+0.11** |
+| Precinct **resident** 65+ share (ACS), Superintendent | +0.19 | **+0.02** |
+
+So the big county number does not hold up on any measure. What little survives depends on
+which yardstick is used and is small enough that its sign is not worth reading: on the
+resident measure it points the *opposite* way from the worry (older precincts skip the
+race slightly more), and on the electorate measure — the one the county cut actually
+used — it is −0.02, which is nothing. The takeaway is the same as the county version, just
+on firmer ground: nothing in these ecological checks supports the fear that the young
+voters consolidation would bring in are the ones who would skip a local race, and nothing
+in them supports a confident claim in the other direction either. The usual cautions still apply, and they stack up rather than fade: this is
 a neighborhood-level pattern, so
 roll-off by a voter's own age can never be measured directly; the urban/rural stand-in is
 rough, since precincts are drawn to hold about the same number of people and a real density
 measure from the map files would do better; and a statewide court race is only a loose match
-for a city-council or school-board contest. But every test
-comes out the same way. (This precinct cut leans on two tables: Census
-figures mapped onto precincts, and a voter-file-to-precinct crosswalk; see the script header.)
+for a city-council or school-board contest. And the electorate-65+ figures rest on
+**4,650** precincts rather than 4,859 — those meeting all four constraints (Census
+demographics, 50+ presidential votes, a VRDB crosswalk row, and 100+ precinct voters). The
+crosswalk is the one of the four known to be non-randomly incomplete (86.7% statewide, and
+only 35.7% in Okanogan). **Every test agrees that the effect is near zero; they do not all agree on
+its sign**, and at these magnitudes the sign is not information. Two further predictors
+the same script produces are reported here rather than left out, since selecting the three
+smallest partials would not be a test: ACS median age is the largest surviving partial at
+**+0.16** (raw +0.28), and the ACS under-30 share is the only raw predictor pointing toward
+the worry, at **−0.11**. Neither changes the reading. (This precinct cut leans on two
+tables: Census figures mapped onto precincts, and a voter-file-to-precinct crosswalk; see
+the script header.)
 
 ## Appendix G — Off-cycle drop-off by precinct race, income, and education (ecological)
 
@@ -744,24 +949,29 @@ ones. Using off-cycle *retention*, the share of a
 precinct's 2024 presidential voters who came back for the 2025 off-year
 (`scripts/diag_wa_offcycle_dropoff_demographics.py`, ~4,700 precincts), the raw picture
 is what one would expect: whiter, more-college, older precincts hold onto more of their voters
-off-cycle (Pearson r ≈ +0.25 on % white, +0.18 on % college, +0.27 on the 65+ share),
-more-Hispanic precincts hold onto fewer (−0.20), and income is nearly flat (−0.08).
+off-cycle (Pearson r ≈ +0.25 on % white, +0.19 on % college, +0.27 on the 65+ share),
+more-Hispanic precincts hold onto fewer (−0.21), and income is nearly flat (−0.09).
 
 The sharper question is whether any of that survives the age story, since older precincts
 are also whiter. Holding the precinct's 65+ share constant, **education stays the
 strongest** as more-college precincts retain more voters off-cycle regardless of age
-(partial r ≈ +0.20) while race attenuates but does not vanish (+0.10 on % white, −0.12 on
-% Hispanic) and income stays near zero. These are ecological patterns about places, not
+(partial r ≈ +0.21) while race attenuates but does not vanish (+0.11 on % white, −0.13 on
+% Hispanic) and income stays near zero (+0.04). These are ecological patterns about places, not
 individual-level estimates about voters. They point to a representation gap worth
 studying more directly, not to a settled race- or education-level voter finding.
 
 Every caveat from Appendix F applies and then some. This describes precincts, not people;
 it cannot show that any individual nonwhite or less-educated voter is likelier to skip an
 off-year. Retention is measured off the current voter file (survivorship applies), the
-precinct demographics are apportioned ACS estimates, and race in particular is
-unmeasurable at the individual level in Washington at any geography, because the voter
-file has no race field. It points to a gap worth a dedicated, better-controlled study,
-not a settled finding.
+precinct demographics are apportioned ACS estimates, and race in particular is not
+**observed** at the individual level in Washington at any geography, because the voter
+file has no race field. That is a statement about what the record contains, not about
+what is estimable: probabilistic methods such as Bayesian Improved Surname Geocoding
+(Imai & Khanna 2016) do produce individual-level race *estimates* from surname and
+geocoded address, and are standard on voter files in states that do not collect race. A
+BISG-based cut is a reasonable sequel; it is not attempted here, and it would remain an
+imputation rather than an observation, with its own well-documented error structure. It
+points to a gap worth a dedicated, better-controlled study, not a settled finding.
 
 ## Appendix H — The age gradient, one year at a time
 
@@ -771,7 +981,7 @@ are a presentation choice, and a fair question is whether any banding choice
 manufactures, or hides, the result. Because the voter file carries every voter's year
 of birth, the question can be answered directly: this appendix drops the banding
 entirely and reports the gradient one year of age at a time
-(`scripts/diag_wa_age_curve.py`; re-derived by `verify_who_decides_wa.py` #30).
+(`scripts/diag_wa_age_curve.py` prints the full 78-row curve; the verifier asserts this appendix's load-bearing claims — the 65-boundary step, the peak, the tail decline and the banding-robustness ratios — and declares the row-by-row curve itself UNCHECKED).
 
 For each single year of age from 18 to 95, the table shows the April 2026 roll count,
 participation in the November 2024 presidential general and the November 2025 off-year
@@ -799,16 +1009,21 @@ off the same roll, so the current-roll denominator largely cancels.
 | 90 | 10,165 | 82.2% | 54.3% | 64.6% |
 
 <sub>Five-year steps shown; the script prints all 78 single ages. Ages 18–19 are
-omitted from the table: an 18-year-old in November 2025 was 17 at the November 2024
-general, so that retention cell is an empty-denominator artifact, and 19-year-olds
-(23.4% retention) sit on the first-election pattern described below.</sub>
+omitted from the table for different reasons: an 18-year-old in November 2025 was 17 at
+the November 2024 general, so that retention cell has no denominator at all, while 19 simply
+falls between the five-year steps shown. 19-year-olds retain at 23.4%, marginally the highest of ages 19-21 — the first-election pattern described below is
+visible in presidential *turnout*, not in retention.</sub>
 
 Four features of the full curve matter for reading the body of the paper.
 
 **First, the gradient is a smooth age ramp, not a set of cohort steps.** Retention
-rises steadily from 23.0% at age 20 to a peak of 72.0% at age 79, at roughly one to one
-and a half points per year of age, with no visible breakpoint at the conventional
-cohort boundaries used in the body of the paper and no birth-year cohort standing out
+rises steadily from 23.0% at age 20 to a peak of 72.0% at age 79 — an average of about
+**0.8 points per year of age**, but not an even one: the ramp is shallowest through the
+forties and fifties (about 0.4 points per year from 40 to 50) and steepest across the
+sixties — 1.36 points per year from 60 to 65 and **1.54 from 65 to 70**, the steepest
+five-year stretch on the curve. What matters for the banding
+question is that it climbs without a visible breakpoint at the conventional cohort
+boundaries used in the body of the paper, and with no birth-year cohort standing out
 from its neighbors. That pattern shows that the main result is not manufactured by the
 choice of age bands. It is also consistent with a life-cycle interpretation, but it
 does not prove one: a durable high-turnout cohort currently concentrated in older ages
@@ -819,20 +1034,41 @@ longer panel.
 categorical about retirement (time freed for civic life, or a benefits-driven interest
 spike), the curve should step upward near 65. It does not: retention moves from 57.5%
 at 64 to 60.5% at 66, a two-year step of 3.0 points, against a 5.7-point step across
-the four years from 60 to 64. The slope through the mid-60s is the same slope as the
-rest of the ramp. "65+" is a reporting convention, not a behavioral boundary.
+the four years from 60 to 64. Those are the same per-year slope (1.50 against 1.43
+points), so nothing happens *at* 65. This whole stretch is the steep part of the ramp,
+running at roughly double the 0.8-point-per-year average — the claim is the absence of a
+step at the boundary, not that the sixties climb at the same rate as the forties. "65+"
+is a reporting convention, not a behavioral boundary.
 
-**Third, the only non-monotonic features sit at the two tails.** At the young end,
-turnout shows the familiar first-election pattern: 18-to-20-year-olds participate in a
-presidential year at slightly *higher* rates (55.3% at 20) than voters in their
-mid-20s (52.1% at 25), then drop into the early-20s trough before the long climb
-begins. At the old end, the curve peaks in the late 70s and declines from about age 84
-(retention 69.8% at 84, 64.6% at 90), consistent with health and mortality effects.
-The body's 75+ band blends the plateau and this decline.
+**Third, the only material non-monotonic features sit at the two tails — and the two
+tails are read off different measures, which has to be said.** At the young end the
+non-monotonicity is in **2024 presidential turnout**, not retention: age 20 is a local peak
+(55.3%), above the mid-20s (52.1% at 25) — the familiar first-election bump — while age 19
+is the minimum of the whole young range at 50.8%, below both. On **retention** the young
+ages run the other way and are nearly flat (23.4% at 19, 23.0% at 20, 23.1% at 21), so the
+first-election bump is a turnout phenomenon that retention does not show. (Age 18 is
+omitted from both: an 18-year-old in November 2025 was 17 in November 2024, so the
+retention cell has no denominator.) At the old end, on retention, the curve peaks at **72.0% at age 79** and declines from **80**
+onward (71.4% at 80, 69.8% at 84, 64.6% at 90, 59.5% at 95). The decline is not perfectly
+smooth — there is one upward step inside the curve's range, 93→94 (+0.70), about ten times the size
+of the 51→52 dip described below — but roll counts above 90 fall to the low
+thousands, so those steps are noise on small cells rather than structure.
+The body's 75+ band blends the plateau and this decline. Along the ramp itself the only
+reversal is a 0.07-point dip from 51 to 52, which is noise.
 
-**Fourth, the composition findings are therefore robust to any banding.** A monotone
-curve means every possible cut of the age axis preserves the ordering the paper
-reports; no alternative bracket scheme could reverse it. It also means data-driven
+**Fourth, the composition findings are robust to any plausible banding — but not because
+the curve is monotone, since it is not.** Retention falls after 79, so an argument from
+monotonicity would not be available even if it were the right argument, and it is not:
+composition depends on how many people are at each age as well as on how they behave, so
+a monotone behaviour curve would not by itself force a monotone composition ordering.
+The question has to be answered on the composition measure directly. Doing that — the
+ratio of each band's 2025 off-year share to its 2024 presidential share, on five-year
+bands — gives 65–69 **1.25**, 70–74 **1.41**, 75–79 **1.54**, 80–84 **1.57**, 85–89
+**1.58**, 90+ **1.58**, against 0.83 for everyone under 65. The over-representation rises
+across every band and then flattens; the only reversal anywhere is 85–89 against 90+, by
+0.007, on the smallest band in the file. So no bracketing a reader would plausibly choose
+reverses the ordering the paper reports, and the finding does not depend on the bands
+used. It also means data-driven
 clustering (for example, k-means on the age axis) would not recover natural behavioral
 cohorts: with no internal breakpoints, such methods would split the curve at densities
 of the *roll* (the largest birth cohorts), not at changes in behavior. The single-year
@@ -864,10 +1100,22 @@ Those rules do not remove every barrier as information costs, mobility, local at
 address stability, and uneven political recruitment are still factors, but they make it
 hard to chalk the age gap up mainly to the friction of voting.
 
-**Reproduction.** `scripts/verify_who_decides_wa.py` re-derives every count in the
-tables above from scratch (sections #1–#30, incl. the county breakdown, habitual-core
-overlap, snapshot cross-validation, gender, representativeness index, and the
-single-year-of-age curve of Appendix H, computed by `scripts/diag_wa_age_curve.py`); the roll-off
+**Reproduction.** `scripts/verify_who_decides_wa.py` re-derives **539 figures** from
+scratch, including the composition, rate and finer-cohort tables, the coverage and
+bounding tables, the habitual-core overlap, the snapshot cross-validation, the
+representativeness index, the turnout decomposition and Appendix H's banding-robustness
+ratios, under a coverage gate that fails on any unprobed number in the four **result sections**
+it audits — the composition table, the within-cohort rate table, the finer-cohort table, and
+the sensitivity block from the birth-year assumption through the geography table. The gate does not
+extend to the abstract, the validation section, the interpretation, the limits list or the
+appendices — figures there are probed where a probe exists, but nothing fails if one does
+not.
+**Two things it does not re-derive, and says so in its own `UNCHECKED` list rather than
+leaving a reader to assume otherwise:** the row-by-row single-year retention curve of
+Appendix H (printed by `scripts/diag_wa_age_curve.py`; that appendix's load-bearing claims
+are asserted individually), and the two ACS benchmark rows, which are external Census
+estimates reproduced by `scripts/acs_wa_adult_age.py` rather than derivable from the voter
+file. Appendix E's 39-county table **is** re-derived, all 39 rows. The roll-off
 appendix and its ecological age correlation are in `scripts/diag_wa_rolloff_2024.py`, with
 the finer precinct-level, SES- and urban-proxy-adjusted cut in
 `scripts/diag_wa_rolloff_precinct.py`;

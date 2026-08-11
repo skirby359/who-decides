@@ -31,6 +31,20 @@ Three commitments govern every section below:
 **Bottom line of the scan that produced this prospectus:** of 10 questions, **nine
 scored "weak-against-null" and one "supports-null"; none reached "moderate" or
 "strong" against the null.** The accuracy-weighted failure signal was **22/100**.
+
+<sub>**Three things about that number, all of which a reader should know before weighing it.**
+First, it is an **elicited-judgment index, not a measurement**: it is the mean of ten
+model-authored 0–100 severity scores, weighted by twenty more model-authored 0–10 scores, and
+Appendix A publishes only the first ten — so the figure **cannot be recomputed from this
+paper's own table**, which gives an unweighted mean of 18.3. Second, the distribution it
+summarises is partly prescribed by the prompt, which instructed the scorer to *"default to
+'data-insufficient' or 'weak-against-null' unless the evidence is genuinely strong"*; reading
+"nine weak-against-null" as a finding is therefore partly circular. Third, it was computed on
+**2026-06-27 against a data description that has since moved** — the scan was told 19
+elections, ~$1.3B in contributions and 9.2M voter-score rows, against 22, ~$1.04B and 16.1M
+today — and it has not been re-run, although Finding 6's sign has since reversed and Finding
+2's Washington figure has moved. Treat it as a snapshot of how a triage step scored a research
+agenda, not as a result of the research.</sub>
 The honest reading of the present evidence is **measurable electoral stress that is
 real, largely known to the literature, reformable, and admits strong benign
 readings — not, on this data, systemic failure.** Critically, the findings that
@@ -44,8 +58,12 @@ blind to (see *Boundary of Inference*).
 >   off-year electorate, from 27.1M VRDB vote records).
 > - **Finding 2 → [`safe-seat-washington.md`](safe-seat-washington.md)** — now on
 >   **observed** margins, extended to a **complete four-state lower-chamber map**
->   (WA **87.8** / NY 88.6 / TX 94.0 / ID 92.9% not close), and the observed
->   counts **validate** the model's projection used below. *(WA read 88.8% until the
+>   (WA **87.8** / NY 88.0 / TX 94.0 / ID 92.9% not close). The observed counts and the
+>   model projection below are in **loose aggregate agreement, which is not a validation** —
+>   they are different units (seats against districts), different years, and different
+>   denominators, and Texas differs by 13 points (94.0% observed against 81% projected). A
+>   validation would predict historical elections without using their outcomes and report
+>   calibration and false-safe rates on one unit; that has not been run. *(WA read 88.8% until the
 >   seat universe was rebuilt from certified statewide summaries; the old figure came
 >   from a results-table universe that silently dropped 24 King County House seats per
 >   cycle in 2016 and 2018.)*
@@ -59,16 +77,19 @@ blind to (see *Boundary of Inference*).
 >
 > None of this changes the **"stress, not failure"** verdict, but it moves the lead
 > findings from *literature-borrowed* to *established in-data*, and resolves one of
-> the three boundary blockers. The two that remain (individual party-of-record;
-> party-resolved turnout/crossover) still gate a stronger verdict and await the
-> NY/ID voter files.
+> the three boundary blockers. The two that remain — individual party-of-record and
+> party-resolved turnout/crossover — **are now answered for New York and Idaho**, whose
+> voter files are loaded and whose companions report them; they remain open **for
+> Washington**, whose party-of-record window has closed.
 
 ---
 
 ## Method
 
-Each research question was scored 0–10 on eleven dimensions by an independent,
-web-searching reviewer instructed to be adversarial toward its own conclusions:
+Each research question was scored 0–10 on eleven dimensions by a **language model**
+(`idea-gauntlet/democracy_insight.workflow.js`) prompted to act as a quantitative
+methodologist and democratic-theory reviewer, to search the web, and to be adversarial toward
+its own conclusions:
 
 - **Insight layer (research quality):** data sufficiency, inferential strength,
   novelty (vs. the existing political-science literature), systemic significance,
@@ -83,9 +104,10 @@ Function impairment is anchored to the **V-Dem component indices** (electoral,
 liberal, participatory, deliberative, egalitarian) so severity is legible and
 comparable across states and time.
 
-**Data provenance:** ~5.1M precinct-result rows across 19 elections (WA) plus
-NY/TX/ID; ~8.6M individual contributions (FEC + state PDC, ~$1.3B, 2018–2026) with
-employer/occupation/ZIP; ~9.2M voter-score rows; ~27.1M individual VRDB vote
+**Data provenance:** ~5.1M precinct-result rows across 22 elections (WA) plus
+NY/TX/ID; ~8.6M individual contributions (FEC + state PDC, **~$1.04B**, 2018–2026) with
+employer/occupation/ZIP; ~16.1M voter-score rows (one per voter per district scope,
+~5.5M distinct voters); ~27.1M individual VRDB vote
 records; and the rare asset — **314,974 voters matched to their donations** at the
 person level, on the full-name-key specification adopted 2026-07-27; see §F of the
 cross-state money paper).
@@ -123,8 +145,14 @@ concrete analysis to run.
   partisan-consequence claim** — that needs statewide party-of-record (see §2 of
   the follow-on).
 - **Key literature.** Hajnal & Trounstine (off-cycle timing skews the electorate
-  older/whiter); Anzia (*Timing and Turnout*); Lucero et al. 2025 (on-cycle
-  consolidation cut California's over-55 local share from ~half to 28%).
+  older/whiter); Anzia (*Timing and Turnout*); Lucero et al. 2025, surveying cities that
+  switched, which puts voters **over 45** at **58.4%** of the off-cycle electorate against
+  **49.7%** of the presidential-year one (an earlier version of this line gave the cohort,
+  the magnitude and the design wrong, and its "28%" appears to have been Washington's own
+  presidential 65+ share); and **Ornstein (2024)** on California's SB 415 across 236 local
+  governments, which finds the expected turnout and diversity gains but **no** detectable
+  effect on representation, candidacy, incumbency, housing policy or public-employee
+  salaries — the disconfirming half of the same literature.
 
 ### 2. Safe-seat democracy: the collapse of general-election contestation
 *Insight 52 · failure-contribution 34 (highest) · null: weak-against · V-Dem: electoral, participatory, deliberative · trajectory: worsening*
@@ -147,8 +175,8 @@ concrete analysis to run.
   must not be merged:** *candidate competition* (was the race close, on the top-two margin
   regardless of party) and *partisan availability* (did the ballot offer both a Democrat
   and a Republican). They overlap but are different questions — in WA 2024, 83.5% of seats
-  were not close and 35.3% offered no D-v-R option, and of the fifteen same-party generals
-  fourteen were also lopsided but **one was decided by six points**. Treating "no major-party
+  were not close and 34.6% offered no D-v-R option, and of the sixteen same-party generals
+  fifteen were also lopsided but **one was decided by six points**. Treating "no major-party
   choice" as automatically non-competitive, as this bullet originally did, is the conflation
   the rewrite removed. For WA, built the 2016–2024 seat-level trend (not-close share runs
   **78.9–88.1%** across the five cycles, dipping in the 2018 wave) and the
@@ -162,14 +190,25 @@ concrete analysis to run.
 ### 3. Whale-dominated money behind a small-dollar facade
 *Insight 48 · failure-contribution 22 · null: weak-against · V-Dem: egalitarian, participatory · trajectory: indeterminate*
 
-- **Defensible claim.** WA money is broad by headcount but concentrated by dollar.
-  For recipient-cycles with ≥100 distinct donors (n=2,821), the **median itemized
-  gift is $25** yet single gifts reach **$2.5M**, with a per-recipient Gini ~**0.61**.
-  The data can quantify, per race and cycle, the sub-$200 retail share vs. the whale
-  layer.
-- **Strongest objection.** The recipient key is `fec_candidate_id`, and the
-  highest-volume "recipients" are conduits (ActBlue, JFCs), so a naive per-recipient
-  Gini measures a *conduit's pass-through book*, not a candidate's race. A true
+- **Defensible claim.** WA money is broad by headcount but concentrated by dollar. The
+  **median itemized gift is $25** in both money systems, while per-recipient-cycle
+  concentration is substantial: median Gini **0.578** federal and **0.579** state, over
+  recipient-cycles with ≥100 distinct donors (**822** federal, **1,989** state). The data can
+  quantify, per race and cycle, the sub-$200 retail share against the whale layer.
+
+  <sub>**Corrected 2026-08-10.** These figures were previously given as "n=2,821 … single
+  gifts reach $2.5M … Gini ~0.61", which was computed on the **pooled** FEC+PDC table — the
+  exact pooling Finding 5's panel note says the series corrected everywhere else. Pooled, the
+  count is 2,814 today; separated it is 822 federal and 1,989 state. The **$2.5M maximum is a
+  PDC state gift**; the federal maximum is $929,600, so the old sentence paired a median from
+  one money system with a maximum from another. The 0.61 does not reproduce on any basis I
+  can construct — both layers give 0.578 — and it is withdrawn rather than restated.</sub>
+- **Strongest objection.** The recipient key is `fec_candidate_id`, which holds **two
+  identifier systems**: FEC committee ids and `PDC:`-prefixed state filer ids. On the federal
+  side the highest-volume "recipients" are conduits (ActBlue, JFCs), so a naive per-recipient
+  Gini measures a *conduit's pass-through book*, not a candidate's race; on the state side —
+  which is 71% of the pooled recipient-cycles — that objection does not apply, and a different
+  one does. A true
   per-race figure needs an earmark-attribution layer that does not yet exist and
   must be validated against double-counting. And a Gini that mixes $25 and $2.5M is
   mechanically high regardless of democratic health.
@@ -270,7 +309,7 @@ concrete analysis to run.
   under-represents the unaffiliated in both, and
   the age skew replicates (65+: NY federal **49.9%**, ID federal **66.8%**, ID state
   **51.3%**). Crossover: Democrats are
-  near-monolithic donors (94% NY / **94.6%** ID → own party) and unaffiliated donors lean
+  near-monolithic donors (**95%** NY / **94.6%** ID → own party) and unaffiliated donors lean
   Democratic (~2:1 NY, nearly **4:1** ID). So the Democratic tilt is a property of who donates,
   not of a state's majority party. (The ID crossover and 51.3% figures are the state-money
   layer; see that paper's caveats.) **These are the primary (full-name-key) specification.**
@@ -279,8 +318,11 @@ concrete analysis to run.
   all-tier figures, which are the more conservative ones, are reported alongside in the
   donor-class paper.
 - **Key literature.** Demos (*Whose Voice, Whose Choice*); Bonica (DIME); and the
-  same-state result that tempers the benign reading — **Grumbach, Sahn & Staszak
-  (APSR): Seattle's democracy vouchers did *not* diversify the donor pool.**
+  same-state result that tempers the benign reading — **Yorgason (*APSR* 2024/25),
+  "Campaign Finance Vouchers Do Not Expand the Diversity of Donors: Evidence from Seattle":
+  the voucher recipients were the same wealthier, whiter, older, more civically engaged
+  people who dominated before the reform.** (An earlier version attributed this to Grumbach,
+  Sahn & Staszak, who wrote a different paper on a different question.)
 
 ### 6. Money marks strength; it does not appear to move margin
 *Insight 42 · failure-contribution 14 · null: weak-against · V-Dem: egalitarian, electoral, deliberative · trajectory: indeterminate*
@@ -343,24 +385,30 @@ They are reported as limits — and they map the data we would need to say more.
   nationalization test *did* run ([`cross-state-fec-money.md`](cross-state-fec-money.md)
   §E–I). The result is **not** null-supporting at the inflow level: **27% (WA) / 41%
   (NY) / 34% (TX) / 53% (ID)** of these states' U.S.-House+Senate candidate money is
-  out-of-region, and on the **outflow** side each state sends the *majority* of its
-  candidate money out of region (NY 62%, ID 68% — the most — TX 43%) — Georgia Senate
+  out-of-region, and on the **outflow** side three of the four send half or more of
+  their candidate money out of region (ID 68% — the most — NY 62%, WA 50.8%), while **Texas
+  sends 43%** — Georgia Senate
   races alone drew ~$68M from residents of the four states. The earlier "93.6% in-state"
   was indeed the ingestion artifact this item warned about. (State-level money — WA PDC,
   NY BOE, ID Sunshine, TX TEC — is now also loaded, though not yet folded into these
   federal cross-state cuts.)
 - **Straight-ticket lock-in / candidate accountability (insight 28, data-sufficiency 3).**
   Individual ticket-splitting is **unmeasurable** (cross-party matchback fires for
-  ~0 voters), and the precinct ticket-split tables can't yield a 19-election trend
+  ~0 voters), and the precinct ticket-split tables can't yield a 22-election trend
   (epoch-versioned precincts; 2022 renumbering → 0 common precincts). The only
   defensible cut is an *ecological* county-level cross-office consistency trend.
 - **Is there a persuadable middle? (insight 28, the one "supports-null" finding).**
-  `voter_party_choice` is Pierce-only, 2024-only; **exactly 0 voters** appear in two
-  party-primary cycles. WA has no party registration. The honest result is a
+  `voter_party_choice` is Pierce-only and holds **one** party-primary cycle
+  (2024), so no voter can appear in two — that is a property of the load, not a measured
+  null, and an earlier version reported it as "exactly 0 voters" as though it were evidence. WA has no party registration. The honest result is a
   limits-and-null finding that *converges with* the gold-standard literature
   (Abramowitz & Webster; Kuriwaki's cast-vote-record work), not against it.
-- **Are outcomes pre-determined? (insight 38).** The notarized backtest (MAE ~6.4,
-  ~94% directional) bounds how much aggregate campaigning moves results — but
+- **Are outcomes pre-determined? (insight 38).** The backtest (MAE 6.41, 94% directional on
+  163 filtered cells; **10.12 / 85% on the unfiltered 170-cell grid**) bounds how much
+  aggregate campaigning moves results. It is a **retrospective fit**, not a notarized
+  out-of-sample result — what is notarized is the locked 2026 forward prediction set, which
+  scores in November — and the model's coefficients were tuned against a residual matrix, so
+  the figure is not pre-registered. Further —
   predictability is **not** causal inertness (Gelman & King: predictability is the
   *footprint* of effective deliberation), the headline is safe-seat-inflated, and
   the data has no counterfactual.
@@ -369,9 +417,18 @@ They are reported as limits — and they map the data we would need to say more.
 strengthen a failure case, **one is now in hand** — the *true cross-state money-flow
 test* ran (`cross-state-fec-money.md` §E–I) and shows pervasive nationalization. The
 remaining two — the *partisan consequence* of the turnout skew and *individual*
-cross-party behavior — still trace to a single missing asset: **individual
-party-of-record**, which Washington does not publish. That asset is the sole
-remaining gate on a stronger verdict.
+cross-party behavior — still trace to a single missing asset for Washington: **individual
+party-of-record**. Washington publishes it only for presidential-primary declarants and only
+under **RCW 29A.56.050**, which directs the Secretary of State to prescribe rules for
+providing the declarations, or a list of the voters who participated, to the state and county
+committees of that party. The statute sets no public-disclosure duration; the "~60–90 day
+window" this project has worked from is **unverified** (`wa-pp-party-of-record-pra-scope.md`
+flags it as needing confirmation, twice) and is not asserted here. What is certain is that
+only Pierce County was obtained in time for 2024, which
+is why the holding is Pierce-County-only; it is a collection-timing constraint, not a
+disclosure-regime one. New York and Idaho do publish party of record, and both voter files
+are now loaded, so the two questions are answerable there and are answered in the
+companions — what remains gated is the *Washington* version.
 
 ---
 
@@ -401,7 +458,9 @@ closed:**
    nationalization test run (`cross-state-fec-money.md` §E–I).
 
 With both data gaps closed, the remaining work is human-owned: independent verification
-of the headline numbers and posting to SSRN/SocArXiv
+of the headline numbers, and posting the papers that are not yet posted — the Washington
+companion is already on SSRN (7149263) and owes a revision, not a first upload — to
+SSRN/SocArXiv
 ([`electoral-health-audit-log.md`](electoral-health-audit-log.md)).
 
 ---

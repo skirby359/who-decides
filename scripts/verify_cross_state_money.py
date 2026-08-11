@@ -286,8 +286,15 @@ def f6(state):
                 pinned=pinned if state == "WA" else None)
 
 
+# Unpinned-read failures raised during derivation and consumed by verify_individual_layer().
+# Module-level rather than threaded through, because _collect() already signals only True/False
+# and a pin miss is not "a state was unavailable" — it is a figure resting on a moving basis.
+_PIN_FAILURES: list[str] = []
+
+
 def _collect(d: dict) -> bool:
     """Derive every F5/F6 value the paper states. Returns False if a state is unavailable."""
+    _PIN_FAILURES.clear()          # idempotent across repeated calls in one process
     ok = True
     gens = {}
     for st in F5_STATES:
@@ -310,8 +317,18 @@ def _collect(d: dict) -> bool:
 
         r6 = f6(st)
         if st == "WA" and r6.get("pinned") is False:
-            print("    NOTE  WA read the LIVE ld scope - donor_paper_wa_roll is absent, so "
-                  "its two counts can drift. Run scripts/pin_wa_donor_roll.py.")
+            # FAILURE, not a note (2026-08-10). This printed a NOTE and carried on, which meant
+            # a run against the live ld scope exited 0 and reported drifting counts in the same
+            # two columns a pinned run reports frozen ones. The docstring above already says
+            # the script "must not quietly report a drifting number as if it were the pinned
+            # one" — and then it did exactly that. `data/wa_statewide.duckdb` is appended to
+            # daily by the WA SoS Results Daily Archive task, so "can drift" is not
+            # hypothetical.
+            _PIN_FAILURES.append(
+                "WA read the LIVE ld scope — docs/reference's donor_paper_wa_roll snapshot is "
+                "absent, so the two WA counts in §F6 can drift between runs. Run "
+                "scripts/pin_wa_donor_roll.py, then re-run. A published figure must not rest "
+                "on an unpinned read.")
         for k in ("n_donor", "n_non", "super_d", "super_n", "ratio", "prop_d", "prop_n"):
             d[f"{st}_{k}"] = r6[k]
         # The paper prints these counts abbreviated, so the probe compares what it prints.
@@ -448,6 +465,25 @@ HEADLINE_STATES = ("WA", "NY", "TX", "ID")
 # 40 figures was checked by anything; see the docstring for the measurement that showed the
 # exemption protecting them was unfounded.
 HEADLINE_PROBES = [
+    # THE COMPARISONS THE PROSE MAKES, as distinct from the per-state figures it
+    # tabulates. Each of these was a bare integer that the small-integer rule
+    # exempted, so the paper's actual assertions — "~3x", "~2x", "~20% of both" —
+    # went unchecked while the numbers underneath them were all probed. The
+    # "both"/"all four" halves are asserted as relations in _cross_state_ratios.
+    ("Finding 1 — the >=$5,000 share said to be ~20% in both ID and WA",
+     r"of NY's money vs ~(\d+)% of both ID\s+and WA", "ge5k_idwa", 0.5),
+    ("Finding 1 — the size effect, small pool against large",
+     r"a \$(\d+)M pool simply has fewer mega-donors to concentrate around than a "
+     r"\$(\d+)B one", ("pool_small_m", "pool_large_b"), 0.5),
+    ("Finding 2 — NY and TX against Washington's federal dollars",
+     r"New York and Texas raise ~(\d+)× Washington's federal dollars",
+     "ny_tx_over_wa", 0.5),
+    ("Finding 3 — the looser non-working bucket in both ID and WA",
+     r"not-employed / none / blank\* reaches ~(\d+)% in\s+both ID and WA",
+     "nonworking_idwa", 0.5),
+    ("Finding 5 — presidential dollars against off-year, all four states",
+     r"presidential-cycle dollars running ~(\d+)× their off-year totals",
+     "pres_offyear_mult", 0.5),
     ("headline — total federal dollars",
      _row(r"Total federal \$ \(resident donors\)"),
      ("out_WA_total_m", "out_NY_total_b", "out_TX_total_b", "out_ID_total_m"), 0.5),
@@ -496,6 +532,33 @@ HEADLINE_PROBES = [
      ("out_ID_lt200", "out_WA_lt200", "out_NY_lt200"), 0.05),
     ("§1 — NY's ≥$5,000 share",
      r"≥\$5,000 gifts are \*\*([\d.]+)%\*\* of NY's money", "out_NY_ge5000", 0.05),
+    # ADDED 2026-08-09. Idaho was called "the most retail on every measure" and said to
+    # edge Washington "on every retail measure"; on the >=$5,000 share Washington is
+    # marginally LOWER (20.00% against 20.13%). A 0.13-point miss, but the claim was a
+    # universal. Both cells are asserted at both places the corrected sentence appears.
+    # §I's corrected comparison. The section is coverage-exempt, so without these
+    # the replacement figures would be exactly as unverified as the ones they replace.
+    ("§I — pooled inflow concentration, the like-for-like basis",
+     r"inflow gives \*\*top-1% ([\d.]+)%, top-10% ([\d.]+)%, Gini ([\d.]+)\*\* over ([\d,]+) "
+     r"donor keys",
+     ("inflow_pooled_top1", "inflow_pooled_top10", "inflow_pooled_gini",
+      "inflow_pooled_donors"), 0.05),
+    ("§I — the outflow side of the same comparison, Idaho included",
+     r"against outflow's \*\*([\d.]+)–([\d.]+)%\*\* and Gini \*\*([\d.]+)–([\d.]+)\*\*",
+     ("out_top1_min", "out_top1_max", "out_gini_min", "out_gini_max"), 0.05),
+    ("§I — the corrected ratio",
+     r"the gap is\s*roughly \*\*([\d.]+)× to ([\d.]+)×\*\*",
+     ("conc_ratio_lo", "conc_ratio_hi"), 0.1),
+    ("abstract — the one retail measure Washington leads",
+     r"where Washington is marginally lower \(\*\*([\d.]+)%\*\* against Idaho's "
+     r"\*\*([\d.]+)%\*\*\)",
+     ("out_WA_ge5000", "out_ID_ge5000"), 0.05),
+    ("finding 1 — the same exception restated",
+     r"edges it on the ≥\$5,000 share \(([\d.]+)% against ([\d.]+)%\)",
+     ("out_WA_ge5000", "out_ID_ge5000"), 0.05),
+    ("finding 2 — the participation multiple, on its stated basis",
+     r"more participatory than either \(([\d.]+)% against ([\d.]+)%",
+     ("pc_WA_rate", "pc_TX_rate"), 0.05),
     # Added 2026-08-07 with the size-effect answer, which restates the sub-$200 pair a third
     # time. Three restatements of one derived value is exactly why each gets its own probe.
     ("§1 — sub-$200 pair restated in the size-effect answer",
@@ -599,6 +662,8 @@ E_PROBES = [
     # unrounded shares: 42.105 + 47.368 = 89.47 rounds to the printed 89, while adding the
     # PRINTED 42.1 + 47.4 gives 89.5, which rounds to 90. The paper is right and an
     # arithmetic-on-printed-cells check would have called it wrong.
+    ("§E — the competitiveness premium as a multiple",
+     r"competitiveness premium is real and ~(\d+)×", "comp_premium", 0.5),
     ("§E — safe seats' share of dollars and of districts",
      r"capture ~([\d.]+)% of the money\*\* \(Likely\+Solid\), because they're "
      r"~([\d.]+)% of districts", ("e_h_safe_pctdol", "e_h_safe_pctdist"), 0.5),
@@ -681,9 +746,12 @@ def verify_individual_layer():
             d[f"out_{st}_{k}"] = v
         for cyc, tot in per_cycle(st).items():
             d[f"cyc_{st}_{cyc}"] = tot
+    _cross_state_ratios(d)
     inflow_e(d)
+    inflow_pooled_concentration(d)
     pin_fail = participation(d)
-    extra = (pin_fail if pin_fail else []) + ([] if d.pop("_id_is_max_oos", False) else
+    extra = list(_PIN_FAILURES) + (pin_fail if pin_fail else []) + (
+             [] if d.pop("_id_is_max_oos", False) else
              ["§E: the paper calls Idaho's Senate out-of-state share 'the highest of the "
               "four', and it is not — a probe cannot catch a superlative, so it is checked "
               "here"])
@@ -698,7 +766,7 @@ def verify_individual_layer():
                 vp.wants_coverage(), spans_out=spans, stats_out=stats)
     fails = vp.audit_coverage(audit_sections, spans, offsets, tuple(AUDIT_BOUNDS),
                               COVERAGE_EXEMPT, COVERAGE_EXEMPT_LITERAL,
-                              COVERAGE_EXEMPT_SECTIONS)
+                              COVERAGE_EXEMPT_SECTIONS, strict_units=True)
     fails += vp.audit_satellite_counts(PAPER.name, stats.get("figures"))
     if rc != 0:
         fails.append("see the figure failures above")
@@ -751,6 +819,13 @@ AUDIT_BOUNDS = {
 COVERAGE_EXEMPT = [
     (r"^(?:19|20)\d{2}$", "a calendar year, not a result"),
     (r"^\d{1,2}$", "small integer - cycle counts, band edges, list ordinals"),
+    # COHORT EDGES under strict_units. "Top 1% of donors -> share of $" names the
+    # group; the share beside it is the measurement and is probed (out_*_top1 /
+    # out_*_top10). Declared as explicit unit-carrying patterns so the waiver
+    # reaches these two tokens and nothing else — a literal on "1" and "10" would
+    # cover every bare 1 and 10 in the paper.
+    (r"^1%$", "the top-1% cohort EDGE; the share it names is probed as out_*_top1"),
+    (r"^10%$", "the top-10% cohort EDGE; probed as out_*_top10"),
 ]
 
 COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
@@ -772,6 +847,13 @@ COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
     "250": "an order-of-magnitude restatement of the TX Senate total ('even harder than at "
            "$250M'). The figure itself is $253.2M and IS asserted twice above, by the Senate "
            "table probe and the Senate prose probe",
+    "90": "the direct (non-earmarked) `15` total in the same sentence as the 194 "
+          "and 150 below, and from the same source; owned by "
+          "scripts/diag_earmark_inspect.py, which the paper cites inline. Exempted "
+          "for the same reason as its two neighbours and NOT because it is small — "
+          "it was auto-exempt as a bare integer until strict_units, which meant the "
+          "one figure of the three that carried no reason looked identical to the "
+          "two that did",
     "194": "earmarked (15E) dollars to these candidates in 2024, from the FEC transaction "
            "types. Owned by scripts/diag_earmark_inspect.py, which the paper cites inline; "
            "the inflow table carries no transaction-type column, so it cannot be re-derived "
@@ -827,8 +909,13 @@ COVERAGE_EXEMPT_SECTIONS: dict[str, str] = {
               "which is also where the recipient-state resolution (candidate office state, "
               "NOT committee registration state) is implemented. BACKLOG.",
     "test_c": "top donors and recipients. Owned by scripts/diag_cross_state_donors.py. Note "
-              "this section names ORGANISATIONS and committees only - no individual donor is "
-              "named anywhere in this paper, which is the 11 C.F.R. § 104.15 boundary. BACKLOG.",
+              "CORRECTED 2026-08-09: this reason used to read 'this section names "
+              "ORGANISATIONS and committees only - no individual donor is named anywhere in "
+              "this paper'. That was false about the section it exempts, which is headed "
+              "'Largest individual donors' and names roughly fifteen people, all from public "
+              "FEC filings. The abstract carried the same false sentence and is corrected. "
+              "The section stays exempt because its figures are produced by "
+              "diag_cross_state_donors.py, not because of any naming claim. BACKLOG.",
     "test_d": "money x competitiveness, outflow side. Owned by "
               "scripts/diag_cross_state_money_matrix.py. BACKLOG.",
     "test_g": "the cross-state flow matrix. Owned by "
@@ -849,6 +936,70 @@ COVERAGE_EXEMPT_SECTIONS: dict[str, str] = {
               "scripts/load_fec_inflow_bulk.py) and change when data is added, not when a "
               "finding changes. BACKLOG, lowest priority of these.",
 }
+
+
+def _cross_state_ratios(d):
+    """The approximations the prose states as bare multiples and shares.
+
+    Every figure here was already derived per state; what was missing is the
+    COMPARISON the sentence actually makes — "~3× Washington's", "~2× their
+    off-year totals", "~20% of BOTH ID and WA", "a $76M pool against a $2B one".
+    Those are claims about figures, and a bare `3` or `20` carried no token a
+    coverage gate would look at until strict_units. Each is derived from the
+    per-state values rather than restated, and each "both" is asserted as a
+    relation so the word has to keep being true.
+    """
+    # Finding 1 — the >=$5,000 share said to be ~20% in both ID and WA.
+    _g = {s: d[f"out_{s}_ge5000"] for s in ("ID", "WA")}
+    if round(min(_g.values())) != round(max(_g.values())):
+        raise SystemExit(
+            f"FATAL: Finding 1 says >=$5,000 gifts are ~20% of BOTH ID and WA. "
+            f"Measured ID {_g['ID']:.2f}%, WA {_g['WA']:.2f}% — they no longer "
+            f"round alike, so one approximation cannot stand for both.")
+    d["ge5k_idwa"] = sum(_g.values()) / 2
+
+    # Finding 1 — the size effect, "$76M pool ... against a $2B one".
+    d["pool_small_m"] = d["out_ID_total_m"]
+    d["pool_large_b"] = d["out_NY_total_b"]
+
+    # Finding 2 — "NY and TX raise ~3x Washington's federal dollars".
+    _r = {s: d[f"out_{s}_total_m"] / d["out_WA_total_m"] for s in ("NY", "TX")}
+    if round(min(_r.values())) != round(max(_r.values())):
+        raise SystemExit(
+            f"FATAL: Finding 2 states one multiple for both NY and TX against WA. "
+            f"Measured NY {_r['NY']:.2f}x, TX {_r['TX']:.2f}x — they no longer "
+            f"round alike.")
+    d["ny_tx_over_wa"] = sum(_r.values()) / 2
+
+    # Finding 3 — the looser non-working bucket, ~48% in both ID and WA.
+    _nw = {s: d[f"out_{s}_nonworking"] for s in ("ID", "WA")}
+    if round(min(_nw.values())) != round(max(_nw.values())):
+        raise SystemExit(
+            f"FATAL: Finding 3 says the looser non-working bucket reaches ~48% in "
+            f"BOTH ID and WA. Measured ID {_nw['ID']:.2f}%, WA {_nw['WA']:.2f}%.")
+    d["nonworking_idwa"] = sum(_nw.values()) / 2
+
+    # Finding 5 — presidential dollars at ~2x the off-year, "in lockstep", all four.
+    # The paper prints the eight totals it rests on and they are probed; this is
+    # the MULTIPLE, which is the actual claim and was the only unprobed part.
+    _ratios = {}
+    for s in HEADLINE_STATES:
+        pres = [d[f"cyc_{s}_{c}"] for c in (2020, 2024) if f"cyc_{s}_{c}" in d]
+        off = [d[f"cyc_{s}_{c}"] for c in (2018, 2022) if f"cyc_{s}_{c}" in d]
+        if not pres or not off:
+            raise SystemExit(
+                f"FATAL: Finding 5's presidential/off-year multiple cannot be "
+                f"formed for {s} — the per-cycle totals no longer cover both "
+                f"cycle types, so 'all four states' is unverifiable.")
+        _ratios[s] = (sum(pres) / len(pres)) / (sum(off) / len(off))
+    if round(min(_ratios.values())) != round(max(_ratios.values())):
+        raise SystemExit(
+            f"FATAL: Finding 5 says ALL FOUR states run at one multiple, 'in "
+            f"lockstep'. Measured " +
+            ", ".join(f"{s} {v:.2f}x" for s, v in sorted(_ratios.items())) +
+            " — they no longer round alike, so the lockstep claim is the defect, "
+            "not the multiple.")
+    d["pres_offyear_mult"] = sum(_ratios.values()) / len(_ratios)
 
 
 def outflow(state):
@@ -902,8 +1053,22 @@ def outflow(state):
     tot, nrows, med = con.execute(f"""
         SELECT SUM(contribution_amount), COUNT(*), median(contribution_amount)
         FROM individual_contributions WHERE {filt}""").fetchone()
+    # The LOOSER "non-working" bucket Finding 3 quotes parenthetically as ~48%.
+    # Definition lifted from scripts/cross_state_fec_money.py line 74-75, which
+    # is the script the paper cites — not re-invented here, because a bucket this
+    # soft is only checkable against the definition that produced it.
+    nonwork, = con.execute(f"""
+        SELECT 100.0*SUM(contribution_amount) FILTER(
+                 WHERE UPPER(COALESCE(contributor_occupation,''))
+                       IN ('RETIRED','NOT EMPLOYED','NONE','N/A','UNEMPLOYED')
+                    OR UPPER(COALESCE(contributor_employer,''))
+                       IN ('RETIRED','NOT EMPLOYED','NONE','N/A','UNEMPLOYED',''))
+               /SUM(contribution_amount)
+        FROM individual_contributions WHERE {filt}""").fetchone()
     con.close()
+
     return dict(lt200=shares[0], ge5000=shares[1], retired=shares[2],
+                nonworking=float(nonwork),
                 donors=conc, top1=top[0], top10=top[1], gini=gini,
                 total_m=float(tot) / 1e6, total_b=float(tot) / 1e9,
                 contribs_m=int(nrows) / 1e6, median_gift=float(med))
@@ -926,6 +1091,55 @@ def per_cycle(state):
         FROM individual_contributions WHERE {filt} GROUP BY 1""").fetchall()
     con.close()
     return {int(c): float(v) for c, v in rows}
+
+
+def inflow_pooled_concentration(d):
+    """§I's inflow concentration, POOLED — the basis its comparison actually needs.
+
+    §I set per-cycle inflow concentration (top-1% 16-18%, Gini 0.69) against pooled
+    outflow concentration (top-1% 36.1-47.5%, Gini 0.775-0.848) and read the
+    difference as the effect of the per-election contribution cap. Pooling stacks
+    repeat large donors, so the two bases are not comparable and the gap was
+    overstated: on one basis the ratio is ~1.5-2.0x, not 2.1-2.6x.
+
+    Derived here rather than left in the prose because §I sits in
+    COVERAGE_EXEMPT_SECTIONS — an unprobed figure there is invisible to the gate,
+    which is how the mismatched comparison survived in the first place.
+    """
+    ic = duckdb.connect(str(DATA / "fec_inflow.duckdb"), read_only=True)
+    try:
+        n, t1, t10 = ic.execute("""
+            WITH d AS (
+              SELECT UPPER(TRIM(contributor_name)) || '|' || LEFT(contributor_zip, 5) k,
+                     SUM(contribution_amount) tot
+              FROM inflow_contributions WHERE contribution_amount > 0 GROUP BY 1),
+            b AS (SELECT tot, NTILE(100) OVER (ORDER BY tot DESC) nt FROM d),
+            t AS (SELECT SUM(tot) s, COUNT(*) n FROM b)
+            SELECT (SELECT n FROM t),
+                   100.0 * (SELECT SUM(tot) FROM b WHERE nt = 1) / (SELECT s FROM t),
+                   100.0 * (SELECT SUM(tot) FROM b WHERE nt <= 10) / (SELECT s FROM t)
+        """).fetchone()
+        gini, = ic.execute("""
+            WITH d AS (
+              SELECT UPPER(TRIM(contributor_name)) || '|' || LEFT(contributor_zip, 5) k,
+                     SUM(contribution_amount) tot
+              FROM inflow_contributions WHERE contribution_amount > 0 GROUP BY 1),
+            p AS (SELECT tot v, ROW_NUMBER() OVER (ORDER BY tot ASC) i FROM d),
+            a AS (SELECT COUNT(*) n, SUM(v) s, SUM(i * v) sw FROM p)
+            SELECT (2.0 * sw) / (n * s) - (n + 1.0) / n FROM a""").fetchone()
+    finally:
+        ic.close()
+    d["inflow_pooled_donors"] = n
+    d["inflow_pooled_top1"] = float(t1)
+    d["inflow_pooled_top10"] = float(t10)
+    d["inflow_pooled_gini"] = float(gini)
+    # The outflow side of the same comparison, from the headline table already derived.
+    tops = [d[f"out_{s}_top1"] for s in HEADLINE_STATES]
+    ginis = [d[f"out_{s}_gini"] for s in HEADLINE_STATES]
+    d["out_top1_min"], d["out_top1_max"] = min(tops), max(tops)
+    d["out_gini_min"], d["out_gini_max"] = min(ginis), max(ginis)
+    d["conc_ratio_lo"] = d["out_top1_min"] / d["inflow_pooled_top1"]
+    d["conc_ratio_hi"] = d["out_top1_max"] / d["inflow_pooled_top1"]
 
 
 def inflow_e(d):
@@ -988,6 +1202,21 @@ def inflow_e(d):
     # the harmonizer's 2026-08-06 lesson about computing ratios from unrounded shares.
     d["e_h_safe_pctdol"] = d["e_h_Likely_pctdol"] + d["e_h_Solid_pctdol"]
     d["e_h_safe_pctdist"] = d["e_h_Likely_pctdist"] + d["e_h_Solid_pctdist"]
+    # §E's headline: "the competitiveness premium is real and ~2x". The four
+    # per-district cells it rests on are probed; the MULTIPLE was not, because it
+    # is written as a bare `2`. Formed from the pooled per-district dollars on
+    # each side rather than from the printed cells — same reason as the two
+    # aggregates above, and the same reason the harmonizer computes ratios from
+    # unrounded shares.
+    _comp = sum(agg[b]["tot"] for b in ("Tossup", "Lean"))
+    _compd = sum(agg[b]["d"] for b in ("Tossup", "Lean"))
+    _safe = sum(agg[b]["tot"] for b in ("Likely", "Solid"))
+    _safed = sum(agg[b]["d"] for b in ("Likely", "Solid"))
+    if not (_compd and _safed):
+        raise SystemExit(
+            "FATAL: §E's competitiveness premium needs donors on both sides of "
+            "the band split; one side is empty, so the ~2x claim is unverifiable.")
+    d["comp_premium"] = (_comp / _compd) / (_safe / _safed)
     _oos = [d[f"e_h_{b}_oos"] for b in BANDS]
     d["e_h_oos_lo"], d["e_h_oos_hi"] = min(_oos), max(_oos)
 

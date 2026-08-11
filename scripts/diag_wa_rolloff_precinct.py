@@ -246,6 +246,33 @@ def report_electorate_age(con, race_id, label):
     print(f"    Pearson r = {r:+.2f}   (ballot-weighted {rw:+.2f})   "
           f"[county cut was r ~= +0.6 on this same predictor]")
 
+    # The SES-controlled counterpart on THIS predictor. Added 2026-08-09 because the
+    # paper's precinct paragraph moved from the electorate-65+ raw r straight to a
+    # partial r computed on the *resident*-65+ predictor, so the controlled figure
+    # looked like the controlled version of a number it had nothing to do with. The
+    # county cut used electorate 65+, so this is the only partial that answers the
+    # question the descent to precincts was made to answer.
+    cxs, cys, controls_cols = [], [], []
+    keep = []
+    for row in res:
+        pid = row[0]
+        if pid in e65 and e65[pid][1] >= MIN_VOTERS:
+            keep.append((e65[pid][0], row[1], row[6], row[7], row[8], row[9], row[10]))
+    if len(keep) < 100:
+        return
+    cxs = [k[0] for k in keep]
+    cys = [k[1] for k in keep]
+    controls_cols = [
+        [k[2] for k in keep],                      # income
+        [k[3] for k in keep],                      # college
+        [k[4] for k in keep],                      # home value
+        [k[5] for k in keep],                      # renter share
+        [math.log(k[6]) for k in keep],            # log(pop)
+    ]
+    pc = partial_corr(cys, cxs, controls_cols)
+    print(f"    partial r (income+education+home value+renter share+log(pop)) = {pc:+.2f}"
+          f"   [n = {len(keep):,} precincts with both the crosswalk and demographics]")
+
 
 def main():
     con = duckdb.connect(DB, read_only=True)

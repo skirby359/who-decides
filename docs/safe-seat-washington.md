@@ -60,8 +60,9 @@ sixteen same-party generals, fifteen were also lopsided, but one was decided by 
 points. Across five cycles the not-close share runs 79–88% and the no-major-choice share
 25–49%. The pattern is not confined to Washington: in the lower chambers of three
 comparison states, 88–94% of seats were not close. Safe seats are bipartisan, splitting 68
-Democratic to 43 Republican in Washington in 2024. The results are insensitive to the
-competitiveness threshold, holding between 74% and 98% across cuts from 15 points to 5.
+Democratic to 43 Republican in Washington in 2024. The conclusion does not turn on the
+competitiveness threshold: the not-close share stays between 74% and 98% across cuts from
+15 points to 5, so a large majority of seats are not close at every setting tested.
 The paper counts contests and margins; it does not establish when the binding choice
 occurred, and makes no claim about which party benefits.
 
@@ -167,7 +168,7 @@ candidate, or a margin of ten points or more.
   and congressional seats are not close**. In 2024, of 133 partisan seats only **22 (16.5%)
   were decided by under ten points**. The share runs 79–88% across a decade, with **2018
   the least lopsided year** — the blue-wave cycle, when 19 seats landed inside five
-  points, more than double any other year in the series.
+  points, the most in the series and **nearly double the next highest, 11 in 2020**.
 - **Safe seats are bipartisan.** Among 2024's not-close seats, **68 were won by Democrats
   and 43 by Republicans** — consistent with a geographically sorted electorate, a mechanism
 this design does not estimate.
@@ -820,6 +821,11 @@ all-seats split against the same presidential share. Texas's +6.9 was computed o
 survives both corrections.
 
 **4. New York's ≥12-point cell was mistranscribed**, 85.2% for 85.9% (127 seats for 128).
+*(Both figures are on the 149-seat chamber this pass ran against. Superseded by the 2026-08-08
+supplement of Assembly District 23: the count stays 128 — AD-23 was decided by 0.046 points and is
+close at every threshold — so the denominator moves 149 → 150 and the cell reads **85.3%** in
+Appendix E. The same denominator change moved every other New York threshold cell, which the
+revision note below now records.)*
 
 **5. The comparison states are scored by a shortcut that had not been checked.** Their code
 treats any seat lacking a D-vs-R option as not close regardless of margin — the conflation
@@ -859,6 +865,28 @@ do not depend on party.)*
 > contest, retiring the 149-seat bound; Appendix E's contest gap no longer read as candidate
 > non-entry; "foreclosure" removed from the descriptive results; and the Senate universe claim
 > narrowed to what is independently asserted.
+>
+> **What supplying AD-23 moved (added 2026-08-10, round 6; sourcing corrected round 7).** The seat
+> is close at every threshold — 0.046 points — so the not-close *counts* are unchanged and only the
+> denominator moves, **149 → 150**. Every one of Appendix E's five New York threshold cells rests on
+> that denominator, not just the ≥10 one this note originally named. Stated as the counts, which are
+> what the source actually fixes:
+>
+> | cut | not-close count | on 149 | on 150 (published) |
+> |---|--:|--:|--:|
+> | ≥5 | 141 | 94.6% | **94.0%** |
+> | ≥8 | 138 | 92.6% | **92.0%** |
+> | ≥10 | 132 | 88.6% | **88.0%** |
+> | ≥12 | 128 | 85.9% | **85.3%** |
+> | ≥15 | 123 | 82.6% | **82.0%** |
+>
+> **Provenance, because two of these are recorded and three are reconstructed.** The ≥10 (88.6%)
+> and ≥12 (85.9%) figures are corroborated in this paper's own text — the limits section and
+> second-pass item 4. The ≥5, ≥8 and ≥15 values on 149 appear in **no** record; they are computed
+> here from the published 150-based percentages, each of which determines its count uniquely
+> (94.0% ⇒ 141, since 140/150 = 93.3% and 142/150 = 94.7%). So the *counts* are sound and the
+> 149-based percentages are arithmetic rather than history: whether the 2026-07-28 pass printed
+> them at all is not something this record can establish.
 
 ## End note — data, reproduction, and series
 

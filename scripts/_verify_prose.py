@@ -386,8 +386,20 @@ SATELLITES = {
 _COUNT_CLAIMS = (
     r"asserts\s+(?:>\s*)?\*\*([\d,]+)\s+figures\*\*",
     r"asserting\s+(?:>\s*)?\*\*([\d,]+)\s+figures\*\*",
-    r"—\s*(?:\n>\s*)?([\d,]+)\s*(?:\n>\s*)?of them",
+    # The papers say "re-derives N figures" rather than "asserts"; that phrasing
+    # went unchecked until 2026-08-09.
+    r"re-derives\s+\*\*([\d,]+)\s+figures\*\*",
     r"exit 0 = ([\d,]+) figures agree",
+)
+
+# Anchors used ONLY on satellite documents. The loose "— N of them" idiom belongs
+# to the satellites' data-availability boilerplate ("reproduced by verify_x.py —
+# 521 of them"). Applied to a PAPER it false-positives: safe-seat-washington.md
+# says "every distinct party string in the five certified files — 32 of them",
+# which counts party strings, not asserted figures. Scoped rather than dropped,
+# because it is the only anchor the satellites' phrasing offers.
+_SATELLITE_ONLY_CLAIMS = (
+    r"—\s*(?:\n>\s*)?([\d,]+)\s*(?:\n>\s*)?of them",
 )
 
 # The residual risk, stated because it is real: a claim reworded past every anchor
@@ -407,10 +419,14 @@ def audit_satellite_counts(paper_name: str, figures: int | None) -> list[str]:
                f"decision rather than an omission.")
         print(f"  FAIL {msg}")
         return [msg]
-    names = SATELLITES[paper_name]
-    if not names:
-        print("  n/a  no satellite documents registered for this paper")
-        return []
+    # THE PAPER ITSELF IS SCANNED TOO (added 2026-08-09). It was not, and the WA
+    # paper carried "re-derives 311 figures" while the verifier asserted 489 —
+    # live in the public record, on a posted paper, with its own satellite
+    # correctly saying 489 and passing. A guard that checks every document about
+    # the paper except the paper is the defect class this file exists to close.
+    names = (paper_name,) + tuple(SATELLITES[paper_name])
+    if not SATELLITES[paper_name]:
+        print("  note no satellite documents registered; scanning the paper itself only")
     if figures is None:
         msg = ("satellite guard: the run reported no figure count, so the guard could not "
                "run. Pass stats_out= to vp.run().")
@@ -424,7 +440,9 @@ def audit_satellite_counts(paper_name: str, figures: int | None) -> list[str]:
             continue
         n_present += 1
         text = path.read_text(encoding="utf-8")
-        for pat in _COUNT_CLAIMS:
+        pats = (_COUNT_CLAIMS if name == paper_name
+                else _COUNT_CLAIMS + _SATELLITE_ONLY_CLAIMS)
+        for pat in pats:
             for m in re.finditer(pat, text):
                 stated = int(m.group(1).replace(",", ""))
                 n_claims += 1
@@ -457,7 +475,7 @@ def audit_satellite_counts(paper_name: str, figures: int | None) -> list[str]:
 # --------------------------------------------------------------------------
 def audit_coverage(sections: dict, spans: dict, offsets: dict, audited,
                    exempt_patterns=(), exempt_literals=None,
-                   exempt_sections=None) -> list[str]:
+                   exempt_sections=None, strict_units: bool = False) -> list[str]:
     """Fail on any numeric token in an audited section that no probe captured.
 
     Two coordinate spaces have to be reconciled or the audit lies. A
@@ -500,7 +518,47 @@ def audit_coverage(sections: dict, spans: dict, offsets: dict, audited,
             if bare in exempt_literals or tok in exempt_literals:
                 used_exempt.add(bare if bare in exempt_literals else tok)
                 continue
-            if any(re.match(p, bare) for p, _ in exempt_patterns):
+            # PATTERN EXEMPTIONS AND THE UNIT SUFFIX (strict_units).
+            #
+            # The near-universal exemption `^\d{1,2}$` ("small integer — ordinals,
+            # cohort edges, counts") also swallows every integer PERCENTAGE, because
+            # `_NUMBER` captures the digits and stops. In the WA paper that hid the
+            # headline off-year band "~37-40%", the "2:1" and "~5:1" ratios, "about
+            # 16%" and "~61%" — real results inside sections the gate called "fully
+            # mapped". Same shape as the retired `^\d{1,2}\.\d$` skip this module's
+            # docstring records.
+            #
+            # HOW THIS WAS FIRST WRITTEN, AND WHY IT DID NOTHING (corrected
+            # 2026-08-09, found by an adversarial pass). The first attempt tested
+            # `re.match(p, tok)` alongside `re.match(p, bare)`. But `_NUMBER` never
+            # captures `%`, `M`, `×` or `$` in the first place, so `tok == bare` for
+            # every token that exists and the extra conjunct was ALWAYS satisfied.
+            # It was a check that could not fail, added to close a check that could
+            # not fail, and shipped with a comment naming five figures it caught. It
+            # caught none of them.
+            #
+            # The unit is in the SOURCE TEXT, not in the token, so that is where it
+            # has to be read from.
+            # WHAT `strict_units` MATCHES AGAINST (revised 2026-08-10). The first
+            # working version made a unit-carrying token INELIGIBLE for pattern
+            # exemption outright. That is too strong: some tokens carry a `%` and
+            # are still labels rather than measurements — "the top 1% of donors"
+            # names a cohort, and the result is the 41.2% share beside it, not
+            # the 1. With no way to say so, the only remaining route was a
+            # literal exemption on "1", which waives every bare 1 in the
+            # document. A blanket waiver to express a narrow exception is how
+            # coverage gaps get built.
+            #
+            # So strict_units now means: match the pattern against the token AS
+            # WRITTEN, unit included. `^\d{1,2}$` still fails on `16%` — the
+            # defect this flag exists for — while a caller that means it can
+            # write `^1%$` and have it apply to nothing else.
+            _unit = hay[m.end():m.end() + 1]
+            _prefix = hay[m.start() - 1:m.start()] if m.start() else ""
+            written = ("$" if _prefix == "$" else "") + tok + (
+                _unit if _unit in ("%", "×") else "")
+            if any(re.match(p, written if strict_units else bare)
+                   for p, _ in exempt_patterns):
                 continue
             if _SECTION_REF.search(hay[max(0, m.start() - 24):m.start()]):
                 continue
@@ -538,5 +596,145 @@ def slice_with_offset(norm: str, start: str, end: str) -> tuple[str, int]:
     if b < 0:
         raise LookupError(f"section end anchor not found after start: {end!r}")
     return norm[a:b], a
+
+
+# --------------------------------------------------------------------------
+# Basis registry (2026-08-10)
+#
+# THE DEFECT CLASS. Five of this series' figure reversals were not data changes and
+# not model drift. They were a derivation and a sentence disagreeing about the
+# FOOTING of a number, with nothing written down to appeal to:
+#
+#   df91534 / 5a7992b  Idaho May-2024 R-D  +76.8 -> +76.9 -> +76.8
+#                      one round differenced the printed columns, the other the
+#                      unrounded shares. Neither was wrong on its own basis.
+#   69ae5af            odd-year roll-off 34.7-36.0% -> 4.9-6.6%
+#                      a 38-county numerator over a statewide denominator.
+#   e3938bd            a "sign flip at 2023" given a causal reading
+#                      full-roll reconstruction against an active-roll official figure.
+#   487091e            Section I's inferred cap
+#                      per-cycle inflow against pooled outflow.
+#   0b6f7c1            three state donor tables never on one basis.
+#
+# Every one is a label that does not describe its query. So the basis goes next to
+# the derivation, in `docs/reference/derivation-bases.csv`, and a key with no
+# declared basis FAILS.
+#
+# WHAT IS AND IS NOT ENFORCED, stated plainly because this repo's first-named
+# failure mode is "writing a control as implemented that the workflow cannot
+# enforce":
+#
+#   ENFORCED   every numeric derived key matches a declared pattern (require_bases)
+#   ENFORCED   rows sharing a `quantity` agree on every basis column
+#              (audit_basis_consistency) — this is 0b6f7c1 caught at write time
+#   DECLARED   `computed_on`. The registry records whether a composite is computed
+#              on unrounded values; nothing here evaluates the arithmetic, because
+#              the composites are built through f-string key families and there is
+#              no honest static way to reconstruct them. It is a disclosure, not a
+#              check, and is labelled as one.
+#
+# Patterns are fnmatch globs over key FAMILIES, not one row per key: safe-seat's
+# 203 numeric keys collapse to 39 families. A per-key registry would be 1,500 rows
+# of mostly-guessed metadata across the series, which is how a register becomes
+# something nobody reads.
+# --------------------------------------------------------------------------
+
+BASES_CSV = DOCS / "reference" / "derivation-bases.csv"
+
+_BASIS_COLS = ("population", "county_footprint", "source_prefix",
+               "tier_spec", "cycle_window", "computed_on")
+
+# A declared-but-undetermined basis. Visible and countable rather than a silent
+# omission — the same convention `docs/reference/source_field_register.csv` uses.
+UNRESOLVED = "*** UNRESOLVED"
+
+
+def load_bases(path: Path | None = None) -> list[dict]:
+    """Registry rows, or [] when the file is absent."""
+    import csv
+    p = path or BASES_CSV
+    if not p.exists():
+        return []
+    with p.open(encoding="utf-8-sig", newline="") as fh:
+        return [r for r in csv.DictReader(fh) if (r.get("key_pattern") or "").strip()]
+
+
+def require_bases(verifier: str, derived: dict, path: Path | None = None) -> list[str]:
+    """Fail on any numeric derived key whose basis is not declared for `verifier`."""
+    from fnmatch import fnmatchcase
+    rows = [r for r in load_bases(path) if r.get("verifier") == verifier]
+    print("\n" + "-" * 78)
+    print(f"BASIS REGISTRY — every derived figure must declare its footing ({verifier})")
+    print("-" * 78)
+    if not rows:
+        print(f"  FAIL no rows for {verifier} in {BASES_CSV.name}")
+        return [f"basis: {verifier} has no rows in {BASES_CSV.name}. A figure whose "
+                f"population, footprint, source and cycle window are undeclared is the "
+                f"defect class this registry exists for."]
+    numeric = sorted(k for k, v in derived.items()
+                     if isinstance(v, (int, float)) and not isinstance(v, bool))
+    patterns = [r["key_pattern"] for r in rows]
+    undeclared = [k for k in numeric
+                  if not any(fnmatchcase(k, p) for p in patterns)]
+    n_unres = sum(1 for r in rows
+                  if any((r.get(c) or "").strip() == UNRESOLVED for c in _BASIS_COLS))
+    stale = [p for p in patterns if not any(fnmatchcase(k, p) for k in numeric)]
+    print(f"  {len(numeric) - len(undeclared)} of {len(numeric)} keys declared "
+          f"by {len(patterns)} pattern(s); {n_unres} pattern(s) carry {UNRESOLVED}")
+    if stale:
+        print(f"  note {len(stale)} pattern(s) match no current key — prunable: "
+              + ", ".join(sorted(stale)[:8]))
+    if not undeclared:
+        print("  ok   every derived figure has a declared basis")
+        return []
+    for k in undeclared[:40]:
+        print(f"  FAIL {k}")
+    if len(undeclared) > 40:
+        print(f"       … and {len(undeclared) - 40} more")
+    return [f"basis: {len(undeclared)} derived key(s) with no declared basis — first is "
+            f"{undeclared[0]!r}. Add a pattern row to {BASES_CSV.name}."]
+
+
+def audit_basis_consistency(path: Path | None = None) -> list[str]:
+    """Rows naming the same `quantity` must agree on every basis column.
+
+    This is the check that would have caught `0b6f7c1` — three state donor panels
+    presented side by side on three different bases — at the moment the third was
+    declared, rather than two rounds later. A blank `quantity` opts a row out: most
+    keys are local to one paper and share nothing across the series.
+
+    A divergence is not automatically an error — Texas's canvass returns omit uncontested
+    seats, so the four-state seat comparison genuinely puts one state on a backfilled
+    footprint. What is an error is a divergence nobody wrote down. So a row departing from
+    its group's MODAL value must name where the paper discloses it, in
+    `divergence_disclosed`. That keeps the finding visible instead of resolving it by
+    loosening the check, which is this repo's standing rule for a failing gate.
+    """
+    from collections import Counter, defaultdict
+    groups = defaultdict(list)
+    for r in load_bases(path):
+        q = (r.get("quantity") or "").strip()
+        if q:
+            groups[q].append(r)
+    fails = []
+    for q, rows in sorted(groups.items()):
+        if len(rows) < 2:
+            continue
+        for col in _BASIS_COLS:
+            vals = [(r.get(col) or "").strip() for r in rows]
+            if len(set(vals)) < 2:
+                continue
+            modal = Counter(vals).most_common(1)[0][0]
+            undisclosed = [r for r, v in zip(rows, vals)
+                           if v != modal and not (r.get("divergence_disclosed") or "").strip()]
+            if undisclosed:
+                who = ", ".join(f"{r['verifier']}:{r['key_pattern']}" for r in undisclosed)
+                fails.append(
+                    f"basis: quantity {q!r} departs from its modal {col} "
+                    f"({modal!r}) at {who}, with no divergence_disclosed. Either put the "
+                    f"rows on one footing or name where the paper discloses the "
+                    f"difference — an undisclosed basis difference inside a comparison is "
+                    f"how a comparison becomes a contradiction (0b6f7c1).")
+    return fails
 
 

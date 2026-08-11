@@ -66,6 +66,10 @@ vp.stdout_utf8()
 
 RAW = (vp.ROOT / "data" / "raw" / "election_results").as_posix()
 PAPER = vp.DOCS / "safe-seat-washington.md"
+# This file's own name, as the basis registry keys it. Derived rather than hard-coded so a
+# rename cannot silently orphan every registry row for this verifier — an orphaned row set
+# makes require_bases() report "no rows", which is a failure, not a silent pass.
+PAPER_VERIFIER = Path(__file__).name
 
 GENERALS = {2016: "20161108", 2018: "20181106", 2020: "20201103",
             2022: "20221108", 2024: "20241105"}
@@ -347,6 +351,35 @@ def derive_wa(d: dict) -> dict[int, list[dict]]:
     contest = [x for x in same if x["margin"] is not None and x["margin"] < 10]
     d["wa04_margin"] = contest[0]["margin"] if len(contest) == 1 else -1.0
     d["tossup18"] = d["d1_2018_tossup"]
+    # 2018's tossup count against the rest of the series. THE CLAIM USED TO BE "more than
+    # double any other year in the series" and it was FALSE (round 1, 2026-08-10): 19 against
+    # 11 in 2020 is 1.7x, and 2 x 10 = 20 > 19 for 2022 and 2024 as well, so it held only
+    # against 2016's 8. Every comparator was already asserted by the per-year d1 probes, so the
+    # sentence contradicted the table three rows above it. A superlative carries no numeric
+    # token for a probe to anchor on, so the ordering is derived here and asserted instead —
+    # the `_id_is_max_oos` pattern from verify_cross_state_money.py.
+    # ROUND 2 found two holes in round 1's own fix, which is why this step exists.
+    # (a) The probe asserted the VALUE 11 but not that 2020 is the year that holds it. Had 2020
+    #     fallen to 9 while another cycle rose to 11, "11 in 2020" would still have passed while
+    #     naming the wrong year — the value is checked, the attribution was not. Now both are.
+    # (b) `tossup18 / max(other)` raises ZeroDivisionError if no other cycle has a tossup. A
+    #     verifier that crashes is worse than one that fails, so the quotient is guarded and an
+    #     empty comparator set reports as a claim failure instead.
+    _other_tossup = {y: d[f"d1_{y}_tossup"] for y in YEARS if y != 2018}
+    _max = max(_other_tossup.values())
+    _holders = sorted(y for y, v in _other_tossup.items() if v == _max)
+    d["tossup18_next"] = _max
+    d["tossup18_next_year"] = _holders[0]
+    # A tie makes "the next highest, N in YYYY" an arbitrary attribution, so it is a failure
+    # rather than a coin flip. Deterministic pick (lowest year) only so the reported value is
+    # stable while the guard explains itself.
+    d["_tossup18_next_tied"] = len(_holders) > 1
+    d["_tossup18_is_max"] = d["tossup18"] > _max
+    # Guards the replacement wording "nearly double", which is a weaker claim than the one it
+    # replaces and must stay weaker: true at 1.5x-2.0x, false if the gap ever reaches 2x (in
+    # which case "more than double" becomes sayable) or falls below 1.5x (in which case
+    # "nearly double" stops being honest).
+    d["_tossup18_ratio"] = (d["tossup18"] / _max) if _max else float("inf")
     # 2024 cross-tab, availability x band.
     for a in ("dr", "dd", "rr", "dother", "rother", "single"):
         for b in ("single", "tossup", "lean", "likely", "solid"):
@@ -465,6 +498,12 @@ def derive_comparison(d: dict) -> None:
         d[f"fs_{tag}_nodr_n"] = n_nodr
         d[f"fs_{tag}_nodr"] = 100.0 * n_nodr / n
         d[f"fs_{tag}_notclose"] = 100.0 * n_notclose / n
+        # Share of the chamber present in the canvass source, as a PERCENTAGE.
+        # The caveat bullet states it that way ("Texas is 64% loaded"); the
+        # four-state table states the raw count. Both are now asserted — the
+        # percentage was invisible to the coverage gate until strict_units was
+        # enabled here, because `^\d{1,2}$` exempted it.
+        d[f"fs_{tag}_loaded_pct"] = 100.0 * d[f"fs_{tag}_loaded"] / n
 
     # New York is now complete at 150 Assembly seats — AD-23 supplied from the certified
     # NYSBOE contest (see _ny_ad23_supplement). The bound this used to compute is retired: it
@@ -508,6 +547,16 @@ def build_probes():
         # _check_spelled_out_counts(), which is where a claim no regex can compare belongs.
         ("abstract — five-cycle not-close range",
          r"the not-close share runs (\d+)–(\d+)%", ("notclose_lo", "notclose_hi"), 0.5),
+        # Restatements of the same two ranges deeper in the paper. Unprobed until
+        # strict_units surfaced them: every one of these endpoints is a bare
+        # two-digit integer and was auto-exempt.
+        ("dimension 1 — not-close range restated in the section",
+         r"The share runs (\d+)–(\d+)% across a decade",
+         ("notclose_lo", "notclose_hi"), 0.5),
+        ("dimension 2 — no-choice five-cycle range restated",
+         r"widens the five-cycle range to (\d+)–(\d+)%", ("nodr_lo", "nodr_hi"), 0.5),
+        ("four-state — the Texas canvass-coverage caveat",
+         r"Texas is (\d+)% loaded in the canvass returns", "fs_tx_loaded_pct", 0.5),
         ("abstract — five-cycle no-choice range",
          r"no-major-choice share (\d+)–(\d+)%", ("nodr_lo", "nodr_hi"), 0.5),
         ("abstract — comparison-state range",
@@ -552,6 +601,13 @@ def build_probes():
          r"of (\d+) partisan seats only \*\*(\d+) \(([\d.]+)%\) were decided by under ten "
          r"points\*\*", ("d1_2024_seats", "close24_n", "close24_pct"), 0.05),
         ("2018 tossups", r"when (\d+) seats landed inside five points", "tossup18", 0),
+        # The YEAR is captured as well as the value (round 2). Anchoring "2020" as a literal in
+        # the regex asserted only that the sentence still said 2020, not that 2020 was the year
+        # holding the maximum — so a shift between cycles would have kept passing on a wrong
+        # attribution.
+        ("2018 tossups — the next-highest comparator and its year",
+         r"the most in the series and \*\*nearly double the next highest, (\d+) in (\d{4})\*\*",
+         ("tossup18_next", "tossup18_next_year"), 0),
         ("safe seats are bipartisan",
          r"\*\*(\d+) were won by Democrats and (\d+) by Republicans\*\*",
          ("safe24_d", "safe24_r"), 0),
@@ -670,11 +726,25 @@ COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
               "race to show how a same-party general classifies; a worked "
               "example of the rule, not a result of it",
     "26,979": "the other side of the same worked example",
-    "27.6": "the no-D-v-R share under the ALTERNATIVE definition the paper "
-            "rejects, quoted to show what rejecting it would cost; the adopted "
-            "figure beside it is asserted",
-    "26.9": "the adopted 2020 no-D-v-R share as restated in this sentence; "
-            "asserted at its table cell in the Dimension-2 block",
+    # BOTH REASONS BELOW WERE FALSE UNTIL 2026-08-10 (round 1). They described the state of the
+    # paper before the 2026-08-08 party-string audit, which moved 2020's no-D-v-R share to
+    # 25.4%. "26.9" was exempted as "the adopted 2020 no-D-v-R share ... asserted at its table
+    # cell" — it is neither: the adopted share is 25.4% and that is what the Dimension-2 table
+    # asserts. "27.6" was exempted on the ground that "the adopted figure beside it is
+    # asserted", and the figure beside it is 26.9, which is itself exempt. So one stale figure
+    # was waived by pointing at an assertion that did not exist, and a second was waived by
+    # pointing at the first. This is the shape the audit log's rule exists for: an exemption
+    # must name where the figure IS verified.
+    "27.6": "the 2020 no-D-v-R share as it read BEFORE the 'Democractic' misspelling was "
+            "normalised — the first step of a two-step correction, quoted to show what a "
+            "literal reading of the certified string would have cost. Not a current result. "
+            "The current 2020 figure is 25.4%, asserted as d2_2020_nodr in the Dimension-2 "
+            "table",
+    "26.9": "the 2020 no-D-v-R share after the misspelling fix but BEFORE the 2026-08-08 "
+            "enumeration of all 32 party strings, which found five more major-party strings "
+            "counted as minor and moved 2020 to 25.4%. An intermediate value in a superseded "
+            "pass, and the sentence says 'correcting it alone'. The current figure is 25.4%, "
+            "asserted as d2_2020_nodr",
     # --- §Sensitivity's three-tier discussion, added 2026-08-08.
     "1.5": "a stated BOUND over the expansive-minus-family gaps ('nothing else by more than "
            "1.5'), not a measurement. Every cell it bounds is asserted by the per-year "
@@ -690,6 +760,40 @@ COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
              "between the two candidate totals, both of which are asserted from "
              "docs/reference/ny_ad23_2022.csv by the AD-23 probe",
 }
+
+
+def claim_guards(d: dict) -> list[str]:
+    """Assert the paper's COMPARATIVE claims, which no probe can anchor on.
+
+    A superlative or a ratio carries no numeric token, so `audit_coverage` cannot see it and a
+    regex probe has nothing to capture. That is how "2018 ... more than double any other year in
+    the series" survived into round 1 while every value it compared — 19, 8, 11, 10, 10 — was
+    already asserted by the per-year Dimension 1 probes. The sentence contradicted the table
+    three rows above it: 19 is 1.7x the next highest, and 2 x 10 = 20 > 19, so it held only
+    against 2016's 8.
+
+    A module-level function rather than inline in `main()` so it can be shown FAILING without a
+    ten-minute verifier run — freeze rule §0 rule 2. Tested in
+    `tests/test_infrastructure/test_safe_seat_claim_guards.py`.
+    """
+    fails = []
+    if not d["_tossup18_is_max"]:
+        fails.append(
+            f"claim: the paper calls 2018 'the most in the series' for seats inside five "
+            f"points, and it is not — 2018 has {d['tossup18']} against a maximum of "
+            f"{d['tossup18_next']} elsewhere. Fix the sentence, not this guard.")
+    elif d["_tossup18_next_tied"]:
+        fails.append(
+            f"claim: {d['tossup18_next']} seats inside five points is tied across more than one "
+            f"cycle, so naming a single 'next highest' year is arbitrary. Reword to the tie "
+            f"rather than picking one.")
+    elif not (1.5 <= d["_tossup18_ratio"] < 2.0):
+        fails.append(
+            f"claim: 2018's tossup count is {d['_tossup18_ratio']:.2f}x the next highest "
+            f"({d['tossup18']} against {d['tossup18_next']}), so 'nearly double' is the wrong "
+            f"description. At >=2.0x 'more than double' becomes sayable; below 1.5x neither is "
+            f"honest. This is the sentence that was false in round 1 — fix the wording.")
+    return fails
 
 
 def main() -> int:
@@ -718,8 +822,16 @@ def main() -> int:
           "what\n  makes the paper's 'exactly one name' reading of the single-candidate count "
           "exact\n  rather than merely probable.")
     fails = vp.audit_coverage(audit_sections, spans, offsets, tuple(AUDIT_BOUNDS),
-                              COVERAGE_EXEMPT, COVERAGE_EXEMPT_LITERAL)
+                              COVERAGE_EXEMPT, COVERAGE_EXEMPT_LITERAL, strict_units=True)
     fails += _spelled
+    # Basis registry (2026-08-10). This paper is the ROLLOUT PILOT — see
+    # tests/test_infrastructure/test_basis_registry_rollout.py for which verifiers are enabled
+    # and what each remaining one owes. Coverage asks "is every published figure probed";
+    # this asks "is every derived figure's footing declared", which is the question five of
+    # this series' figure reversals turned on.
+    fails += vp.require_bases(PAPER_VERIFIER, d)
+    fails += vp.audit_basis_consistency()
+    fails += claim_guards(d)
     if d["zerovote_total"]:
         fails.append(
             f"zero-vote ballot candidates = {d['zerovote_total']}, not 0. The "

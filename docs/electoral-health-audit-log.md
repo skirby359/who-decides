@@ -32,6 +32,80 @@ it, and the lead article summarizes rather than reproduces their analyses.
 
 ---
 
+## 0. The freeze rule — series-wide, in force 2026-08-10
+
+**Read this before adding anything to any paper in the series.** It governs all eight, not one.
+Everything below §1 is a record of work done; this section is a constraint on work still to do.
+
+### Why, measured
+
+A freeze rule was put in force on 2026-08-01 for the donor article alone, after reviewer #6's
+verdict — *"not cycling yet, but very close."* The nine days that followed ran roughly twenty
+further open-ended adversarial rounds across the other seven papers, and **three consecutive
+rounds' sharpest finding was against the previous round's own fix**. Each says so in its own
+commit body:
+
+| commit | its own summary of itself |
+|---|---|
+| `69ae5af` | "the most important finding is against yesterday's work in this same session" |
+| `e3938bd` | "again the sharpest finding is against the previous round's own work" |
+| `1eeb978` | "third consecutive round whose sharpest finding is against a previous round's fix, and this is the worst of them" |
+
+That is cycling, and the rule that would have caught it existed and covered one paper.
+
+The mechanism is not model drift — every one of those rounds ran on the same model. It is that
+**both sides of every check are written in the same round by the same author.** When a
+derivation and a sentence disagree, the round decides which is wrong, with no prior authority to
+appeal to. So the paper tracks the newest derivation, and the next round's newest derivation
+moves it back. The clean instance: `df91534` changed Idaho's May-2024 R−D from **+76.8 to +76.9**;
+`5a7992b` changed it **back**, because one round rounded from the printed column and the other
+from unrounded shares. Neither was wrong on its own basis. **The basis was never declared.**
+
+### The rules
+
+1. **Only cut, relocate, clarify, and prepare for submission.** Admit a new analysis only if it
+   (a) could reverse a headline conclusion, (b) answers an actual editor or referee, (c) closes a
+   documented legal, ethical or reproducibility gate, or (d) **replaces** a weaker analysis.
+   *"Another way of showing the same finding is robust" does not qualify.* This is the
+   2026-08-01 wording, now applied to the series.
+
+2. **A round must close its own additions before it ends.** Every probe or gate a round adds must
+   be shown **failing** under `scripts/mutation_probe_verifiers.py` before the round is
+   committed. This project has twice shipped a gate that could not fail and documented it as
+   working (`1eeb978`, `e3938bd`); a passing gate carries no information until something has seen
+   it fail. Reasoning about whether a check works is not evidence that it does.
+
+3. **Declare the basis, and never re-round a printed cell.** A figure's population (full roll /
+   active roll / matched panel), county footprint, source prefix, tier specification and cycle
+   window belong in `docs/reference/derivation-bases.csv` next to the derivation, not in the
+   round's head. Any column computed from other figures is computed on **unrounded** values.
+   Every flip in the table below was a basis or rounding ambiguity, not a data change:
+
+   | commit | the flip | the actual cause |
+   |---|---|---|
+   | `69ae5af` | odd-year roll-off 34.7–36.0% → 4.9–6.6% | 38-county numerator over a statewide denominator |
+   | `e3938bd` | a "sign flip at 2023" given a causal reading | full-roll reconstruction against an active-roll official figure |
+   | `487091e` | Section I's inferred cap | per-cycle inflow compared against pooled outflow |
+   | `0b6f7c1` | three state donor tables | the three panels were never on one basis |
+   | `5470f7f` | express advocacy "69% for" → 78% | 69% was not a direction: it was the *Independent Expenditure Ad* filing-type share |
+
+4. **The next review is a narrowly scoped pre-submission audit** — consistency, journal
+   compliance, citations, anonymity, package sync — not another open-ended critical read.
+
+### The one thing that is genuinely still moving
+
+`data/wa_statewide.duckdb` is appended to daily by the "WA SoS Results Daily Archive" task, and
+the 2026 PDC cycle is roughly half collected and still accruing. So a subset of figures does move
+under a finished paper without anyone editing anything. Pinned panels
+(`scripts/pin_wa_donor_roll.py`, `scripts/pin_ny_roll.py`, the dated
+`docs/reference/*_2026-08-*.csv` frames) are immune; unpinned live reads are not. A submission-
+ready paper must not depend on an unpinned read, and a verifier that cannot find its pin must
+**exit non-zero rather than warn** — reporting a drifting number as though it were the pinned one
+is the failure mode, and `verify_cross_state_money.py` described that risk in its own docstring
+while only printing a warning.
+
+---
+
 ## 1. Verification ledger — re-derive each headline number
 
 **Independent verifiers (the preferred §1 vehicle).** These hit the DBs with
@@ -2880,3 +2954,2018 @@ work and mention none of this. Nothing is lost and the content is complete, but 
 disclosure wording leads to two unrelated subjects, so the mapping is written here instead.
 Verified at `43e889b`: the retired sentence survives nowhere under `docs/` except as the
 quotation above.
+
+---
+
+## 2026-08-09 — Adversarial review program, round 1: `who-decides-washington.md`
+
+**Why this round exists.** Two adversarial reviews of `safe-seat-washington.md` and two of
+`does-money-move-votes.md` each found real defects that no gate caught, and the second
+money-paper review overturned a central claim (the "$70.6M WA IE data ceiling" was our ETL,
+not Washington's disclosure regime — `pdc-c6-direction-audit.md`). The verifiers assert
+~2,350 figures and are strong on exactly one axis: does the number in the paper match the
+number in the database. They are blind to four other classes — a claim *about* figures, a
+wrong noun, a pipeline property asserted as a property of the world, and a check that cannot
+fail. **Five of the nine papers had never had an adversarial pass, and this one is the only
+paper on SSRN (7149263).** So it goes first.
+
+**Method.** A fresh reviewer agent, given the paper, the verifier and read access to the
+databases, and deliberately **not** given the audit log, the corrections ledger or the
+reviewer-response file — anchoring a reviewer to defects already found is why an in-house
+pass under-performs an outside one. Every finding was then re-measured here before anything
+was edited. That step earned its keep twice this round (below).
+
+### Confirmed defects, with what the measurement changed
+
+| # | claim | verdict |
+|---|---|---|
+| 1 | "2021 and 2023 carried only the state's non-binding tax advisory votes" | **False for 2023.** Zero 2023 general races reach statewide precinct coverage, against three in 2021 and one in 2025; advisory votes were repealed by SB 5082 (eff. July 2023). The ballot-content variation the sentence downplays is *wider* than claimed: three items, then none, then one. |
+| 2 | "turnout accounts for **92% (2025), 95% (2023), and 79% (2021)** of the 65+ rise… and in 2021 and 2023 the roll effect is actually slightly negative" | **Self-refuting, and two quantities under one name.** rate / rise is 92.0 / **105.9** / **134.8**%; the printed 95 and 79 are abs(rate)/(abs(rate)+abs(roll)). A negative roll effect *requires* the share of the rise to exceed 100%. Also the 2021 roll effect is −2.9 points against an +8.2 rise, which is not "slightly". |
+| 3 | Appendix H: "A **monotone** curve means every possible cut of the age axis preserves the ordering; **no alternative bracket scheme could reverse it**" | **Premise false and withdrawn eight lines earlier**, and the inference is a non sequitur — composition depends on roll size, not only behaviour. The reviewer's counterexample (75–79 vs 80+) was **wrong**: measured, the off-year/presidential share ratio still rises (1.54 → 1.57). The real reversal is 85–89 vs 90+, by 0.007. Replaced the argument with the measured composition ratios. |
+| 4 | "The senior-to-youth ratio **roughly triples** off-cycle… from about 2:1 to ~5:1" | **2.55×**, and the sentence's own two figures give 2.5. |
+| 5 | precinct roll-off "16.4%, in line with the roughly 17% we see statewide **once both are measured the same way**" | **Not the same way.** 17.2% is the certified-ballots basis; on the precinct cut's own presidential basis, statewide is **16.3%**. The fix makes the paper's check *better* than it claimed. |
+| 6 | abstract: "27.1 million individual vote-history records **with the voter's year of birth**" | **26.3M (96.9%)** carry an age; 827,980 rows match no roll row. The old probe's capture groups stopped before the qualifier, so it was structurally uncheckable. |
+| 7 | "**A direct check** … a separate check asks whether reconstructing from a current roll skews the composition" | **Not independent.** Blending the two figures already published three paragraphs earlier reproduces the snapshot column to within 0.2 points. It sizes the attrition; it is not a second source of evidence for it. |
+| 8 | "a later (larger) roll mechanically pulls them down… the exception is 2021" | **Wrong mechanism for three of five years.** The reconstructed roll is −9.2% in 2021 and −3.9% in 2022, +0.2/+3.1/+6.4% after. The rate sits low in all five years because the *numerator* is short. 2021's agreement with the official 39.38% is two 9.2% shortfalls cancelling, in the year with the weakest coverage. |
+| 9 | precinct paragraph: raw +0.09 → "under that analysis almost nothing is left… about +0.11" | **Predictor switched mid-argument.** +0.11 is the partial on the ACS *resident* 65+ series (raw +0.26); the electorate series had **no** controlled counterpart at all. Computed it: **−0.02**. |
+| 10 | "race… is **unmeasurable at the individual level** in Washington at any geography" | Pipeline stated as world. BISG (Imai & Khanna 2016) produces individual-level estimates from surname + geocode and is standard on voter files. Narrowed to "not observed", with the imputation route named. |
+| 11 | Appendix F's grid applies 5–34% roll-off to both even-year rows and **none** to the odd-year baseline | **Confirmed, and much larger than the reviewer's estimate.** They put SJR 8201 at 17.0% on a per-precinct floor. On the paper's *own* denominator (certified ballots) the statewide item rolls off **34.7–36.0%** across 2021 and 2025; local offices run 4–44% on a conservative floor. The claim that odd-year ballot return is "a closer stand-in for local-race participation" was asserted, never measured, and does not hold. |
+| 12 | "The skew is a turnout-and-salience story, **which is why the lever is when you hold the election**" | Causal conclusion from an accounting identity. Narrowed; the counterfactual now rests only on the quasi-experimental literature, where it already did. |
+| 13 | "the fact that the 65+ share barely moves across all three is **direct evidence** that none of them drives the composition" | 3.6-point spread is about 30% of the headline gap, three observations, no counterfactual, and the low year is the weakest-coverage year. Narrowed to "consistent with". |
+
+**Two findings where measuring first changed the answer**, which is the whole reason the step
+is mandatory: #3 (the reviewer's counterexample failed, but a different real defect stood) and
+#11 (the true figure is roughly double what the reviewer computed, because they used a
+different denominator from the one the paper's own table uses).
+
+### The gate could not have caught any of these, and one reason is now fixed
+
+`COVERAGE_EXEMPT`'s `^\d{1,2}$` ("small integer — ordinals, cohort edges, counts") was matched
+against the token with its unit **stripped**, so it silently exempted every integer
+*percentage* in the audited sections — including the headline off-year band "~37–40%", the
+"2:1" and "~5:1" ratios, "about 16%" and "~61%". Same shape as the retired `^\d{1,2}\.\d$`
+skip that `_verify_prose`'s own docstring records. `vp.audit_coverage` gained
+`strict_units=True`: a pattern must now match the token **as written** as well as stripped, so
+`16` stays exempt and `16%` does not. Opt-in, and turned on **for this paper only** — enabling
+it everywhere reopens coverage for eight papers at once, so each adopts it as its turn comes.
+
+### What was built
+
+- `scripts/diag_wa_rolloff_oddyear.py` — the odd-year roll-off the grid assumed away, on two
+  denominators, both conservative. Added to the sync manifest (the cited-files test caught the
+  omission immediately, which is the test working).
+- `scripts/diag_turnout_decomposition.py` — `--off` / `--all-off-years`. The dates were module
+  constants, so the paper's 2023 and 2021 decomposition figures **had no reproducible path in
+  the repo at all**; the script it cited could only ever produce the 2025 pair. That is how
+  they stayed wrong.
+- `scripts/diag_wa_rolloff_precinct.py` — the missing partial correlation on the electorate-65+
+  predictor.
+- `verify_who_decides_wa.py` — the decomposition moved out of `UNCHECKED` (both ratios, all
+  three off-years), plus the reconstruction table, the senior-to-youth multiplier, the
+  banding-robustness ratios, the off-year spread and the year-of-birth qualifier.
+
+### State after round 1
+
+`verify_who_decides_wa.py` **311 figures** (was 246), all four audited sections fully mapped
+under the stricter exemption; `tests/test_infrastructure/` 331 passed;
+`check_cross_doc_consistency.py --skip-metadata` 0 findings. `docs/submission-metadata.md`
+re-pointed 246 to 311.
+
+**The SSRN re-upload debt grows.** It already covered two corrected sentences; it now covers
+thirteen items, two of which (#11, #2) change an argument rather than a number. Author's step,
+unchanged.
+
+**Round 2 is a fresh reviewer on the corrected text.** A paper is done when a full round
+produces no confirmed defect in the four gate-blind classes; round 1 is not that round.
+
+---
+
+## 2026-08-09 (second pass) — WA round 2: the round-1 fix was itself a partial-load artifact
+
+A fresh reviewer on the corrected text, same brief, again without the log or the ledger.
+**Not a clean round**, and the most important finding is against round 1's own work.
+
+### The round-1 correction was wrong, in the way the appendix already warned about
+
+Round 1 measured odd-year statewide roll-off at **34.7–36.0%** and used it to overturn the
+paper's reasoning. That figure divided a **38-county numerator by a statewide denominator**.
+
+Measured: `precinct_results` holds **zero King County rows for the 2021 and 2023 generals**,
+and for 2025 holds only `CITY OF SEATTLE MAYOR` (3,051 rows) — no SJR 8201. King is 29–33%
+of each odd-year electorate. Scaling the denominator by King's ballot share gives
+**4.9–6.6%**.
+
+This is the identical defect Appendix F already excludes Lt. Governor for, in a sentence
+three paragraphs away: *"loaded in only 5,355 of 8,111 precincts / 38 of 39 counties, a
+partial-load artifact, not roll-off."* Round 1 read that sentence and did not apply it.
+
+**The correction reverses the reading.** A statewide measure on an odd-year ballot rolls off
+about what a statewide measure on an even-year ballot does (4.1–5.6%) — so for that class of
+contest the paper's original reasoning was right. What survives, and is the finding that
+matters, is Cut 2: **local** offices roll off 4–44% on a conservative floor, 30–44% for fire
+districts. Those are the contests consolidation would move. The grid's odd-year row still
+should not be blank; the sentence justifying it was wrong about local offices and right about
+statewide measures, and the paper now says both.
+
+Two consequences beyond the number. The 2025 mayor cell was **13.3%** because Seattle Mayor,
+being King's only loaded 2025 race, was by construction the ballot floor in all 1,017 King
+precincts — 0% roll-off there by definition. Excluding King it is **25.2%**. And the three
+odd-year columns had been three different populations (4,973 / 5,328 / 6,438 precincts); they
+are now one 38-county footprint. `diag_wa_rolloff_oddyear.py` gained a guard that **raises**
+if King is ever loaded, because the scaling would then be wrong.
+
+The limits section said "King County 2020 presidential is not loaded and is excluded (all
+figures are 2021+)", which reads as confining the gap to 2020. There are two gaps and the
+second is the binding one. Both are now named, with the body's VRDB-based results explicitly
+exempted — King is complete in the voter file.
+
+### The verifier was describing itself falsely
+
+The paper cited `verify_who_decides_wa.py` "#23 / #24 / #30" and "sections #1–#30". **The
+verifier has no numbered sections** — they were removed when it became an asserting script.
+Worse, two of the three cited the verifier for tables its own `UNCHECKED` list disclaims, and
+`UNCHECKED` pointed at `scripts/diag_offyear_age.py`, **which does not exist**.
+
+Both `UNCHECKED` entries were false on inspection:
+
+- *"the 39-county table … a probe per cell would triple this file for no additional failure
+  mode."* One derivation and one row-loop. **All 39 rows are now derived and asserted** —
+  156 figures. The reviewer reported six wrong cells across four rows; re-derived here, **all
+  39 reconcile exactly**, so those were a basis difference in their query, not paper defects.
+  Recorded as a **reviewer error** — but nothing in the file could previously have told the
+  difference, which is the actual point.
+- *"the Das-Gupta decomposition — a derived quantity of the composition and roll figures
+  already asserted here."* It is a separate construction over four counterfactual
+  electorates, and two of its three off-years had been published under the wrong definition.
+
+**The generalisable rule, now written into the file: an `UNCHECKED` entry is a claim about
+coverage, and nothing checks it. Adding one needs the same evidence as adding a probe.**
+
+### Confirmed defects from round 2, beyond the above
+
+| claim | verdict |
+|---|---|
+| Ladder row "Registered roll (April 2026)" | **Undisclosed basis mixing.** That row is the FULL 5.51M roll; every turnout rate in the paper has the **active** roll as its denominator — confirmed arithmetically, 2,001,425 over 39.24% = 5,100,471 against an active roll of 5,098,276. The 416,492 inactive registrants are far younger (median 38 vs 49), so the published row runs about a point younger at each end **in the direction that widens the contrast the table exists to show.** Now disclosed and derived. |
+| "18-to-20-year-olds participate at slightly *higher* rates than voters in their mid-20s" | **False for 19.** Age 19 is 50.8%, *below* the mid-20s (52.1%) and the minimum of the young range — lower than the early-20s trough the sentence says comes after. Only age 20 exceeds it. |
+| Appendix G's eight correlations | **Six truncated toward zero rather than rounded**, systematically: % college +0.18 vs +0.19, % Hispanic −0.20 vs −0.21, income −0.08 vs −0.09, partial white +0.10 vs +0.11, partial Hispanic −0.12 vs −0.13, partial college ~+0.20 vs +0.21. A reader running the cited script sees six mismatches. |
+| "Court of Appeals (regional; **only one division votes**)" | **False.** Eight contests across all three divisions in 2024. The exclusion is right; the reason was not — each is voted only within its own district, so none spans the state. |
+| "King County (the largest and **youngest**)" | True on 65+ share, false on median age (Franklin and Whitman are younger on both the roll and the 2024 electorate). |
+| "**every test comes out the same way**" two lines after "depends on which yardstick is used" | Mutually exclusive. They agree on magnitude (about zero), not sign. Also: the appendix printed the three predictors with the *smallest* partials and omitted median age (+0.16, the largest surviving) and under-30 (−0.11, the only raw predictor pointing toward the worry). Both now reported. |
+| "no full date of birth was **obtained**, stored, or used" | A sentinel in the loaded table establishes storage and use, not acquisition. Narrowed; the statute carries the rest. |
+| "declines from 80 onward, **essentially monotonically**" | Three upward steps in the tail, the largest ten times the 51-to-52 dip the same paragraph calls noise. Now attributed to small cells rather than smoothed over. |
+| `diag_wa_age_curve.py` docstring | Still carried the retracted "smooth, **monotone** age ramp … decline from ~84", contradicting both the paper and the verifier. It is a **published** script. Rewritten. |
+
+### Reviewer errors, recorded
+
+- The 39-county last-digit errors (six cells) — do not reproduce; all 39 rows reconcile.
+- Round 1's Appendix H counterexample (75–79 vs 80+) had already failed the same way.
+
+Two rounds, two reviewer errors, both caught by re-measuring. The rule holds.
+
+### State after round 2
+
+`verify_who_decides_wa.py` **489 figures** (was 311, was 246), four sections fully mapped;
+`tests/test_infrastructure/` 331 passed — and it earned its keep twice this round, catching
+both a new script missing from the sync manifest and a citation to a script that does not
+exist. `check_cross_doc_consistency.py --skip-metadata` 0 findings.
+`docs/submission-metadata.md` re-pointed to 489 **and its SSRN abstract updated**, which had
+still carried the pre-correction "27.1 million … with the voter's year of birth".
+
+**Round 3 is required.** Round 2 found confirmed defects in all four gate-blind classes,
+including one this session introduced.
+
+---
+
+## 2026-08-09 (third pass) — WA round 3: the round-2 fix made a false coverage claim
+
+Third fresh reviewer, same brief, no log and no `git log`. **Not a clean round.** Again the
+most instructive finding is against the previous round's own work, and this time it is the
+exact defect that round's comment was written to warn about.
+
+### Round 2 added a warning and then committed the thing it warned about
+
+Round 2 rewrote the verifier's `UNCHECKED` list and added a 23-line comment ending: *"an
+`UNCHECKED` entry is a claim about coverage, and nothing checks it. Treat adding one as
+needing the same evidence as adding a probe."*
+
+The same edit **derived** `bandratio_*` for Appendix H and **wired it to no probe**, then
+wrote in three places — the appendix, the end note, and the new `UNCHECKED` entry — that the
+appendix's "load-bearing claims (the 65-boundary step, the peak, the tail decline and the
+banding-robustness ratios)" were asserted. None of them was. `--coverage` listed every one of
+those tokens as unprobed; the values were correct, so nothing failed.
+
+Now genuinely asserted: the peak (72.0% at 79), the 64→66 step against the 60→64 step, the
+five tail points, and all seven band ratios plus the 0.007 reversal — **18 figures** where
+there had been a claim.
+
+**The rule generalises past `UNCHECKED`: a derivation nothing reads is not coverage.** A
+`derive()` key with no probe is indistinguishable, from the outside, from a figure that is
+checked.
+
+### The reconstruction table compared two different populations
+
+Round 2 added a table of reconstruction-vs-official deltas and an explanation: the numerator
+shortfall depresses the rate in all five years, while the denominator "only pushes the same
+way from 2023 on". **The sign flip at 2023 is a population mismatch, not a mechanism.** The
+reconstruction counts every registrant; official registered counts only active ones — which
+round 2's own disclosure, 60 lines earlier, had just established. Matched:
+
+| | as built (full roll) | matched (active only) |
+|---|--:|--:|
+| 2021 | −9.2% | **−15.4%** |
+| 2022 | −3.9% | **−10.9%** |
+| 2023 | +0.2% | **−7.4%** |
+| 2024 | +3.1% | **−4.9%** |
+| 2025 | +6.4% | **−1.8%** |
+
+Like for like the roll is smaller in **every** year, shrinking monotonically as the
+registration-date filter has less history to discard, and on a fully matched basis the
+reconstructed rates run *above* official in all five (41.1 / 65.0 / 37.1 / 79.2 / 39.7%
+against 39.38 / 63.82 / 36.41 / 78.95 / 39.24). There are three effects, not two: numerator
+coverage, the registration-date filter, and **inactive inclusion**, which inflates the
+as-built denominator by 7.3–8.4 points and masks the second. The table now carries both
+bases and both are asserted.
+
+### The paper's own figure count was never checked
+
+The end note said the verifier "re-derives **311 figures**" while it asserted 489 — live in
+the public record on a posted paper, with `submission-metadata.md` correctly saying 489 and
+**passing its guard**. `vp.audit_satellite_counts` read only the files in `SATELLITES`, never
+the paper, and `_COUNT_CLAIMS` had no anchor for the papers' own "re-derives N figures"
+phrasing.
+
+Both fixed: the guard now scans the paper itself, and the phrasing is an anchor. Two things
+that fell out of doing it, both worth the record:
+
+- The loose `— N of them` anchor is a **satellite idiom** and false-positives on a paper:
+  `safe-seat-washington.md` says "every distinct party string in the five certified files —
+  32 of them", which counts party strings. Scoped to satellites rather than dropped, since it
+  is the only anchor their boilerplate offers. All eight verifiers re-run green after.
+- A patch that located the probe block by `str.index` on two anchors **silently deleted 20
+  probe blocks**, because the second anchor's first occurrence sat before the first's. Caught
+  by the figure count dropping 489 → 433 with no probe reporting a failure. Reverted and
+  redone by explicit line range. A count that only ever goes up is not a check.
+
+### Confirmed defects from round 3, beyond the above
+
+| claim | verdict |
+|---|---|
+| "under a coverage gate that fails on any unprobed number in a result section" | The gate audits **four** slices. The abstract, the validation section, the interpretation, the limits list and all eight appendices are outside it. Figures there are probed where a probe exists; nothing fails if one does not. Now stated. |
+| "steepest through the early sixties (about 1.4 points per year from 60 to 65)" | The parenthetical is right (1.36); the superlative is not. **65→70 is 1.54/yr**, the steepest five-year stretch — and it sits above 65, two paragraphs from the no-discontinuity argument. |
+| "upward steps at 93→94, 96→97 and 98→99, the largest of them ten times the size of the 51→52 dip" | Ages 96–99 are **outside the 18–95 curve the reader is pointed to**, and the largest of the three is +2.10 — thirty times, not ten. Inside the curve's range there is one step, 93→94 (+0.70). |
+| Appendix H's young tail | Described on **2024 turnout** inside a paragraph whose stated measure is retention. On retention the young ages run the other way and are nearly flat (23.4 / 23.0 / 23.1 at 19/20/21), so the first-election bump is a turnout phenomenon retention does not show. The measure is now named at both tails. |
+| "the composition table's 36.7% adds a registered-on-or-before filter, **a 0.1-point difference**" | The filter's real effect is about **0.001** points — 36.7508 against 36.7497, straddling a rounding boundary. The printed tenth is an artifact of rounding, not of the filter. |
+| "Across the **~4,900 precincts** that have both a 2024 presidential vote and Census demographics" | Every one of the 8,111 precincts has a presidential vote; ACS availability is the only binding constraint, so the sample is **60% of the state** — a 40% loss the paper did not state, while it *did* flag the smaller crosswalk subset. |
+| "roughly **2.5×** as age-unrepresentative" | The min-based reading; the sentence's subject is the three-cycle mean everywhere else, which gives **2.6**. Both are now printed and both asserted, closing a round-exemption rather than tolerating it. |
+| Appendix C's reproduction bullet | Listed the single-year curve among what is re-derived, contradicting `UNCHECKED` and the end note three sections away. |
+
+### State after round 3
+
+`verify_who_decides_wa.py` **521 figures** (489 → 503 → 521 across this round's fixes), four
+sections fully mapped; all **eight** paper verifiers green; `tests/test_infrastructure/` 331
+passed; `check_cross_doc_consistency.py --skip-metadata` 0 findings.
+
+**Round 4 is required.** Three rounds, three sets of confirmed defects, and in two of them the
+defect was introduced by the previous round's fix. That pattern is itself the finding: the
+edits that add a check are as defect-prone as the prose they check, and nothing was reviewing
+them until now.
+
+---
+
+## 2026-08-09 (fourth pass) — WA round 4: the round-1 gate fix was a no-op
+
+Fourth fresh reviewer, same brief, no log and no `git log`. **Not a clean round**, and for the
+third consecutive time the sharpest finding is against a previous round's fix. This one is
+the worst of them.
+
+### `strict_units=True` did nothing, and shipped with a comment naming five figures it caught
+
+Round 1 found that `COVERAGE_EXEMPT`'s `^\d{1,2}$` was swallowing every integer *percentage*
+in the audited sections, and added `strict_units` to `vp.audit_coverage`: a pattern must
+match the token **as written** as well as stripped, so `16` stays exempt and `16%` does not.
+
+`_NUMBER` is `r"\d[\d,]*(?:\.\d+)?(?<![,.])"`. **It never captures `%`, `M`, `×` or `$`.** So
+`tok == bare` for every token that exists, the added conjunct was satisfied whenever the base
+pattern was, and the whole thing was a no-op. Verified directly: a synthetic section
+containing `~37-40%`, `about 16%`, `~61%` and `2:1` with zero probe spans reports "fully
+mapped" under `strict_units=True` and `False` alike.
+
+**A check that cannot fail, added to close a check that cannot fail, documented as working
+and naming the exact five figures it did not catch.** That is the fourth instance of this
+defect class in this repo and the first one written by the process built to find it.
+
+The unit lives in the source text, not in the token, so the fix reads `hay[m.end()]`. Turned
+on, the gate immediately caught precisely the five figures the false comment had claimed —
+the headline band `~37-40%`, `~38%`, `~22-25%`, `about 16%`, `~61%` — plus the off-year
+returner share. All six are now probed; the last of them was **printed as `~40%` against a
+derived 39.09**, which `check_rounding` caught the moment a probe pointed at it.
+
+### 180 derived keys that no probe consumes — including the hinge of the bounding argument
+
+The reviewer instrumented `build_probes()`. Four mattered:
+
+| key | value | the published sentence resting on it |
+|---|--:|---|
+| `e24_max65` | 29.9931 | *"the presidential electorate under its most favorable assumption (**≤30.0%**)"* |
+| `cty_n` | 39 | *"positive in **all 39 counties**"* |
+| `cty_gap2_min/max` | 8.42 / 17.73 | *"gaps +8.4 to +17.7 points"* |
+| `cty_gap3_min/max` | 7.51 / 16.11 | *"(King +7.5 to Franklin +16.1)"* |
+
+`e24_max65` is what makes the worst-case bound a *bound* rather than an assertion, and it was
+computed and thrown away. All four are correct; all four are now asserted. **The rule stated
+in round 3 — a derivation nothing reads is not coverage — was not enough on its own, because
+nothing enforced it. It is now four probes.**
+
+### King is in the certified record; the gap is ours
+
+Rounds 2 and 3 wrote *"King County is absent from the odd-year precinct returns"* and built
+an estimated denominator around it. Measured on the raw certified exports: King is present in
+all three odd-year files (1,688 / 1,610 / 1,728 rows) **including all three 2021 advisory
+votes and SJR 8201** — on two pseudo-precincts, `Countywide` and `Total`.
+
+The true statement is narrower and is about us: **King publishes no precinct detail in the
+SoS statewide export in any year**, and this project's even-year King precinct rows come from
+a separate county file (`data/raw/king/<YYYY>GenKingfinal-results-report.csv`) that exists
+for the 2016/2020/2022/2024 generals only. The odd-year gap is an **acquisition** gap, not a
+disclosure gap — the same world-versus-pipeline confusion that started this whole programme,
+committed while correcting an instance of it.
+
+**Open item, not closed here:** King's certified countywide totals for these contests would
+make Appendix F's estimated denominator exact. De-duplicating the `Total` / `Countywide`
+rows correctly is its own small job and getting it wrong would be precisely this defect class
+again, so it is recorded rather than half-done. The paper now says the source has it.
+
+### Other confirmed defects
+
+| claim | verdict |
+|---|---|
+| *"ACS availability is the only binding constraint"* on the precinct sample | **False, and the label is on the wrong set.** 5,355 precincts carry demographics; a 50-presidential-vote floor removes a further 496. 4,859/8,111 = 60% is right, of a different population. The 4,650 electorate subset meets **four** constraints, not one. |
+| Appendix E *"ranges from **30.7% (King)** to **66% (Jefferson)**"* | Mixes a 2025 cell with a 2023 cell, and sits **above the paper's own body table** (King 2021 = 28.7%). Now both bases: two-off-year county averages 31.4–65.9, all-cells 28.7–66.1. |
+| The gate's four audited sections, as described in the end note | `tail` runs from the birth-year assumption to `## Interpretation` — it also covers the whole Geography subsection and the county table. The description named one sub-part and omitted two. |
+| *"Ages 18–19 are omitted … so that retention cell is an empty-denominator artifact"* | The empty-denominator argument applies to **18 only**; 19 has 38K 2024 voters and a retention of 23.4%, printed in the next clause. 19 is absent because the table steps in fives. |
+| Abstract: *"92–97% of off-year voters also vote in presidential **years**"* | All three figures are against **2024 alone**, which the body says correctly. The plural asserts a regularity the data cannot carry. |
+| Appendix H slopes 1.54 / 1.43 | Computed off the table's **rounded** cells; true values 1.524 and 1.4225. The superlative itself is true (65→70 is the largest five-year gain on the curve, +7.62). Left as printed, now flagged as derived from the displayed table. |
+
+### State after round 4
+
+`verify_who_decides_wa.py` **539 figures** (246 → 311 → 489 → 521 → 539), four sections fully
+mapped under a coverage gate that now actually fails; all **eight** paper verifiers green;
+`tests/test_infrastructure/` 331 passed; `check_cross_doc_consistency.py --skip-metadata` 0
+findings.
+
+**Round 5 is required**, and the reason to keep going is now itself the finding: four rounds,
+four sets of confirmed defects, and in three of them the defect was introduced by the
+previous round's fix — twice inside the verification machinery rather than the prose. The
+edits that add a check are at least as defect-prone as the prose they check, and until this
+programme nothing was reviewing them.
+
+---
+
+## 2026-08-09 (fifth pass) — `who-decides-idaho.md`, round 1: the flagship claim withdrawn
+
+First adversarial pass on the Idaho companion. Same method: a fresh reviewer given the paper,
+the verifier and the databases, and **not** the audit log or the corrections ledger. Author
+approved the rewrite before it was made, because it changes what the paper claims to
+contribute rather than a figure.
+
+### The instrument is destroyed by the act it measures
+
+The paper's stated second contribution was that *"because the file records the party ballot
+each voter actually pulled, the exclusion of the unaffiliated from the decisive primary is
+**measured, not inferred**."*
+
+Under **Idaho Code § 34-904A** an unaffiliated elector who requests a **Republican** primary
+ballot signs a Declaration of Party Affiliation at the poll book and is thereafter a
+registered Republican. A **Democratic** ballot affiliates nobody, because the Idaho Democratic
+Party admits unaffiliated voters. `voters.party` is a single 2026 snapshot and the raw file
+carries **no affiliation date**. So an unaffiliated voter who entered the Republican primary
+is, by construction, not unaffiliated when we look.
+
+Measured — and the signature is unambiguous:
+
+| ballot pulled, by voters unaffiliated on the 2026 roll | 2022 (4.1y) | 2024 (2.1y) | 2026 (0.1y) |
+|---|--:|--:|--:|
+| → Republican | 27.7% | 9.7% | **1.7%** |
+| → Democratic | 52.6% | 52.5% | 65.6% |
+
+The Republican column falls monotonically with **distance from the snapshot**; the Democratic
+column does not. Confirming tests: **55.8%** of the 2022 Republican-ballot pullers carry a
+registration date *after* that primary — they re-registered and reverted to unaffiliated —
+against **15.2%** of Democratic-ballot pullers. And voters who are Republican *today* pulled
+a Republican ballot in **97.3 / 96.9 / 97.7%** of cases, a concordance that is definitional.
+
+**So the 5.9% unaffiliated share of the 2024 primary electorate is not a measurement of
+unaffiliated participation. It is a measurement of unaffiliated non-participation in the
+Republican primary**, since participating there removes a voter from the category. The
+honest estimate is the 2026 figure, closest to the snapshot: **7.3%**. Earlier cycles are
+**lower bounds**, and the conversion is unobservable from this source, so the gap cannot be
+closed with the data at hand.
+
+**The New York companion already handles exactly this** and bounds its switching at 0.7–1.4%,
+because NY enrollment must precede the primary by months. Idaho inherited the framing without
+the caveat, in the one state where the caveat is load-bearing.
+
+### The trend ran the other way
+
+§IV read the same table as behaviour: *"even that door is closing … tightening the one-party
+lock."* The Republican share of **all** primary ballots cast is **falling** — 86.1% (2022),
+83.4% (2024), 79.5% (2026) — while the Democratic ballot share rises. Withdrawn.
+
+### §V argued from registration to an outcome its own state refutes
+
+*"Where the general election cannot change an outcome, the closed primary of Section IV is
+not merely *a* decisive contest — it is the *only* one."*
+
+In November 2024 Democrats won **15 of Idaho's 105 legislative seats** (90 R / 15 D, matching
+the seated 2025–26 legislature). Of the 47 seats whose Republican primary drew a single
+candidate, **9 were won by a Democrat**; all 52 contested-primary seats went Republican. So
+filing settled **38 of the 90 Republican-held seats (42%)**, not "roughly half of
+Republican-held seats" and not all 47 — a denominator error the paper made twice.
+
+The companion safe-seat paper had already withdrawn a stronger version of this inference on
+**observed margins**, which are better evidence than registration. It is not reinstated here.
+The three-state superlative ("the starkest safe-seat map of the three states studied") is also
+withdrawn: Washington publishes no party registration at all, so the comparison was across two
+different measures.
+
+### §VII: a circularity, and a superlative that contradicted §IV
+
+**More than half of the Democratic donor tilt is three progressive ballot-measure
+committees, one of them this paper's own subject.** Reclaim Idaho, Idahoans for Open
+Primaries and Idahoans United for Women and Families drew gifts from **5,522 of the 23,613
+matched donors (23.4%)**; Reclaim Idaho alone is the largest recipient in the Sunshine layer
+by gift count (109,551 person-gifts). Excluding donors to any of the three, the Democratic
+share falls **21.6% → 16.5%** and the Republican share rises 66.3% → 72.5%, so the
+over-representation goes from **+9.8 to +4.6 points**. The direction of Finding 3 survives;
+the magnitude is half what was printed, and *Idahoans for Open Primaries* is the Proposition 1
+campaign the paper analyses in §VIII. Now disclosed in the paper.
+
+**"The donor class is the oldest layer of all"** contradicted §IV's heading, *"its electorate
+is grayest of all"*. On the shared current-roll basis §VII itself insists on, the primary
+electorate is at least as old: **51.9%** of 2024 primary voters are 65+ (51.8% Republican-
+ballot, 52.0% in 2022) against **51.3%** of matched donors, all four at median age 65. §VII's
+superlative withdrawn; §IV's heading narrowed to "the grayest measured here".
+
+### One reviewer error, and how it was caught
+
+The reviewer reported the unaffiliated ballot-choice table as reproducing at 27.6 / 52.3 /
+18.9 rather than the printed 27.7 / 52.6 / 19.0. A first attempt at this fix **changed the
+paper to match** — and then the verifier's own pre-existing probes for that table failed,
+because they derive it on the established basis that excludes NULL `ballot_choice`. The
+paper was right and both the reviewer and the first fix were wrong. Reverted, and the new
+derivation now carries a comment saying not to re-derive those shares on a second
+denominator.
+
+That is the third reviewer error caught by re-measuring before fixing, and the first one
+caught by an *existing* probe rather than by hand.
+
+### State
+
+`verify_who_decides_id.py` **275 figures** (was 220), all sections fully mapped; the four
+satellite counts re-pointed; all **eight** paper verifiers green; `tests/test_infrastructure/`
+331 passed; cross-doc 0 findings.
+
+**Round 2 required.** Not yet reviewed against the corrected text, and several round-1
+findings were not reached: §VI's registration-cohort "new registrants" label (the party field
+is a current snapshot, and Idaho had no party registration before 2011–12), §I's 2020 row
+(built from 74.6% of that electorate against 98.0% for 2024), the "13% turnover in eighteen
+months" figure (a net contraction over ~20 months), and the §VII "upper bound" argument whose
+stated reason contradicts the backfill script it cites.
+
+---
+
+## 2026-08-09 (sixth pass) — `who-decides-cross-state.md`, round 1: the selection was the finding
+
+First adversarial pass on the synthesis. The verifier was green at 74 figures and every cell
+reproduced; the problems were all in the layer it cannot see, and the largest of them was
+**which contests the harmonizer was asked to look at**.
+
+### Two of three states were using a subset of their loaded history
+
+`LOW` selected 3 Washington odd-year generals, **2 of New York's 5**, and **1 of Idaho's 3**
+Republican primaries. Washington used everything it had; the other two did not, and nothing
+said so. Widened to every loaded contest, three published claims move:
+
+| | as published (subset) | all loaded contests |
+|---|---|---|
+| NY low-salience 65+ | 34.4–41.6% | **28.4–41.6%** |
+| ID low-salience 65+ | 46.7% (a point) | **41.4–48.6%** |
+| ID senior-to-youth ratio | 9.4:1 | 7.4–9.7:1 |
+| ID dissimilarity | 27.6 | 25.0–27.8 |
+| habitual-core floor | 87.7% | **86.4%** |
+
+**"At 46.7% over 65 … it exceeds every odd-year general measured here" is false on the full
+set**: Idaho's 2022 primary is 41.4%, just under New York's 2023 general at 41.6%. Withdrawn
+and replaced with the class-level claim, which holds — Idaho's dissimilarity floor (25.0) is
+above every general in the study.
+
+### The low-salience column is confounded with distance from the 2026 roll
+
+Widening the set made a confound visible that a single point per state had hidden. These are
+current-roll reconstructions, so departures — which skew old — remove seniors from older
+contests. Both multi-contest series run in exactly that order:
+
+- **NY odd-year 65+:** 28.4 (2017) → 32.9 (2019) → 36.3 (2021) → 41.6 (2023)
+- **ID primary 65+:** 41.4 (2022) → 46.7 (2024) → 48.6 (2026)
+
+A 13-point climb across four New York contests in near-perfect order of recency. The
+Boundary-of-inference bullet said the survivorship caveat was survivable because "the
+cross-state claim rests on the direction and universality of the skew" — but Finding 1's
+actual second-order claims are about **magnitude** and **ordering**, neither of which that
+protects, and the states' cells sit at different lags. Worse, the bias direction differs by
+state: Washington's attrition is older-skewing, Idaho's is larger for the young. The state
+supplying the study's extreme is the one whose reconstruction most over-retains seniors.
+Now stated, with the ladders printed.
+
+The same lag drives the habitual-core metric, which measures overlap with the **2024**
+presidential in every cell — so Idaho's 97.8% is its primary six months from its own
+reference election. Its series is 94.7 → **97.8** → 94.4, maximum at the nearest contest.
+The paper had read that 97.8% as showing "a selection result rather than a turnout-noise
+result"; the figure cannot carry that.
+
+### Finding 2 compared two different rungs of its own ladder
+
+The partisan payoff put New York's **odd-year** gap beside Idaho's **2024 presidential** one
+— in a paper whose entire method section exists to prevent that. And the striking New York
+number is its **2025** general, which Finding 1 itself identifies as the *high*-salience
+odd-year. Matched:
+
+| | Republican 65+ − Democratic 65+ |
+|---|--:|
+| NY, Nov 2024 presidential | +3.7 |
+| NY, Nov 2023 odd-year (its lowest-salience) | **+2.0** |
+| NY, Nov 2025 odd-year (NYC mayoral) | +10.7 |
+| ID, Nov 2024 presidential | +0.2 |
+
+So "low-salience electorates are old *and* skew Republican is a New York fact" fails **within
+New York too**: its lowest-salience general is nearly as symmetric as Idaho's presidential.
+What survives is smaller and sits at high salience (+3.7 against +0.2), plus one exceptional
+mayoral contest. Also recorded: Idaho's own lowest-salience contest is single-party by
+construction, so no partisan gap is measurable there at all.
+
+### Three more
+
+- **"The closed primary locks that youth out by design"** — false. Idaho's *Democratic*
+  primary is open to unaffiliated voters, and the Republican one admits them on affiliating
+  at the poll book. In May 2024, **8,453** currently-unaffiliated voters pulled a Democratic
+  ballot and **1,554** a Republican one.
+- **Party of record is a 2026 snapshot in both party states and the paper never said so** —
+  both companions flag it as their largest limitation, and Idaho's is *reactive* (§ 34-904A
+  reclassifies the very voters Finding 2 discusses). Now a Boundary bullet.
+- **"A third again"** is 27.8/22.4 = **1.24**, about a quarter — with both figures in the
+  same sentence. And the dissimilarity index *narrows* the between-state gap relative to the
+  ratio rather than widening it, so "widens the gap" is withdrawn too.
+- **"Texas is that case"** — Washington is a near-miss the paper should name: its
+  presidential primary does produce a per-voter party declaration, disclosable only inside
+  the RCW 29A.84.730 window, which closed for 2024 with only Pierce captured.
+
+### State after round 1
+
+`verify_who_returns_ballot.py` **131 figures** (was 74), all five audited sections fully
+mapped. The per-contest ladders are now derived cell by cell rather than as spans, and the
+New York party-by-class table is derived for all three classes so the comparison cannot
+revert to one of them. All **eight** paper verifiers green; `tests/test_infrastructure/` 331
+passed; `check_cross_doc_consistency.py --skip-metadata` 0 findings after both satellites
+were re-pointed.
+
+**Round 2 required.** Findings not reached this round: the guard the paper says "asserts on
+every run" is never called by any automated path and compares against hardcoded literals
+rather than reading the WA paper; `structural_guards()` cannot fail; the verifier's
+`UNCHECKED` list is stale in three of four items; the coverage gate still runs without
+`strict_units`; and Idaho's age is computed as `age − (2026 − year)`, which ignores the
+election month and puts Idaho about half a year young against WA/NY at the November generals.
+
+---
+
+## 2026-08-09 (seventh pass) — `cross-state-fec-money.md`, round 1
+
+First adversarial pass on the money paper, triaged over three commits. The verifier was green
+at 232 figures and every probed number reproduced; **every finding below is a claim ABOUT
+figures, a wrong noun, or a check that could not fail** — the three classes it cannot see.
+
+### The abstract contradicted Section C, and the verifier repeated it
+
+The abstract said the paper "identifies no individual donor". Section C is headed **Largest
+individual donors … at the person level** and names roughly fifteen people with dollar
+figures. Worse, the verifier's coverage exemption for that section gave as its written reason
+"this section names ORGANISATIONS and committees only — no individual donor is named anywhere
+in this paper, which is the 11 C.F.R. § 104.15 boundary". An exemption whose stated reason is
+contradicted by the text it exempts is the same defect as a false `UNCHECKED` entry.
+
+**Author decision, same day:** the § 104.15 boundary is about *solicitation use*, so §C stays
+and `CLAUDE.md`'s sentence — "no named contributor or named matched donor appears in any
+report, export or analysis output" — is narrowed to campaign-facing products, which is what it
+was written about when the prospect lists were removed. The distinction is the use, not the
+fact of naming.
+
+### Two checks that could not fail, in one query
+
+**"100% of recipient dollars matched in all four states"** was true of any input: the
+destination `CASE` has no branch for an unmatched committee, so a `LEFT JOIN` miss falls
+through to `PAC/party/other`. No residual bucket can ever be non-empty. Whatever share fails
+to match is inside the 51–62% cell that §B's conclusion rests on. **Fourth instance of this
+class in the series**, after the empty-key probe, the "0 missing" manifest and the
+`strict_units` no-op.
+
+**And the same query resolves recipient state by `cmte_st`** — the committee's *registration*
+state, which the abstract declares invalid two hundred lines earlier, in the sentence
+explaining why. Bounded against §G's office-state outflow: WA −0.5%, ID 0%, NY −8.5%, TX
++9.1%. Single-digit, undisclosed, and load-bearing for every §B conclusion.
+
+### Section I compared two different bases and read the gap as a mechanism
+
+Per-cycle inflow concentration set against pooled outflow concentration, with the difference
+attributed to the per-election contribution cap. Pooled like-for-like, inflow is **top-1%
+23.4%, Gini 0.726** against outflow's 36.1–47.5% and 0.775–0.848 — a gap of ~1.5–2.0×, not
+2.1–2.6×. The outflow ranges quoted ("39–48%", "0.80–0.85") also dropped Idaho at both ends.
+A second confound survives the fix and is now disclosed: the inflow pool is all-state (887K
+keys) against one state's residents (54K–837K), and pool size alone lowers a top-1% share.
+Direction holds; the causal attribution does not.
+
+§I is coverage-exempt, so the replacements are **derived and probed** — otherwise they would
+be as unverified as what they replaced, which is how the mismatch survived.
+
+### Six superlatives and a category error
+
+| claim | verdict |
+|---|---|
+| Idaho "most retail on **every** measure" (×3) | Washington leads on ≥$5,000, 20.00% against 20.13% |
+| "New York … most concentrated **and rising fastest**" | Texas rose faster on both comparisons the same sentence supplies |
+| "**2×–5×** as much to out-of-state congressional races" | 1.2×–5.3×; two states below the floor, including the one named |
+| "**a third again** more participatory" | two-thirds again (4.6% against 2.8%) |
+| "$61M **on par with** $87M" | 70% |
+| "the concentration ordering **is stable**" | true of New York only; WA and ID trade places across cycles |
+| "WA and ID are **net importers**" | both are net exporters on the paper's own tables, and it is a cross-matrix subtraction the paper's own caveat forbids |
+| Idaho "the **only** state whose out-of-region giving funds both parties" | §C records TX $6.0M to Warnock, 20× Idaho's |
+
+**The category error:** a 2026-08-02 check was cited as an "independent derivation" proving
+the donor key does not drive the concentration ordering. It groups by the **same key** on the
+same data — two implementations agreeing, not two keys. The direction comes from the donor
+paper's de-merging exercise (−6.1 to −8.3 points); the magnitude is unmeasured. Said so.
+
+The paper also stated its donor-proxy bias **in two opposite directions** — "slightly
+understated" in the scope note, "overstates concentration" in Limitations. The de-merging
+evidence settles it: over-merging inflates, so the scope note was wrong.
+
+`ZUMIEZ` removed from the tech sector keyword list — a teen-apparel retailer §C itself
+identifies as one. 78 rows / $158,100, 2.2% of the tech row, so no printed figure moves.
+
+The headline table's legend said bold marks the most top-heavy on every row; on the retail
+rows it marks the most *retail*, the opposite direction, and the dollar row bolds all four.
+
+### State after round 1
+
+`verify_cross_state_money.py` **248 figures** (was 232), all audited sections fully mapped;
+eight verifiers green; `tests/test_infrastructure/` 338; cross-doc 0 findings.
+
+**Round 2 required.** Not reached: §F5's cross-state Gini comparison runs on differently-pooled
+panels; the inflow recipient map has no `dsgn IN ('P','A')` filter while §G's stated method
+claims one; amendment handling (`amndt_ind`) is unaudited on both loaders; §K1's
+Texas-vs-congressional comparison fails on the paper's own inflow window; and §E's "cannot
+vote in them" measures out-of-**state**, not out-of-district.
+
+---
+
+## 2026-08-10 — DISCLOSURE: one person-level contribution row reached a hosted model
+
+**Reported immediately, per the standing rule in `CLAUDE.md` ("Say so immediately and plainly —
+what file, how many rows, which fields. Do not minimise").**
+
+### What happened
+
+During the round-2 adversarial review of `who-decides-idaho.md`, the reviewing subagent ran an
+aggregate `GROUP BY` over `data/raw/id/_source/id_2024_TCON.csv`. DuckDB's CSV parser hit an
+**unterminated quote** in the file and raised an error that **echoed the offending source line
+verbatim** into that session's transcript.
+
+- **File:** `data/raw/id/_source/id_2024_TCON.csv` (Idaho Sunshine contribution export)
+- **Rows surfaced:** **one (1)**
+- **Fields on that row:** filing-entity id and name, campaign name, registration type,
+  transaction id / type / sub-type, contributor type, **contributor last name, first name**,
+  contributor company name, **street address, city, state, ZIP**, transaction date, amount,
+  description.
+
+It was not requested and was not produced by any `SELECT` the agent wrote — the parser
+exception carried it. The agent stopped querying raw contribution CSVs at that point, opened
+no `data/validation/*` file, and surfaced no voter rows; all VRDB work was
+`COUNT`/`SUM`/`GROUP BY`/`DESCRIBE`.
+
+### Why it happened, and whose fault it is
+
+The subagent's brief carried the hard rule and the agent followed it as written — the rule
+names `SELECT * LIMIT 5` as the hazard and says aggregates are safe. **Aggregates are not safe
+on a malformed CSV**, and the brief did not say so because the orchestrator (me) did not know
+it. The instruction was mine, so the gap is mine.
+
+The orchestrator's own earlier reads of these same files did not trigger it, by luck rather
+than design: the `duckdb` reads happened to pass `ignore_errors=true`, and the `pandas` reads
+happened to pass `usecols=` limited to non-person columns.
+
+### The generalisable finding
+
+**`read_csv_auto` over a raw person-level file is a disclosure channel independent of what you
+SELECT.** A parser exception can print a source row regardless of the projection, so the
+projection is not the control. The control is `ignore_errors=true` / `strict_mode=false`, or
+not reading the raw file at all.
+
+This is the same shape as the rest of this programme's findings: a control written down
+("query aggregates, not rows") that does not cover the mechanism it was believed to cover.
+
+### What was changed
+
+- `CLAUDE.md`'s hard-rule section now names this channel explicitly and requires
+  `ignore_errors=true` on any read of a raw person-level file.
+- The subagent brief template used for these reviews carries the same instruction.
+
+### What is NOT claimed
+
+No assertion is made here about what any *earlier* session did with these files. Per the
+standing rule, a past session's behaviour is not inferable from its artifacts and must be
+asked, not assumed.
+
+### Author's decisions still open
+
+Whether this warrants any further step — the row was one contribution record from a public
+state disclosure file, not a voter-roll record — is the author's call, not the assistant's.
+It is recorded here in full so that the call can be made on facts.
+
+---
+
+## 2026-08-10 — strict_units backlog cleared: 8 verifiers, 116 probes, 3 defects
+
+**What this round was.** Not an adversarial review of a paper. The 2026-08-10 round-2 pass
+found that `strict_units` — the coverage-gate fix added on 2026-08-09 — was wired to **one of
+nine callers**, and converted the gap into a roster test (`ENABLED` / `BACKLOG`) rather than
+enabling it blind, because doing so would have left six release gates red with no way to
+separate a real regression from the expected backlog. This round works that backlog off.
+
+**Result: `BACKLOG` is empty.** All eight callers run the coverage gate at full strictness.
+116 probes added. Three defects found, plus one figure declared unverifiable.
+
+### The three defects, all the same shape
+
+Each is a **result written as a bare integer percentage**. The near-universal exemption
+`^\d{1,2}$` is matched against the numeric token with its unit stripped, so `69%` looked like
+an ordinal to every gate in the series.
+
+**1. `does-money-move-votes.md` §3 — a wrong noun.** "express advocacy 69% *for* candidates
+and electioneering 61% *against* them". 61% is right. **68.8% is `$8.96M / $13.03M` — the
+share of express-advocacy dollars filed as *Independent Expenditure Ad* rather than
+*Independent Expenditure*.** It is not a direction at all. The For share is **78%**
+($10.11M of $13.02M). The identical sentence sat in `docs/pdc-c6-direction-audit.md`
+**contradicting the table four lines above it**, which prints the components. Both corrected;
+the audit doc carries an inline correction note naming the arithmetic.
+
+The sentence is load-bearing — it is the stated reason express advocacy and electioneering are
+reported apart rather than summed — so the relation is now asserted **in code**, not just
+numerically: two probes on 69 and 61 would both still pass if both report types ran the same
+way.
+
+**2. `electoral-health-whitepaper.md` Finding 5 — a stale specification.** The NY own-party
+crossover read **94%**. It reproduces on the **retired all-tier panels** (94.15 pooled / 94.40
+federal) and on **no primary panel** — in a sentence that ends "**These are the primary
+(full-name-key) specification.**" The federal primary panel gives **95.3%**, and the bullet's
+every other NY figure is federal. Corrected to 95%.
+
+Why it survived: only `state_dem_donly` was derived, for both states. Idaho's crossover *is*
+the state layer and was probed; New York's is the federal one and **had no key to probe
+against**. A two-figure sentence with one figure asserted is how the unasserted half drifts
+into contradicting its neighbour. Both panels are now derived for both states.
+
+**3. `who-decides-idaho.md` — two, one against its own table.** §VII: "they are 12% of the roll
+but **21% of donors and give 21% of the money**", against a table **two lines above** printing
+21.6% and 20.0%. Corrected to 22% / 20%. §IV: the Democratic contested-primary range read
+**2–14%**; the four cycles the sentence names run **2.2% – 11.3%**. Corrected to 2–11%.
+
+The Republican series in the same sentence — 36% (2016) → 43% → 68% → 53% — reproduces
+**exactly**, and only its 2024 cell had been derived. The trend claim the section is built on
+rested on one point.
+
+### The mechanism changed, narrowly — and got the test it never had
+
+Strictness first meant *a unit-carrying token cannot be pattern-exempted at all*. That is too
+strong: **"the top 1% of donors supply 41.2%" has one result in it and it is not the 1.** With
+no way to declare that, the only remaining route was a literal waiver on `"1"` — which covers
+every bare 1 in the document. *A blanket waiver used to express a narrow exception is how
+coverage gaps get built.*
+
+It now means: **the pattern must match the token AS WRITTEN.** `^\d{1,2}$` still fails on
+`16%`; a caller that means it can write `^1%$`, which reaches that token and nothing else.
+Verified behaviour-preserving on all five papers already cleared before the change.
+
+**The flag had no behavioural test.** `test_strict_units_rollout.py` checked *which* verifiers
+pass it and never *what passing it does* — a roster for a flag nothing exercised, which is the
+same defect one level up. It has been written twice and was wrong once, and the wrong version
+was caught by an adversarial pass rather than by a test.
+`tests/test_infrastructure/test_strict_units_semantics.py` (13 tests) pins the semantics
+against a synthetic document, **with the historic defect as an explicit control** so the suite
+cannot pass on a broken gate.
+
+### One exemption deliberately names no owner
+
+Idaho's roll-churn parenthetical — "33% are 65+ vs 24% of those retained" — needs the **2023
+Idaho roll snapshot** beside the 2026 one. Only 2026 is loaded, and voters who left the rolls
+are absent from it *by construction*, so no query over `id_vrdb.duckdb` can reproduce either
+figure. The project's rule is that an exemption must name where the figure IS verified;
+**here there is nowhere**, and the exemption says so rather than inventing an owner — which
+would be a false claim of coverage, the exact defect class this gate exists to catch.
+
+**Author's decision:** re-acquire the 2023 snapshot, attribute the two figures in the paper to
+the run that produced them, or drop the parenthetical.
+
+### Comparisons that were built on probed figures but were not themselves probed
+
+A recurring shape, closed in this round: the per-state figures were asserted while **the
+sentence's actual claim about them** was not, because a multiple or a band is written as a bare
+integer. Now derived from the components rather than restated — "~3× Washington's federal
+dollars", "~2× their off-year totals", "~20% of both ID and WA", the ~48% non-working bucket,
+the ~2× competitiveness premium, the four-cycle contested series, the 5–7% unaffiliated primary
+share, the 42% of Republican-held seats settled at filing, the 13% roll turnover, and the ~94%
+inflated all-voter rate.
+
+Each **"both" / "all four"** is asserted as a **relation in code**, so the word has to keep
+being true: if two states stop rounding alike, the derivation raises rather than letting one
+approximation silently stand for both.
+
+### State
+
+Figures per verifier: WA 539 · Idaho 275 → **306** · cross-state money 243 → **255** ·
+money-votes 106 → **116** · NY 219 → **228** · whitepaper **101** · who-returns-ballot **139** ·
+safe-seat **210**. Infrastructure tests 364 → **372**. Nine verifiers green, harmonizer green,
+`check_cross_doc_consistency` **0 findings**.
+
+Commit `49041e5`.
+
+---
+
+## 2026-08-10 — round-2 triage: two confirmed, one of mine reversed
+
+Three findings from the round-2 passes, triaged against the data. The `~40 smaller items`
+those reports also carried are **not recoverable** — the session transcript was compacted and
+the reports lived only in it. That is a process failure worth naming: a reviewer's findings
+must be written to disk when received, not held in context. Going forward each pass writes its
+report to `docs/reviews/` before triage begins.
+
+### Reversed — a defect of mine, not the paper's
+
+The previous commit exempted Idaho's roll-churn figures ("33% are 65+ vs 24% of those
+retained") as **not verifiable in this repo**, at length, naming a 2023 *Idaho* snapshot that
+does not exist. They are **Washington's** figures, and the sentence containing them says so.
+Washington retains `voters_20230901` — the only place in this project where a *departed* voter
+can still be aged — and the pair reproduces exactly: of the 2023 snapshot's voters, the
+**504,103** since departed are **33.15% 65+** against **23.93%** of the **4,782,028** retained.
+
+Now derived in the Idaho verifier, with a guard that raises if departing voters ever stop
+skewing older, since the boundary section rests a *direction* on it. **Read the sentence before
+writing the reason.** The exemption was three sentences of confident, specific, wrong
+provenance — the same shape as the round-15 error this log already records.
+
+### Confirmed — §VI's cohort table is not a cohort table
+
+`registration_date` is the date of a voter's **most recent registration event**. Idaho rewrites
+it on an address change, on a party change — including the § 34-904A poll-book affiliation that
+Section III is about — and on an election-day registration. Measured: of registrants dated
+**2024, 36.3%** had already voted in an earlier election; of those dated **2022, 43.7%** had.
+Both are **floors** — the file's vote history begins in 2020, so a 2024 registrant who last
+voted in 2018 is indistinguishable from a new one, and the 2008–2020 rows cannot be cleaned at
+all. The tell was on the page: **263,322 registrants dated 2024**, a quarter of the roll in one
+year.
+
+**The direction survives and sharpens.** Dropping detectably re-registered voters makes the
+newest cohort *younger* (median age at registration **35 → 32**) and leaves the Republican
+share flat (**57.5% → 57.7%**). Re-registrants are by construction people who were already
+voting, so their removal cannot be what produces the young skew.
+
+**What does not survive is one clause.** "The Democratic share is flat near 12% across two
+decades" — on the clean cut the 2024 Democratic share is **10.7%**, not 12.4%, while the
+unaffiliated share rises **28.3% → 29.8%**. §VI now states the re-registration shares, reports
+both cuts, and presents the two-decade comparison as a direction rather than a series, because
+its rows carry different amounts of contamination and cannot be a like-for-like trend.
+
+### The bound that replaces an analogy
+
+The boundary section argued the *direction* of survivorship bias from Washington because Idaho
+has no prior snapshot. Idaho's own data bounds the *magnitude*. A reconstructed electorate is
+the set of **current** registrants carrying a vote record for that election, so the Secretary of
+State's certified ballots-cast count measures the gap directly — and the age composition follows
+as arithmetic, because the missing voters are at worst all 65+ or none of them:
+
+| election | ballots cast | reconstructed | coverage | 65+ measured | 65+ bounded |
+|---|--:|--:|--:|--:|:--|
+| Nov 2024 | 917,608 | 898,877 | 98.0% | 29.0% | 28.4 – 30.5% |
+| Nov 2022 | 595,602 | 571,868 | 96.0% | 34.4% | 33.0 – 37.0% |
+| Nov 2020 | 878,527 | 647,029 | **73.6%** | 26.3% | **19.4 – 45.7%** |
+
+**2022 and 2024 are tight enough that Section I's finding survives them** — the intervals do
+not overlap, so the 65+ share genuinely rises as salience falls, whoever the missing voters
+were. **2020 is not**, and Section I's 2020 row is now marked indicative. That row is the only
+place in the paper where roll attrition is large enough to carry a result, and nothing said so.
+
+Denominators verified against the Idaho SoS canvasses rather than remembered: 2020 878,527 /
+1,082,417 (81.2%); 2022 595,602 / 1,048,263 (56.8%); 2024 917,608 / 1,178,750 (77.8%), of which
+121,015 registered on election day. The `~13% turnover` sentence now says the Idaho extract
+carries no active/inactive flag, so the figure is an upper bound on turnover rather than a
+measurement of it.
+
+### Confirmed — the age clock is worth two points, and it runs one way
+
+All three states are year-of-birth resolution **but not on the same clock**, which the synthesis
+had already half-documented and then dismissed. WA and NY publish a birth *year*, materialised
+as **July 1 on every row** (verified), so a calendar-year difference against a November election
+implicitly assumes the birthday has happened. Idaho publishes a current integer *age*, which
+already accounts for whether it has. The two disagree by a year for every Idahoan whose 2026
+birthday falls after the extract date, and **an integer age cannot say who that is** — so
+Idaho's figure is a one-sided bracket, not a point.
+
+Measured across Idaho's five classes: **1.7–2.6 points of the 65+ share** and **1.3–1.4 points
+of the dissimilarity index**. One single-year cohort near 65 is **1.8%** of the Idaho roll,
+which is why one year of resolution is worth that much. The synthesis called this "accurate to
+about a year" and added that the comparability caveat "understates how close the three are." It
+does not.
+
+**The published figures are the low end**, so the closed-primary electorate's dissimilarity of
+**27.6** is the conservative reading against **29.0** at the other end — the correction runs
+*toward* the finding, not against it. There is nothing to correct *to*, because the point
+estimate is unrecoverable from an integer age; what is reportable is the size and the direction,
+and `id_convention_sensitivity` in the harmonizer now recomputes both on every run and refuses
+to finish if the bracket stops being one-sided.
+
+One noun fell out of this: the synthesis's case table described the NY file as **"party + DOB"**.
+It carries a birth year. A verifier probe was anchored on that cell and failed the moment it was
+corrected — the machine working as designed.
+
+### State
+
+Idaho 306 → **339** figures. Nine verifiers green, harmonizer green,
+`check_cross_doc_consistency` **0 findings**, 372 infrastructure tests.
+Commit `3ec6fb2`.
+
+---
+
+## 2026-08-10 — the cycling itself, diagnosed and instrumented
+
+**What this round was.** Not a review of a paper. The author asked why the papers keep mutating
+— fixes applied and then undone, data elements found wrong with no change to the underlying
+data — and whether this is model drift. It is not. The answer and the instruments are below;
+the governing rules that came out of it are in **§0**, at the top of this file.
+
+### It is not model drift
+
+Every one of the rounds that produced the flip-flopping ran on the same model: at the time of
+measurement, 78 of the last 80 commits carried `Co-Authored-By: Claude Opus 5`. A changing model
+cannot explain a same-model oscillation.
+
+The mechanism is that **both sides of every check are authored in the same round.** When a
+derivation and a sentence disagree, that round decides which is wrong, with no prior authority
+to appeal to — so the paper tracks whichever derivation is newest, and the next round's newest
+derivation moves it back. Idaho's R−D `+76.8 → +76.9 → +76.8` (`df91534`, then `5a7992b`) is the
+clean case: one round differenced the printed columns, the other the unrounded shares, and
+neither was wrong on its own basis. **The basis was never written down.** Four more reversals of
+the same shape are tabulated in §0, rule 3.
+
+Two secondary contributors, both real and both smaller:
+
+* **Every new round mints new probes**, and each is a fresh chance to mislabel a basis. Figure
+  counts churn as a direct consequence (NY 219→228, safe-seat 205→210, ballot 131→139 in one
+  day), and `audit_satellite_counts` makes each count a load-bearing anchor, so one added probe
+  forces edits across the paper, its metadata and its notes.
+* **A subset of figures genuinely moves under a finished paper.** `data/wa_statewide.duckdb` is
+  appended to daily by the WA SoS Results Daily Archive task, and the 2026 PDC cycle is about
+  half collected. Pinned panels are immune; unpinned live reads are not.
+
+### The instrument: can a gate fail?
+
+This project has twice shipped a gate that could not fail and documented it as working
+(`1eeb978`, `e3938bd`). Reasoning about whether a check works is not evidence that it does, so
+the question is now asked mechanically: **if this derived value were wrong, would the gate say
+so?**
+
+* `tests/test_infrastructure/test_gates_can_fail.py` — 22 tests, 0.7s, synthetic text and no
+  database. Proves the shared harness fails on a wrong value, a missing anchor, an unavailable
+  derivation, a second occurrence that disagrees, a rounding violation, a capture-count
+  mismatch, an over-greedy capture and an undefined section — each with a passing control beside
+  it, so the differential is real rather than assumed.
+* `scripts/mutation_probe_verifiers.py` — the per-verifier sweep. Spies on `vp.run`, lets each
+  verifier compute its `derived` dict once (the expensive part), then re-invokes the assertion
+  pass with one key perturbed per iteration. One derivation, N cheap regex passes.
+* `docs/reference/probe_mutation_2026-08-10.csv` — the pinned result, gated by
+  `tests/test_infrastructure/test_probe_mutation_roster.py`.
+
+**Result: 1,541 derived keys caught, 0 UNCAUGHT, 396 no-probe, across the eight verifiers on the
+shared harness.** Zero uncaught is the reassuring part and it is now measured rather than
+believed: every value assertion in those eight gates does fail when its data is wrong.
+
+`no-probe` counts keys no probe consumes; it is held as a per-verifier ceiling that may only
+fall, not driven to zero, because some legitimately feed structural guards (safe-seat's
+`zerovote_*` drive `if d["zerovote_total"]:`). Its largest entry is **181 on the WA paper** —
+`e3938bd` recorded an instrumented `build_probes()` finding "180 derived keys that no probe
+consumes, four of them carrying published sentences" and asserted those four. The rest are still
+there, presumed intermediates. Presumed is not measured; the ceiling stops the number drifting up.
+
+**The lead article's gate cannot be swept, and that is a real gap.** `verify_donor_class.py` never
+adopted the shared harness: 4,942 lines with its own `prose_probes()`, its own coverage audit, a
+module-level `_FAILURES` accumulator and no `main()` — importing it *is* running it. So the one
+paper under journal submission is gated by machinery this instrument structurally cannot
+interrogate. Recorded in the roster test rather than left as an absence, because a sweep that
+silently omits the lead article reads as covering the series.
+
+### The basis registry
+
+`docs/reference/derivation-bases.csv` declares population, county footprint, source prefix, tier
+spec, cycle window and rounding source per key **family** — 25 patterns cover safe-seat's 203
+numeric keys, where one row per key would have been ~1,900 rows of mostly-guessed metadata across
+the series. `vp.require_bases` fails on a numeric derived key matching no pattern;
+`vp.audit_basis_consistency` fails when two rows naming the same `quantity` disagree on a basis
+column without naming where the paper discloses the difference.
+
+Rolled out on the `ENABLED`/`BACKLOG` roster pattern, safe-seat as the pilot (203/203 declared),
+seven verifiers still owing — the same judgement the `strict_units` rollout made, and for the
+same reason: a registry filled in at speed is worse than none, because it looks like a record.
+
+**It fired a real finding on its first run.** The four-state seat comparison puts Texas on a
+backfilled footprint, because its canvass returns omit uncontested seats. That is disclosed in
+Appendix F, so the row now names the disclosure — the check was not loosened to accept it.
+
+What the registry does **not** do is evaluate composite arithmetic. The composites are built
+through f-string key families and there is no honest static way to reconstruct them, so
+`computed_on` is a **declaration, not a check**, and is labelled as one in all three places it
+appears. What is enforced is that a paper with unrounded composites tells its reader so.
+
+### Four defects found on the way, and one of mine
+
+1. **`tests/test_infrastructure/` was red at HEAD.** The claim scan flagged a comment added by
+   `5470f7f` — "the cell claimed a precision the source does not publish" — with no registry row
+   behind it. The claim is TRUE and is now measured and registered as
+   `ny-vrdb-birth-precision`: all 13,540,558 NY rows carry a birthdate whose month-day is
+   `07-01`, one distinct value across 146 birth years, so the source publishes a birth year and
+   the month-day is a materialised placeholder. Aggregate query only; no row was read.
+2. **`verify_cross_state_money.py` printed a NOTE where it needed to fail.** Its own docstring
+   said the script "must not quietly report a drifting number as if it were the pinned one", and
+   then a missing WA roll pin produced a note and exit 0. Now a hard failure.
+3. **Two verifiers could not be run by the command their own docstrings give.**
+   `verify_money_votes.py` and `verify_whitepaper.py` import `wa_analyzer`, which is on the path
+   for pytest only, so a bare `python scripts/verify_money_votes.py` died with
+   ModuleNotFoundError. Every real caller sets `PYTHONPATH=src`, so nothing noticed. Both now put
+   `src` on `sys.path` themselves. A gate whose documented invocation does not run is a gate that
+   silently does not run.
+4. **Mine: I read a piped exit code as success.** The first full sweep crashed on verifier 1 of 9
+   and I reported it as passing, because I had run it through `| tail -60` and read `tail`'s exit
+   status. Exactly the defect class this round exists to close, committed while closing it. The
+   sweep's import is now inside its error guard, and its exit code is read directly.
+
+### The question that was asked, and the author's answer
+
+Four commits landed on `master` **during** this session — `49041e5`, `6b9a7c6`, `3ec6fb2`,
+`6bc5a55`, between 12:43 and 13:24 — moving HEAD off the `5470f7f` it started from and clearing
+the `strict_units` backlog that was open when it began. Concurrent authorship would have been a
+fifth mechanism for "a fix that came undone", and the one mechanism none of the instruments here
+can see, so it was raised rather than assumed either way.
+
+**Asked and answered 2026-08-10: a single session, confirmed by the author.** Recorded because
+this file's own rule is to ask the human who was there rather than infer from artifacts — and the
+inference available here (HEAD moved, therefore something else was committing) would have been
+wrong. The concurrency mechanism is closed.
+
+What the episode did leave is a real defect in the instrument: the first probe-mutation artifact
+carried **no record of which tree it measured**, so whether it straddled those commits was
+unanswerable from the artifact. It was re-measured on the settled tree with HEAD recorded either
+side and came back identical. Stamping the HEAD into the artifact itself is still owed.
+
+### State
+
+**Not a release gate.** No paper figure was changed by this round; the changes are to the gates,
+the registry and §0. `tests/test_infrastructure/` **410 passed, 1 skipped, 50s**. Eight harness
+verifiers swept, 0 UNCAUGHT. `verify_cross_state_money`, `verify_who_returns_ballot`,
+`verify_money_votes`, `verify_whitepaper`, `verify_safe_seat` re-run individually, all exit 0.
+The full suite and `check_cross_doc_consistency` were NOT re-run — this round touched no paper
+prose, and the freeze rule's own discipline is to spend the 21-minute gate at a stage boundary
+rather than after each edit.
+
+---
+
+## 2026-08-10 (second pass) — the lead article's gate, and a claims audit that came back clean
+
+### The donor gate is now swept
+
+`verify_donor_class.py` was the only gate in the series never asked whether its probes can fail,
+while gating the paper under journal submission. `sweep_donor_class()` reaches its actual seam —
+`cached_derive()` memoises into the module global `_DERIVED`, `prose_probes()` reads it — so a
+perturbed copy runs the REAL comparison loop. Nothing is reimplemented; a hand-rolled copy of the
+loop would have tested the copy.
+
+**All nine gates: 2,465 keys caught, 0 UNCAUGHT, 909 no-probe, 9 passing baselines**, at HEAD
+`3c54672`. The donor gate contributes **924 caught, 0 uncaught** at 8m20s import + 1.6 min sweep.
+
+**A hole in the instrument shipped in `3c54672`, found and fixed here.** `caught` is inferred from
+a non-zero exit under perturbation — so a gate that already fails unperturbed exits non-zero for
+every perturbation and every key reports `caught`. A sweep that measures nothing while printing a
+perfect score. There was no baseline check. Both sweeps now record one, mark keys `UNTRUSTED`
+rather than `caught` when it fails, and exit non-zero. All nine baselines pass, so the previous
+artifact was sound; it was not entitled to say so.
+
+The donor gate's **513 of 1,437** numeric derivations are consumed by no probe — 36%, the largest
+in the series. Its coverage audit independently guarantees no *published* figure is unprobed, so
+these are presumed intermediates; `e3938bd` is the round where four such keys turned out to carry
+published sentences. Held as a ceiling that may only fall.
+
+### The claims audit — 20 comparison-class claims, none false
+
+The documented blind spot is **claims about figures**: a superlative, ordering or comparative has
+no numeric token for a probe to anchor on. It has been false twice here — "the highest of the
+four" (§E, now guarded by `_id_is_max_oos`) and "the most IE-saturated House race in the country"
+(22nd of 387, now owned by `diag_fec_ie_bulk_crosscheck.py --national-rank`).
+
+Scanned all nine documents for a superlative paired with an explicit comparison class ("of the
+four", "in the country", "than any", "no other state"). **20 claims. Every one checks out.** The
+strongest were verified by hand against their own tables:
+
+| claim | verdict |
+|---|---|
+| "Idaho is the least concentrated of the four on every measure" | true — ID lowest on all three (top-1% 36.0, top-10% 69.2, Gini 0.775) |
+| "the ordering matches the matched federal panel (NY > WA > ID)" | true — 47.5 > 39.3 > 36.0 |
+| retired share "the highest of the four" | true — ID 31.7 > WA 24.0 > TX 19.5 > NY 11.8 |
+| "Idaho ships the most of all — 68%" | true — outflow rest-of-US 68.0 vs WA 50.8, NY 62.0, TX 43.3 |
+| "the highest external dependence of the four" | true — inflow rest-of-US 53.3 vs WA 26.7, NY 41.0, TX 34.2 |
+| "even Texas, the most parochial" | true — TX in-state 54.1%, the highest |
+
+**What the audit did find is uneven protection, and one paper is the outlier.** Most of these
+claims are *transitively* protected: the paper prints every comparator adjacent to the claim, each
+comparator is probed, so a value could not drift without failing its own probe before the ordering
+sentence went quietly false. That protection depends entirely on the comparators being **probed**,
+not merely printed — and section coverage is where that is decided:
+
+| verifier | sections | exempt | gated |
+|---|--:|--:|--:|
+| `verify_cross_state_money.py` | 19 | 12 | **37%** |
+| `verify_donor_class.py` | 48 | 4 | 92% |
+| the other seven | 37 | 0 | 100% |
+
+`cross-state-fec-money.md` is the outlier by a wide margin, and §G — where "ships the most of
+all" and "the highest external dependence of the four" live — is one of the twelve exempt
+sections. Its 24 flow-matrix cells are printed but unprobed, so those two superlatives have
+**neither a boolean guard nor transitive protection**. They are true today; nothing would catch
+them becoming false. That is the same exposure that produced the §E defect one section away.
+
+The twelve exemptions are documented, each naming an owning script and marked BACKLOG, so this is
+a recorded state rather than a hidden one. What was not recorded is that it concentrates the
+series' entire claims exposure in one paper. **Recommended, and NOT done here:** probe §G's flow
+matrix and add boolean guards for its three superlatives — admissible under §0 rule 1(c) as
+closing a documented gate, and it asserts figures the paper already prints rather than adding an
+analysis.
+
+One correction to my own measurement, caught before it was written down: a first pass reported
+`verify_who_decides_wa.py` as gating 0 sections. It gates **4 of 4**. The regex looked for a dict
+and that file declares `AUDITED_SECTIONS` as a tuple with an empty exempt dict. The instrument was
+wrong, not the paper.
+
+### State
+
+`tests/test_infrastructure/` **418 passed, 1 skipped, 47s**. Nine gates swept, 0 UNCAUGHT, all
+baselines passing. No paper prose changed in this pass — the claims audit found nothing to fix.
+
+---
+
+## 2026-08-10 (third pass) — Wave 1, `safe-seat-washington.md` round 1: four defects, three withdrawn flags
+
+**First dedicated adversarial round on this paper.** It had none: 9,028 words, 68 table rows, on
+the release path. Run under the twelve-lens protocol, which replaces the open-ended critical read
+that produced the cycling. Verdict: **NOT clean.** Four defects and one wording overstatement.
+Under the two-consecutive-clean-rounds exit rule this paper stands at zero.
+
+### The four defects
+
+1. **A false comparative, and the paper's own table disproved it.** Dimension 1 said 2018's 19
+   seats inside five points were *"more than double any other year in the series."* The Tossup
+   column is 2016: 8, 2018: **19**, 2020: 11, 2022: 10, 2024: 10. Nineteen is **1.7×** the next
+   highest, and 2 × 10 = 20 > 19, so the claim held only against 2016. It was false against three
+   of the four other cycles — and **every comparator was already asserted** by the per-year
+   probes, so the sentence contradicted a table three rows above it. Nothing caught it because a
+   comparative carries no numeric token for `audit_coverage` to inspect; the 19 itself was probed
+   and correct. Now *"the most in the series and nearly double the next highest, 11 in 2020"*,
+   with the comparator probed and the ordering asserted in code via `claim_guards()` — the
+   `_id_is_max_oos` pattern. The guard is bounded on both sides: below 1.5× neither wording is
+   honest, at ≥2.0× "more than double" becomes sayable, so the sentence and the check cannot
+   drift apart in the direction that produced the defect.
+
+2. **Two coverage exemptions carried false reasons**, both stale since the 2026-08-08
+   party-string audit moved 2020's no-D-v-R share to 25.4%. `"26.9"` was waived as *"the adopted
+   2020 no-D-v-R share … asserted at its table cell"* — it is neither; the adopted share is 25.4%
+   and that is what the Dimension-2 table asserts. `"27.6"` was waived on the ground that *"the
+   adopted figure beside it is asserted"*, and the figure beside it is 26.9, which is itself
+   exempt. **One stale figure was waived by pointing at an assertion that did not exist, and a
+   second was waived by pointing at the first.** Both reasons now say what each figure actually
+   is — an intermediate in a two-step correction — and name 25.4% as the current asserted value.
+
+3. **A stale restatement the satellite checker could not see.** The figure count moved 210 → 211
+   with the new comparator probe. `audit_satellite_counts` caught
+   `safe-seat-submission-metadata.md`; it did **not** catch `safe-seat-submission-notes.md:95`
+   ("it asserts 210 figures"), which is a live present-tense restatement in a different document.
+   Both corrected. The checker's reach is narrower than the restatement surface.
+
+4. **A defect in my own basis registry, one commit old.** Four rows written in `3c54672` declared
+   the four-state comparison's cycle window as *"general 2024"*. **New York is 2022** — the paper
+   says so three times. Corrected to `general 2022` for `fs_ny_*` and to explicit two-cycle spans
+   for `fs_all_*` / `fs_cmp_*` / `ny_ad23*`. Worth recording *why* the new consistency check
+   missed it: `audit_basis_consistency` fires on **divergence** within a quantity group, and all
+   four rows were uniformly wrong, so there was nothing to diverge from. A registry catches a
+   *disagreement* about a basis; it does not catch a shared mistake. Correcting NY then made it
+   the minority value and the check demanded a disclosure — which the paper supplies, now named.
+
+### One wording overstatement
+
+The abstract said *"The results are insensitive to the competitiveness threshold, holding between
+74% and 98%."* A quantity that ranges 74–98 is not insensitive to the knob — WA all-seats moves
+92.5% → 73.7% across the cuts, 18.8 points. Appendix A already had the accurate framing ("moves
+between … and never approaches 'competitive' at any setting"). The abstract now says the
+conclusion does not turn on the threshold and that a large majority are not close at every
+setting tested, which is what the table supports.
+
+### Three flags raised and WITHDRAWN after measurement
+
+Recorded because the triage step is the round's most load-bearing rule, and it fired three times
+in one round:
+
+- **"in every state examined, 88–94% … not close"** against WA House's 87.8%. Looked like a range
+  that fails to cover its own data. It is probed — `verify_safe_seat.py:644` captures both bounds
+  — and 87.8 rounds to 88 at zero decimals, so the printed figure is correct and the abstract's
+  narrower "three comparison states" scoping is separately checked against NY/TX/ID, whose true
+  minimum is 88.0. **Both sentences are defensible.**
+- **Appendix E's threshold sweep unverified.** There are indeed no probes and no derived keys for
+  it — but it is **declared** in the verifier's `UNCHECKED` list with `diag_safe_seat_robustness.py`
+  named as owner, and running that script reproduces the paper's table **exactly**: WA
+  95.9/91.8/87.8/80.6/76.5, NY 94.0/92.0/88.0/85.3/82.0, TX 98.0/96.0/94.0/91.3/86.0, ID
+  95.7/92.9/92.9/91.4/90.0, the contest gaps +8.2/+10.0/−1.4, and the 0-of-48/61/20 re-scoring.
+  Declared *and* accurate.
+- **The abstract is outside `AUDIT_BOUNDS`.** True, and unlike every other paper in the series.
+  But its figures are reached by whole-document probes (a `section=None` probe checks every
+  occurrence), and the one figure appearing only there — the 74–98% range — is the declared
+  `UNCHECKED` entry above. Gating the abstract is worth doing and is **not** done here: it would
+  leave the gate red pending the threshold derivation, and the `strict_units` precedent is to
+  record a measured backlog rather than ship a red gate.
+
+### One series-wide hardening item, not a defect
+
+`^\d{1,2}$` exempts the **lower** bound of every range written `N–M%`, because `strict_units`
+reads the unit character immediately after the token and in a range that character is the dash.
+Measured: **87 such ranges across the nine documents** (donor 32, WA 18, safe-seat 12, cross-state
+money 12, Idaho 5, synthesis 3, whitepaper 3, NY 1, money-votes 1). Safe-seat's are separately
+probed, so nothing is wrong here — but coverage is not what protects them, and that is the fifth
+instance of the `^\d{1,2}$` defect class. Fixing it means letting a pattern see a following dash.
+
+### State
+
+`verify_safe_seat.py` exit 0, **211 figures**, 205/205 keys with a declared basis.
+`tests/test_infrastructure/` **425 passed, 1 skipped, 43s** — including seven new tests that show
+`claim_guards()` failing four distinct ways, so the round closes its own additions per §0 rule 2.
+Appendix E re-verified against its owning script. **Round 2 required.**
+
+---
+
+## 2026-08-10 (fourth pass) — safe-seat round 2: the withdrawn claims were live in the cover letter
+
+**Round 2 opens on round 1's own changes.** That step is mandatory because three consecutive
+rounds in this repo found the prior round's fix defective. It found three, and then the fresh
+lens pass found five more in a document that had never been reviewed at all. **NOT clean.**
+
+### Against round 1's own fix — three
+
+1. **A disclosure citation that did not resolve.** Round 1 recorded the NY cycle divergence as
+   disclosed and quoted three places in the paper. One quote — "New York is a cycle behind
+   (2022)" — dropped the paper's bold markers, so `grep -F` found nothing. The substance was
+   right and the citation was not. A registry cell that names where a disclosure lives is only
+   worth having if the pointer resolves.
+2. **The comparator probe asserted the value but not the YEAR.** Round 1 added
+   `r"nearly double the next highest, (\d+) in 2020"` — with 2020 as a *literal in the anchor*.
+   That checks the sentence still says 2020, not that 2020 holds the maximum. Had 2020 slipped
+   to 9 while another cycle rose to 11, `tossup18_next` would still be 11 and the probe would
+   pass on a wrong attribution. The year is now captured and compared to `tossup18_next_year`,
+   and a tie for the maximum is a failure rather than an arbitrary pick.
+3. **A ZeroDivisionError where a failure belonged.** `tossup18 / max(other)` was unguarded. A
+   verifier that crashes reads as a broken run rather than as a defect in the paper.
+
+### New — five, all in `safe-seat-submission-notes.md`
+
+The paper is careful. Its satellite was never adversarially reviewed, and it carried **three
+claims the paper had formally withdrawn** — in the document whose job is to shape the journal
+framing:
+
+4. **"111 of 133 seats were decided before November"**, as the *recommended cover-note framing*.
+   The paper withdrew this on 2026-07-27 as unsupported by an ex-post margin and names the
+   withdrawal in its own limits section.
+5. **The candidate-non-entry reading of the contest gap** — "parties decline to field candidates
+   in seats their own presidential numbers say are winnable … the pathology is strongest where
+   competition *could* exist" — presented as **"the most publishable single finding here."**
+   Appendix E withdrew exactly that reading: *"an earlier version of this passage read the gap as
+   candidate non-entry … and that is more than the statistic supports."* The same bullet also
+   said competition in Idaho is "genuinely not possible", which the paper does not claim.
+6. **The same withdrawn claim again in the block marked "use verbatim-ish"** for the cover
+   letter — "parties leave winnable seats unfielded precisely where competition remains
+   possible." One copy-paste from a submission.
+7. **"flat from 79% to 98% across 15-point to 5-point cuts."** The threshold sweep's floor is
+   73.7%, printed as 74%. The 79 is the floor of the five-cycle Dimension 1 range — a different
+   quantity, borrowed into the wrong sentence.
+8. **The Texas verification attributed to the "press-reported unopposed list."** The actual check
+   is seat by seat against the Texas Secretary of State's certified results, 54/54 exact; the
+   press list covers 14 districts and Appendix F uses it only for the subsidiary point that TLC
+   omits uncontested races at the primary stage too. This one *understates* the paper's rigour,
+   which is the rarer direction and still a false statement in a submission document.
+
+### The gate that did not exist
+
+Nothing anywhere checked whether a withdrawn claim reappears. `audit_satellite_counts` compares
+figure **counts**; `check_cross_doc_consistency` compares **figures**, and deliberately excludes
+the ledgers and audit log as append-only history. A withdrawal was recorded in prose and enforced
+by nothing — and a withdrawn claim is *usually* withdrawn because it is not checkable, so there is
+no derivation to compare it against. That is precisely why it survives.
+
+New: **`docs/reference/withdrawn_claims.csv`** (8 claims across four papers, each with why and
+where) and **`tests/test_infrastructure/test_withdrawn_claims.py`**, which asserts a sentence is
+**absent** rather than that a number matches. Quoting a withdrawn claim is allowed where the
+surrounding 700 characters mark it as retired — this register does, and so do the ledgers — and a
+bare restatement fails.
+
+**Shown failing on the real defect, not synthetically**: replayed against round 1's verbatim text,
+the gate catches all three restatements by claim id. Run across the other eight documents it finds
+**zero** further live restatements, which is the first evidence that this defect is confined to the
+one unreviewed satellite. One tightening: the whitepaper was whole-document exempt in the first
+draft because it narrates the WA-03 correction; removing that exemption was tested and the
+retirement-marker window handles it with zero violations, so the blanket waiver came out.
+
+### State
+
+`verify_safe_seat.py` exit 0, **212 figures**, 205/205 keys with a declared basis.
+`tests/test_infrastructure/` **441 passed, 1 skipped, 43s** — including 13 withdrawn-claim tests
+and 10 `claim_guards` tests. **Round 3 required**; the paper stands at 0 of 2 consecutive clean
+rounds, and rounds 1 and 2 between them produced nine defects on a paper whose own prose is among
+the most careful in the series.
+
+---
+
+## 2026-08-10 (fifth pass) — safe-seat round 3: the gate I shipped yesterday was 56% effective
+
+**Round 3 opened on round 2's changes and its sharpest finding is against round 2's own new gate.**
+Fourth consecutive round in this repo to do that, and the second such gate I have written. **NOT
+clean.**
+
+### The gate was nearly a no-op, and it was hiding a live violation
+
+Round 2's withdrawn-claim gate permitted a quotation wherever the surrounding **700 characters**
+contained any of nineteen "retirement marker" words — including `rather than`, `corrected`, `no
+longer`. It shipped with a demonstration that it caught all three real defects. **That
+demonstration used the phrases in isolation, with no surrounding document.** It tested the matcher,
+not the mechanism.
+
+Measured properly — injecting the withdrawn phrase at every paragraph boundary of every
+non-history document, 3,481 positions — round 2's gate caught **55.8%**. Where it mattered most it
+was far worse:
+
+| document | caught |
+|---|--:|
+| `safe-seat-washington.md` | **15.9%** |
+| `donor-class-submission-notes.md` | **3.4%** |
+| `donor-class-cover-letter.md` | 32.1% |
+| `safe-seat-submission-notes.md` | 46.7% |
+
+The mechanism inverted itself: these papers have been revised heavily, so correction language is
+everywhere, so a marker was almost always within 700 characters. **The documents most likely to
+carry a stale claim were the ones the gate protected least.**
+
+**And it was hiding a real violation present when it shipped.**
+`ensemble-gerrymander-proposal.md` opened its premise with *"The safe-seat paper established two
+facts: ~85% of Washington's legislative + congressional seats are **decided before November**"* —
+the withdrawn claim, asserted as an established fact, in the foundation of a proposal. Waived
+because "rather than" appeared 700 characters away. Corrected to the observed measure (79–88%
+finished ten points apart or uncontested; 83.5% in 2024).
+
+No window setting fixes this. A sweep of six window/vocabulary configurations traded catch rate
+against breaking legitimate quotations at every setting (narrow vocab at 120 chars reached 97.6%
+but broke eight real ones). **Inference from nearby wording is the wrong mechanism.**
+
+### The replacement
+
+`docs/reference/withdrawn_claim_quotations.csv` records each permitted quotation by a verbatim
+44-character `anchor_before` plus a written reason; everything else fails. That is the repo's
+standing exemption rule applied to sentences, and it is **prose-free** — no markers go into
+published text, so the papers read as written. Twelve sites recorded, each judged individually.
+
+**Measured: 3,481 of 3,481 injections caught, 100%, zero waived.** The cost is that reflowing a
+paragraph can break an anchor — the same discipline the prose probes already carry, where an
+anchor matching nothing FAILS rather than skipping.
+
+### A second real violation, in the lead article's satellite
+
+`donor-class-submission-notes.md` item 7 restated the reviewer's premise that the 480-record
+blinded pass "was AI-adjudicated". The repo's own record — `CLAUDE.md`, the A15 row in the release
+checklist, round 16 — states that **the author rated all 480 records and every pass since**, and
+that the AI-adjudication claim was inferred from the paper's wording and was wrong. The *action*
+(an independent second rating) was taken and is closed as A9x; the *reason recorded for it* was a
+withdrawn claim, restated as fact in a submission document. Corrected, and the correction is
+anchored rather than asserted.
+
+### Round 2's other changes, re-examined
+
+The year-capturing comparator probe, the tie guard and the zero-division guard all hold, and the
+corrected NY disclosure quote now resolves verbatim at all three cited sites. No further defects
+there.
+
+### State
+
+`verify_safe_seat.py` exit 0, **212 figures**, 205/205 keys with a declared basis.
+`tests/test_infrastructure/` **443 passed, 1 skipped, 44s**. **Round 4 required.** Three rounds
+have produced eleven defects, and the two most serious were both in gates or satellites rather
+than in the paper's own prose — which is the round-3 lesson worth carrying: *this paper's argument
+is holding up better than the machinery built to check it.*
+
+---
+
+## 2026-08-10 (sixth pass) — safe-seat round 4: the register was half the surface
+
+**Round 4 opened on round 3's changes and asked the completeness question**: does the register
+cover every withdrawal the nine papers document, or only the ones somebody happened to notice?
+**NOT clean**, and the answer is the finding.
+
+### 100% effective on 44% of the surface
+
+Round 3 measured its rebuilt gate at **3,481/3,481 injections caught** and reported that as the
+headline. It is true and it was the wrong number to lead with. A sweep of all nine papers for
+withdrawal language — "has been withdrawn", "is retired", "an earlier version claimed", "was
+false", "must not be quoted" — finds **16 withdrawal sentences across nine papers**, against the
+**8 claims** rounds 2 and 3 had registered, drawn from only four papers.
+
+So the gate was precise over half the surface, and **precision without coverage reads exactly like
+coverage.** It is the same shape as the satellite-count allowlist that carried seven of eight
+papers by not looking at them, and as `_COVERAGE_SKIP`'s `^\d{1,2}\.\d$` that was blind to most of
+what it existed to find.
+
+The register is now **19 rows: 15 pattern-enforced, 4 unpatternable**, with 23 anchored quotation
+records. The additions came from every paper that had a withdrawal, not just the ones already
+represented — donor-class, cross-state money (three), the synthesis (two), safe-seat.
+
+### Four withdrawals cannot be guarded by a pattern, and one reason is actionable
+
+Recorded with `enforcement: unpatternable: <why>` so the gap is countable rather than absent:
+
+- **`who-decides-idaho.md` records that a three-state registration superlative was withdrawn but
+  never quotes the withdrawn wording.** There is no phrase to forbid. **Convention going forward:
+  when withdrawing a claim, quote it** — a withdrawal that does not preserve its own text cannot
+  be enforced against, only remembered.
+- The donor paper's Republican federal skew (+4.2 → −0.1 under age standardization) is a *number
+  in a table*, guarded by the verifier asserting the standardized value instead.
+- `who-decides-washington.md`'s rate-share defect is a **naming collision between two live
+  measures**, not a retired phrase.
+- The whitepaper's 0.61 correlation is a bare figure too generic to forbid without false positives;
+  `verify_whitepaper.py` asserts 0.578.
+
+### One more real violation, again in paste-ready metadata
+
+`safe-seat-submission-metadata.md` carried, as a **completed checklist item**: *"New York's
+missing seat identified as Assembly District 23; effect bounded to 88.0–88.7%."* That bound was
+**retired** — AD-23 was resolved from the certified NYSBOE contest rather than estimated, the
+chamber is complete at 150, and it reads a single 88.0%. The paper's limits section says so. The
+retired range was still standing in the document whose fields get pasted into a submission form.
+
+That is the third defect in three rounds found in a **satellite** rather than in the paper. The
+pattern is now unambiguous enough to state as a rule: *the papers are in better shape than the
+documents that describe them.*
+
+### State
+
+`verify_safe_seat.py` exit 0, **212 figures**, 205/205 keys with a declared basis.
+`tests/test_infrastructure/` **452 passed, 1 skipped, 42s**. **Round 5 required.** Four rounds,
+thirteen defects; rounds 3 and 4 each found their predecessor's gate materially weaker than
+claimed, which is the argument for the two-consecutive-clean-rounds exit rule rather than a
+one-pass sign-off.
+
+---
+
+## 2026-08-10 (seventh pass) — safe-seat round 5: CLEAN on the paper, and a scope decision
+
+**First clean round for `safe-seat-washington.md`.** No finding that changes a number, a claim or
+a stated limit, in the paper or its satellites. One of the two the exit rule requires.
+
+### Where round 5 looked, because a clean round has to say what it examined
+
+Round 4 swept the nine **papers** for withdrawal language. It never read the two corrections
+ledgers or the audit log — the documents whose entire purpose is to record withdrawn claims. A
+claim withdrawn there but still live in a paper would have been invisible to every round so far.
+Swept now: 11 withdrawal sentences in the donor ledger, 1 in the WA ledger, four candidates checked
+against every live document.
+
+**One unregistered withdrawn claim, and it is not live anywhere**: *"In every panel the biggest
+bucket after matching is a key at a different ZIP5"* — false in the displayed Washington state row,
+where the unresolved residual is larger. Present only in the ledger. Registered as
+`donor-biggest-bucket-different-zip5`; the register is now **21 rows, 16 patterned**.
+
+### The scope decision, recorded because round 5 nearly got it wrong
+
+The ledger retires the all-tier totals **424,020** (NY state) and **27,250** (ID state), and both
+appear in **live** Appendix F/G rows of the donor paper. That looks exactly like the defect this
+register exists for. It is not: this series **deliberately retains** retired specifications as
+sensitivity comparisons, and those rows are explicitly labelled *"all tiers"*. Reporting the
+retired figure there is the paper doing the right thing, and forbidding the number would have
+failed the paper for it.
+
+The ledger's actual defect was narrower — Appendix C had used 424,020 as the *current* post-join
+total, describing a 45,642-row expansion that 53 duplicate ids cannot produce — and that is a
+**figure** defect, which the prose verifiers own.
+
+**So: this register guards CLAIMS (phrases). Figures are out of scope, and are guarded by the
+verifiers.** Recorded as its own row, `POLICY-retired-figures-are-out-of-scope`, so the next round
+cannot rediscover it as a finding. It also explains three of the five unpatternable rows: their
+withdrawn content is a number, not a phrase.
+
+### Five flags raised and withdrawn across rounds 1–5
+
+Worth tallying, because it is the clearest evidence that the protocol's **triage step** is doing
+more work than its lens list. Round 1: the "88–94%" range (probed, and 87.8 rounds to 88);
+Appendix E's threshold sweep (declared in `UNCHECKED`, and its owning script reproduces the table
+exactly, gaps and re-scoring included); the ungated abstract (its figures are reached by
+whole-document probes). Round 5: the retired all-tier totals, above; and **Appendix G's 2024
+count**, which states the figure moved "from 46 to 47" while Dimension 2 says 46 — and then marks
+its own supersession in detail, naming that both counts are 46 and that *"the two 46s do not
+describe the same set of seats."* Five findings that were not.
+
+### State
+
+`verify_safe_seat.py` exit 0, **212 figures**, 205/205 keys with a declared basis.
+`tests/test_infrastructure/` **453 passed, 1 skipped, 45s**.
+
+**Round 6 required for the exit, and it must open on round 5's own changes** — the two new register
+rows and the scope policy — because round 5 changed machinery even though it changed no paper text.
+The clock is on the paper: **safe-seat is at 1 of 2 consecutive clean rounds.**
+
+---
+
+## 2026-08-10 (eighth pass) — safe-seat round 6: the clean round was one section short
+
+**NOT clean, and the clock resets to zero.** Round 5 was clean; round 6 found a defect in a
+section rounds 1-5 never opened. That is the two-consecutive-clean-rounds rule doing exactly the
+work it was written for — a single-clean-round sign-off would have shipped this.
+
+### Against round 5's own change
+
+Round 5 recorded its claims-versus-figures scope decision as a **row in the withdrawn-claims
+register**, with `paper` = "(all)" and `withdrawn_on` = the day it was written. Every column was
+misused: `why_withdrawn` opened with "NOT A CLAIM", and a dated register carried a **withdrawal
+date for something that was never withdrawn**. Prose was put in a data table because a table was
+more convenient than a docstring. Removed; the scope decision now lives in the gate's docstring,
+and `test_every_row_is_an_actual_withdrawn_claim` stops the shortcut recurring — it rejects
+POLICY/NOTE ids, a blank or "(all)" paper, a malformed date, and a `why_withdrawn` that begins by
+denying it is a claim.
+
+### The paper defect: an incomplete supersession record
+
+`### The second pass, 2026-07-28` item 4 reads *"New York's ≥12-point cell was mistranscribed,
+85.2% for 85.9% (127 seats for 128)"*. Appendix E's live table prints **85.3%**. Both are right on
+their own basis and nothing said so:
+
+| | count | denominator | printed |
+|---|--:|--:|--:|
+| 2026-07-28 pass | 128 | 149 | 85.9% |
+| after AD-23 supplied | 128 | **150** | **85.3%** |
+
+Supplying Assembly District 23 changed the denominator, not the count — the seat was decided by
+**0.046 points** and is close at every threshold. So it moved **all five** New York threshold
+cells: ≥5 94.6% → 94.0%, ≥8 92.6% → 92.0%, ≥10 88.6% → 88.0%, ≥12 85.9% → 85.3%, ≥15 82.6% →
+82.0%. The 2026-08-08 revision note recorded **only the ≥10 change**, because that is the one the
+four-state table surfaces. The other four went unrecorded, which left 85.9% standing in one section
+while the table two hundred lines away printed 85.3%.
+
+Both places now say so: item 4 carries its basis and its supersession, and the revision note
+records the full set.
+
+**Why no gate could see it.** Appendix E and the second-pass section are outside `AUDIT_BOUNDS`,
+and the threshold sweep is a declared `UNCHECKED` entry owned by `diag_safe_seat_robustness.py`.
+Neither figure is probed, so nothing compared them — and they are separated by 200 lines, which is
+the distance at which a human reader stops noticing either. This is the same shape as round 2's
+finding, one level deeper: **not a stale figure, but an incomplete record of what a correction
+moved.**
+
+### The generalisable lesson
+
+A correction that changes a **denominator** moves every figure computed on it, and the revision
+note will tend to record only the one the headline surfaces. Worth stating as a convention: *when a
+denominator changes, enumerate every figure that rests on it before writing the revision note.*
+
+### State
+
+`verify_safe_seat.py` exit 0, **212 figures**, 205/205 keys with a declared basis.
+`tests/test_infrastructure/` **454 passed, 1 skipped, 51s**. Register 20 rows, 16 patterned.
+**Safe-seat is at 0 of 2 consecutive clean rounds.** Six rounds, fifteen defects, six flags raised
+and withdrawn.
+
+---
+
+## 2026-08-10 (ninth pass) — safe-seat round 7: I am now the defect source
+
+**NOT clean, and the only defect was one round 6 introduced.** No pre-existing paper defect was
+found. That combination is the finding.
+
+### Against round 6
+
+Round 6 wrote five historical figures into the paper — the New York threshold cells on the 149-seat
+denominator — and presented all five as what moved. **Two are recorded in the paper's own text
+(≥10 88.6%, ≥12 85.9%). Three are not recorded anywhere**: ≥5 94.6%, ≥8 92.6%, ≥15 82.6% exist
+only in the note round 6 wrote. They are sound arithmetic — each published 150-based percentage
+determines its count uniquely (94.0% ⇒ 141, since 140/150 = 93.3% and 142/150 = 94.7%) — but
+arithmetic is not history, and whether the 2026-07-28 pass ever printed them is not something this
+record can establish. The same rule CLAUDE.md states for sessions applies to figures: *do not assert
+what a past pass did.*
+
+Rewritten as a table of **counts** — which is what the source actually fixes — with the provenance
+of every cell stated and the two corroborated ones named. One garbled cell (`82.0%→82.6%`) fixed in
+the same pass.
+
+### The denominator lens, run across every recorded correction
+
+Round 6's lesson generalised into a check. Six corrections examined:
+
+| correction | denominator change | enumerated? |
+|---|---|---|
+| WA universe rebuild 2026-07-27 | 74/98 House → 98; totals → 134/133 | **yes** — Appendix G's full before/after table, no-choice count, decade range, headline; second pass adds the primary/general medians and Appendix E's WA gaps |
+| TX backfill | none — 54 before and after, verified 54/54 | n/a; what changed was *attribution* (51D/90R → 56D/85R), count 141 unchanged |
+| TX party imputation retired | none | yes, second-pass item 3 |
+| **NY AD-23 supplied** | **149 → 150** | **no** — found in round 6, now recorded in full |
+| ID | none | n/a |
+| WA party-string audit | none (133 throughout) | yes — and it states Dimension 1 did not move, because margins do not depend on party |
+
+So the AD-23 case was the only unenumerated denominator change in the paper, and it is now closed.
+The lens found nothing further.
+
+### The pattern that matters more than the defect
+
+Seven rounds, sixteen defects, six flags raised and withdrawn. By origin:
+
+| where the defect was | count |
+|---|--:|
+| the paper's own prose, pre-existing | **3** |
+| satellites and adjacent documents, pre-existing | 6 |
+| **introduced by this review process** | **7** |
+
+Rounds 5 and 7 found **no pre-existing paper defect at all**. Every defect in the last three rounds
+was either in machinery this process added or in text this process wrote. The marginal round is no
+longer converging on the paper; it is converging on my own edits.
+
+**Recommendation, and it is a change to the protocol rather than to the paper: round 8 must be
+READ-ONLY.** No edits to the paper, no new gates, no register rows — verification and reading only.
+If a read-only round finds nothing, the paper is done, and the two-clean-round rule can be satisfied
+without the process generating the very defects it then reports. A round that may edit cannot
+produce a clean result about a paper it is simultaneously changing.
+
+### State
+
+`verify_safe_seat.py` exit 0, **212 figures**, 205/205 keys with a declared basis.
+`tests/test_infrastructure/` **454 passed, 1 skipped, 45s**. Register 20 rows, 16 patterned.
+**Safe-seat is at 0 of 2 consecutive clean rounds** — but the paper itself has been clean for two
+rounds running.
+
+---
+
+## 2026-08-10 (tenth pass) - safe-seat round 8, READ-ONLY: CLEAN, no findings
+
+**The first round that could not contaminate its own result.** Rounds 1-7 both examined and
+modified the paper, so each round's output became the next round's defect surface - 7 of the 16
+defects to date were introduced by this process. Round 8 was run strictly read-only.
+
+**Proof of the discipline, not a claim about it:** `git status --porcelain` was **empty** at the end
+of the round. No paper, satellite, script, test, register or gate was touched. The only writes were
+two gitignored derived artifacts (`reports/seat_competition.csv`,
+`reports/tx_backfill_verification.csv`) regenerated by running the owning scripts, plus this log
+entry, which is the append-only record the protocol requires.
+
+### What was run, including three scripts no previous round had run
+
+`scripts/diag_seat_competition.py` - **the authoritative source for every Washington figure in the
+paper, and never executed in rounds 1-7.** Rounds 1 and 5 checked Appendix E against
+`diag_safe_seat_robustness.py` and the party-ratio script, which left the paper's headline
+machinery unverified end to end. It reproduces **everything, exactly**:
+
+- the seat universe, 134 / 133 / 134 / 133 / 133, reconciled against statutory sizes;
+- Dimension 1, all five rows and all five not-close shares (88.1 / 78.9 / 83.6 / 86.5 / 83.5);
+- Dimension 2, all five rows and shares (48.5 / 26.3 / 25.4 / 35.3 / 34.6);
+- the 2024 cross-tab, cell for cell, and the one same-party contest under ten points - **USH4,
+  R-v-R, margin 6.0, Dan Newhouse**;
+- the threshold sweep, WA all seats 92.5 / 88.0 / 83.5 / 77.4 / 73.7 and WA House 95.9 / 91.8 /
+  87.8 / 80.6 / 76.5;
+- all three party-string specifications, literal / family / expansive, every cell;
+- the primary/general medians 42.1 / 55.9 / 61.5 / 61.2 / 51.2 with all five cycles fully matched;
+- and the eight 2016 non-major party strings the paper enumerates - six independence-flavoured plus
+  the two hybrids - printed by the script itself, plus the `Democractic` normalisation.
+
+`scripts/diag_tx_backfill_verification.py` - also never run before. 150 districts in the certified
+source, **54 uncontested, 54 backfilled, exact match**; the retired presidential-lean imputation
+wrong in **5 of 54** (all five Trump-carried seats a Democrat held, in South Texas); 141/150 =
+**94.0%**; not-close split **56 D / 85 R**. Every figure as published.
+
+`scripts/diag_efficiency_gap.py` - also never run before. The largest efficiency gap is **Texas at
+6.5%** on the wasted-vote form, and no state exceeds the ~8-point level the paper cites from
+Stephanopoulos & McGhee. As published.
+
+### The gates, read rather than added to
+
+`verify_safe_seat.py` exit 0, **212 figures**; all four gated sections **fully mapped**; **206/206**
+derived keys with a declared basis. Mutation sweep on it: **191 keys caught, 0 UNCAUGHT, 0 failing
+baselines, 15 no-probe** (at its recorded ceiling).
+
+The advisory report lists **224 unprobed numeric tokens** document-wide. Every result-shaped one was
+read: each is either a historical figure inside a revision note (27.6, 26.9, 61.6, 85.2, 85.9, 88.8
+- all correctly present as history) or a live figure verified against its owning script in this
+round (the primary/general medians, Appendix E's threshold rows, Appendix A's 61.3 / 59.5 / +1.8,
+AD-23's 0.046, the Texas 94.0). **Nothing unprobed is an unverified result.**
+
+### Internal consistency, checked mechanically
+
+Every table re-derived from its own cells: chamber sums, Dimension 1 band sums and shares,
+Dimension 2 category sums and shares, the cross-tab's row marginals against Dimension 2 and its
+**column marginals against Dimension 1** (23 / 10 / 12 / 23 / 65), the same-party lopsided count
+(15) and over-twenty count (12), and the family-versus-expansive deltas bounded by 1.5 outside 2016.
+**All pass.**
+
+One incidental confirmation worth recording: the throwaway checker written for this produced a false
+failure by matching the primary/general table's year header as a universe row - independently
+rediscovering the exact ambiguity `verify_safe_seat.py` solves with a section-scoped probe for the
+universe table. The verifier's design decision is corroborated by an independent implementation
+walking into the trap it was written to avoid.
+
+### State
+
+**Round 8 is CLEAN. Safe-seat is at 1 of 2 consecutive clean rounds**, and the paper itself has now
+been clean for three rounds running (5 and 7 found no pre-existing defect; 8 found nothing at all).
+`tests/test_infrastructure/` 454 passed, 1 skipped. **Round 9 must also be read-only** - on the same
+reasoning, and because a second clean read-only round is what the exit rule is for.
+
+---
+
+## 2026-08-10 (eleventh pass) - safe-seat round 9, READ-ONLY: NOT clean, two findings in the scripts
+
+**Read-only, verified: `git status --porcelain` empty.** Findings are recorded, not fixed - a round
+that may edit cannot produce a clean result about a paper it is changing, and the same applies to
+its scripts. Both findings go to a round 10 that may edit.
+
+Round 9 ran the last supporting script no round had executed, and read the paper's provenance and
+methods appendices as text. Two real defects, both in `scripts/`, both invisible to every gate.
+
+### 1. Appendix C makes a labelling claim that is false for New York
+
+Appendix C says of the superseded supporting scripts: *"the superseded cells are labelled as such in
+those scripts' own output rather than removed, so the earlier published numbers remain reproducible
+for audit."*
+
+`diag_safe_seat_states.py` labels two cells - WA House `88.8%` (superseded by the certified 87.8%)
+and the TX safe split `51/90` (superseded by the observed 56/85). It does **not** label New York,
+which it reports on the **retired 149-seat chamber**: `NY Assembly 2022-11-08  149 seats ... 88.6%`.
+The paper's four-state table reports **150 / 150 and 88.0%**, and Appendix E states both NY rows are
+"now on the complete 150-seat chamber".
+
+So a third cell is superseded and unlabelled, and Appendix C's sentence asserts that it is labelled.
+Same shape as round 4's finding: a claim *about* coverage that the coverage does not support.
+
+### 2. The withdrawn candidate-non-entry reading is live in script output, at three sites
+
+Appendix E withdrew the non-entry interpretation of the contest gap - *"that is more than the
+statistic supports"* - and round 2 found and removed it from the submission notes, where it had been
+the recommended cover-letter framing. It is still asserted, as a conclusion, in the printed output
+and docstrings of two scripts the paper cites for reproduction:
+
+- `scripts/diag_safe_seat_states.py:164` - *"parties leave winnable seats uncontested"*
+- `scripts/diag_safe_seat_robustness.py:244` - *"A POSITIVE gap = parties leave
+  presidentially-winnable seats uncontested (worse than the map)"*
+- `scripts/diag_safe_seat_robustness.py:11` - the same reading in the module docstring
+
+**Two reasons no gate could see it, and both are gaps rather than accidents.**
+
+First, **the withdrawn-claims register's scan surface is `docs/*.md` only.** Scripts are not scanned
+at all, so a withdrawn claim asserted in a script is outside the gate by construction - and these
+scripts print their conclusion to anyone following the paper's own reproduction instructions.
+
+Second, **the registered patterns do not match the wording.** The register holds `winnable seats
+unfielded` and `(parties|they) (decline|declines|declined) to field`; the scripts say *"leave
+winnable seats **uncontested**"*. Neither pattern fires. The register was built from the phrasings
+the *papers* used, so it inherited the papers' vocabulary and missed the scripts'.
+
+**And I read one of these sites in round 1 without flagging it.** `diag_safe_seat_robustness.py`'s
+output was quoted into round 1's notes to confirm Appendix E's table; the non-entry sentence was two
+lines below the numbers I was checking, and I did not see it. That is the failure mode the lens list
+exists to prevent and did not.
+
+### The other checks, all clean
+
+All **nine** scripts cited anywhere in the paper exist. Appendices B, C and D read end to end;
+provenance, methods and the reference list are internally consistent, and Appendix B's two
+outstanding-for-publication caveats (the New York loader intermediary, and full dataset citations)
+are still accurate statements of what is not done. The NY Assembly seat/vote figures (89/43) are
+counts and so unaffected by the 149/150 denominator question above.
+
+### State
+
+`git status --porcelain` empty; no paper, satellite, script, test or register touched.
+**Round 9 is NOT clean, so safe-seat returns to 0 of 2 consecutive clean rounds.**
+
+The two findings are the strongest argument yet for the read-only discipline: eight prior rounds
+missed both, and round 9 found them by *running the one thing nobody had run* rather than by writing
+anything. Nine rounds, eighteen defects, six flags raised and withdrawn - and the defect surface has
+now moved from the paper (3 pre-existing) to its satellites (6) to its scripts (2), with 7 introduced
+by this process.
+
+---
+
+## 2026-08-10 (twelfth pass) - round 10: the round-9 fixes, and the checks swept across all nine
+
+### The two round-9 findings, closed
+
+**1. `diag_safe_seat_states.py` now labels its New York cell.** Appendix C claims the superseded
+cells in that script "are labelled as such in those scripts' own output"; WA and TX were labelled
+and NY was not, while the script reported the retired 149-seat chamber at 88.6% against the paper's
+150 / 88.0%. The row now carries `(149 = loaded returns; SUPERSEDED -> 150 with AD-23, 88.0%)`, the
+docstring header went from TWO to THREE superseded cells, and a bullet explains that AD-23 was
+decided by 0.046 points so the not-close count is unchanged and only the denominator moves.
+
+The docstring also said, in the same breath, *"The NY and ID rows ... are current."* It was false
+about NY and is corrected. Appendix C's sentence is now true of all three cells.
+
+**2. The withdrawn candidate-non-entry reading is out of both scripts.** Three sites replaced with
+the measured statement Appendix E uses - the gap compares two aggregate shares and does not observe
+who filed, with non-entry named as one mechanism among several. Each carries what it replaced, so the
+withdrawal stays findable.
+
+### The structural fix: the gate now scans code
+
+`test_withdrawn_claims.py` scanned `docs/*.md` only, so a withdrawn claim asserted in a **script**
+was outside it by construction - and these scripts print their conclusion to anyone following the
+paper's own reproduction instructions. The scan surface is now `docs/*.md` **plus** `scripts/*.py`,
+and the two non-entry patterns were widened from the papers' vocabulary (`unfielded`, `decline to
+field`) to cover the scripts' (`uncontested`).
+
+Widening it immediately surfaced **11 further sites in 7 scripts**, every one triaged:
+
+- `verify_money_votes.py` x2 - the verifier's own guard text for the WA-03 superlative, which quotes
+  the withdrawn claim in order to fail on it. Legitimate.
+- `score_match_validation_human.py` x3 and `diag_match_validation_human.py` - all four are the
+  scripts' own record that **neither rating pass was AI**, explaining why `ai_`-prefixed legacy
+  column names survive in one published ledger. Legitimate, and a good sign: the rating scripts were
+  already careful about the claim CLAUDE.md is most emphatic on.
+- `verify_cross_state_money.py` - the pinned expected values annotating the corrected 1.66-1.85x band
+  against the withdrawn "tight 1.62-1.76x". Legitimate.
+- the two round-10 correction notes above. Legitimate.
+
+**No further real violations.** 34 anchored quotations now, 11 of them in scripts.
+
+### The sweep across all nine papers
+
+| check | result |
+|---|---|
+| **withdrawn-claim register** | 20 claims (16 enforced, 4 unpatternable), spanning **8 of 9 papers**; 0 live violations across `docs/` + `scripts/` |
+| **probe mutation, all nine gates** | 2,465 caught, **0 UNCAUGHT**, 909 no-probe, 9 passing baselines |
+| **basis registry** | 1 of 9 gates ENABLED; ~1,900 keys undeclared across the other eight - **the largest open item** |
+| **coverage gating** | 8 of 9 run `strict_units`; `cross-state-fec-money` gates **7 of 19 sections (37%)**, donor-class 44/48, the other seven 100% |
+| **range lower bounds** | **87** across nine papers still exempted by `^\d{1,2}$` - open, task 16 |
+| **denominator lens** | run across all nine; see below |
+
+### The denominator lens found no new defect, and one paper does it better than safe-seat did
+
+Swept every paper for denominator language. The notable case is **`who-decides-new-york.md`**, whose
+own text opens: *"The denominator of this table has been wrong twice, in opposite directions, and the
+record of both is kept here."* That is the round-6 defect class by name - and New York enumerates it
+properly where safe-seat did not:
+
+- it names the affected set - **the eight major-party cells** - rather than the one the headline shows;
+- it bounds the movement, **+0.13 to +2.67 points**, largest on the oldest cycles;
+- it separates **roll-denominated** figures (all of §III, the under-30 pair in §I) from
+  **electorate-denominated** ones (Appendix A, the rest of §I), and explains that the split is what
+  identifies the denominator as the cause when figures move;
+- it quantifies the mechanism - **20.55%** of today's active roll registered after the 2021 primary;
+- and it records that its own cited script had applied the correct cutoff since its first commit, so
+  *"for one week the paper and its own cited script disagreed by up to 2.67 points, and both were
+  public."*
+
+The lesson it draws is the one this series keeps relearning from the other direction: **when a
+verifier and a paper disagree, the verifier is not automatically right.**
+
+`who-decides-washington.md` and `cross-state-fec-money.md` also carry denominator corrections, and
+both enumerate - cross-state explicitly states that after its drift *"every percentage in the WA row
+is identical"*, which is the pattern to copy.
+
+### State
+
+`verify_safe_seat.py` exit 0, **212 figures**; both edited scripts run green; `tests/test_infrastructure/`
+**454 passed, 1 skipped**. Safe-seat has had **two paper-affecting fixes in round 10**, so it returns
+to **0 of 2** and needs two consecutive clean rounds - which, on the round-7/8 reasoning, should both
+be read-only.
+
+---
+
+## 2026-08-10 (thirteenth pass) - safe-seat round 11, READ-ONLY: CLEAN
+
+**Read-only, verified: `git status --porcelain` empty.** No findings.
+
+### Round 10's changes, checked against the scripts' own output
+
+All four four-state cells re-derived and each label confirmed against the arithmetic:
+
+| cell | count / denominator | printed | label |
+|---|--:|--:|---|
+| WA House | 86 / 98 | 87.8% | superseded from 88.8%, safe D/R 54/33 -> 53/33 |
+| NY Assembly | 132 / 150 | 88.0% | **149 loaded -> 150 with AD-23** (added round 10) |
+| TX House | 141 / 150 | 94.0% | backfilled to 150, safe D/R 51/90 -> 56/85 |
+| ID House | 65 / 70 | 92.9% | correctly **unlabelled** - it is current |
+
+Appendix C's claim that "the superseded cells are labelled as such in those scripts' own output"
+is now true of all three superseded cells. The rewritten contest-gap legend prints the measured
+statement and carries what it replaced.
+
+### The check no previous round had run
+
+`scripts/check_cross_doc_consistency.py --tests 0`: **0 findings.**
+
+- build metadata against computed ground truth - abstract 287, body 11,370, figures 1,324,
+  sections 48 - every stated count matches the build;
+- release gates - no duplicate ids, header tallies match, every open gate sequenced; 33 gates,
+  29 closed, 2 open (A13, B9), 2 deferred;
+- **and the orphan pass across all eight grounded paper groups: every figure stated in a
+  satellite document also appears in the paper it describes.**
+
+That last one matters more than a clean line usually does. Round 2's worst finding was in a
+satellite, and rounds 2-4 found six defects there. This says the *figures* in the satellites
+reconcile - which is consistent with, and sharpens, what those rounds actually found: the
+satellite defects were **claims and framing**, not numbers. The figure-level cross-document
+machinery was working the whole time; what was missing was anything checking sentences, which is
+what the withdrawn-claims register now does.
+
+### The rest
+
+`verify_safe_seat.py` exit 0, **212 figures**, **206/206** keys with a declared basis. Mutation
+sweep on it: **191 caught, 0 UNCAUGHT, 0 failing baselines, 15 no-probe** at its ceiling.
+`tests/test_infrastructure/` **454 passed, 1 skipped**.
+
+### State
+
+**Round 11 is CLEAN. Safe-seat is at 1 of 2 consecutive clean rounds.** One more clean read-only
+round closes it.
+
+---
+
+## 2026-08-10 (fourteenth pass) - safe-seat round 12, READ-ONLY: NOT clean - the public repo serves the pre-review text
+
+**Read-only, verified: `git status --porcelain` empty in the private repo, and nothing was written
+to the public one.** Findings recorded, not fixed - and the fix here is a push to a **public**
+repository, which is the author's call and not a review action.
+
+Round 12 looked **outward**, which nine prior rounds had not. Every earlier round examined the
+private repo; the paper's own byline block says *"The paper source, code, and data-acquisition
+recipe are public at https://github.com/skirby359/who-decides."*
+
+### The finding
+
+**The public repository currently serves the pre-review safe-seat paper and scripts.** Four of the
+five safe-seat files differ from the private ones, and the differences are exactly the defects the
+last ten rounds removed:
+
+| defect | fixed privately | still live in the public repo |
+|---|---|---|
+| *"more than double any other year in the series"* - **provably false** from the paper's own table (19 tossups is 1.7x the next highest, and 2 x 10 = 20 > 19) | round 1 | **yes** |
+| the withdrawn candidate-non-entry reading, `diag_safe_seat_states.py` | round 10 | **yes** |
+| the withdrawn candidate-non-entry reading, `diag_safe_seat_robustness.py` | round 10 | **yes** |
+| *"insensitive to the competitiveness threshold"* over a 74-98% span | round 1 | **yes** |
+| the NY supersession label (149 loaded -> 150 with AD-23) | round 10 | absent |
+
+Mechanically: the public repo is **clean and level with its own origin** (`master...origin/master`,
+nothing ahead or behind), last synced from private `f41413c` (2026-08-09). Every safe-seat review
+round is 2026-08-10 - `a0c5b52`, `8aa7884`, `bc4ee44`, `0435487`. So the public copy is not
+mid-sync or unpushed; it is **fully published, in the pre-review state**, and has been all day.
+
+`diag_seat_competition.py` - the authoritative source for every Washington figure - is byte-identical
+in both, which is worth stating: the public *numbers* are reproducible. What is stale is the paper's
+prose and two scripts' conclusions.
+
+### The second finding, and it is the one to generalise
+
+`docs/safe-seat-submission-notes.md` line 127 reads:
+
+> `- [x] Public-repo copy synced (2026-07-27); the 26-line drift is closed.`
+
+A **checked** checklist item, and false. Not merely stale - the paper has been through ten review
+rounds since it was ticked, and the item carries no mechanism that would notice. This is the
+`donor-class-release-checklist.md` principle - *"Every row is binary. A row that cannot be closed
+stays open - do not soften it"* - failing in the one direction that principle does not cover: a row
+that was **truly** closed and then silently reopened by later work.
+
+There is a real control gap behind it. `tests/test_infrastructure/test_cited_files_are_synced.py`
+exists and checks the **manifest's completeness**; nothing checks that the public copies are
+**current**. A sync claim is exactly the kind of thing this series has repeatedly found written down
+and unenforced.
+
+### Everything else in round 12
+
+`verify_safe_seat.py` exit 0, **212 figures**, 206/206 keys. `tests/test_infrastructure/` **454
+passed, 1 skipped**. The four four-state cells and their labels re-verified. No new defect inside
+the private repo.
+
+### State
+
+**Round 12 is NOT clean, so safe-seat returns to 0 of 2 consecutive clean rounds** - but the two
+findings are outside the paper, and one of them is the most consequential of the whole exercise:
+**ten rounds of corrections exist only privately, while the public repository the paper cites as its
+source still carries a claim its own table disproves.**
+
+Awaiting the author on the public sync. It is a push to a public repo and will not be done as part
+of a review round.

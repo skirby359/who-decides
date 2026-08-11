@@ -12,14 +12,29 @@ from the WA voter file (data/wa_vrdb.duckdb: voters + voting_history),
   * each age's share of the 2024 and 2025 electorates.
 
 Age = 2025 - birth year (the paper's convention; the file carries year of
-birth only). The finding the appendix reports: the gradient is a smooth,
-monotone age ramp — retention climbs from ~23% at age 20 to a ~71% plateau
-at ages 74-82 with NO discontinuity at 65, a first-election bump at 18-20
-followed by the classic early-20s trough, and a decline from ~84 — so no
-banding choice manufactures or hides the composition result, and no
-data-driven clustering would find natural cohort breakpoints. Consistent
-with (though not proof of) a life-cycle interpretation; age, cohort, and
-period effects are not separable in a five-cycle panel.
+birth only).
+
+WHAT THE APPENDIX REPORTS, CORRECTED 2026-08-09. This docstring used to call
+the gradient "a smooth, MONOTONE age ramp … and a decline from ~84". Neither
+half survives measurement: retention peaks at 72.0% at age **79** and declines
+from **80**, so the curve is not monotone, and the paper's own Appendix H says
+as much. The distinction matters because the appendix once argued its
+banding-robustness conclusion *from* monotonicity — which would not have
+established it even if it were true, since composition depends on how many
+people sit at each age as well as on how they behave.
+
+What the curve does show: retention climbs from ~23% at age 20 to that peak at
+79, averaging ~0.8 points per year but unevenly (~0.4/yr through the forties,
+~1.4/yr through the early sixties), with NO discontinuity at 65 — the 64→66
+step is 1.50 points/year against 1.43 for 60→64. At the young end age 20 is a
+local peak (55.3%) above the mid-20s, while age **19 is the minimum of the
+young range** at 50.8%, so the shape is a 19-year-old low, a 20-year-old bump
+and a shallow early-20s dip, not a flat 18-20 plateau.
+
+The robustness conclusion is now made on the composition measure directly (the
+off-year-to-presidential share ratio by five-year band), not on this curve's
+shape. Consistent with (though not proof of) a life-cycle interpretation; age,
+cohort, and period effects are not separable in a five-cycle panel.
 
 Standalone: duckdb + stdlib. Run from the repo root with data/ populated.
 Writes reports/wa_age_curve.json. Verified by verify_who_decides_wa.py #30.

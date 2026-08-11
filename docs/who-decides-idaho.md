@@ -65,14 +65,22 @@ age gap is party-neutral: Republicans and Democrats among 2024 general voters ar
 fraction of a point on the 65-and-over share, **31.7%** against **31.5%**, and four years apart
 on median age, so Idaho's youth sits in the unaffiliated bloc rather than in either party —
 inverting the national older-is-more-Republican pattern and reversing what the New York
-companion finds. Second, because the file records ballot choice, the exclusion of unaffiliated
-registrants from the decisive primary is measured rather than inferred. The May 2024 primary
+companion finds. Second, the file records the party ballot each voter pulled, so unaffiliated
+participation in the decisive primary is observed directly rather than inferred from
+registration alone — with an important qualification developed in Section IV: under Idaho
+Code § 34-904A an unaffiliated elector who requests a **Republican** ballot affiliates at
+the poll book and is thereafter registered Republican, while a Democratic ballot carries no
+such conversion. Because the file is a single 2026 snapshot with no affiliation date, the
+unaffiliated shares reported for past primaries are **lower bounds**, and the bound is
+tighter the closer the primary is to the snapshot. The May 2024 primary
 electorate runs **85.2%** Republican by registration against **62.9%** of the roll, a
 Republican-minus-Democratic margin of **76.8** points against **51.1** on the rolls, and its
 Republican-ballot voters have a median age of **63** with **46.7%** aged 65 or over. Yet the
 primary decides only where it is contested: of **99** Republican legislative primaries in 2024,
-**52** were contested and **47** offered a single candidate, so for roughly half of
-Republican-held seats the binding choice occurred at candidate filing. Every one of the **35**
+**52** were contested and **47** offered a single candidate. Of those 47, **38** were
+won by a Republican in November and **9** by a Democrat, so the binding choice occurred at
+candidate filing for **38 of the 90 Republican-held seats (42%)** — not for half of them, and
+not for all 47. Every one of the **35**
 legislative districts leans Republican and none is competitive by registration. The paper
 reports composition shares and deliberately reports no turnout rates, because a current-extract
 roll that has contracted from about 1.18 to 1.03 million inflates every rate.
@@ -104,9 +112,10 @@ turnout literature. First, the age gap here is **party-neutral**: Idaho's
 Republicans and Democrats are nearly the same age, and the young sit in the
 *unaffiliated* bloc rather than in either party — inverting the national
 "older-is-more-Republican" pattern and reversing what the New York companion found.
-Second, because the file records the party ballot each voter actually pulled, the
-exclusion of the unaffiliated from the decisive primary is **measured, not
-inferred**.
+Second, the file records the party ballot each voter actually pulled, so unaffiliated
+participation in the decisive primary is **observed rather than inferred from registration
+alone**. It is not, however, cleanly *measured*: the instrument is partly destroyed by the
+act it records, for the reason set out in Section IV.
 
 ---
 
@@ -198,11 +207,12 @@ stay out — and in doing so sits out the decision.
 > mobilization effort, and it means "the electorate" is a substantially different set
 > of people each cycle. Washington's file, by comparison, is markedly more stable.
 
-## IV. The closed primary *is* the election — and its electorate is grayest of all
+## IV. The closed primary decides most seats — and its electorate is the grayest measured here
 
 In a state where both congressional districts and all 35 legislative districts
-lean Republican (Section V), the November general ratifies a choice the May
-Republican primary has already made. Three facts make that literal.
+lean Republican **by registration** (Section V), the May Republican primary resolves the
+great majority of legislative seats — though not all: Democrats won 15 of Idaho's 105 legislative seats in
+November 2024 (Section V). Three facts describe that primary's electorate.
 
 **The primary electorate is far more Republican than November.** Party
 composition of each contest, as R-minus-D margin:
@@ -231,12 +241,13 @@ six are safe-Democratic seats where no Republican filed); of those 99, just **52
 (`scripts/diag_id_primary_contested.py`, reconciled seat-by-seat against the
 35-district / 105-seat frame — every race maps 1:1 to a seat, no duplicates; the
 contested counts match Ballotpedia's independent tallies cycle-by-cycle, exact for
-2022 and 2024 and within ±2 for 2016 and 2018). For roughly half of Republican-held
-legislative seats, then, even the primary offered no choice — the seat was
-effectively settled at candidate *filing*, an earlier and narrower gate than the
-primary electorate itself. So the "decisive contest" is, for half the map, no
-contest at all; for the other half it is the closed, gray, one-party electorate
-described here.
+2022 and 2024 and within ±2 for 2016 and 2018). Those 47 single-candidate primaries did not all settle a seat, and the
+difference matters: **9 of them were won by a Democrat in November**, while all 52
+contested-primary seats went Republican. So the seat was effectively settled at candidate
+*filing* — an earlier and narrower gate than the primary electorate itself — for **38 of the
+90 Republican-held seats, 42%**. For that 42% of Republican-held seats the "decisive
+contest" was no contest at all; for the rest it was either the closed, gray, one-party
+electorate described here, or, in fifteen seats, the November general.
 
 **That contest is, however, growing.** Across the loaded cycles the Republican
 legislative-primary contested rate has roughly *doubled* — **36% (2016) → 43%
@@ -246,7 +257,7 @@ not comparable: the SoS published that mail-only cycle's legislative results at
 county level only.) Two things are therefore true at once, and both matter: the
 decisive Republican primary is *increasingly* a real choice for those who can vote
 in it, even as it stays *closed* to the ~24% of registrants who are unaffiliated.
-Democratic legislative primaries, by contrast, are almost never contested (2–14%
+Democratic legislative primaries, by contrast, are almost never contested (2–11%
 across these cycles) — the mirror image of one-party dominance.
 
 **The primary electorate is older than even the Republican rolls.** Comparing all
@@ -260,19 +271,47 @@ Republican registrants to those who actually pulled a Republican ballot in 2024:
 The people who nominate Idaho's officeholders are a gray subset of an already-red
 party: **median age 63, nearly half of them 65+.**
 
-**When the unaffiliated do vote in the primary, they pull the Democratic ballot —
-and even that door is closing.** Ballot choice among unaffiliated primary voters:
+**When today's unaffiliated registrants voted in a past primary, they mostly pulled the
+Democratic ballot — but this table cannot be read as a trend.** Ballot choice among voters
+who are unaffiliated *on the 2026 roll*:
 
-| Primary | → REP | → DEM | → nonpartisan |
-|---|--:|--:|--:|
-| May 2022 | 27.7% | 52.6% | 19.0% |
-| May 2024 | 9.7% | 52.5% | 37.5% |
-| May 2026 | **1.7%** | **65.6%** | 32.6% |
+| Primary | → REP | → DEM | → nonpartisan | years before the snapshot |
+|---|--:|--:|--:|--:|
+| May 2022 | 27.7% | 52.6% | 19.0% | 4.1 |
+| May 2024 | 9.7% | 52.5% | 37.5% | 2.1 |
+| May 2026 | **1.7%** | **65.6%** | 32.6% | 0.1 |
 
-Because the Republican primary is closed and the Democratic primary is open to
-unaffiliated voters, the independents who do participate increasingly do so on the
-Democratic side — the Republican-ballot share of unaffiliated voters fell from 28%
-in 2022 to under 2% by 2026, tightening the one-party lock on the decisive contest.
+**The Republican column is an artifact of the snapshot, not a behavioural trend, and this
+is the paper's central measurement caveat.** Under Idaho Code § 34-904A, an unaffiliated
+elector who requests a Republican primary ballot signs a Declaration of Party Affiliation
+at the poll book, and is a registered Republican from that moment; requesting a Democratic
+ballot does not affiliate anyone, because the Idaho Democratic Party admits unaffiliated
+voters. `voters.party` is a **single current snapshot** — the raw file carries a party
+description and **no affiliation date** — so an unaffiliated voter who entered the
+Republican primary is, by construction, no longer unaffiliated when we look.
+
+The data shows exactly that signature and nothing else explains it. The Republican column
+falls monotonically with distance from the snapshot (27.7 → 9.7 → 1.7) while the Democratic
+column does not (52.6 → 52.5 → 65.6). Among today's unaffiliated voters who pulled a
+**Republican** ballot in 2022, **55.8%** carry a registration date *after* that primary —
+they re-registered, reverting to unaffiliated — against **15.2%** of those who pulled a
+Democratic ballot. And voters who are Republican today pulled a Republican ballot in
+97.3 / 96.9 / 97.7% of cases across the three primaries, a concordance that is definitional
+rather than behavioural.
+
+**What this costs the finding.** The 5.9% unaffiliated share of the May 2024 primary
+electorate is not a measurement of unaffiliated participation; it is a measurement of
+unaffiliated *non-participation in the Republican primary*, since participation there
+removes a voter from the category. The honest estimates are the 2026 figures, closest to
+the snapshot: unaffiliated registrants are **7.3%** of that primary electorate. The 2024 and
+2022 figures are **lower bounds**, and the conversion is unobservable from this source, so
+the gap cannot be closed with the data at hand — a defect the New York companion avoids
+because enrollment there must precede the primary by months and is bounded at 0.7–1.4%.
+
+**The direction of the lock is also not what an earlier reading suggested.** The Republican
+share of *all* primary ballots cast falls across the three cycles — **86.1% (2022), 83.4%
+(2024), 79.5% (2026)** — while the Democratic ballot share rises. Whatever is happening to
+Idaho's one-party primary, it is not tightening on this measure.
 
 ---
 
@@ -287,17 +326,34 @@ Districts by registration lean (Republican % − Democratic % of registrants):
 
 Both U.S. House seats and every one of the 35 legislative districts lean
 Republican; **none is competitive by registration, and none leans Democratic.**
-This is the starkest safe-seat map of the three states studied. Where the general
-election cannot change an outcome, the closed primary of Section IV is not merely
-*a* decisive contest — it is the *only* one.
+
+**Registration lean is not an outcome, and here it is decisively not one.** In the November
+2024 general, Democrats won **15 of Idaho's 105 legislative seats** (90 R / 15 D, matching
+the seated 2025–26 legislature), including seats in districts this table places outside the
+competitive band. Of the 47 seats whose Republican primary drew a single candidate, **nine were won by a
+Democrat in November** — so for those the choice was settled by the
+general, not at filing. An earlier version of this section wrote that "where the general
+election cannot change an outcome" the primary is the only decisive contest; that inference
+does not survive its own state's results, and the companion safe-seat paper withdrew a
+stronger version of it on *observed margins*, which are better evidence than registration.
+It is not reinstated here on weaker evidence.
+
+What the table does support is narrower: **Idaho has no district where registration alone
+would lead one to expect a Democratic win**, so the Republican primary is the contest where
+the great majority of seats are effectively resolved — a claim about where the action is
+concentrated, not about what November can do. The three-state superlative that stood here is
+also withdrawn: Washington publishes no party registration at all, so no comparable
+registration-lean map exists for it, and comparing this table to the safe-seat paper's
+observed margins compares two different measures.
 
 ---
 
 ## VI. A leading indicator: new registrants are younger and less Republican
 
-Party mix and age of each registration cohort still on the current roll:
+Party mix and age of each registration cohort still on the current roll, keyed on
+`registration_date`:
 
-| First registered | new regs | % REP | % DEM | % UNAFF | median age at reg |
+| Registration dated | registrants | % REP | % DEM | % UNAFF | median age at that date |
 |---|--:|--:|--:|--:|--:|
 | 2008 | 22,559 | 66.4% | 5.3% | 28.0% | 45 |
 | 2012 | 30,843 | 71.5% | 11.8% | 15.9% | 47 |
@@ -306,14 +362,32 @@ Party mix and age of each registration cohort still on the current roll:
 | 2022 | 97,593 | 64.8% | 11.3% | 21.8% | 44 |
 | 2024 | 263,322 | **57.5%** | 12.4% | **28.3%** | **35** |
 
-Idaho's newest voters are markedly younger (median age at registration 35 vs
-45–47 a decade earlier) and less Republican (57.5% vs the high-60s/low-70s of
-earlier cohorts). But the dilution flows to **unaffiliated, not Democratic** — the
-Democratic share is flat near 12% across two decades while the unaffiliated share
-climbs to 28%. The rolls are slowly loosening the two-party grip, but toward the
-bloc that Section III showed is structurally shut out of the primary. Absent a
-change in primary rules, a growing, younger, unaffiliated electorate has *less*
-say in who governs, not more.
+**`registration_date` is the date of a voter's most recent registration event, not
+their first.** Idaho writes a new date on an address change, a party change — including
+the §34-904A poll-book affiliation of Section III — and an election-day registration.
+Of the registrants dated 2024, **36.3% had already voted in an earlier election**; of
+those dated 2022, **43.7%** had. Both are floors, because the file's vote history
+reaches back only to 2020, so a 2024 registrant who last voted in 2018 is
+indistinguishable from a genuinely new one. The 2008–2020 rows cannot be cleaned at
+all for the same reason, and the 263,322 registrants dated 2024 — a quarter of the
+roll in one year — is a re-registration count, not a count of new voters.
+
+That matters for the label and not for the direction. Dropping the registrants who
+are *detectably* re-registered makes the newest cohort **younger, not older** (median
+age at registration 35 → **32**, against 45–47 a decade earlier) and leaves the
+Republican share where it was (57.5% → **57.7%**, against the high-60s and low-70s of
+earlier rows). Re-registrants are by construction people who were already voting, so
+their removal sharpens the young skew rather than explaining it.
+
+The dilution flows to **unaffiliated, not Democratic**, and the clean cut strengthens
+that too: excluding detectable re-registrants, the 2024 unaffiliated share rises
+28.3% → **29.8%** while the Democratic share falls 12.4% → **10.7%**. Across the full
+table the Democratic share sits near 12% and the unaffiliated share climbs to 28%,
+but the two-decade comparison is between rows built on different amounts of
+contamination and should be read as a direction, not a series. The rolls are slowly
+loosening the two-party grip, and toward the bloc that Section III showed is
+structurally shut out of the primary. Absent a change in primary rules, a growing,
+younger, unaffiliated electorate has *less* say in who governs, not more.
 
 ---
 
@@ -339,19 +413,36 @@ companion. Characterized by the donor's own party of record:
 | Other | 136 | 0.6% | 1.4% | −0.9 | 0.2% |
 
 Even in a state this red, the donor class **over-represents registered Democrats**
-— they are 12% of the roll but 21% of donors and give 21% of the money, nearly
+— they are 12% of the roll but 22% of donors and give 20% of the money, nearly
 double their registration weight — while the unaffiliated quarter is again nearly
 absent (12% of donors, 8% of dollars). Republicans still supply the plurality of
 money in absolute terms, as a 63%-Republican state must, but relative to their
 numbers the *most* over-represented donors are Democrats.
+
+**More than half of that over-representation comes from three ballot-measure committees,
+one of which is this paper's own subject.** Reclaim Idaho, Idahoans for Open Primaries and
+Idahoans United for Women and Families together drew gifts from **5,522 of the 23,613
+matched donors (23.4%)**; Reclaim Idaho alone is the largest recipient in the Sunshine layer
+by gift count, with 36,490 person-gifts. Excluding donors who gave to any of the three, the
+Democratic share of matched donors falls from **21.6% to 16.5%** and the Republican share
+rises from 66.3% to 72.5% — so the +9.8-point Democratic over-representation becomes
+**+4.6**. It does not vanish, and the direction of Finding 3 stands. But *Idahoans for Open
+Primaries* is the Proposition 1 campaign this paper analyses in Section VIII, and *Reclaim
+Idaho* is its parent organisation, so a material part of the measured donor-class tilt is
+the mobilisation the paper's own conclusion is about. That is a circularity, and it is
+reported here rather than left for a reader to find.
 
 The donor class is also **grayer and more concentrated** than the electorate:
 
 - **Age.** 51% of matched donors are 65+, versus 31% of the roll and 33% of 2024
   general voters; the under-30 share is 2.1% versus 15% of the roll. (All three
   are computed on current-roll age, so they share one basis; the age-at-election
-  figures in Section I are not interchangeable with them.) The donor class is the
-  oldest layer of all.
+  figures in Section I are not interchangeable with them.) On that same basis the donor
+  class is **not** the oldest layer measured here — the closed-primary electorate is at
+  least as old: 51.9% of 2024 primary voters are 65+ (51.8% of Republican-ballot voters,
+  52.0% of 2022 primary voters), against 51.3% of matched donors, all four at median age
+  65. Donors and primary voters are effectively the same age; both are twenty points older
+  than the roll.
 - **Concentration.** The top 1% of matched donors supply **40%** of the matched
   dollars; the top 10% supply **71%**.
 - **Geography.** Ada County (Boise) alone accounts for **50%** of matched donor
@@ -395,9 +486,31 @@ and the unaffiliated Democratic tilt.
   election-time ages are ±1 year and we report only bands and medians, never exact
   ages. This cannot manufacture the effects shown — the primary/general and
   cohort gaps are far larger than a one-year imputation error.
+- **How complete each reconstructed electorate is, and what that bounds.** A
+  "reconstructed" electorate here is the set of *current* registrants carrying a vote
+  record for that election. Everyone who has since left the roll is absent from it by
+  construction, so the right question is how many that is — and the Secretary of
+  State's certified ballot counts answer it directly:
+
+  | election | ballots cast (SoS) | reconstructed | coverage | 65+ share, measured | 65+ share, bounded |
+  |---|--:|--:|--:|--:|:--|
+  | Nov 2024 | 917,608 | 898,877 | **98.0%** | 29.0% | **28.4 – 30.5%** |
+  | Nov 2022 | 595,602 | 571,868 | **96.0%** | 34.4% | **33.0 – 37.0%** |
+  | Nov 2020 | 878,527 | 647,029 | **73.6%** | 26.3% | **19.4 – 45.7%** |
+
+  The bound is arithmetic, not a model: the missing voters can be at worst all 65+ or
+  none of them. **For 2022 and 2024 it is narrow enough that Section I's finding
+  survives it** — the two intervals do not overlap, so the 65+ share genuinely rises
+  as salience falls, whoever the missing voters were. **For 2020 it is not**, and
+  Section I's 2020 row should be read as indicative only. That row is the one place
+  in this paper where roll attrition is large enough to carry the result.
+
 - **Survivorship — why this paper reports no turnout rates.** The 2026 roll (1.03M)
   is smaller than the ~1.18M registered at the 2024 election, because Idaho purges
-  inactive registrations and same-day registrants churn. Dividing past voters by this
+  inactive registrations and same-day registrants churn — 121,015 of that 1.18M
+  registered on election day itself. (Idaho's extract carries no active/inactive
+  flag, so we cannot confirm the two figures are on the same base; the ~13% gap is
+  an upper bound on turnover, not a measurement of it.) Dividing past voters by this
   shrunken roll inflates every turnout rate: our all-voter 2024 general rate is ~94%
   against the official **77.8%** (917,608 ballots / 1,178,750 registered, Idaho SoS),
   and 2020 even computes above 100% — voters who re-registered after 2020 carry a
@@ -406,13 +519,15 @@ and the unaffiliated Democratic tilt.
   so cross-group rate comparisons are unreliable too. We therefore report **composition
   shares** — each group's share of the actual electorate — throughout, which need no
   registration denominator.
-- **The survivorship bias runs *against* the gray finding.** Comparing Washington's
-  2023 and 2026 roll snapshots, the voters who leave the rolls skew *older* (33% are
-  65+ vs 24% of those retained — deaths dominate). Reconstructing a past electorate
-  from the current roll therefore *under-counts* its oldest members: the true past
-  electorates were, if anything, grayer than measured here, so the age findings are a
-  lower bound. (Idaho has no prior snapshot to measure directly, but attrition
-  dominated by mortality is a general mechanism.)
+- **And within that bound, the bias runs *against* the gray finding.** The table
+  above says how much room the missing voters have; this says which way they lean.
+  Comparing Washington's September-2023 and 2026 roll snapshots — Idaho retains no
+  prior snapshot, and a departed voter can only be aged from one — the 504,103 voters
+  who left the rolls are **33.1% 65+ against 23.9% of the 4,782,028 retained**.
+  Attrition dominated by mortality is a general mechanism, so reconstructing a past
+  electorate from a current roll *under-counts* its oldest members. The true past
+  electorates were, if anything, grayer than measured here: the age findings sit
+  toward the low end of their intervals, not the middle.
 - **This is a claim about composition and closure, not ideological extremism.**
   Sides, Tausanovitch, Vavreck & Warshaw (2020) find primary electorates are not
   dramatically more extreme than their party's rank-and-file, and that openness rules

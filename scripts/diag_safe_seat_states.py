@@ -20,7 +20,7 @@ TX to 150 (the 54 absent seats are uncontested -> no_major_choice; holding party
 2024 presidential lean from the on-disk TLC r206 report). This script imports that
 completion so the TX row is the full 150.
 
-!! TWO CELLS HERE ARE SUPERSEDED — do not quote them (2026-07-28) !!
+!! THREE CELLS HERE ARE SUPERSEDED — do not quote them (2026-07-28; NY added 2026-08-10) !!
 
   * The WA row (88.8%) reads `precinct_results`, where King County is largely absent
     from the 2016/2018 statewide precinct files, AND scores every no-major-choice seat
@@ -36,8 +36,21 @@ completion so the TX row is the full 150.
     split from certified returns is **56 D / 85 R** — see
     `diag_tx_backfill_verification.py` and `diag_safe_seat_party_ratio.py`.
 
-The NY and ID rows, and every state's not-close percentage other than WA's, are current.
-This script is retained because the paper's four-state table cites it for those.
+  * The NY row runs on the 149 districts the loaded returns carry, not the chamber's 150.
+    Assembly District 23 is supplied from the certified NYSBOE contest
+    (`docs/reference/ny_ad23_2022.csv`) and was decided by **0.046 points**, so it is close
+    at every threshold: the not-close COUNT is unchanged and only the denominator moves.
+    The published figure is **88.0%** on 150, not the 88.6% printed here. Every New York
+    threshold cell in Appendix E rests on that denominator.
+
+The ID row is current. This script is retained because the paper's four-state table cites it,
+and because the earlier published numbers stay reproducible for audit.
+
+*(The NY bullet and the NY row label were added 2026-08-10, safe-seat rounds 9 and 10. This
+docstring previously read "The NY and ID rows … are current", and the row carried no label,
+while Appendix C of the paper claimed "the superseded cells are labelled as such in those
+scripts' own output". That was true of WA and TX and false of NY — a claim about coverage the
+coverage did not support.)*
 """
 import os
 import sys
@@ -138,7 +151,15 @@ def main():
                     d_safe, r_safe = (d_safe + 1, r_safe) if lean_d else (d_safe, r_safe + 1)
         n, noncomp, comp, ds, rs = summarize(cats, d_safe, r_safe)
         note = {"TX": "  (backfilled to 150; safe D/R SUPERSEDED -> 56/85 observed)",
-                "WA": "  (% SUPERSEDED -> 87.8% certified; safe D/R -> 53/33)"}.get(st, "")
+                "WA": "  (% SUPERSEDED -> 87.8% certified; safe D/R -> 53/33)",
+                # Added 2026-08-10 (safe-seat round 9/10). This row was UNLABELLED while
+                # Appendix C claimed "the superseded cells are labelled as such in those
+                # scripts' own output" — true of WA and TX, false of NY. The chamber has 150
+                # districts; the loaded returns carry 149, and AD-23 is supplied from the
+                # certified NYSBOE contest in docs/reference/ny_ad23_2022.csv. AD-23 was
+                # decided by 0.046 points, so it is CLOSE at every threshold: the not-close
+                # count is unchanged and only the denominator moves.
+                "NY": "  (149 = loaded returns; SUPERSEDED -> 150 with AD-23, 88.0%)"}.get(st, "")
         print(f"{st:3} {CHAMBER_NAME[st][0]:9} {date:10} {n:>5} | {cats['no_major_choice']:>9} "
               f"{cats['Tossup']:>6} {cats['Lean']:>5} {cats['Likely']:>6} {cats['Solid']:>5} | "
               f"{noncomp:>8} {noncomp/n*100:5.1f}% {f'{ds}/{rs}':>10}{note}")
@@ -161,7 +182,12 @@ def main():
           "above is superseded for a\nseparate DATA reason: use 87.8% from "
           "diag_seat_competition.py.")
     print("TX House: actual-race contestation (94% non-comp) is WORSE than the district "
-          "presidential lean (84% >=10pt safe) — parties leave winnable seats uncontested. "
+          "presidential lean (84% >=10pt safe). The gap compares two AGGREGATE shares and "
+          "does NOT observe who filed: non-entry is one mechanism consistent with it, and "
+          "incumbency, candidate quality, spending, differential turnout and office-specific "
+          "ticket-splitting are others. (Was 'parties leave winnable seats uncontested' until "
+          "2026-08-10 — the candidate-non-entry reading the paper's Appendix E withdrew as "
+          "'more than the statistic supports'.) "
           "See scripts/diag_tx_safe_seat_backfill.py.")
 
 
