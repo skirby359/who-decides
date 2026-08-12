@@ -217,6 +217,7 @@ def derive_appendix_f(d: dict) -> None:
         _f_even(con, d)
         _f_odd(con, d)
         _f_ecological(con, d)
+        _a_rejection(con, d)
         # Appendix G shares this connection because it shares both databases and both
         # build tables. It is a different measure — off-cycle RETENTION by precinct
         # against race/income/education — but the dependency and the ecological ceiling
@@ -224,6 +225,58 @@ def derive_appendix_f(d: dict) -> None:
         _g_dropoff(con, d)
     finally:
         con.close()
+
+
+def _a_rejection(con, d: dict) -> None:
+    """Appendix A — does the rejection channel skew young, and by how much?
+
+    RAISED BY AN EXTERNAL REFEREE, 2026-08-11, and admitted under the freeze rule on that
+    basis: the appendix asserted "no one is shut out of the off-year ballot" without
+    checking the one channel that can shut someone out. Washington credits a vote when a
+    ballot is ACCEPTED, not when it is returned, and signature-mismatch and late arrival
+    are rejected at very different rates by age.
+
+    TWO LIMITS, both load-bearing, both stated in the appendix itself. (1) This is the
+    August 2026 PRIMARY, the only election for which a per-voter status panel exists —
+    the odd-year elections this paper measures have no equivalent published file, so it
+    is indicative of the channel, not a measurement of it in 2021/2023/2025. (2) It runs
+    on the panel's latest snapshot, so ballots cured after that date still count as
+    rejected and the gap is if anything overstated.
+
+    The point of measuring it is that the answer is SMALL. A referee cannot be told the
+    frame is safe; the frame has to be shown safe, and 0.13 points against a 6.6-point
+    composition gap shows it.
+    """
+    if "voter_ballot_status" not in {r[0] for r in con.execute("SHOW TABLES").fetchall()}:
+        raise RuntimeError(
+            "Appendix A's rejection check needs `voter_ballot_status`, which is absent. "
+            "Load a per-voter SoS ballot-status file (`main.py refresh-gotv`). Failing "
+            "rather than skipping: an unmeasured channel must not read as a measured one.")
+    d["a_rej_date"], = con.execute(
+        "SELECT MAX(report_date) FROM voter_ballot_status").fetchone()
+    rows = con.execute("""
+        WITH b AS (
+            SELECT s.ballot_status,
+                   CASE WHEN date_diff('year', v.birthdate, DATE '2026-08-04') < 30
+                             THEN '18-29'
+                        WHEN date_diff('year', v.birthdate, DATE '2026-08-04') >= 65
+                             THEN '65+' ELSE 'mid' END AS band
+            FROM voter_ballot_status s JOIN vrdb.voters v USING (state_voter_id)
+            WHERE s.report_date = (SELECT MAX(report_date) FROM voter_ballot_status)
+              AND v.birthdate IS NOT NULL)
+        SELECT band, COUNT(*), COUNT(*) FILTER (WHERE ballot_status = 'Rejected')
+        FROM b GROUP BY 1""").fetchall()
+    tot = {b: n for b, n, _ in rows}
+    rej = {b: r for b, _, r in rows}
+    d["a_rej_young"] = 100.0 * rej["18-29"] / tot["18-29"]
+    d["a_rej_senior"] = 100.0 * rej["65+"] / tot["65+"]
+    d["a_rej_ratio"] = d["a_rej_young"] / d["a_rej_senior"]
+    # What crediting RETURNED rather than ACCEPTED ballots would do to the 18-29 share —
+    # the only number that bears on the paper's finding rather than on the frame.
+    n_all = sum(tot.values())
+    n_acc = n_all - sum(rej.values())
+    d["a_rej_comp_shift"] = (100.0 * tot["18-29"] / n_all
+                             - 100.0 * (tot["18-29"] - rej["18-29"]) / n_acc)
 
 
 def _g_dropoff(con, d: dict) -> None:
@@ -417,6 +470,38 @@ def _f_odd(con, d: dict) -> None:
             d[f"f_odd_{grp}_{lab}"] = float(pct)
     con.execute("DROP TABLE IF EXISTS _f_rv")
     con.execute("DROP TABLE IF EXISTS _f_pmax")
+
+    # HOW OFTEN EACH OFFICE *IS* THE FLOOR (2026-08-11, external referee).
+    #
+    # The denominator is the best-attended contest in each precinct, so a contest that is
+    # itself frequently that contest has its measured roll-off forced toward zero BY
+    # CONSTRUCTION. "Lower bound" is true of every row but understates the problem,
+    # because the bias is not a common shift: it scales with how often the office defines
+    # the floor, and that varies twentyfold across the five. Mayor defines the floor in
+    # over half its precincts and fire district in under three percent, which is close to
+    # the inverse of the published ordering. Derived so the appendix can state the
+    # magnitude instead of the direction only.
+    for grp in ("fire", "school", "council", "port", "mayor"):
+        shares = []
+        for eid, lab, _ in _F_ODD:
+            con.execute("""
+                CREATE OR REPLACE TEMP TABLE _f_rv2 AS
+                SELECT pr.precinct_id, r.race_name, SUM(pr.votes) AS v
+                FROM precinct_results pr JOIN precincts p USING (precinct_id)
+                JOIN races r USING (race_id)
+                WHERE r.election_id = ? AND UPPER(p.county_name) <> 'KING'
+                GROUP BY 1, 2""", [eid])
+            con.execute("CREATE OR REPLACE TEMP TABLE _f_pm2 AS "
+                        "SELECT precinct_id, MAX(v) mx FROM _f_rv2 GROUP BY 1")
+            row = con.execute(f"""
+                WITH g AS (SELECT precinct_id, {_F_OFFICE_GROUPS} AS grp, MAX(v) AS gmax
+                           FROM _f_rv2 GROUP BY 1, 2 HAVING grp = '{grp}')
+                SELECT 100.0 * COUNT(*) FILTER (WHERE g.gmax >= p.mx) / COUNT(*)
+                FROM g JOIN _f_pm2 p USING (precinct_id) WHERE p.mx > 0""").fetchone()
+            shares.append(float(row[0]))
+        d[f"f_floorshare_{grp}"] = max(shares)      # the worst case, which is the caveat
+    con.execute("DROP TABLE IF EXISTS _f_rv2")
+    con.execute("DROP TABLE IF EXISTS _f_pm2")
 
     # The prose spans read ACROSS the three years, which is a different quantity from any
     # table cell and is where a "two quantities under one name" slip would land.
@@ -731,6 +816,38 @@ def derive() -> dict:
                    / COUNT(*) FROM off""").fetchone()
     d["core_lo"] = min(d[f"{t}_core"] for t in ("e21", "e23", "e25"))
     d["core_hi"] = max(d[f"{t}_core"] for t in ("e21", "e23", "e25"))
+
+    # --- The habitual core is SURVIVORSHIP-INFLATED, and by how much (2026-08-11)
+    #
+    # Raised by an external referee and confirmed. Membership in a measured off-year
+    # electorate requires survival on the April 2026 roll, so a voter who cast a 2021
+    # ballot and then died or left is dropped from BOTH numerator and denominator of the
+    # overlap — and that population is guaranteed not to appear in the 2024 electorate.
+    # The overlap is therefore biased UP, and the bias grows with distance from 2024.
+    #
+    # `voters_20230901` recovers the subset of those drop-offs still registered in
+    # September 2023, so each correction here is a LOWER BOUND on the inflation: anyone
+    # who left between the election and that snapshot is invisible to it too. The 2025
+    # row is the control — four months from the roll, 0.09 points — which is what tells
+    # you the mechanism is time-distance rather than something else.
+    _corr: dict[str, float] = {}
+    for date, tag in (("2021-11-02", "e21"), ("2023-11-07", "e23"), ("2025-11-04", "e25")):
+        gone, = con.execute(f"""
+            SELECT COUNT(*) FROM voters_20230901 s
+            LEFT JOIN voters v USING (state_voter_id)
+            WHERE v.state_voter_id IS NULL
+              AND EXISTS (SELECT 1 FROM voting_history h
+                          WHERE h.state_voter_id = s.state_voter_id
+                            AND h.election_date = DATE '{date}')""").fetchone()
+        n_off, = con.execute(f"""
+            SELECT COUNT(DISTINCT state_voter_id) FROM voting_history
+            WHERE election_date = DATE '{date}'""").fetchone()
+        _corr[tag] = d[f"{tag}_core"] * n_off / (n_off + gone)
+    # Only what a probe reads goes into `d`. The paper prints 2021 and 2023 corrected, the
+    # span, and 2025's inflation as the control — not 2025's corrected level itself.
+    d["e21_core_corr"], d["e23_core_corr"] = _corr["e21"], _corr["e23"]
+    d["core_corr_lo"], d["core_corr_hi"] = min(_corr.values()), max(_corr.values())
+    d["core_infl_2025"] = d["e25_core"] - _corr["e25"]
 
     # --- Interpretation §: the OTHER direction, and the core/only split (2026-08-11)
     #
@@ -1345,6 +1462,30 @@ def derive() -> dict:
     # this before them raised a KeyError on the first run.
     d["recon_max_gap"] = max(abs(d[f"{tg}_snap_delta"]) for tg in ("e21", "e22", "e23"))
 
+    # --- King's share of each electorate (2026-08-11, external referee) ---
+    # The obvious alternative reading of the statewide senior tilt is compositional: the
+    # older, more rural counties simply turn out more off-cycle. That is checkable and it
+    # is false in the direction that matters — King, the YOUNGEST county in the state at
+    # 23.0% 65+ presidential, is a LARGER share of every off-year electorate than of the
+    # 2024 one. The tilt happens despite the composition moving the other way, so the
+    # within-county effect carries all of it and the statewide figures understate it.
+    _king: dict[str, float] = {}
+    for date, tag in (("2024-11-05", "e24"), ("2021-11-02", "e21"),
+                      ("2023-11-07", "e23"), ("2025-11-04", "e25")):
+        _king[tag], = con.execute(f"""
+            SELECT 100.0 * SUM(CASE WHEN UPPER(v.county_name) = 'KING' THEN 1 ELSE 0 END)
+                   / COUNT(*)
+            FROM (SELECT DISTINCT state_voter_id FROM voting_history
+                  WHERE election_date = DATE '{date}') h
+            JOIN voters v USING (state_voter_id)""").fetchone()
+    # The composition gap the rejection channel is weighed against in Appendix A.
+    d["comp_gap_18_29"] = d["e24_comp_18-29"] - d["off_comp_18-29"]
+    # Same rule: the presidential share and the off-year SPAN are published; the three
+    # per-year off-year shares are intermediates and stay local.
+    d["e24_king_share"] = _king["e24"]
+    d["off_king_share_lo"] = min(_king[t] for t in OFF_YEARS)
+    d["off_king_share_hi"] = max(_king[t] for t in OFF_YEARS)
+
     # --- Validation section (2026-08-11) ---------------------------------
     # The 2021 "observed" cell appears on TWO bases eleven lines apart, and the paper
     # explains the difference at the point of use rather than hiding it: the validation
@@ -1480,9 +1621,11 @@ def build_probes(derived: dict):
         ("abstract — 18-29 fall",
          r"voters\s+18–29 fell from ([\d.]+)% in 2024 to about ([\d.]+)% off-cycle",
          ("e24_comp_18-29", "off_comp_18-29"), 0.05),
-        ("abstract — habitual core span",
-         r"habitual core\* \((\d+)–(\d+)% of\s+off-year voters also cast a 2024 presidential "
-         r"ballot", ("core_lo", "core_hi"), 0.5),
+        # RE-POINTED 2026-08-11: the abstract now states the SURVIVORSHIP-CORRECTED
+        # range, so it reads against `core_corr_*` and not the raw overlap.
+        ("abstract — habitual core span, corrected",
+         r"habitual core\* \(at most (\d+)–(\d+)% of\s+off-year voters also cast a 2024 "
+         r"presidential ballot", ("core_corr_lo", "core_corr_hi"), 0.5),
 
         # ---- Methods and validation prose, none of it previously probed.
         ("methods — vote-history record count restated",
@@ -1602,6 +1745,36 @@ def build_probes(derived: dict):
          ("cty_gap3_min", "cty_gap3_max"), 0.05),
         ("prose — county count, both statements",
          r"positive in \*\*all (\d+) counties\*\*", "cty_n", 0.0),
+        # --- The four external-referee corrections, 2026-08-11 -------------
+        ("interpretation — the survivorship correction to the habitual core",
+         r"snapshot can still see moves 2021 from ([\d.]+)% to \*\*([\d.]+)%\*\* and 2023 "
+         r"from ([\d.]+)% to \*\*([\d.]+)%\*\*, while 2025, four months from the roll, moves\s*"
+         r"\*\*([\d.]+)\*\* points",
+         ("e21_core", "e21_core_corr", "e23_core", "e23_core_corr", "core_infl_2025"), 0.05),
+        ("interpretation — the corrected range, restated",
+         r"the defensible range is \*\*at most (\d+)–(\d+)%\*\*",
+         ("core_corr_lo", "core_corr_hi"), 0.5),
+        ("interpretation — the decomposition's unrounded basis, stated",
+         r"2025's ([\d.]+)% is ([\d.]+)/([\d.]+), not ([\d.]+)/([\d.]+)\.",
+         ("e25_decomp65_of_rise", "e25_decomp65_rate", "e25_decomp65_rise",
+          "e25_decomp65_rate", "e25_decomp65_rise"), 0.05),
+        ("prose — King's share of each electorate, presidential against off-year",
+         r"is \*\*([\d.]+)%\*\* of the 2024 presidential electorate and a \*larger\*\s*share "
+         r"of every off-year one, at \*\*([\d.]+)–([\d.]+)%\*\*",
+         ("e24_king_share", "off_king_share_lo", "off_king_share_hi"), 0.05),
+        ("appendix F — how often each office defines the floor",
+         r"mayor defines the floor in \*\*([\d.]+)%\*\* of\s*its precincts and city council in "
+         r"\*\*([\d.]+)%\*\*, against \*\*([\d.]+)%\*\* for school director,\s*"
+         r"\*\*([\d.]+)%\*\* for port commissioner and \*\*([\d.]+)%\*\* for fire district",
+         ("f_floorshare_mayor", "f_floorshare_council", "f_floorshare_school",
+          "f_floorshare_port", "f_floorshare_fire"), 0.05),
+        ("appendix A — the rejection channel, measured",
+         r"\*\*([\d.]+)%\*\* of ballots from under-30 voters against \*\*([\d.]+)%\*\* from "
+         r"65\+, a ratio of\s*\*\*([\d.]+)\*\*\. But the effect on this paper's measure is "
+         r"\*\*([\d.]+) points\*\* on the 18–29 share of the\s*electorate, against a "
+         r"composition gap of about ([\d.]+) points",
+         ("a_rej_young", "a_rej_senior", "a_rej_ratio", "a_rej_comp_shift",
+          "comp_gap_18_29"), 0.05),
         # SURFACED BY `bold_is_result`, 2026-08-11. All four are results the author
         # bolded and no probe touched: the ratio restated in `n:1` notation, whose
         # decimal form beside it WAS asserted, and the two medians.

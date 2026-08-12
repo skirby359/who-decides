@@ -26,8 +26,9 @@ current-roll survivorship, a closer-in-time roll cross-check that sizes the surv
 effect, alternative birth-year
 assumptions, county-level checks, and exclusion of any single off-year. The off-year electorate is
 also older than the registered roll and the citizen voting-age population. Individual
-records show it is largely the presidential electorate's *habitual core* (92–97% of
-off-year voters also cast a 2024 presidential ballot — a single presidential comparison, not
+records show it is largely the presidential electorate's *habitual core* (at most 87–96% of
+off-year voters also cast a 2024 presidential ballot, after correcting an upward
+survivorship bias in that overlap — and a single presidential comparison, not
 a regularity across years), while the peripheral voters who drop
 off off-cycle skew young. The paper measures ballot return, not votes cast in specific
 down-ballot contests, and does not estimate partisan or policy consequences. Its
@@ -400,6 +401,14 @@ Spokane, Thurston, Kitsap, Whatcom, Benton, Yakima); rural = the remaining 29.</
 The presidential→off-year shift toward seniors is positive in **all 39 counties**
 (full breakdown in Appendix E).
 
+**It is not a compositional story, and the composition in fact runs the other way.** The
+obvious alternative reading of a statewide senior tilt is that the older, more rural
+counties simply weigh more off-cycle. They do not: King — the largest county and the one
+with the lowest 65+ share — is **28.7%** of the 2024 presidential electorate and a *larger*
+share of every off-year one, at **29.2–32.7%**. So the state's youngest large electorate
+gains weight off-cycle while the statewide electorate ages anyway. The within-county effect
+is carrying the entire result, and the statewide figures, if anything, understate it.
+
 ---
 
 ## Interpretation: mechanism, lever, and policy caution
@@ -427,7 +436,9 @@ of total movement" is |rate| ÷ (|rate| + |roll|), which is bounded by 100% and 
 comparable figure when the two effects have opposite signs. The two must not be quoted
 under one name: a negative roll effect requires the rate share of the *rise* to exceed
 100%, so a sub-100% figure described as a share of the rise is self-contradictory.
-Decomposition for all three off-years by
+Both ratio columns are computed on **unrounded** effects, not on the one-decimal cells
+printed beside them, so recomputing them from this table will differ in the last digit —
+2025's 92.0% is 10.86387/11.80520, not 10.9/11.8. Decomposition for all three off-years by
 `scripts/diag_turnout_decomposition.py --off <date>`.</sub>
 
 Note that the 2021 roll effect (−2.9 points against an +8.2-point rise) is not
@@ -449,7 +460,20 @@ can follow individual voters, we can see surge-and-decline directly rather than 
 from aggregates. Roughly **92–97%** of each off-year electorate also cast a 2024
 presidential ballot, but only **42–48%** of 2024 presidential voters showed up in a
 given off-year, so the off-year electorate is close to a *standing core* of the
-presidential one. Sorting 2024 presidential voters by whether they *also* voted in the
+presidential one.
+
+<sub>**That overlap range is biased upward, and the bias is measurable.** Membership in a
+measured off-year electorate requires survival on the April 2026 roll, so a voter who cast
+a 2021 ballot and then died or moved away is dropped from both the numerator and the
+denominator — and that is precisely the population which could not have voted in 2024.
+Adding back the drop-offs the September-2023 snapshot can still see moves 2021 from 92.2%
+to **87.1%** and 2023 from 97.3% to **94.8%**, while 2025, four months from the roll, moves
+**0.1** points. Those are lower bounds: anyone who left before the snapshot is invisible to
+it too. So the defensible range is **at most 87–96%**, the 2025 figure is the only one close
+to unbiased, and the inflation tracks distance from 2024 rather than anything about the
+electorates. The direction of the finding is unaffected — a smaller overlap makes the
+off-year electorate *less* purely a subset of the presidential one, not more — but the
+range should not be quoted at its published precision.</sub> Sorting 2024 presidential voters by whether they *also* voted in the
 2023 off-year shows who stays and who drops off: the **habitual core** (voted both; 1.6M)
 is **42.8% 65+ and 6.1% under 30**, while the **presidential-only group** (2.2M) is
 **18.0% 65+ and 20.2% under 30**. The voters who mostly turn up when a presidential race
@@ -542,7 +566,20 @@ and same-day registration, so no one is shut out of the off-year ballot, and the
 local races onto even-year ballots, is an
 ordinary scheduling choice. This is a question of **design**, not rights. Explaining
 *why* the off-year electorate is older does not make it any less old: the gap is there
-however you judge it. (It is also what makes Washington a useful test case. In a prepaid,
+however you judge it.
+
+That claim has one channel that could falsify it, and asserting it is not enough: Washington
+credits a vote when a ballot is **accepted**, not when it is returned, so signature-mismatch
+and late arrival can shut someone out after they have voted. Rejection does skew young —
+**2.89%** of ballots from under-30 voters against **0.76%** from 65+, a ratio of
+**3.8**. But the effect on this paper's measure is **0.13 points** on the 18–29 share of the
+electorate, against a composition gap of about 6.6 points, so it cannot account for the
+finding. Two limits on that check, both real: it runs on the **August 2026 primary**, the
+only Washington election with a published per-voter ballot-status file, so it is indicative
+of the channel rather than a measurement of it in 2021, 2023 or 2025; and it reads the panel
+at its latest snapshot, so ballots cured afterwards still count as rejected and the gap is
+if anything overstated. The frame survives the objection, but it survives it by measurement
+rather than by assertion. (It is also what makes Washington a useful test case. In a prepaid,
 same-day-registration state the usual "too hard to vote" explanation for young
 drop-off is weak, so the age gap is hard to pin on friction.)
 
@@ -826,7 +863,16 @@ unavailable source.
 | Mayor | 4.2% | 3.8% | 25.2% | per-precinct ballot floor |
 
 <sub>The floor is the best-attended contest in each precinct, which itself rolls off, so
-those rows are **lower bounds**. They also pool contested with uncontested races, which
+those rows are **lower bounds** — and the bias is **not a common shift, so the rows are not
+comparable with one another.** A contest that is itself frequently the best-attended one has
+its measured roll-off forced toward zero by construction, and how often that happens varies
+about twentyfold across these five offices: at worst mayor defines the floor in **53.7%** of
+its precincts and city council in **27.9%**, against **29.9%** for school director,
+**11.3%** for port commissioner and **9.6%** for fire district. That ordering is close to
+the inverse of the measured one, so the *ranking* below is substantially an artifact of the
+estimator and should not be read as one office rolling off more than another. What survives
+the objection is the only thing the row is used for: odd-year local roll-off is not zero,
+and for several offices it is large. They also pool contested with uncontested races, which
 the even-year table above deliberately separates (16.6–17.2% contested against 33.7–34.4%
 uncontested), so they are not like-for-like with the 17% column — a large part of the
 2025 city-council and school-director figures is uncontested races, which is this
@@ -1100,7 +1146,7 @@ Those rules do not remove every barrier as information costs, mobility, local at
 address stability, and uneven political recruitment are still factors, but they make it
 hard to chalk the age gap up mainly to the friction of voting.
 
-**Reproduction.** `scripts/verify_who_decides_wa.py` re-derives **827 figures** from
+**Reproduction.** `scripts/verify_who_decides_wa.py` re-derives **852 figures** from
 scratch, including the composition, rate and finer-cohort tables, the coverage and
 bounding tables, the habitual-core overlap, the snapshot cross-validation, the
 representativeness index, the turnout decomposition and Appendix H's banding-robustness

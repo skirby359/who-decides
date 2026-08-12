@@ -6277,3 +6277,83 @@ real sentences and the five real phrases that must NOT fire. `tests/test_infrast
 passed, 1 skipped**. Sweep re-measured across all nine gates: **2,697 caught / 0 UNCAUGHT / 913
 no-probe / 3,619 rows** — WA 660 → 662, every other verifier row-identical, so enabling the flag
 on three further callers changed no derivation anywhere. Cross-doc **0 findings**.
+
+---
+
+## WA — an external referee, four corrections, and two of his three arithmetic complaints wrong (2026-08-11)
+
+A full external review of `who-decides-washington.md`. Every falsifiable claim in it was checked
+against the data before anything was accepted or rejected, which is the only way to use a review
+like this: four criticisms held and were applied, two were wrong, and being able to say which is
+which is the whole value of having the gate.
+
+### The four that held
+
+**1. The habitual-core overlap is survivorship-inflated (ledger C7).** Membership in a measured
+off-year electorate requires survival on the April 2026 roll, so anyone who voted in 2021 and
+then died or moved is dropped from BOTH sides of the overlap — and that is exactly the population
+which could not have voted in 2024. The referee's napkin gave ~86.7% for 2021; measured **87.14%**
+against a published 92.20%, with 2023 at 94.85% against 97.28% and 2025 — four months from the
+roll — moving 0.09. All lower bounds. The published **92–97%** becomes **at most 87–96%**, in the
+paper and in both abstracts. The direction is a softening: a smaller overlap makes the off-year
+electorate less purely a subset of the presidential one.
+
+**2. The odd-year roll-off ordering is largely an estimator artifact (C8).** The denominator is
+the best-attended contest in each precinct, so an office that IS frequently that contest has its
+roll-off forced toward zero. Measured, worst case: mayor defines the floor in **53.7%** of its
+precincts, fire district in **9.6%** — close to the inverse of the published ordering. "Lower
+bound" was true and insufficient, because the bias is differential. The sub-note now says the
+rows are not comparable with one another. What survives is what the table is used for: odd-year
+local roll-off is not zero.
+
+**3. The rejection channel was asserted, not measured (C9).** Washington credits a vote when a
+ballot is ACCEPTED. Rejection skews young — **2.89%** of under-30 ballots against **0.76%** of
+65+, a ratio of 3.8 — and the effect on this paper's measure is **0.13 points** against a
+6.6-point composition gap. The frame survives, and now survives by measurement. Two limits
+stated: it runs on the 2026 primary, the only election with a per-voter status file, and reading
+the panel at its latest snapshot counts post-snapshot cures as rejections.
+
+**4. The senior tilt is not compositional, and Appendix E had the evidence (C10).** King — the
+largest county, the lowest 65+ share — is **28.7%** of the 2024 electorate and **29.2–32.7%** of
+the off-year ones. The youngest large electorate gains weight off-cycle and the state ages anyway.
+The body never drew the inference.
+
+### The two that were wrong, and how
+
+Both were **re-rounding from the printed cells** — the identical error this paper was corrected
+for eleven hours earlier in Appendix H.
+
+* The dissimilarity range is right as printed: unrounded 19.2631 / 19.9040 / **18.5191** → 18.5.
+  The referee got 18.55 by differencing the rounded composition shares.
+* The decomposition does reconcile: 2025 is 10.86387/11.80520 = **92.026** → 92.0, not the 92.4
+  that 10.9/11.8 gives. Same for 2021's 134.8 and 79.5.
+
+**His recommendation was right anyway, and it is now applied**: the table says the columns are
+computed on unrounded values and shows the 2025 arithmetic. One clause would have prevented a
+careful reader from making the error twice in one review — which is a better argument for
+declaring a basis than any internal one this log has made.
+
+Two smaller ones dissolved on inspection: council 2025 is 35.621 and school 35.587, different
+values that share a printed decimal; and "59" against "~59–60" is the mean-of-medians against the
+span, two quantities both probed.
+
+### Still owed, recorded rather than left to be noticed
+
+`who-decides-cross-state.md` publishes a habitual-core row on the ROLL-JOINED basis (WA
+95.5–97.5%) and `who-returns-ballot-submission-notes.md` restates the three-state span as
+"86–98 percent". The same survivorship mechanism applies on a basis this correction did not
+measure, so fixing them needs that paper's own derivation. Same cross-reference shape as C5.
+
+### State
+
+Verifier **852 figures**, exit 0, nineteen sections. Sweep re-measured across all nine gates:
+**2,717 caught / 0 UNCAUGHT / 911 no-probe / 3,637 rows** — WA 662 → 682 caught, every other
+verifier row-identical. `tests/test_infrastructure/` **492 passed, 1 skipped**. Cross-doc **0
+findings**. The WA ceiling falls again, 184 → 182, because the round's five per-year intermediates
+were made locals rather than justified. Third consecutive sitting to measure high and be brought
+down; that is now the expected shape.
+
+**What was NOT done, and is the author's:** the referee's presentation criticisms — the revision
+narration, the hedging density, 12,500 words, splitting Appendices F and G, the full-roll row,
+"stably so" against 2021's 9.2-point bound — plus the two substantive gaps he is right about, the
+mobilization literature and Appendix H's retirement reading.
