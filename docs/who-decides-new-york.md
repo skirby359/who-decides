@@ -286,9 +286,11 @@ parties is invisible here.
 > directly rather than through the pin.
 >
 > One data-quality note the pin surfaced, disclosed because it is checkable: the NYSVOTER
-> extract carries **53 registration identifiers twice** (36 of them among active registrants),
-> and these are not duplicate copies — 8 of the pairs disagree on party, 25 on congressional
-> district, 1 on birth year. The snapshot keeps one record per identifier, chosen
+> extract carries **53 registration identifiers twice**, 36 of them with *both* rows active,
+> and these are not duplicate copies. **Scoped to those 36 both-active pairs**, 8 disagree on
+> party, 25 on congressional district and 1 on birth year; across all 53 pairs the same three
+> counts are 13, 41 and 2. *(The scope was not stated until 2026-08-10, and the sentence read as
+> though the 8/25/1 described all 53.)* The snapshot keeps one record per identifier, chosen
 > deterministically, so it holds 13,540,505 registrants against the file's 13,540,558 rows.
 > The difference is four orders of magnitude below anything this paper prints and moves no
 > figure in it; it is reported rather than absorbed because a roll ought to be one row per
@@ -346,8 +348,12 @@ affiliations:
 | 2020 | 40.9% | 21.3% | 33.7% | 30 |
 | 2024 | **39.7%** | 22.1% | **35.6%** | 29 |
 
-The Democratic share of each cohort has fallen ~18 points since 2008 while
-the no-party share has risen ~15 points (Republican roughly flat). The
+Between the 2008 and 2024 cohorts the Democratic share has fallen **18.1** points and the
+no-party share has risen **14.9**, while the Republican share has risen **5.9** — the smallest
+of the three movements, but a rise of a third on its own 2008 level and monotonic across all
+four cohorts. *(An earlier version of this sentence called the Republican share "roughly flat",
+which its own table contradicts; the three movements are now stated and asserted rather than
+characterised.)* The
 electorate that will decide future off-years is registering at a steady ~29–30
 but is **increasingly choosing no party** — and, per §II–III, that choice is
 also a choice to sit out the nominating stage. (Survivorship caveat: only

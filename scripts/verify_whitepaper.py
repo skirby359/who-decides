@@ -164,7 +164,7 @@ def _turnout(con):
                 prop_n=d["non"][1], ratio=d["donor"][0] / d["non"][0])
 
 
-def _party_and_age(state, buckets, dem_key):
+def _party_and_age(state, buckets, dem_key, dem_pred="= 'DEM'"):
     """Own-party skew (donor% - roll%) and 65+ donor share, per panel."""
     con = duckdb.connect(str(DATA / f"{state}_statewide.duckdb"), read_only=True)
     con.execute(f"ATTACH '{DATA / (state + '_vrdb.duckdb')}' AS vrdb (READ_ONLY)")
@@ -184,11 +184,20 @@ def _party_and_age(state, buckets, dem_key):
         p65, = con.execute(f"""SELECT 100.0*COUNT(*) FILTER (WHERE {age}>=65)/COUNT(*)
             FROM {panel} a JOIN vrdb.voters v USING(state_voter_id)""").fetchone()
         out[f"{tag}_65"] = float(p65)
-    out["state_dem_donly"], = con.execute("""
-        SELECT 100.0*COUNT(*) FILTER (WHERE d_amount>0 AND r_amount=0)
-               /COUNT(*) FILTER (WHERE d_amount+r_amount>0)
-        FROM voter_donor_affiliation_state a JOIN vrdb.voters v USING(state_voter_id)
-        WHERE v.party='DEM'""").fetchone()
+    # Own-party crossover on BOTH panels. Only the state one used to be derived,
+    # and the bullet quotes one figure from each state — Idaho's from the state
+    # layer (it says so) and New York's from the federal one (every other NY
+    # figure in the same sentence is federal). With one panel derived, the NY
+    # half could not be probed at all, and it had gone stale on the retired
+    # all-tier specification while the sentence claimed the primary one.
+    for tag, panel in (("fed", "voter_donor_affiliation_fec"),
+                       ("state", "voter_donor_affiliation_state")):
+        out[f"{tag}_dem_donly"], = con.execute(f"""
+            SELECT 100.0*COUNT(*) FILTER (WHERE d_amount>0 AND r_amount=0)
+                   /COUNT(*) FILTER (WHERE d_amount+r_amount>0)
+            FROM {panel} a JOIN vrdb.voters v USING(state_voter_id)
+            WHERE v.party {dem_pred}""").fetchone()
+    out["state_dem_donly"] = out["state_dem_donly"]
     con.close()
     return out
 
@@ -399,6 +408,80 @@ def _money_paper(d):
         d["money_holdout_alloc"] = float(m.group(1))
 
 
+def _finding3(d):
+    """Finding 3's whale-vs-retail cut, gated 2026-08-10.
+
+    WHY THIS EXISTS. `docs/reference/withdrawn_claims.csv` recorded the retired "Gini ~0.61"
+    claim as `enforcement: unpatternable ... Guarded by verify_whitepaper.py asserting 0.578`.
+    That was false: no verifier asserted 0.578, `forbidden_pattern` was empty, and Finding 3
+    was not a gated section — so the withdrawn claim had no guard of any kind and its
+    replacement figures had no probe. Second instance in this repo of a control documented as
+    working that did not exist (CLAUDE.md, 2026-08-01). This function makes the register's
+    sentence true.
+
+    POPULATION, declared because it is not the matched panel every other finding here uses:
+    recipient-CYCLES over `individual_contributions`, keyed `(fec_candidate_id, election_cycle)`
+    and split by money system on the `PDC:` id prefix, restricted to those with >=100 distinct
+    (name, zip5) donors. Positive amounts only. Gini is the same estimator the rest of the
+    series uses. `pooled` is a genuinely separate grouping — one key per recipient-cycle across
+    BOTH systems — so it is NOT the sum of the two: a recipient-cycle under the threshold in
+    each system alone can clear it pooled. The paper's own 822 + 1,989 != 2,814 is that, not
+    an arithmetic slip.
+
+    These are LIVE reads. The 2026 PDC cycle is still accruing (audit log section 0), so every
+    count here drifts upward and a mismatch means "re-read the paper's cell", not "fix the
+    tolerance".
+    """
+    wa = duckdb.connect(str(DATA / "wa_statewide.duckdb"), read_only=True)
+    sysexpr = "CASE WHEN contribution_id LIKE 'PDC:%' THEN 'state' ELSE 'federal' END"
+    donor = "UPPER(TRIM(contributor_name))||'|'||LEFT(COALESCE(contributor_zip,''),5)"
+    wa.execute(f"""CREATE TEMP TABLE _f3 AS
+        WITH g AS (
+          SELECT fec_candidate_id rid, election_cycle ec, {sysexpr} sys,
+                 {donor} donor, SUM(contribution_amount) tot
+          FROM individual_contributions WHERE contribution_amount > 0
+          GROUP BY 1, 2, 3, 4),
+        r AS (SELECT *, ROW_NUMBER() OVER (PARTITION BY rid, ec, sys ORDER BY tot) rn FROM g)
+        SELECT sys, COUNT(*) ndonors,
+               (2.0*SUM(rn*tot)/(COUNT(*)*SUM(tot))) - (COUNT(*)+1.0)/COUNT(*) gini
+        FROM r GROUP BY rid, ec, sys HAVING COUNT(*) >= 100""")
+    for sys, n, gini in wa.execute(
+            "SELECT sys, COUNT(*), MEDIAN(gini) FROM _f3 GROUP BY 1").fetchall():
+        d[f"whale_n_{sys}"] = int(n)
+        d[f"whale_gini_{sys}"] = float(gini)
+    d["whale_n_pooled"], = wa.execute(f"""
+        SELECT COUNT(*) FROM (
+          SELECT rid, ec FROM (
+            SELECT fec_candidate_id rid, election_cycle ec, {donor} donor
+            FROM individual_contributions WHERE contribution_amount > 0
+            GROUP BY 1, 2, 3)
+          GROUP BY 1, 2 HAVING COUNT(*) >= 100)""").fetchone()
+    d["whale_state_share"] = 100.0 * d["whale_n_state"] / d["whale_n_pooled"]
+    # Only the keys a probe consumes are stored. `whale_max_state` in dollars and the state
+    # median are held locally: a derived-and-never-read key is the `e3938bd` shape, and the
+    # probe-mutation roster holds this verifier's no-probe count as a ceiling that may only
+    # fall, so an unprobed intermediate would raise it.
+    med, mx = {}, {}
+    for sys, m, x in wa.execute(f"""
+            SELECT {sysexpr} sys, MEDIAN(contribution_amount), MAX(contribution_amount)
+            FROM individual_contributions WHERE contribution_amount > 0
+            GROUP BY 1""").fetchall():
+        med[sys], mx[sys] = float(m), float(x)
+    # The paper claims the $25 median holds "in both money systems". That is a structural
+    # invariant of the sentence, not a figure with its own cell, so it hard-stops here rather
+    # than being carried as a second probed key that restates the first.
+    if med["federal"] != med["state"]:
+        raise AssertionError(
+            f"Finding 3 says the median itemized gift is the same in both money systems; "
+            f"federal is ${med['federal']:,.0f} and state ${med['state']:,.0f}. Fix the "
+            f"sentence — it can no longer say 'in both money systems'.")
+    d["whale_median_gift_federal"] = med["federal"]
+    d["whale_max_federal"] = mx["federal"]
+    d["whale_max_state_m"] = mx["state"] / 1e6
+    wa.execute("DROP TABLE _f3")
+    wa.close()
+
+
 def derive():
     d = {}
     wa = duckdb.connect(str(DATA / "wa_statewide.duckdb"), read_only=True)
@@ -430,7 +513,8 @@ def derive():
     d.update({f"wa_{k}": v for k, v in _turnout(wa).items()})
     wa.close()
 
-    ny = _party_and_age("ny", "CASE WHEN v.party IN ('DEM','D') THEN 'DEM' ELSE 'X' END", "DEM")
+    ny = _party_and_age("ny", "CASE WHEN v.party IN ('DEM','D') THEN 'DEM' ELSE 'X' END", "DEM",
+                        dem_pred="IN ('DEM','D')")
     d.update({f"ny_{k}": v for k, v in ny.items()})
     idd = _party_and_age("id", "CASE WHEN v.party='DEM' THEN 'DEM' ELSE 'X' END", "DEM")
     d.update({f"id_{k}": v for k, v in idd.items()})
@@ -492,6 +576,7 @@ def derive():
         d[f"occ_{key}_m"], d[f"occ_{key}_pct"] = float(m), float(pct)
     wa.close()
 
+    _finding3(d)
     _bootstrap(d)
     # Not a paper defect and not tolerance-absorbable: Finding 6's IE figures are
     # unmeasurable until the rows are re-loaded. Surfaced as a gate failure with
@@ -597,6 +682,13 @@ PROBES = [
      r"NY federal \*\*([\d.]+)%\*\*, ID federal \*\*([\d.]+)%\*\*, ID state\s*\*\*([\d.]+)%\*\*",
      ("ny_fed_65", "id_fed_65", "id_state_65"), 0.05),
     ("ID Democratic own-party crossover", r"([\d.]+)%\*\* ID → own party", "id_state_dem_donly", 0.05),
+    # The NY half of the same sentence. `ny_state_dem_donly` was DERIVED all
+    # along and never probed: it is written as a bare "94%" against Idaho's
+    # bolded "94.6%", so the small-integer exemption swallowed it while its twin
+    # was checked. A pair of figures where only one is asserted is the shape that
+    # lets the unchecked one drift into contradicting its neighbour.
+    ("NY Democratic own-party crossover — the FEDERAL panel, as the note says",
+     r"near-monolithic donors \(\*\*(\d+)%\*\* NY", "ny_fed_dem_donly", 0.5),
     ("recall cost of the primary specification",
      r"discards ([\d]+)–([\d]+)% of matched donors", ("discard_lo", "discard_hi"), 0.5),
     # Replaces the "3.5" literal exemption. The range and its three members are probed
@@ -662,6 +754,52 @@ PROBES = [
     # wide enough to let 0.00 back through.
     ("Finding 6 — allocation holdout R2 (vs does-money-move-votes.md)",
      r"cross-cycle holdout R² of \*\*([\d.]+)\*\*", "money_holdout_alloc", 0.005),
+    # --- Finding 3, gated 2026-08-10. See _finding3 for why none of this was asserted.
+    ("Finding 3 — median itemized gift, both money systems",
+     r"median itemized gift is \$(\d+)\*\* in both money systems",
+     "whale_median_gift_federal", 0.5),
+    ("Finding 3 — median per-recipient-cycle Gini, both systems",
+     r"median Gini \*\*([\d.]+)\*\* federal and \*\*([\d.]+)\*\* state",
+     ("whale_gini_federal", "whale_gini_state"), 0.0005),
+    ("Finding 3 — qualifying recipient-cycle counts",
+     r"≥100 distinct donors \(\*\*([\d,]+)\*\* federal, \*\*([\d,]+)\*\* state\)",
+     ("whale_n_federal", "whale_n_state"), 0.5),
+    # THE probe the withdrawn-claim register already claimed existed. It anchors on the
+    # sentence that retires "~0.61", so rewording that sentence out from under it fails the
+    # gate rather than silently unguarding the withdrawal.
+    ("Finding 3 — the value that replaced the withdrawn 0.61",
+     r"both layers give ([\d.]+)", "whale_gini_federal", 0.0005),
+    ("Finding 3 — pooled count and the separated pair restated",
+     r"the count is ([\d,]+) today; separated it is ([\d,]+) federal and ([\d,]+) state",
+     ("whale_n_pooled", "whale_n_federal", "whale_n_state"), 0.5),
+    ("Finding 3 — the state-side maximum single gift",
+     r"\*\*\$([\d.]+)M maximum is a PDC state gift\*\*", "whale_max_state_m", 0.05),
+    ("Finding 3 — the federal maximum single gift",
+     r"the federal maximum is \$([\d,]+)", "whale_max_federal", 0.5),
+    ("Finding 3 — the state share of pooled recipient-cycles",
+     r"which is ([\d.]+)% of the pooled recipient-cycles", "whale_state_share", 0.5),
+    # The $2.5M appears three times: once inside the RETIRED sentence, once attributed
+    # correctly, once in the objection. The figure itself was never wrong — only the money
+    # system it was paired with — so all three are probed rather than the retired one being
+    # exempted. Same discipline as Finding 5's three restatements of the sub-$200 pair.
+    ("Finding 3 — the state maximum as quoted in the retired sentence",
+     r"single gifts reach \$([\d.]+)M", "whale_max_state_m", 0.05),
+    ("Finding 3 — median gift and state maximum restated in the objection",
+     r"a Gini that mixes \$(\d+) and \$([\d.]+)M",
+     ("whale_median_gift_federal", "whale_max_state_m"), 0.05),
+    # The basis note restates all three counts to make the point that pooled is a separate
+    # grouping. Probed rather than exempted: the inequality it asserts is only true while the
+    # three values are the current ones, so a drift that moved one would otherwise leave a
+    # sentence claiming an arithmetic fact about stale numbers.
+    ("Finding 3 — the three counts restated in the basis note",
+     r"which is why ([\d,]+) \+ ([\d,]+) ≠ ([\d,]+)",
+     ("whale_n_federal", "whale_n_state", "whale_n_pooled"), 0.5),
+    # Anchored on the prose name, not the register's PATH: citing the path from a published
+    # paper trips test_cited_files_are_synced, which requires every path a paper cites to be in
+    # the public manifest. The register is a review instrument, not a reproduction input.
+    ("Finding 3 — the 0.578 named in the basis note as the register's claimed guard",
+     r"including the ([\d.]+) that the series' withdrawn-claim register",
+     "whale_gini_federal", 0.0005),
 ]
 
 
@@ -671,6 +809,7 @@ PROBES = [
 # unmapped. Finding 6's end anchor is the horizontal rule that closes the scraped block;
 # it occurs exactly once in that block, and vp.slice_with_offset raises if it moves.
 AUDIT_BOUNDS = {
+    "finding3": ("### 3. Whale-dominated money", "### 4. Money and votes"),
     "finding4": ("### 4. Money and votes", "### 5. The donor class"),
     "finding5": ("### 5. The donor class", "### 6. Money marks strength"),
     "finding6": ("### 6. Money marks strength", " --- "),
@@ -679,11 +818,42 @@ AUDIT_BOUNDS = {
 COVERAGE_EXEMPT = [
     (r"^(?:19|20)\d{2}$", "a calendar year, not a result"),
     (r"^\d{1,2}$", "small integer — list ordinals, insight/failure scores, race counts"),
+    # COHORT EDGES, written with a percent sign but naming a group rather than
+    # measuring anything: "the top 1% of donors supplied 41.2%" has one result in
+    # it and it is not the 1. Declared as explicit unit-carrying patterns under
+    # strict_units so the exception stays this narrow — the alternative was a
+    # literal waiver on "1" and "10", which covers every bare 1 and 10 in the
+    # paper. The SHARES beside them are probed (wa_fed_top1, top10 and friends).
+    (r"^1%$", "the top-1% cohort EDGE, not a measurement; the share it names is probed"),
+    (r"^10%$", "the top-10% cohort EDGE, as above"),
+    # The slope's money scaling in Finding 6. Finding 6 restates Finding 2c of
+    # does-money-move-votes.md, which is declared in UNCHECKED here and owned
+    # there — verify_money_votes.py asserts this unit against the pinned panel's
+    # `net_pro_dem_musd` denomination.
+    (r"^\$1$", "the per-$1M slope scaling; owned by verify_money_votes.py"),
 ]
 
 # Every literal here names WHERE the figure is checked, or the open question that closes it.
 # "Not a result" with no reason is how a real figure hides — see verify_who_decides_wa.
 COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
+    # --- Finding 3, with that section's gate (2026-08-10).
+    "100": "the >=100-distinct-donor THRESHOLD selecting the recipient-cycle population, "
+           "not a measurement of it. The counts it selects are probed, both systems",
+    "2,821": "the WITHDRAWN pooled recipient-cycle count, quoted in the correction note as "
+             "what this bullet used to say. It was computed on the pooled FEC+PDC table "
+             "before the split; the CURRENT pooled count is probed",
+    # The three counts AS FIRST PUBLISHED hours earlier the same day, quoted in the basis note
+    # to evidence that they drift. They are history by construction and cannot be re-derived —
+    # the table has grown since. Their current values are probed three times over.
+    "822": "the federal recipient-cycle count as first published 2026-08-10, quoted to "
+           "evidence live-read drift. Current value probed (whale_n_federal)",
+    "1,989": "the state count as first published the same day; current value probed",
+    "2,814": "the pooled count as first published the same day; current value probed",
+    "0.61": "the WITHDRAWN median Gini. Registered in withdrawn_claims.csv as unpatternable "
+            "(a bare figure too generic to forbid), so the guard is the probe on the "
+            "sentence that retires it — 'both layers give 0.578' — not a forbidden pattern",
+    "200": "the sub-$200 / >=$200 gift-size threshold naming a cut this finding proposes "
+           "rather than reports; no share at it is stated here",
     # Form C-6's section identifier, not a measurement. It appears in Finding 6
     # because naming the section is what makes the 2026-08-09 correction
     # reproducible — a reader has to know which part of the form carries the
@@ -820,9 +990,13 @@ def main():
     +0.55 against the owning paper's +0.58, in three places.
     """
     text = PAPER.read_text(encoding="utf-8")
-    m = re.search(r"### 4\. Money and votes.*?(?=\n## )", text, re.S)
+    # WIDENED TO FINDING 3 on 2026-08-10. It began at Finding 4, which is why Finding 3's
+    # figures — including the 0.578 that the withdrawn-claim register already recorded as
+    # "guarded by verify_whitepaper.py asserting 0.578" — were outside every slice and
+    # outside the scraped text the probes even see.
+    m = re.search(r"### 3\. Whale-dominated money.*?(?=\n## )", text, re.S)
     if not m:
-        print("FATAL: could not locate Findings 4-6 in the white paper")
+        print("FATAL: could not locate Findings 3-6 in the white paper")
         return 1
     norm = vp.normalise(m.group(0))
     audit_sections, offsets, spans = {}, {}, {}
@@ -835,7 +1009,7 @@ def main():
                 stats_out=stats)
     fails = vp.audit_coverage(audit_sections, spans, offsets, tuple(AUDIT_BOUNDS),
                               COVERAGE_EXEMPT, COVERAGE_EXEMPT_LITERAL,
-                              COVERAGE_EXEMPT_SECTIONS)
+                              COVERAGE_EXEMPT_SECTIONS, strict_units=True)
     fails += _restated_outside_the_slice(d)
     fails += vp.audit_satellite_counts(PAPER.name, stats.get("figures"))
     if fails:

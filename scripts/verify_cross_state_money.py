@@ -766,7 +766,8 @@ def verify_individual_layer():
                 vp.wants_coverage(), spans_out=spans, stats_out=stats)
     fails = vp.audit_coverage(audit_sections, spans, offsets, tuple(AUDIT_BOUNDS),
                               COVERAGE_EXEMPT, COVERAGE_EXEMPT_LITERAL,
-                              COVERAGE_EXEMPT_SECTIONS, strict_units=True)
+                              COVERAGE_EXEMPT_SECTIONS, strict_units=True,
+        bold_is_result=True)
     fails += vp.audit_satellite_counts(PAPER.name, stats.get("figures"))
     if rc != 0:
         fails.append("see the figure failures above")

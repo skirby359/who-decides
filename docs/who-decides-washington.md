@@ -123,7 +123,7 @@ heavily overrepresented:
 |---|--:|--:|
 | Cast a ballot Nov 2021 (n≈106K) | **60.4%** | 6.8% |
 | Cast a ballot Nov 2022 (n≈140K) | **60.3%** | 7.1% |
-| Cast a ballot Nov 2023 (n≈45K) | **69.0%** | 4.5% |
+| Cast a ballot Nov 2023 (n≈44K) | **69.0%** | 4.5% |
 
 Leaving the roll is age-loaded more broadly: of the 504K voters (9.5%) who left the roll
 between 2023 and 2026, 33.1% were 65+, versus 23.9% of those who stayed which is consistent with
@@ -470,7 +470,7 @@ elections roughly **doubles** local turnout and makes the electorate considerabl
 representative by age, race, and partisanship. Lucero et al. (2025), surveying cities
 that switched, put voters over 45 at **58.4%** of the off-cycle electorate versus
 **49.7%** of the presidential-year one (and, citing Hajnal et al., a roughly **22-point**
-over-55 gap). This paper measures Washington's *gap* (about 40% 65+ off-year versus
+over-55 gap). This paper measures Washington's *gap* (about 39% 65+ off-year versus
 about 28.5% presidential) not what consolidation would actually do here. But **if
 Washington behaved like the places those studies cover, moving local races onto even-year
 Novembers would produce a substantially larger and younger local electorate**. A
@@ -924,8 +924,8 @@ measure from the map files would do better; and a statewide court race is only a
 for a city-council or school-board contest. And the electorate-65+ figures rest on
 **4,650** precincts rather than 4,859 — those meeting all four constraints (Census
 demographics, 50+ presidential votes, a VRDB crosswalk row, and 100+ precinct voters). The
-crosswalk is the one of the four known to be non-randomly incomplete (86.7% statewide, and
-only 35.7% in Okanogan). **Every test agrees that the effect is near zero; they do not all agree on
+crosswalk is the one of the four known to be non-randomly incomplete: it bridges **99.3%**
+of active registrants statewide but only **35.7%** in Okanogan. **Every test agrees that the effect is near zero; they do not all agree on
 its sign**, and at these magnitudes the sign is not information. Two further predictors
 the same script produces are reported here rather than left out, since selecting the three
 smallest partials would not be a test: ACS median age is the largest surviving partial at
@@ -981,7 +981,7 @@ are a presentation choice, and a fair question is whether any banding choice
 manufactures, or hides, the result. Because the voter file carries every voter's year
 of birth, the question can be answered directly: this appendix drops the banding
 entirely and reports the gradient one year of age at a time
-(`scripts/diag_wa_age_curve.py` prints the full 78-row curve; the verifier asserts this appendix's load-bearing claims — the 65-boundary step, the peak, the tail decline and the banding-robustness ratios — and declares the row-by-row curve itself UNCHECKED).
+(`scripts/diag_wa_age_curve.py` prints the full 78-row curve; the verifier asserts every cell of the fifteen rows printed below, the prose figures read off the ages between them, and this appendix's load-bearing claims — the 65-boundary step, the peak, the tail decline, the banding-robustness ratios, and, in code rather than by regex, the two comparative claims no probe can anchor on. The 63 unprinted ages are declared UNCHECKED).
 
 For each single year of age from 18 to 95, the table shows the April 2026 roll count,
 participation in the November 2024 presidential general and the November 2025 off-year
@@ -1020,7 +1020,7 @@ Four features of the full curve matter for reading the body of the paper.
 rises steadily from 23.0% at age 20 to a peak of 72.0% at age 79 — an average of about
 **0.8 points per year of age**, but not an even one: the ramp is shallowest through the
 forties and fifties (about 0.4 points per year from 40 to 50) and steepest across the
-sixties — 1.36 points per year from 60 to 65 and **1.54 from 65 to 70**, the steepest
+sixties — 1.37 points per year from 60 to 65 and **1.52 from 65 to 70**, the steepest
 five-year stretch on the curve. What matters for the banding
 question is that it climbs without a visible breakpoint at the conventional cohort
 boundaries used in the body of the paper, and with no birth-year cohort standing out
@@ -1034,7 +1034,7 @@ longer panel.
 categorical about retirement (time freed for civic life, or a benefits-driven interest
 spike), the curve should step upward near 65. It does not: retention moves from 57.5%
 at 64 to 60.5% at 66, a two-year step of 3.0 points, against a 5.7-point step across
-the four years from 60 to 64. Those are the same per-year slope (1.50 against 1.43
+the four years from 60 to 64. Those are the same per-year slope (1.50 against 1.42
 points), so nothing happens *at* 65. This whole stretch is the steep part of the ramp,
 running at roughly double the 0.8-point-per-year average — the claim is the absence of a
 step at the boundary, not that the sixties climb at the same rate as the forties. "65+"
@@ -1100,16 +1100,31 @@ Those rules do not remove every barrier as information costs, mobility, local at
 address stability, and uneven political recruitment are still factors, but they make it
 hard to chalk the age gap up mainly to the friction of voting.
 
-**Reproduction.** `scripts/verify_who_decides_wa.py` re-derives **539 figures** from
+**Reproduction.** `scripts/verify_who_decides_wa.py` re-derives **827 figures** from
 scratch, including the composition, rate and finer-cohort tables, the coverage and
 bounding tables, the habitual-core overlap, the snapshot cross-validation, the
 representativeness index, the turnout decomposition and Appendix H's banding-robustness
-ratios, under a coverage gate that fails on any unprobed number in the four **result sections**
-it audits — the composition table, the within-cohort rate table, the finer-cohort table, and
-the sensitivity block from the birth-year assumption through the geography table. The gate does not
-extend to the abstract, the validation section, the interpretation, the limits list or the
-appendices — figures there are probed where a probe exists, but nothing fails if one does
-not.
+ratios, under a coverage gate that fails on any unprobed number in **every section of this
+paper** — the title block, the abstract, the question, the data-and-validation section, the
+composition, rate and finer-cohort tables, the sensitivity block, the interpretation
+section, the limits list, every appendix A through H, and this end note: nineteen sections
+in all. Appendix D is closed by a written reason rather than a derivation, because it is a
+bibliography and its page ranges are not quantities; the figures those works are cited
+*for* are asserted where the paper uses them. Six claims that carry no numeric token are
+asserted in code instead, because a superlative, a spelled-out count or the word "every"
+is exactly what a regex gate cannot see: that 65–70 is Appendix H's steepest five-year
+stretch, the size of its 93→94 step against the 51→52 dip, that the enlargement grid's
+17% and 34% columns still match the measured contested and uncontested roll-off, that the
+Court of Appeals had "eight contests" in 2024, that 2023 really carried no statewide
+contest, and that every birth value in the loaded file is the July-1 sentinel Appendix B's
+privacy argument depends on. Nothing in the paper now sits outside it.
+
+Appendix F is the one section that needs more than the voter file: its figures come from
+certified precinct returns, and its closing partial-correlation table also needs ACS
+block-group demographics apportioned to precincts and the voter-file-to-precinct
+crosswalk. Those are build inputs rather than raw public files, so a reader reproducing
+from raw sources can rebuild every other section but will find that one refuses to run
+rather than silently skipping.
 **Two things it does not re-derive, and says so in its own `UNCHECKED` list rather than
 leaving a reader to assume otherwise:** the row-by-row single-year retention curve of
 Appendix H (printed by `scripts/diag_wa_age_curve.py`; that appendix's load-bearing claims
@@ -1134,4 +1149,5 @@ states that publish party of record:
 **Companion paper: [Safe-Seat Washington](safe-seat-washington.md).** Once in an
 off-year general, how often is the contest even a choice? It counts **observed**
 competitiveness of every partisan legislative + congressional seat, 2016–2024
-(≈85% non-competitive), and extends the count to a four-state lower-chamber map.
+(**79–88% not close** across the five cycles, 83.5% in 2024), and extends the count to a
+four-state lower-chamber map.

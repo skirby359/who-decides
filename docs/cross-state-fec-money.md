@@ -215,7 +215,7 @@ Big Tech (WA), Wall Street (NY), Energy/Industrial (TX), MLM/timber (ID).**
 
 ## Follow-on tests
 
-*Computed in `scripts/cross_state_fec_tests.py`. Committee master: 44,606 committees.*
+*Computed in `scripts/cross_state_fec_tests.py`. Committee master: 44,746 committees.*
 
 > **Two method caveats on this block, both corrected 2026-08-09 after an adversarial pass.**
 >
@@ -690,9 +690,9 @@ nationally — don't misattribute a recipient state. U.S. House+Senate; all cycl
 
 | Donor state | Total $ | In-state | In-region (other 3) | Rest-of-US |
 |---|--:|--:|--:|--:|
-| **WA** | $198.7M | 43.8% | 5.4% | 50.8% |
-| **NY** | $672.8M | 33.9% | 4.1% | 62.0% |
-| **TX** | $526.5M | 54.1% | 2.6% | 43.3% |
+| **WA** | $198.6M | 43.8% | 5.4% | 50.8% |
+| **NY** | $672.5M | 33.9% | 4.1% | 62.0% |
+| **TX** | $526.4M | 54.1% | 2.6% | 43.3% |
 | **ID** | $17.1M | *21.4%* | 10.6% | **68.0%** |
 
 - **Defensible claims.**
@@ -709,11 +709,11 @@ nationally — don't misattribute a recipient state. U.S. House+Senate; all cycl
      contest. **In-region cross-funding stays negligible** — the four states barely fund *each
      other* (≤6–7% of any big-state cell; ID's 14.8% in-region inflow is just $1.7M of tiny
      absolute dollars). NY sends the largest absolute sum out of region
-     (~$417M of its $672.8M). **No net-flow claim is made here**: the inflow and outflow
+     (~$417M of its $672.5M). **No net-flow claim is made here**: the inflow and outflow
      matrices use different committee universes, so the difference between them is not a
      quantity this design produces — see the caveat below. An earlier version called WA and
      ID "net importers relative to their own giving", which is both a cross-matrix
-     subtraction the caveat rules out and, on these tables, backwards: WA shows $198.7M out
+     subtraction the caveat rules out and, on these tables, backwards: WA shows $198.6M out
      against $154.6M in, and ID $17.1M against $11.5M.
   3. **The magnet list is a clean battleground map — and Idaho rides along.** The out-of-region
      candidate committees funded broadly across the region are almost entirely Senate
@@ -751,9 +751,9 @@ Likely10–20 / Solid≥20). "Competitive share" = (Tossup+Lean) ÷ sector total
 | **Finance / Wall St** | $18.4M | **21.6%** | 44.4% |
 | Law | $17.7M | 20.0% | 33.3% |
 | Academia / public | $8.1M | 17.6% | 48.3% |
-| Healthcare | $8.4M | 16.1% | 35.7% |
+| Healthcare | $8.4M | 16.0% | 35.6% |
 | **Energy** | $3.6M | **14.1%** | 26.6% |
-| **Tech** | $7.1M | **11.6%** | 51.9% |
+| **Tech** | $7.0M | **11.7%** | 52.2% |
 | *[all sectors baseline]* | $488M | *18.4%* | *~43%* |
 
 <sub>Sector keyword map extended after a coverage audit (`scripts/diag_sector_coverage.py`)
@@ -762,10 +762,10 @@ classified dollars from ~14% to ~15% and left the pattern below intact.</sub>
 
 - **Defensible claim.** The hypothesis is **partially borne out, with a twist.** Finance money
   does tilt toward competition (**21.6%** of its dollars to Tossup/Lean vs an 18.4% baseline),
-  and **tech is the least competition-seeking sector (11.6%)**, with energy next (14.1%) — they
+  and **tech is the least competition-seeking sector (11.7%)**, with energy next (14.1%) — they
   do disproportionately fund safe seats. But the cleanest contrast is in *travel*, not band:
   **energy money is strikingly local** (only **26.6%** out-of-state vs ~43% baseline) — it funds
-  its own state's (Texas) incumbents — while **tech money travels farthest (51.9% out-of-state)
+  its own state's (Texas) incumbents — while **tech money travels farthest (52.2% out-of-state)
   yet lands in safe seats** (national safe-D House members). Finance both travels (44%) and
   tilts competitive. So: Wall Street chases the marginal race somewhat; tech funds safe
   co-partisans at a distance; energy funds the home-state incumbent.
@@ -777,7 +777,7 @@ classified dollars from ~14% to ~15% and left the pattern below intact.</sub>
 - **Caveat.** Even after extending the keyword map with the biggest missing law firms, hedge
   funds, and tech names (`scripts/diag_sector_coverage.py`), classified sectors are still a
   **thin slice — only ~14% of inflow dollars**; "retired / not-employed / blank" is 46.8% and
-  "unclassified" 38.6%, and tech ($7.1M) and energy ($3.6M) volumes in these four states' House
+  "unclassified" 38.6%, and tech ($7.0M) and energy ($3.6M) volumes in these four states' House
   races are small enough to be noisy. Employer strings are self-reported free text; the keyword
   map is indicative, not audited. House-only (Senate competitiveness isn't model-forecast).
 
@@ -805,7 +805,16 @@ State-agnostic: it simply reflects whatever states are in `fec_inflow.duckdb` (I
   key, inflow gives **top-1% 23.4%, top-10% 62.1%, Gini 0.726** over 887,201 donor keys —
   against outflow's **36.1–47.5%** and Gini **0.775–0.848** (the headline table; an earlier
   version quoted "39–48%" and "0.80–0.85", which drop Idaho at both ends). So the gap is
-  roughly **1.5× to 2.0×**, not the 2.1–2.6× the mismatched bases implied.
+  roughly **1.5× to 2.0×**, not the 2.1–2.6× the mismatched bases implied. *(Basis of the pooled
+  figures, which is **not** the basis of the per-cycle table above them: the pooled cut ranks
+  every donor key in `fec_inflow.duckdb` across all cycles at once, over **all recipient
+  offices** and positive amounts, keyed on `UPPER(TRIM(contributor_name))` + `LEFT(zip,5)` — a
+  key that is NULL where the zip is, so those rows collapse into a single bucket, which is the
+  `+1` in 887,201. The per-cycle table restricts to House and Senate recipients and keeps a
+  blank zip as an empty string; on that basis the pooled equivalents are 888,230 keys and
+  top-1% 23.3%. Both are correct on their own basis; the two must not be quoted under one
+  name. Derived by `inflow_pooled_concentration()` in `scripts/verify_cross_state_money.py`,
+  which asserts all four values.)*
 
   A second confound is not removed by fixing the basis and is disclosed rather than adjusted:
   the inflow pool is **all-state** (887K keys) while each outflow pool is one state's
@@ -866,8 +875,8 @@ candidate money** (every lower chamber is fully up each cycle; senates are stagg
 heterogeneously), pooled over the 2022+2024 cycles (post-redistricting maps; 2026 is
 in-cycle and excluded). Gap-filling mirrors the donor-side backfills: TX legislative party
 and ALL of ID's office/district/party are resolved by joining filer names to the SoS
-candidates roster (unique-party guard); ID resolves 65% of person-filer dollars, TX 59%
-of legislative dollars.*
+candidates roster (unique-party guard); ID resolves **55.7%** of person-filer dollars, TX
+**61.0%** of legislative dollars.*
 
 **What each state's system captures** (not the same universe — read before comparing):
 
@@ -913,7 +922,9 @@ Only in the red states.** Per-district house-candidate $ by forecast band, with 
   candidate money of safe ones), but **WA is nearly flat (1.12×) and NY inverts (0.85× —
   safe Assembly seats out-raise the battlegrounds per district).** The mechanism is visible
   in K5: in NY the battleground money runs through the **party campaign committees**
-  (DACC/DSCC/NYSSRCC/RACC are 4 of NY's top-10 filers, $33–43M each) rather than through
+  (DSCC $42.8M, NYSSRCC $33.2M and DACC $28.3M are 3 of NY's top-10 filers; the Republican
+  Assembly counterpart RACC is **not** — at $8.7M it is an order of magnitude smaller, so the
+  routing is chamber- and party-asymmetric rather than general) rather than through
   candidate committees, and safe-seat incumbents (leadership, chairs) raise heavily anyway;
   the candidate-committee lens undercounts exactly the competitive spending NY routes
   around it. WA sits between the poles: its eight **caucus committees** (HDCC/HROC, the
@@ -935,7 +946,7 @@ Only in the red states.** Per-district house-candidate $ by forecast band, with 
 party-resolved legislative receipts (2022+2024): **NY 74.8% D, WA 60.9% D, TX 27.4% D,
 ID 23.5% D.** Unlike federal inflow (which both parties export to the same national
 battlegrounds), state money stays home and tracks who holds/contests the chamber.
-(TX carries $130M party-unresolved after the roster join; ID resolves 65% of person-$ —
+(TX carries $130M party-unresolved after the roster join; ID resolves 55.7% of person-$ —
 directional reads only for those two.)
 
 **K4 — State legislatures are PAC-funded; Congress is individual-funded.** Individual
@@ -962,11 +973,16 @@ individual-vs-entity by construction; "PAC" there means all non-individual money
   candidate fights.
 - **WA:** the top filer is a **union PAC** — SEIU's Political Education and Action Fund
   ($39.2M across 12 years) — followed by New Direction PAC ($32.2M) and two
-  nine-figure-fight ballot committees (No on 1631, the oil-industry carbon-fee opposition,
+  eight-figure ballot committees (No on 1631, the oil-industry carbon-fee opposition,
   $31.6M in a single year; Yes! To Affordable Groceries, $22.4M). No candidate cracks the
   top ten: WA's biggest single candidate haul ever is Bob Ferguson's ~$19M 2024
-  governor run, roughly half of SEIU's cumulative total. Committees hold **69% of all WA
-  state money** ($1.05B of $1.52B) — the same ~2/3 org share as TX and ID. The caucus
+  governor run, roughly half of SEIU's cumulative total. Committees hold **69% of the WA
+  state money that carries a person-or-org classification** ($1.01B of $1.46B, cycles
+  through 2025) — the same ~2/3 org share as TX and ID. *(Basis, because the two figures here
+  sat on different cycle windows: the person/org split is computed over `election_cycle <= 2025`,
+  while the $1.52B inventory total runs through 2026. An earlier version read "69% of all WA
+  state money ($1.05B of $1.52B)", pairing the classified-base rate with the through-2026
+  denominator; org money is $1.007B and is 66.4% of the full $1.52B.)* The caucus
   committees sit just below the mega-PACs (HDCC $19.2M and the Truman Fund $18.7M across
   12 years) — the "half the candidate layer" routing channel quantified in K2.
 
@@ -1041,9 +1057,12 @@ Tests A–I are run. Status:
 3. **Individual voter-file study — DONE, WA + cross-state donor layer** (Section F): WA has the
    full stack (turnout-by-age F1, donor representativeness F2 with matcher-bias re-weighting,
    giving↔turnout F3). **F5 (2026-07-19) extends the donor-representativeness cut to NY + ID**
-   (voter files + matches now loaded): the donor age skew is near-identical and survives the IPW
-   correction in all three, and the party-of-record cut shows donors less unaffiliated / more
-   Dem-tilted in NY and ID. **F6 (2026-07-19) closes the turnout half**: NY/ID `voter_scores`
+   (voter files + matches now loaded): the donor age skew runs in the same direction and survives
+   the IPW correction in all three — though its *steepness* does not replicate (old-to-young
+   gradient 21.6× WA / 21.8× ID against 10.5× NY, so an "essentially identical" or
+   "near-identical" gradient is withdrawn; see §F5 claim 1) — and the party-of-record cut shows
+   donors less unaffiliated / more Dem-tilted in NY and ID. **F6 (2026-07-19) closes the turnout
+   half**: NY/ID `voter_scores`
    populated with WA-identical definitions (`scripts/populate_ny_id_voter_scores.py` — NY 13.54M
    rows from the parsed history, ID 1.03M from the melted participation table), and the
    giving→turnout cut replicates at a substantial donor/non-donor super-voter ratio in every

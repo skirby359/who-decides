@@ -14,9 +14,12 @@ underlying voter file is not redistributed. Contact: kirby@tikorconsulting.com.*
 and [`who-decides-new-york.md`](who-decides-new-york.md). Washington showed the
 off-year electorate is **older**; New York (deep blue) showed *whose* electorate
 ages and who is locked out. Idaho completes the set from the other pole: a state
-where the November general is a formality and the **closed Republican primary is
-the real election** — so the question "who decides" has a sharper, more literal
-answer than in any two-party state. **DRAFT — pending human/editorial sign-off.
+where the **closed Republican primary resolves the great majority of seats** — so the
+question "who decides" has a sharper, more literal answer than in any two-party
+state. *(This line called the November general "a formality" until 2026-08-11. It is not:
+Democrats won 15 of Idaho's 105 legislative seats in November 2024, including nine whose
+Republican primary drew a single candidate — see §V, which withdraws that inference
+explicitly.)* **DRAFT — pending human/editorial sign-off.
 `scripts/verify_who_decides_id.py` scrapes this paper and asserts its figures against the voter
 file, with the exceptions the script names in its own output; see
 [`electoral-health-audit-log.md`](electoral-health-audit-log.md). That gate is automated and is
@@ -230,6 +233,17 @@ The unaffiliated share of the electorate falls from ~24% of the roll to roughly
 primary. **80–86% of every primary ballot cast in Idaho is a Republican ballot** — the
 range spans every primary cycle in the file, from 79.6% in 2026 to 86.5% in 2022.
 
+*Two denominators appear in this section, a fraction of a point apart, so which one a figure uses
+is stated rather than left to be inferred. The 79.6 / 86.5 range above is the Republican
+share of ballots **whose party choice is recorded**. The falling series later in this section —
+86.1% / 83.4% / 79.5% — is the Republican share of **all primary participants**, including the
+0.1–0.4% of them (436 to 1,379 voters a cycle) whose ballot choice
+`id-primary-ballot-choice-blank` records that the file does not carry. Both are asserted; neither
+is wrong; they are not interchangeable. That those blanks are the source's rather than our
+loader's was checked against the raw export rather than inferred from the loaded table — the same
+claim shape was false for Washington's PDC direction flag, where the gap turned out to be our own
+extraction.*
+
 The R−D column is computed on **unrounded** shares, so it need not equal the difference of
 the two printed columns. The May 2024 row is the one where that shows: 85.17 − 8.34 = 76.82,
 against 85.2 − 8.3 = 76.9 read off the table. The unrounded figure is the one printed.
@@ -364,7 +378,7 @@ Party mix and age of each registration cohort still on the current roll, keyed o
 
 **`registration_date` is the date of a voter's most recent registration event, not
 their first.** Idaho writes a new date on an address change, a party change — including
-the §34-904A poll-book affiliation of Section III — and an election-day registration.
+the §34-904A poll-book affiliation of Section IV — and an election-day registration.
 Of the registrants dated 2024, **36.3% had already voted in an earlier election**; of
 those dated 2022, **43.7%** had. Both are floors, because the file's vote history
 reaches back only to 2020, so a 2024 registrant who last voted in 2018 is
@@ -427,7 +441,7 @@ by gift count, with 36,490 person-gifts. Excluding donors who gave to any of the
 Democratic share of matched donors falls from **21.6% to 16.5%** and the Republican share
 rises from 66.3% to 72.5% — so the +9.8-point Democratic over-representation becomes
 **+4.6**. It does not vanish, and the direction of Finding 3 stands. But *Idahoans for Open
-Primaries* is the Proposition 1 campaign this paper analyses in Section VIII, and *Reclaim
+Primaries* is the Proposition 1 campaign this paper analyses in "What it means", and *Reclaim
 Idaho* is its parent organisation, so a material part of the measured donor-class tilt is
 the mobilisation the paper's own conclusion is about. That is a circularity, and it is
 reported here rather than left for a reader to find.
@@ -559,10 +573,17 @@ and the unaffiliated Democratic tilt.
 Idaho is the limiting case of the on-cycle-timing argument. Washington showed the
 off-year electorate is older; New York showed the shrinkage is party-shaped and
 excludes a young unaffiliated bloc; Idaho shows what happens when a single closed
-primary, not November, is the entire game. The decision is made by a Republican
-electorate grayer than the Republican rolls, in districts where the general cannot
-overturn it and — for about half of seats — where even the primary is uncontested,
-while a growing quarter of the state stands outside the only contest that counts.
+primary, not November, is the entire game for most seats. The decision is made by a Republican
+electorate grayer than the Republican rolls, in districts where the general rarely — but not
+never — overturns it, and for 47 of the 99 Republican primaries the ballot carried a single
+name, while a growing quarter of the state stands outside the contest that resolves most seats.
+
+*(Two phrases here restated an inference §V withdraws, and are corrected as of 2026-08-11: "in
+districts where the general cannot overturn it" and "the only contest that counts". §V records
+why — Democrats won 15 of 105 legislative seats in November 2024, and nine of the 47
+single-candidate Republican primaries were won by a Democrat, so the general demonstrably can
+change the outcome and the primary is not the only contest that counts. Both sat in this
+conclusion, which is outside every coverage span, while the section they contradict was gated.)*
 
 The obvious remedies are institutional: open the primary, or move the decisive
 contest onto the high-turnout November calendar. But Idaho has just weighed and

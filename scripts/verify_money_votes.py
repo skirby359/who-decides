@@ -224,6 +224,11 @@ def derive_legislative_panel(d: dict) -> None:
             return 0.0, 0.0
         return sxy / sxx, sxy / math.sqrt(sxx * syy)
 
+    # The bootstrap's tails, named so the paper's printed "95% interval" can be
+    # asserted against the code that produces it rather than restated. A probe on
+    # a hard-coded 95 would agree with the paper while the slicing said otherwise.
+    BOOT_LO, BOOT_HI = 0.025, 0.975
+
     def _boot(xs, ys, iters=5000, seed=12345):
         rng = random.Random(seed)
         idx = list(range(len(xs)))
@@ -232,7 +237,7 @@ def derive_legislative_panel(d: dict) -> None:
             s = [rng.choice(idx) for _ in idx]
             out.append(_ols([xs[i] for i in s], [ys[i] for i in s])[0])
         out.sort()
-        return out[int(0.025 * iters)], out[int(0.975 * iters)]
+        return out[int(BOOT_LO * iters)], out[int(BOOT_HI * iters)]
 
     # Same materiality floor as the diagnostic. Quoted in the paper's table, so
     # a change on either side has to be made on both.
@@ -263,7 +268,33 @@ def derive_legislative_panel(d: dict) -> None:
         # derived value reads as a defect when it is a probe bug. Magnitudes are
         # carried alongside for those cells.
         d[f"leg_{tag}_slope_abs"] = abs(slope)
+        d[f"leg_{tag}_material_pct"] = 100.0 * d[f"leg_{tag}_material"] / len(cells)
         d[f"leg_{tag}_r_abs"] = abs(rho)
+
+    # The band the paper uses to argue the sample was never the binding
+    # constraint ("only 13–47% of cells attract any material IE"). Derived from
+    # the same four specifications printed in the table rather than restated, so
+    # a change to any one of them moves the band and the probe catches it.
+    _mat = [d[f"leg_{t}_material_pct"]
+            for t in ("expr_matched", "expr_agg", "all_matched", "all_agg")]
+    d["leg_material_pct_lo"], d["leg_material_pct_hi"] = min(_mat), max(_mat)
+
+    # The three SPECIFICATION UNITS the paper prints — the bootstrap's confidence
+    # level, the materiality floor and the slope's money scaling. None is a
+    # measurement, so each was auto-exempt as a small integer until strict_units
+    # surfaced it. They are derived rather than exempted because each is tied to
+    # a constant that could move underneath the prose: change BOOT_LO/BOOT_HI and
+    # "95% interval" is wrong, change MATERIAL_M and "≥$25K" is wrong, and if the
+    # panel's x column stopped being denominated in millions "per $1M" would be
+    # wrong by a factor of a million with every other figure still reconciling.
+    d["boot_level_pct"] = 100.0 * (BOOT_HI - BOOT_LO)
+    d["material_floor_k"] = MATERIAL_M * 1000.0
+    if "net_pro_dem_musd" not in rows[0]:
+        raise SystemExit(
+            "FATAL: the pinned IE panel no longer carries `net_pro_dem_musd`. The "
+            "slope's printed unit ('per $1M') describes that column's denomination; "
+            "if the column changed, the unit in the paper is unverified.")
+    d["slope_unit_musd"] = 1.0
 
 
 def derive_ceiling(d: dict) -> None:
@@ -341,6 +372,39 @@ def derive_ceiling(d: dict) -> None:
     d["pdc_c63_electioneering_m"] = float(electioneering) / 1e6
     d["pdc_c63_electioneering_pct"] = (
         100.0 * float(electioneering) / (float(express) + float(electioneering)))
+
+    # The DIRECTIONAL split within each report type. Finding 3 rests on these two
+    # running opposite ways ("express advocacy 69% *for*, electioneering 61%
+    # *against*"), which is the stated reason the two are reported apart rather
+    # than summed — so the claim that carries the specification decision was
+    # itself unchecked until strict_units surfaced the bare `69`/`61`.
+    for label, tag in (("express", "expr"), ("electioneering", "elect")):
+        filt = ("report_type IN ('Independent Expenditure', "
+                "'Independent Expenditure Ad')" if label == "express"
+                else "report_type = 'Electioneering Communication'")
+        for_m, against_m = con.execute(f"""
+            SELECT SUM(portion_of_amount) FILTER (WHERE for_or_against = 'For'),
+                   SUM(portion_of_amount) FILTER (WHERE for_or_against = 'Against')
+            FROM pdc_ie_targets
+            WHERE candidate_office_type = 'Legislative'
+              AND election_year BETWEEN 2018 AND 2024
+              AND for_or_against IN ('For','Against')
+              AND {filt}""").fetchone()
+        tot = float(for_m) + float(against_m)
+        d[f"c63_{tag}_for_pct"] = 100.0 * float(for_m) / tot
+        d[f"c63_{tag}_against_pct"] = 100.0 * float(against_m) / tot
+
+    # The CLAIM, not just the figures: the paper says the two "run in opposite
+    # directions", and that is what justifies reporting them apart rather than
+    # summed. A numeric probe on 69 and 61 would still pass if both flipped to
+    # For-weighted, so the relation is asserted in code.
+    if not (d["c63_expr_for_pct"] > 50.0 and d["c63_elect_against_pct"] > 50.0):
+        raise SystemExit(
+            f"FATAL: Finding 3 says express advocacy runs FOR candidates and "
+            f"electioneering AGAINST them, and rests the specification choice on "
+            f"it. Measured: express {d['c63_expr_for_pct']:.1f}% for, "
+            f"electioneering {d['c63_elect_against_pct']:.1f}% against. The "
+            f"sentence no longer describes the data.")
 
     # The PDC row count on `independent_expenditures`, retained ONLY because the
     # paper's correction note quotes the retired claim ("all but 5 of 4,456
@@ -518,6 +582,21 @@ PROBES = [
     ("Finding 3 — the advocacy split",
      r"\$([\d.]+)M against \$([\d.]+)M — and the two run in opposite directions",
      ("pdc_c63_electioneering_m", "pdc_c63_express_m"), 0.05),
+    # The two figures that carry the specification decision. "Opposite
+    # directions" is a CLAIM ABOUT the figures, so it is asserted structurally
+    # below as well as numerically here.
+    ("Finding 3 — express advocacy is For-weighted, electioneering Against-weighted",
+     r"express\s+advocacy (\d+)% \*for\* candidates and electioneering (\d+)% \*against\* them",
+     ("c63_expr_for_pct", "c63_elect_against_pct"), 0.5),
+    ("Findings 2/3 — the bootstrap's printed confidence level against its tails",
+     r"(\d+)% bootstrap", "boot_level_pct", 0),
+    ("Finding 3 — the materiality floor in the table header against MATERIAL_M",
+     r"cells with ≥\$(\d+)K", "material_floor_k", 0),
+    ("Finding 2 — the slope's money scaling against the panel's denomination",
+     r"points(?: of residual)? per \$(\d+)M", "slope_unit_musd", 0),
+    ("Finding 3 — the materiality band across the four specifications",
+     r"only (\d+)–(\d+)% of cells attract\s+any material independent expenditure",
+     ("leg_material_pct_lo", "leg_material_pct_hi"), 0.5),
     ("Finding 3 — the retracted flag claim, quoted in the correction note",
      r"on all but 5 of ([\d,]+) rows", "pdc_ie_rows", 0),
     ("Finding 3 — the legislative panel restated in 'what more cycles would fix'",
@@ -768,7 +847,8 @@ def main() -> int:
                 norm, PROBES, d, UNCHECKED, vp.wants_coverage(), spans_out=spans,
                 stats_out=stats)
     fails = vp.audit_coverage(audit_sections, spans, offsets, tuple(AUDIT_BOUNDS),
-                              COVERAGE_EXEMPT, COVERAGE_EXEMPT_LITERAL)
+                              COVERAGE_EXEMPT, COVERAGE_EXEMPT_LITERAL, strict_units=True,
+        bold_is_result=True)
     fails += vp.audit_satellite_counts(PAPER.name, stats.get("figures"))
     fails += _claim_checks(d, norm)
     if fails:

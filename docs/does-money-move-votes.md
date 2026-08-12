@@ -436,8 +436,15 @@ leave with the question open and a clear sense of what it would take to close it
 - **The IE panel is n = 34, and its sign is not stable.** The point estimate moved from
   −0.39 to +0.515 when the panel went from one cycle to four. Read the interval, not the
   coefficient; a paper quoting either sign as a result would be over-reading its own data.
-- **State-legislative IE is excluded entirely** for want of a directional flag, so the
-  largest available body of Washington IE never enters the analysis.
+- **State-legislative IE now enters the analysis, and its specification is the live
+  limitation.** An earlier version of this bullet said it was excluded entirely for want of a
+  directional flag. That was wrong about the record rather than about the analysis: the PDC
+  publishes direction in form C-6's C6.3 section, which the loader had not been reading, so the
+  $51.7M panel is in and contributes 129 scorable district-cycles (Finding 3). What remains is
+  that three quarters of the directional dollars are electioneering communication rather than
+  express advocacy and the two run in opposite directions, and that the filing names a
+  candidate's chamber but not their House position — so the point estimate's sign is
+  specification-dependent rather than merely imprecise.
 - **Only the persuasion channel is examined.** Access, agenda-setting, candidate entry
   deterrence, and the effect of money on *who runs in the first place* are all untested and
   all plausible routes by which money could matter without moving a general-election margin.
@@ -492,9 +499,13 @@ uses the neutral PVI baseline, and discount Findings 2b and 2c accordingly.
 - **Candidate finance.** Washington PDC candidate summaries and itemized C4 Schedule-A
   expenditures (Socrata `tijg-9zyp`), plus FEC candidate summaries for congressional races.
   Public disclosure records.
-- **Independent expenditures.** FEC Schedule E for the 2024 cycle, carrying support/oppose
-  and district; PDC independent-expenditure records for state legislative races, which
-  carry amounts and races but **no directional flag**.
+- **Independent expenditures.** FEC Schedule E for the **2018–2026 cycles**, carrying
+  support/oppose and district, read with `is_notice=false` so each expenditure is counted once
+  (Appendix C); PDC independent-expenditure records for state legislative races, which carry
+  amounts, races **and direction** — the support/oppose flag sits in form C-6's C6.3
+  "Identified Entities" section (Finding 3). *(This entry read "for the 2024 cycle" and "no
+  directional flag" until 2026-08-10. Both were true of the extraction, not of the source, and
+  both contradicted Finding 3 in the same document.)*
 - **No personal data.** This paper uses candidate- and race-level aggregates only. It
   touches no voter file and releases no individual record.
 - Full provenance and reproduction recipe:
@@ -508,6 +519,15 @@ uses the neutral PVI baseline, and discount Findings 2b and 2c accordingly.
   congressional and 49 legislative districts across 2018–2024, restricted to the **163
   baseline-scorable cells** — cells whose PVI fell back to a default for want of district
   presidential data are excluded, the same 163 used by the published backtest.
+- **Two different 129s appear in this paper, and they are not the same population.** Of the 163
+  baseline-scorable cells, **129 are legislative** and 34 congressional; that legislative 129 is
+  the denominator in the allocation-coverage limit ("40 of 129") and is the frame Finding 3's
+  state-legislative panel is matched to. Separately, **129 of the 163 carry both-side finance**
+  and are Finding 1's correlation frame — only 98 of those are legislative. The two counts are
+  equal by coincidence on the pinned frame
+  (`docs/reference/overperformance_cells_2026-08-01.csv`) and describe different sets. They must
+  not be quoted under one name; the same collision is recorded as a withdrawn claim in
+  `who-decides-washington.md`.
 - **Fundraising feature.** Raw `log2(D receipts / R receipts)` matched by name tokens
   against `candidate_finance` for offices H/S/SR/SS, computed independently of the model's
   own capped fundraising term.

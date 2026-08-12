@@ -167,6 +167,21 @@ def derive() -> dict:
     d["ballot24"], d["ballot22"] = by_year.get(2024, -1.0), by_year.get(2022, -1.0)
     d["ballot_lo"], d["ballot_hi"] = min(by_year.values()), max(by_year.values())
 
+    # THE TWO DENOMINATORS, derived so the paper can name them (2026-08-11). §IV publishes two
+    # Republican-ballot-share series and described both as the share of primary ballots cast: the
+    # range EXCLUDES the `id-primary-ballot-choice-blank` voters, whose choice the file does not
+    # record — checked against the raw export rather than assumed from the load — while
+    # `*_rep_ballot_share` below INCLUDES them. They differ by 0.11 to 0.39 points, which is
+    # enough to print two different numbers for the same cycle (2022: 86.49 against 86.10) and
+    # small enough that nothing looked wrong. Same class as the WA paper's retired
+    # rate-share-under-one-name defect; the fix there and here is to state the basis.
+    nc = con.execute("""
+        SELECT COUNT(*) FILTER (WHERE ballot_choice IS NULL),
+               100.0*COUNT(*) FILTER (WHERE ballot_choice IS NULL)/COUNT(*)
+        FROM voter_participation WHERE kind='PRIMARY' GROUP BY election_year""").fetchall()
+    d["nochoice_n_lo"], d["nochoice_n_hi"] = min(n for n, _ in nc), max(n for n, _ in nc)
+    d["nochoice_pct_lo"], d["nochoice_pct_hi"] = min(p for _, p in nc), max(p for _, p in nc)
+
     # Section V — legislative districts banded by registration lean.
     (d["ld_safe_r"], d["ld_likely_r"], d["ld_lean_r"], d["ld_comp"], d["ld_any_d"],
      d["ld_n"]) = con.execute("""
@@ -1101,6 +1116,17 @@ PROBES = [
      r"\*\*(\d+)–(\d+)% of every primary ballot cast in Idaho is a Republican ballot\*\* — the\s+"
      r"range spans every primary cycle in the file, from ([\d.]+)% in 2026 to ([\d.]+)% in 2022",
      ("ballot_lo", "ballot_hi", "ballot_lo", "ballot_hi"), 0.5),
+    # The denominator note added with those keys. Nine cells, and every one is a restatement of a
+    # figure printed elsewhere in the section — which is exactly why each gets a probe rather than
+    # an exemption: the note's whole job is to say that two of them differ.
+    ("§IV the two ballot-share denominators, named",
+     r"The ([\d.]+) / ([\d.]+) range above is the Republican\s+share of ballots \*\*whose party "
+     r"choice is recorded\*\*.*?([\d.]+)% / ([\d.]+)% / ([\d.]+)% — is the Republican share of "
+     r"\*\*all primary participants\*\*, including the\s+([\d.]+)–([\d.]+)% of them \(([\d,]+) "
+     r"to ([\d,]+) voters a cycle\)",
+     ("ballot_lo", "ballot_hi", "p22_rep_ballot_share", "p24_rep_ballot_share",
+      "p26_rep_ballot_share", "nochoice_pct_lo", "nochoice_pct_hi",
+      "nochoice_n_lo", "nochoice_n_hi"), 0.05),
     ("§IV contested Republican legislative primaries",
      r"\*\*(\d+) drew a Republican primary in 2024\*\*.*?of those \d+, just \*\*(\d+) \((\d+)%\) "
      r"were contested\*\* and \*\*(\d+) \((\d+)%\) had a single Republican",

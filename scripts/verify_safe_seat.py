@@ -822,7 +822,8 @@ def main() -> int:
           "what\n  makes the paper's 'exactly one name' reading of the single-candidate count "
           "exact\n  rather than merely probable.")
     fails = vp.audit_coverage(audit_sections, spans, offsets, tuple(AUDIT_BOUNDS),
-                              COVERAGE_EXEMPT, COVERAGE_EXEMPT_LITERAL, strict_units=True)
+                              COVERAGE_EXEMPT, COVERAGE_EXEMPT_LITERAL, strict_units=True,
+        bold_is_result=True)
     fails += _spelled
     # Basis registry (2026-08-10). This paper is the ROLLOUT PILOT — see
     # tests/test_infrastructure/test_basis_registry_rollout.py for which verifiers are enabled

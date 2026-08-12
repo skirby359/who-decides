@@ -356,8 +356,14 @@ def wants_coverage(argv=None) -> bool:
 # `sync_public_repo.NEVER`, so the public checkout legitimately has none of them.
 # --------------------------------------------------------------------------
 SATELLITES = {
+    # The CORRECTIONS LEDGER was added 2026-08-11 and it was not a theoretical gap: it stated
+    # "verify_who_decides_wa.py now asserts 246 figures", present tense, against a real 539 — the
+    # count as of the round that wrote it, four rounds stale. It is the one satellite of a POSTED
+    # paper that records what the posted artifact still gets wrong, so a stale claim there is the
+    # worst-placed of any in the series. Registering it is what makes the guard see it.
     "who-decides-washington.md": ("submission-metadata.md",
-                                  "who-decides-wa-submission-notes.md"),
+                                  "who-decides-wa-submission-notes.md",
+                                  "who-decides-wa-corrections-ledger.md"),
     "safe-seat-washington.md": ("safe-seat-submission-metadata.md",
                                 "safe-seat-submission-notes.md"),
     "does-money-move-votes.md": ("money-votes-submission-metadata.md",
@@ -390,6 +396,22 @@ _COUNT_CLAIMS = (
     # went unchecked until 2026-08-09.
     r"re-derives\s+\*\*([\d,]+)\s+figures\*\*",
     r"exit 0 = ([\d,]+) figures agree",
+    # PASSIVE VOICE, added 2026-08-10. The money paper's notes answered a referee
+    # objection with "208 figures are asserted" while the run asserted 255, and no
+    # anchor above reaches a claim whose number precedes the verb. It was invisible
+    # for a second reason worth recording: its sibling metadata file states the
+    # count correctly twice, so `n_claims` was non-zero and the "no claim found —
+    # re-anchor _COUNT_CLAIMS" notice never fired. A partially-anchored satellite
+    # set reads exactly like a fully-anchored one.
+    r"([\d,]+)\s+figures\s+are\s+asserted",
+    # BOLD ON THE NUMBER ONLY, added 2026-08-11. The anchors above all require the `**` to span
+    # the number AND the word "figures"; `who-decides-wa-corrections-ledger.md` writes
+    # "asserts **246** figures", which is the same claim with the emphasis one word shorter, and
+    # it went unmatched. Third phrasing variant this review series has had to add — the pattern
+    # to notice is that each new document invents its own emphasis, so the anchor set has to be
+    # about the WORDS and tolerant of the markup between them.
+    r"asserts\s+\*\*([\d,]+)\*\*\s+figures",
+    r"asserting\s+\*\*([\d,]+)\*\*\s+figures",
 )
 
 # Anchors used ONLY on satellite documents. The loose "— N of them" idiom belongs
@@ -473,9 +495,41 @@ def audit_satellite_counts(paper_name: str, figures: int | None) -> list[str]:
 # verify_who_decides_wa 2026-08-06 so a third and fourth paper do not each
 # grow their own copy. Exemption tables stay with the paper that owns them.
 # --------------------------------------------------------------------------
+_BOLD = re.compile(r"\*\*(.+?)\*\*", re.DOTALL)
+_BOLD_MAX_WORDS = 2
+
+
+def _bold_spans(text: str) -> list[tuple[int, int]]:
+    """Ranges of `**...**` runs SHORT enough that the emphasis is on the figure itself.
+
+    Used by `bold_is_result`. Non-greedy and DOTALL, because the harness normalises
+    whitespace before slicing, so a bold run can span what were several source lines.
+
+    WHY A WORD LIMIT, measured rather than guessed. The first version of this returned
+    every bold run, and against `who-decides-washington.md` it surfaced 25 tokens of which
+    three were real. The rest were figures that happen to sit inside a bolded PHRASE:
+
+        **April 2026 roll**                    a year, inside a noun phrase
+        **positive in all 39 counties**        a count whose probe covers it
+        **42.8% 65+ and 6.1% under 30**        two cohort edges inside a clause
+        **1. Maybe the off-year electorate…**  a bolded list heading
+
+    Emphasis on a phrase is emphasis on the sentence, not on the number in it. Emphasis on
+    one or two words IS the number — `**12**`, `**16–17 years**`, `**4–25%**`, `**2:1**`.
+    So the run must be at most `_BOLD_MAX_WORDS` words, which keeps every one of the four
+    2026-08-11 defects and drops every false positive above.
+    """
+    out = []
+    for m in _BOLD.finditer(text):
+        if len(m.group(1).split()) <= _BOLD_MAX_WORDS:
+            out.append((m.start(), m.end()))
+    return out
+
+
 def audit_coverage(sections: dict, spans: dict, offsets: dict, audited,
                    exempt_patterns=(), exempt_literals=None,
-                   exempt_sections=None, strict_units: bool = False) -> list[str]:
+                   exempt_sections=None, strict_units: bool = False,
+                   bold_is_result: bool = False) -> list[str]:
     """Fail on any numeric token in an audited section that no probe captured.
 
     Two coordinate spaces have to be reconciled or the audit lies. A
@@ -502,6 +556,7 @@ def audit_coverage(sections: dict, spans: dict, offsets: dict, audited,
             print(f"  FAIL {name:14} SECTION NOT SLICED")
             continue
         off = offsets[name]
+        bold = _bold_spans(hay) if bold_is_result else []
         covered = list(spans.get(name, []))                     # section-scoped, already local
         covered += [(a - off, b - off) for a, b in spans.get(None, [])   # whole-document
                     if a < off + len(hay) and off < b]
@@ -557,8 +612,37 @@ def audit_coverage(sections: dict, spans: dict, offsets: dict, audited,
             _prefix = hay[m.start() - 1:m.start()] if m.start() else ""
             written = ("$" if _prefix == "$" else "") + tok + (
                 _unit if _unit in ("%", "×") else "")
-            if any(re.match(p, written if strict_units else bare)
-                   for p, _ in exempt_patterns):
+            # BOLD MEANS RESULT (bold_is_result, 2026-08-11).
+            #
+            # `strict_units` closed the case where `^\d{1,2}$` swallowed an integer
+            # PERCENTAGE, by matching the pattern against the token as written. It
+            # reaches `%` and `×` and nothing else, so a bare small integer carrying no
+            # unit is still waived — and on 2026-08-11 that turned out to be hiding
+            # something load-bearing FOUR times in one paper, in one day:
+            #
+            #   * "a median of about **16-17 years** ... versus **12**" — registration
+            #     tenure, a published result, three bare integers.
+            #   * the precinct cut's "a floor of **50** presidential votes" — a threshold
+            #     the SQL reads, so a value changed in code but not in prose was invisible.
+            #   * five odd-year office ranges whose LOW endpoints are all one or two
+            #     digits, so only the upper half of each range was visible.
+            #   * Appendix B's "every birth value resolves to a July-**1** sentinel".
+            #
+            # What every one of them has in common is that the AUTHOR bolded it. Prose
+            # does not emphasise an ordinal or a cohort edge; it emphasises a finding.
+            # So under this flag a small integer inside a `**...**` run is ineligible
+            # for pattern exemption and must be probed or exempted by literal — while
+            # `65+`, `18-29` and "the four objections" stay waived, because nobody bolds
+            # those. Rolled out per-caller like `strict_units` before it; see
+            # `tests/test_infrastructure/test_bold_is_result_rollout.py`.
+            # ...and only for a ONE- OR TWO-DIGIT token. A bolded four-digit year is
+            # still a year — `**2021**` heading a list, `**Ornstein (2024)**` — and the
+            # calendar-year exemption must survive emphasis. Restricting by width is what
+            # makes that automatic instead of a second special case.
+            _in_bold = (bold_is_result and len(bare) <= 2 and bare.isdigit()
+                        and any(a < m.start() < b for a, b in bold))
+            if not _in_bold and any(re.match(p, written if strict_units else bare)
+                                    for p, _ in exempt_patterns):
                 continue
             if _SECTION_REF.search(hay[max(0, m.start() - 24):m.start()]):
                 continue

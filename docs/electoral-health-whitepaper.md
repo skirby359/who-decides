@@ -163,6 +163,15 @@ concrete analysis to run.
   Tossups a small minority. When the general is foregone, the operative decision
   moves to lower-turnout primaries. This is a structural counting result that does
   **not** depend on any blocked/weak signal.
+  <sub>**Basis (added 2026-08-10).** The four band cells above are the **latest snapshot per
+  state** in `forecast_predictions` — WA 2026-06-17, NY 2026-06-11, TX 2026-06-12,
+  ID 2026-06-26 — one row per district, banded on `|predicted_margin| ≥ 10`. That qualifier is
+  load-bearing rather than pedantic: the table holds several snapshots per district, and Texas
+  has **220** districts on 2026-06-08 against **205** on 2026-06-12, so pooling the two gives
+  181/220 = 82% instead of 167/205 = 81%. All four reproduce exactly on the stated basis. They
+  are **not pinned and not probed**, and a final pre-November re-lock of all three forecast
+  states is planned, at which point every cell here — and the 13-point Texas gap computed from
+  one of them — moves without anything in this paper changing.</sub>
 - **Strongest objection.** Those are *model-projected* 2026 margins, sensitive to
   the 10-pt threshold; and "non-competitive" conflates a closed-shop seat with one
   that is lopsided because voters *genuinely* lean that way (self-sorting). A
@@ -193,16 +202,26 @@ concrete analysis to run.
 - **Defensible claim.** WA money is broad by headcount but concentrated by dollar. The
   **median itemized gift is $25** in both money systems, while per-recipient-cycle
   concentration is substantial: median Gini **0.578** federal and **0.579** state, over
-  recipient-cycles with ≥100 distinct donors (**822** federal, **1,989** state). The data can
+  recipient-cycles with ≥100 distinct donors (**834** federal, **1,997** state). The data can
   quantify, per race and cycle, the sub-$200 retail share against the whale layer.
 
   <sub>**Corrected 2026-08-10.** These figures were previously given as "n=2,821 … single
   gifts reach $2.5M … Gini ~0.61", which was computed on the **pooled** FEC+PDC table — the
   exact pooling Finding 5's panel note says the series corrected everywhere else. Pooled, the
-  count is 2,814 today; separated it is 822 federal and 1,989 state. The **$2.5M maximum is a
+  count is 2,831 today; separated it is 834 federal and 1,997 state. The **$2.5M maximum is a
   PDC state gift**; the federal maximum is $929,600, so the old sentence paired a median from
   one money system with a maximum from another. The 0.61 does not reproduce on any basis I
-  can construct — both layers give 0.578 — and it is withdrawn rather than restated.</sub>
+  can construct — both layers give 0.578 — and it is withdrawn rather than restated.
+  **Basis, and a live-read warning (2026-08-10).** Population: recipient-cycles keyed
+  `(fec_candidate_id, election_cycle)` over `individual_contributions`, positive amounts,
+  split by money system on the `PDC:` id prefix, restricted to ≥100 distinct (name, zip5)
+  donors. *Pooled is a separate grouping, not the sum of the two* — a recipient-cycle below
+  the threshold in each system alone can clear it pooled — which is why 834 + 1,997 ≠ 2,831.
+  **These three counts are unpinned live reads and they drift upward** as the 2026 PDC cycle
+  accrues: they read 822 / 1,989 / 2,814 when this correction was first written, hours
+  earlier the same day. All eight figures in this finding are now asserted by
+  `scripts/verify_whitepaper.py`, which had asserted none of them — including the 0.578 that
+  the series' withdrawn-claim register already recorded as guarded by it.</sub>
 - **Strongest objection.** The recipient key is `fec_candidate_id`, which holds **two
   identifier systems**: FEC committee ids and `PDC:`-prefixed state filer ids. On the federal
   side the highest-volume "recipients" are conduits (ActBlue, JFCs), so a naive per-recipient

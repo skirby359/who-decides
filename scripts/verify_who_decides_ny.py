@@ -386,6 +386,38 @@ def derive() -> dict:
             SELECT median(date_diff('year', birthdate, registration_date)) FROM voters
             WHERE year(registration_date)={year} AND birthdate IS NOT NULL""").fetchone()
 
+    # The three 2008->2024 movements the section's summary sentence characterises, derived
+    # rather than eyeballed off the table (2026-08-10). They were previously carried as bare
+    # "~18 points" / "~15 points", which `^\d{1,2}$` exempts as a small integer because they
+    # are written in POINTS and not with a percent sign, so strict_units never demanded them —
+    # and the Republican movement was carried as the words "roughly flat", which is not a
+    # token at all and which the table contradicts: +5.9 points is a third of the Republican
+    # share's own 2008 level. Probing all three closes the exemption and the claim together.
+    d["new_DEM_fall"] = d["new2008_DEM"] - d["new2024_DEM"]
+    d["new_REP_rise"] = d["new2024_REP"] - d["new2008_REP"]
+    d["new_NOPARTY_rise"] = d["new2024_NOPARTY"] - d["new2008_NOPARTY"]
+
+    # §III's duplicate-identifier disclosure, DERIVED rather than exempted (2026-08-10). Every
+    # figure in it — 53, 36, and the three disagreement counts — is a one- or two-digit integer,
+    # so `^\d{1,2}$` waived the whole data-quality caveat as "small integer". The counts are also
+    # scope-sensitive, which is why they are worth asserting: the disagreement figures the paper
+    # prints are scoped to the 36 pairs whose BOTH rows are active, and across all 53 pairs the
+    # same three counts are materially different. `derive, don't exempt`.
+    con.execute("""CREATE OR REPLACE TEMP TABLE _dup AS
+        SELECT state_voter_id FROM voters GROUP BY 1 HAVING COUNT(*) > 1""")
+    con.execute("""CREATE OR REPLACE TEMP TABLE _dup36 AS
+        SELECT v.state_voter_id FROM voters v JOIN _dup USING (state_voter_id)
+        WHERE v.status_code = 'A' GROUP BY 1 HAVING COUNT(*) = 2""")
+    d["dup_ids"], = con.execute("SELECT COUNT(*) FROM _dup").fetchone()
+    d["dup_both_active"], = con.execute("SELECT COUNT(*) FROM _dup36").fetchone()
+    for tag, tbl in (("36", "_dup36"), ("53", "_dup")):
+        for fld, col in (("party", "party"), ("cd", "congressional_district"),
+                         ("dob", "birthdate")):
+            d[f"dup{tag}_{fld}"], = con.execute(f"""
+                SELECT COUNT(*) FROM (SELECT state_voter_id FROM voters
+                JOIN {tbl} USING (state_voter_id) GROUP BY 1
+                HAVING COUNT(DISTINCT {col}) > 1)""").fetchone()
+
     # §V — the re-registration share of each cohort, and whether it biases the trend
     # (2026-08-08). `registration_date` is the most recent registration TRANSACTION, not
     # necessarily an initial one, so a "cohort" is not a set of first-time registrants. The
@@ -774,6 +806,19 @@ PROBES = [
     ("§V 2024 registration cohort",
      r"\| 2024 \| \*\*([\d.]+)%\*\* \| ([\d.]+)% \| \*\*([\d.]+)%\*\* \| (\d+) \|",
      ("new2024_DEM", "new2024_REP", "new2024_NOPARTY", "new2024_median"), 0.05),
+    # The summary sentence's three movements (2026-08-10). See the derivation note: two were
+    # exempt as small integers and the third was the word "flat".
+    ("§III — the duplicate-identifier disclosure, both scopes",
+     r"carries \*\*(\d+) registration identifiers twice\*\*, (\d+) of them with \*both\* rows "
+     r"active.*?both-active pairs\*\*, (\d+) disagree on party, (\d+) on congressional "
+     r"district and (\d+) on birth year; across all \d+ pairs the same three counts are "
+     r"(\d+), (\d+) and (\d+)",
+     ("dup_ids", "dup_both_active", "dup36_party", "dup36_cd", "dup36_dob",
+      "dup53_party", "dup53_cd", "dup53_dob"), 0),
+    ("§V — the three 2008-to-2024 cohort movements",
+     r"Democratic share has fallen \*\*([\d.]+)\*\* points and the\s+no-party share has risen "
+     r"\*\*([\d.]+)\*\*, while the Republican share has risen \*\*([\d.]+)\*\*",
+     ("new_DEM_fall", "new_NOPARTY_rise", "new_REP_rise"), 0.05),
 
     # ---- added 2026-08-06 by the coverage gate ------------------------------------------
     # §I's Das-Gupta summary, checked against the table it summarises (see _companion_docs).
