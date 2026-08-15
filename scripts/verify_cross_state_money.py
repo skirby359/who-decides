@@ -209,6 +209,16 @@ def _gen_layer(con, birth_year_sql):
     return res
 
 
+# §F5 reads the LIVE pooled panel (`voter_donor_affiliation`), which `main.py analyze`
+# rebuilds and which grows as contributions accrue. Its figures are asserted downstream, so
+# drift already fails — but as "the paper is wrong", not as "the panel moved". This guard
+# names the mechanism instead (P5, closed 2026-08-15): the counts are the papers' published
+# pooled-panel sizes, and a legitimate re-match must update them HERE, deliberately, the
+# same discipline as f6's pinned roll. Its sibling `_multipliers` in verify_whitepaper.py
+# carries the same guard.
+F5_PINNED_PANEL_N = {"WA": 314_974, "NY": 558_017, "ID": 41_136}
+
+
 def f5(state):
     """§F5 — donor age skew (raw + IPW), pooled concentration, and party-of-record skew."""
     sp = DATA / f"{state.lower()}_statewide.duckdb"
@@ -218,6 +228,14 @@ def f5(state):
     by = "EXTRACT(year FROM v.birthdate)" if "birthdate" in cols else "(2026 - v.age)"
     gens = _gen_layer(con, by)
     n = con.execute("SELECT COUNT(*) FROM voter_donor_affiliation").fetchone()[0]
+    if n != F5_PINNED_PANEL_N[state]:
+        raise AssertionError(
+            f"{state} pooled panel holds {n:,} voters against the published "
+            f"{F5_PINNED_PANEL_N[state]:,} — voter_donor_affiliation has been rebuilt since "
+            "the §F5 figures were derived (a matcher rerun or new contribution load), so "
+            "every figure this function returns is about a different panel. Re-derive the "
+            "paper's §F5 block and update F5_PINNED_PANEL_N deliberately; do not read a "
+            "downstream probe failure as a paper defect.")
     gini = con.execute("""
         WITH r AS (SELECT total_donated t, ROW_NUMBER() OVER (ORDER BY total_donated) rn,
                           COUNT(*) OVER () n, SUM(total_donated) OVER () s
