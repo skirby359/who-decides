@@ -2552,7 +2552,7 @@ day were the donor counts corrected above.
 
 ---
 
-## 2026-08-08 — New York external review: a repair that broke a denominator, and five other defects
+## 2026-08-11 — New York external review: a repair that broke a denominator, and five other defects
 
 An outside reviewer read `who-decides-new-york.md` and returned twelve objections. Ten hold in
 some form. The largest finding of the round is not among them: it was found while checking the
@@ -2598,7 +2598,7 @@ dropping the cutoff. All six exemptions are deleted and the uncorrected values a
 ### What the pin actually froze
 
 `ny_paper_roll` carried party, birth year and active status but **not** registration date, so
-the correct denominator was unavailable to the verifier by construction. Re-pinned 2026-08-08
+the correct denominator was unavailable to the verifier by construction. Re-pinned 2026-08-11
 with `registration_date` (100% populated; 0 nulls). The re-pin is **value-identical** on every
 column it already carried — verified by fingerprinting party × active-status × birth-year
 aggregates before and after — because the new field was *appended* to the `MIN(STRUCT_PACK(…))`
@@ -6357,3 +6357,453 @@ down; that is now the expected shape.
 narration, the hedging density, 12,500 words, splitting Appendices F and G, the full-roll row,
 "stably so" against 2021's 9.2-point bound — plus the two substantive gaps he is right about, the
 mobilization literature and Appendix H's retirement reading.
+
+---
+
+## Cross-state synthesis — the habitual-core row, and why only one cell could be corrected (2026-08-11)
+
+Closing the item the WA referee round left owed. `who-decides-cross-state.md` publishes a
+habitual-core row on the roll-joined basis (WA 95.5–97.5%, NY 86.4–95.6%, ID 94.4–97.8%), and the
+survivorship mechanism corrected in the WA paper applies to it in full: every cell measured
+BEFORE November 2024 is an upper bound, because the electorate is reconstructed from a roll built
+afterwards and the voters who have since died or moved are dropped from both sides of an overlap
+they could not have been part of.
+
+### The measurement, and the reason the row is left uncorrected
+
+**Only Washington has a retained roll snapshot.** `wa_vrdb.duckdb` carries `voters_20230901`;
+`ny_vrdb.duckdb` and `id_vrdb.duckdb` have `voters` and participation and nothing else. So WA is
+the only state where the size of the bias can be measured rather than argued. On this study's own
+age-banded population — not the WA paper's, which is a different basis:
+
+| WA cell | published | corrected | inflation |
+|---|--:|--:|--:|
+| 2021 | 95.5% | **89.9%** | ≥5.5 pt |
+| 2023 | 97.5% | **95.0%** | ≥2.5 pt |
+| 2025 | 95.7% | 95.6% | 0.1 pt |
+
+**Correcting Washington's column alone would have been the error this table exists to avoid** —
+one cell of a three-way comparison on a basis the other two are not on, which is the same
+"two quantities under one name" shape that has now recurred six times in this series. The cells
+stay comparable and the caveat is stated instead, with the WA measurement in it as the one
+quantified case.
+
+### What the per-contest ladder shows, and why the ordering is safe
+
+The bias is structural in a way that happens to be conservative here. The row's endpoints come
+from contests at very different distances from the reference:
+
+* **New York's low endpoint is its 2017 contest** — seven years before November 2024, the most
+  inflated number in the row, and uncorrectable.
+* **Idaho's low endpoint is a May 2026 primary**, which POSTDATES the reference, so its voters
+  are all current and it is essentially unbiased.
+* Washington's low is 2021, three years back, measured above at ≥5.5 points.
+
+So correcting everything would push New York's floor down furthest and leave Idaho's almost
+still. The row's *ordering* — the only thing it is used for — is therefore conservative as
+printed rather than at risk, and the note says to read the ordering and not the levels.
+
+One thing the ladder also shows and the survivorship story does NOT explain: New York's 2025 cell
+(87.7%) sits below its 2023 cell (95.6%) despite being closer to the reference. That is a real
+signal, not attrition — the 2025 electorate is 4.04M against 2023's 2.34M, a much larger and
+differently-composed turnout. Worth not attributing to the mechanism just because the mechanism
+was the thing being looked for.
+
+### State
+
+`verify_who_returns_ballot.py` **141 → 146 figures**, exit 0, all five sections fully mapped; its
+sweep 101 → **104 caught / 0 UNCAUGHT / 23 no-probe**, the ceiling unchanged because the
+correction was stored per cell rather than as a span whose endpoints nothing reads.
+`tests/test_infrastructure/` **492 passed**. Cross-doc **0 findings**.
+
+This paper and its verifier remain **withheld from the public repo** pending the author's
+publishing decision, so nothing incorrect was ever published — but the figure would have gone out
+wrong the moment that decision was made, which is why it is fixed now rather than when the paper
+moves.
+
+---
+
+## Cross-state synthesis — an external referee, and a contradiction the paper was arguing with itself (2026-08-11)
+
+A full adversarial review of `who-decides-cross-state.md`. Same discipline as the WA round:
+every falsifiable claim checked before anything was accepted. Seven items applied.
+
+### The structural finding, which was the review's best point
+
+**Finding 3 stated its headline on cells that Finding 1's own footnote and Boundary of inference
+both say cannot be compared.** Finding 1: "cross-state comparisons of the low-salience *level*
+are not safe." Boundary of inference goes further — the cross-state *ordering* is not robust
+either, and "the state supplying the study's extreme is the one whose reconstruction most
+over-retains seniors relative to youth." Finding 3 then asserted, in bold, a cross-state level
+comparison built from each state's most extreme cell. The paper was arguing both sides in
+different sections and letting the stronger one carry the abstract.
+
+**And the note I added to this paper one sitting earlier made it worse.** It said to "read the
+row's ordering, not its levels" — carving out an exception that Boundary of inference had
+already refused. That was a self-inflicted contradiction and it is withdrawn.
+
+**The fix the referee proposed works, and it was cheap.** Compare each state's low-salience
+contest nearest its roll extract, which puts all three on nearly one reconstruction basis:
+
+| lag-matched cell | n | dissimilarity | 65+ |
+|---|--:|--:|--:|
+| ID — May 2026 closed R primary | 247,391 | **27.8** | 48.6% |
+| WA — Nov 2025 odd-year general | 1,993,489 | 18.6 | 40.3% |
+| NY — Nov 2025 odd-year general | 4,039,099 | 11.8 | 34.4% |
+
+Idaho still leads, by **9.2 index points**. The headline is earned rather than asserted, and
+Finding 3 now makes the narrower claim that the design supports.
+
+### The ladders dropped their own disconfirming cell
+
+New York's 65+ ladder printed four of five contests — 28.4 → 32.9 → 36.3 → 41.6 — in a paragraph
+arguing recency drives the pattern. The fifth is **2025 at 34.4**, which breaks the monotonicity.
+Same omission in the habitual-core ladder (86.4 → 88.3 → 90.5 → 95.6, with 2025 at 87.7). Both
+cells are now printed and labelled: 2025 postdates the November 2024 reference, so its
+reconstruction bias is near zero — a reason to mark it as the control, not to leave it out.
+
+**And the paper's explanation for 2025 was incomplete in a way that favoured its own story.** It
+attributed 2025's youth to the NYC mayoral contest and noted 2021 was also a mayoral year.
+**2017 was too** — the cycle is 2013/2017/2021/2025. So all three mayoral cells (28.4, 36.3,
+34.4) sit below both non-mayoral ones (32.9, 41.6), and "mayoral years run younger" covers both
+ends of the ladder that lag is otherwise asked to explain. With five contests neither reading is
+testable; naming only one was the error.
+
+### A comparative that does not hold, and the margin by which it failed
+
+"New York's five odd-year generals span 28.4% to 41.6% — a wider range than separates New York's
+presidential electorate from Idaho's closed primary." Measured: the span is **13.210**, the
+separation is **13.157 to 20.395**. So it exceeds the narrowest of those readings by **0.05
+points** and is smaller than every other one. Against an Idaho age-convention bracket of 1.7–2.6
+points that is unresolvable, and the sentence is restated rather than defended.
+
+Worth recording how close this came to going the other way: checked on the paper's ROUNDED
+figures the comparison reads 13.2 against 13.2 and looks exactly equal, which is what the
+referee reported. It is the unrounded values that show the claim technically holding by a margin
+far below the measurement's own precision. Both roads lead to restating it; only one states the
+reason correctly.
+
+### The rest
+
+* **The timing inference is weaker than it read.** Convergence of three presidential electorates
+  is close to mechanical, and the three low-salience classes are not the same treatment — a local
+  general, a local general sometimes containing a NYC mayoral race, and a closed party primary.
+  Contest content varies with the state, so divergence cannot isolate timing. Restated to the
+  within-state claim, which is immune to the objection.
+* **Ornstein was missing from a section that draws a policy implication**, while the companion WA
+  paper cites that null as the main counterweight. Restored, with why. Einstein et al. appeared
+  here as "The Gray Vote" (2024) and in the WA paper as "Age and Homeownership Drive the Local
+  Turnout Gap," *Urban Affairs Review* (2025) — one work, two citations. Harmonised to the WA
+  form and then **verified against the publisher**: Katherine Levine Einstein, Maxwell Palmer,
+  Ellis Hamilton and Ethan Singer, *Urban Affairs Review*, doi:10.1177/10780874251371695, online
+  first 2025 and in issue 2026. So the WA form was the correct one and "The Gray Vote" (2024) was
+  simply wrong. Cited at the online-first year, which is what the WA paper already does.
+
+  **It was wrong in FIVE places, not one.** Chasing it found the same bad citation in
+  `who-decides-idaho.md`, `who-decides-new-york.md`, `id-submission-notes.md` and
+  `ny-submission-notes.md` — every paper in the series except Washington, which alone had it
+  right. Two of those are in the public repository. All are corrected. A citation carries no
+  numeric token, so no coverage gate and no probe could ever have seen it; the only reason it
+  surfaced is that a referee read two papers side by side and noticed they disagreed. That is
+  the same blind spot as the cross-paper figure in the WA End note (item C5), in a form the
+  claim guards do not reach either.
+* **No electorate size appeared anywhere in the paper**, and the CVAP benchmark — the
+  dissimilarity index's own denominator — was never shown. Both are now printed.
+
+### State
+
+`verify_who_returns_ballot.py` **146 → 180 figures**, exit 0, all five sections mapped. Sweep re-measured across all nine gates: **2,746 caught / 0 UNCAUGHT / 911 no-probe / 3,666
+rows** — who-returns-ballot 104 → **130 caught / 0 UNCAUGHT / 23 no-probe**, every other verifier
+row-identical. `tests/test_infrastructure/` **492 passed, 1 skipped**. Cross-doc **0 findings**.
+The ceiling held: a first pass derived per-class
+n and dissimilarity for every state and class, adding 22 keys the paper does not print and
+pushing no-probe to 45. Cut back to the lag-matched cell only. Fourth consecutive sitting to
+measure high and be brought down.
+
+**Not done, and the author's:** the party-filter decomposition for Idaho's index (salience versus
+the closed-primary filter — computable, and the referee also supplies the defence for not
+needing it), Finding 2's n=2 institutional framing, and the draft apparatus. On that last, the
+referee's argument is the sharpest version yet: nine disclosed self-corrections establish a base
+rate, and a reader will estimate the remaining count rather than admire the rigour.
+
+---
+
+## 2026-08-11 — the donor memo reviewed as a release control, and Finding 2's geography defended
+
+An external read of `donor-class-submission-memo.md` judged it not as a paper but as a release
+control: does it tell a reader what to do next? It did not, and it failed on the criterion it
+names for itself — §7 says "the two halves of this memo contradicted each other, which is the
+one thing a release-control document may not do", and that defect had been reproduced against a
+different gate.
+
+### The contradiction, and the direction the reviewer got wrong
+
+**A9x was reported closed in two places and open in seven**, including a gate table in which A10
+sat ✅ with a dependency on an A9x marked ☐. A closed gate cannot depend on an open one, and the
+reviewer reasoned from that to a much more serious charge: that the A10 signature had been taken
+out of order, over a document stipulated to be non-final, and therefore certified less than it
+claimed.
+
+**That inference is wrong, and checking it was the first thing done.** A9x closed 2026-08-06 —
+the 204-record independent Idaho rating, by a rater other than the author, zero errors in every
+stratum — and A10 was signed 2026-08-08. The order was correct and the dependency was satisfied.
+The two "closed" statements were right; the **seven "open" ones were stale copy**. The fix was
+to update the seven, not to reconcile toward them.
+
+Everything else the read raised checks out: **B10d appeared in three states** (closed in the
+table, pending as blocking item 9, parallel work in §7's closing line); **D7 was closed against
+45 sections** (41 by derivation + 4 by written reason) while the current build audits 48; the
+header's "17 of 26 gates" describes a population that appears nowhere, under a §5 headed "What
+is still open" that was 60% closed items.
+
+### The root cause is duplication, and the memo named it in its own first paragraph
+
+Line 6: *"The binary gate list is `donor-class-release-checklist.md` and this memo does not
+restate it."* §5 then restated it, with statuses. **All three contradictions lived in that
+restatement.** The file "has twice reverted to a stale copy" by its own account; this was the
+third time. Editing it again does not fix a design that keeps two registers of the same facts.
+
+§5 now carries the dependency chain and the reasoning — the part a checklist cannot hold — and
+**no status column**. D7 is restated as **continuous rather than dated**, enforced by the
+coverage gate on every run, because recording a coverage closure against a date invites exactly
+the defect it exists to prevent: a closure certified over a text that no longer exists.
+
+### The degenerate three-row table, and why deleting a row was the fix
+
+§9 carried Last-observed / Expected / Signed, all reading 1,324 / 48 / 2,030 / 11,370 / 287, all
+produced by the same 2026-08-08 event. "Expected — what the next run should produce" was a copy
+of the row above it, and a value agreeing with its own copy is not evidence. The row is deleted.
+
+**It earned that within the hour.** The geographic check below took the build to 1,360 figures,
+so the two honest rows now disagree and name the gate to reopen — which is the work the third
+row could never do while it was a copy.
+
+Also withdrawn from §9: *"If these rows ever diverge again, the signature is the one that is
+wrong."* A divergence has at least three candidate causes — legitimate change, nondeterminism,
+or a signature over a different state — and pre-assigning blame destroys the only diagnostic
+value the rows have. It also contradicted §8, which calls the signature authoritative.
+
+### Finding 2's geographic corollary: the objection was half right, and the answer defends the paper
+
+The sharpest substantive point was that Finding 2's county cut is computed on matched donors
+while Appendix F reports the largest non-match bucket as keys matching **at a different ZIP5** —
+geographic displacement, dropped from a geographic finding.
+
+Half of it was already covered: the top-1% dollar concentration has an all-donor cross-check in
+Appendix E. **The county corollary did not**, and it carries the paper's most quotable numbers.
+
+The question reduces to selection rather than address source, and that reduction is what makes
+it tractable: the primary specification requires ZIP5 equality, so a matched donor's county of
+registration IS the county of their filing ZIP. Holding geography to the filing ZIP on both
+sides:
+
+| panel · county | matched | all eligible keys | movement |
+|---|--:|--:|--:|
+| WA federal · King | 2.06 | 2.09 | -0.03 |
+| NY federal · New York | **5.96** | **6.87** | -0.91 |
+| NY federal · Westchester | 2.59 | 2.01 | +0.58 |
+| NY state · New York | 2.45 | 3.64 | -1.19 |
+| ID federal · Ada | 1.26 | 1.25 | +0.01 |
+| ID federal · Blaine | **7.83** | **8.34** | -0.51 |
+| ID state · Blaine | 3.47 | 4.13 | -0.66 |
+
+**Every headline county is understated by the matched panel, not overstated.** The keys that
+fail to match are drawn disproportionately from the *most* concentrated places — what mobility,
+second residences and work-address filing would predict — so the reported concentration is a
+floor. The feared direction was the opposite of what happens.
+
+Three things about the method worth keeping.
+
+**It validates itself before reporting.** `diag_donor_geography_selection.py` reimplements the
+key rule from the specification rather than importing it, then checks its reconstructed match
+rate against the published one **before** reporting any geography. Five panels reconstruct to
+within 0.3 points and their matched multipliers reproduce the published ones exactly.
+**Washington's state panel does not** — 8.8% of in-state dollars against 37.1% — because the PDC
+name-order defect means the naive strict key cannot reach the keys the production matcher does.
+It is excluded and the paper says so, rather than reported as though it were the same panel.
+
+**The in-state filter is load-bearing, and its absence is diagnosable.** The first run omitted
+it, reproduced the four federal panels to within 0.3 points, and collapsed WA state to 8.1%.
+That split — federal right, state wrong — is what identified the missing filter, because the
+FEC loads are already residence-filtered and the state-disclosure loads are not.
+
+**One cell differs from the multiplier reported earlier in the section**, and the gap is the
+evidence rather than a discrepancy: ID state Blaine reads 3.47 here against 3.48 above, which is
+the entire effect of geolocating by filing ZIP instead of county of registration — the
+substitution the check relies on being small. It is 0.01.
+
+### What the gate caught in the new work
+
+Three defects, all in the additions, all found by the coverage gate rather than by reading:
+
+1. The verifier copy of the derivation **dropped the active-status filter**, matching New York
+   against inactive registrants and moving Manhattan 5.96 → 5.90.
+2. The `NY state · New York` probe **bound to the wrong table** — the participation/intensity
+   decomposition has a row with the same label, so a two-column pattern matched it and reported
+   its 1.22 intensity as an "all keys" multiplier. Rows here are unique only once the movement
+   column is in the pattern.
+3. All nine probes passed `None` as their section, so their spans were **unattributed** and the
+   audit reported every cell of the new table as unmapped. **A probe that matches but is not
+   attributed proves nothing to the gate** — worth knowing, because it looks like success.
+
+### Consequences to carry
+
+**A10 is REOPENED.** The signature is over 1,324 figures; the build is now **1,360**, and the
+body 11,774 words against the signed 11,370. Re-sign on a cold `--refresh` before A14. This is
+the third reopening and all three have the same shape — a round added or moved analysis after
+the sign-off — which is the freeze rule's cost being paid rather than avoided, since this
+addition qualified on the "could reverse a headline" branch.
+
+Other repairs in the same pass: the contribution bullet now leads with **author-adjudicated
+precision plus test–retest, and the independent Idaho rating**, rather than "validated as an
+instrument" with the independence gap in a parenthesis; Finding 3's Idaho party rows failing the
+panel-specific ceiling moved from the closing clause of a strength bullet into **"What not to
+claim"**; Jaccard 0.14–0.16 flagged for promotion out of the disclaimer list, since an ~15%
+overlap between panels is a result that constrains every cross-panel sentence; the AI
+declaration narrowed from "no individual-level record went to a hosted service" — which the
+provider-key-encrypted off-site backup contradicts on a plain reading — to **"submitted to any
+AI system or third-party analysis service"**; B10a restated as **closed on accepted risk**,
+since the corrected premise reaches only that volume from 2026-03-12 and says nothing about
+pre-encryption copies elsewhere; and the venue table's two fallbacks restated as what they are —
+SPPQ is a different paper, not a cut, and Political Behavior's data-deposit expectation is a
+possible disqualification rather than a word count.
+
+**Author determination recorded, 2026-08-11:** RCW 29A.08.720's bar reaches the donor list used
+for solicitation. The statute prohibits using the lists for commercial advertising or for
+soliciting money and affirmatively permits use "for any political purpose," which it defines to
+include political fundraising, so the operative test is not commerciality in the abstract and
+the commercial codebase is not within the bar on that reading. Full statutory analysis in
+`data-use-and-research-ethics-assessment.md` §2. **This is the author's determination, not
+counsel's** — outside legal sign-off covers the FEC memo only.
+
+**Still open and now posed as a decision rather than settled by an adjective:** §5.10 called a
+revise-for-compliance request "the foreseeable outcome" while filing the ethics determination
+under accepted risk. A cost assessed as likely is not accepted, it is deferred into the review
+window. Either state a lower probability or start the NHSR determination in parallel.
+
+---
+
+## 2026-08-11 (second pass) — the donor paper's own staleness sweep, and the bound that changed construction
+
+An external read of `donor-class-and-the-electorate.md` — the paper, not the memo this time.
+Ten items, all confirmed. The blocker is the same failure the memo carried four hours earlier,
+now in the paper: **an update appended rather than integrated, and the other sites never swept.**
+
+### The paper said both things about its own most contested finding
+
+Appendix F7 recorded the 204-record independent Idaho rating as complete, zero errors,
+2026-08-06. **Eight other passages said it had not happened**, including the abstract — *"a fresh
+Idaho sample is outstanding"* — and F7's own lead paragraph, *"it is to be rated by someone other
+than the author"*, sitting directly above the paragraph reporting that it was. The Prior-work
+paragraph carried both states nine lines apart.
+
+The abstract is the expensive one. An editor reads it as the author's own assessment that the
+contested finding is unsupported, when the appendix says it was validated. That impression costs
+more to reverse than any substantive criticism.
+
+**And the Finding 3 heading over-corrected the other way.** It read "the Idaho result
+independently validated, zero errors in 204 records" — the most aggressive statement of the
+finding anywhere in the paper, in the one place a reader cannot skip, and contradicting F7's own
+sentence six lines below that the surviving claim is "deliberately the weaker of the two
+available: no false match was **detected**… rather than a claim that the error rate is zero."
+The heading is now just the finding; the status lives in the text with its ceiling attached.
+
+All eight sites swept, F7's lead integrated into past tense, and the pre-verdict conditional
+("if the rating finds an error…") rewritten as what it was — a commitment made in advance, and
+what it found.
+
+### The bound changed construction between the table and the defence, and that is what rescued Idaho
+
+The substantive item, and the one a methods referee finds unaided.
+
+F7's deletion table applies the budget **panel-wide**: delete `budget × panel size` records, all
+from the bucket supporting the finding. Idaho's federal row falls to **5.2%** at a 16.1% budget.
+The Idaho stratum defence applies the ceiling **within the stratum**, panel denominator fixed:
+20.4 × (1 − 0.102) = **18.4%**. Those are different operations, not one operation at a smaller
+budget.
+
+**Apply the panel-wide construction at the new 10.2% ceiling and Idaho's federal party result
+still fails** — 11.5% against an 11.8% registration baseline. The state panel reads 12.7% and
+clears it narrowly. So the federal result survives *only* on the licence to bound per stratum.
+
+That licence is real: the second draw was stratified on registered party precisely because the
+vulnerability is party-specific, 34 records were rated per party cell, and a ceiling computed
+within that cell is what the design produces. What the paper never said was that the panel-wide
+construction still fails. A reader reconciling 5.2% with 18.4% finds the operation changed at
+exactly the point the finding's fate is decided, and the uncharitable inference is the natural
+one. **Ground stated is ground defended.** Both figures are now derived
+(`idaho_dem_panelwide_at_party_ceiling_*`) and the paper says which construction the result
+stands on and what a reader who prefers the other should conclude.
+
+### The uncertainty inflation, tested on the paper's own pre-committed sensitivity
+
+The independent rater used `U` on 23 records against the first pass's 2, and 34 of 36
+disagreements move toward less certainty. The paper read that as a threshold convention rather
+than disagreement about identity — a decent argument, and untested, because the one figure that
+could test it was the one figure missing.
+
+`NC`+`NP`+`U` was pre-committed in the scoring plan and `bound()` already computed it per cell;
+only the donor-weighted aggregate was absent. Computed: **90.4%** against the published 91.0%.
+A **0.6-point** move, because the `U` verdicts sit almost entirely in the weak tiers, which
+carry little donor weight. The reading holds, cheaply. **The primary specification is unmoved at
+100.0% under both conventions** — all 75 of its records are confident `Y`, so the harsh
+convention has nothing there to reclassify.
+
+Aggregating a pre-specified sensitivity is not choosing an analysis after seeing verdicts, and
+the code comment says so explicitly, because `score_match_validation_human.py` is a
+written-before-rating script and that property is worth protecting.
+
+**Related, and corrected:** the "bracketed from both sides" passage (95.7 / 93.0 / 91.0) brackets
+the **retired all-tier** specification, not the one the paper runs on. As written it read as
+though the operative figure had been bracketed. The primary tier has no bracket because it has
+no spread — 75/75 in all three readings.
+
+### Four arithmetic items, all confirmed
+
+1. **The pooling demonstration did not subtract.** 46.6 − 43.5 = 3.1, printed as 3.0 in two
+   places. Unrounded is 46.5712 − 43.5100 = **3.06**, which rounds to 3.1 either way, so the old
+   figure was wrong on both conventions. Now differenced from the three figures it summarises
+   rather than typed, and it is the first arithmetic a reader does in the paper.
+2. **A Wilson label was inverted.** "bounds the error rate at roughly 3% — the Wilson lower
+   bound". 3.1% is the *upper* bound on the error rate; 96.9% is the lower bound on precision.
+   Every Wilson figure in the paper computes correctly, so this was a label slip — in the methods
+   paragraph a referee reads hardest.
+3. **The Idaho primary footnote carried two denominators.** The table says 274,684 participants;
+   the five party-ballot counts sum to 273,884, and the printed shares compute on the smaller
+   total. Measured rather than guessed: the **800** difference is participants whose
+   `ballot_choice` is blank — recorded as voting with no party ballot recorded. Derived by
+   `_d_id_primary_ballots` and stated in the footnote.
+4. **Five skew cells differ by 0.1 from their own printed shares.** Unrounded inputs, which the
+   paper states as a convention elsewhere but not in the two party tables, where the skew column
+   *is* the finding. Stated there now.
+
+### Two places the paper was underselling itself, corrected because understatement is also inaccuracy
+
+**The 480-record design was right for the question it answered, and that is why a second draw was
+needed.** Oversampling the weak tiers by 30–300× is the correct allocation for *discriminating
+between* tiers, and it answered that question decisively. It is the wrong allocation for
+*validating* the tier that won: the full-name key carries 80.7–89.2% of matches and received 20
+records per panel, which is the whole reason the panel-specific ceiling is 16.1% and the whole
+reason Idaho needed a second draw. Stated that way the Idaho 204 is not a patch but the second
+stage of a two-stage design. **And it flags what is still owed** — Washington and New York remain
+at 20 primary-key records per panel, so 16.1% remains their operative ceiling.
+
+**The strongest validation result in the paper was not in the abstract.** The full-name block
+reads 75/75 in the original pass, 75/75 in the blinded re-rate, and 75/75 in an independent
+rater's pass — three readings, one by someone with no stake, unanimous, on the tier the whole
+paper runs on. Now in the abstract, phrased as detection rather than absence. The abstract went
+to 358 words doing it and was cut back to **295** against a 300 cap, by compressing the Idaho
+sentence and dropping two clauses restated elsewhere.
+
+### State
+
+`verify_donor_class.py` **1,375 figures** over 48 sections, all coverage mapped, all assertions
+pass. Abstract 295 / body 11,880 / supplement 22,947. Cross-doc 0 findings.
+
+**A10 stays reopened** — signed over 1,324, the build is 1,375 after two rounds today. Re-sign on
+one cold `--refresh` after the remaining items, not between them.
+
+Two items left to the author and deliberately not actioned: the AI-disclosure scope sentence for
+the cover letter (which state, how many rows, retention, what changed), and whether the residual
+revision narration — four phrases of the "an earlier draft implied" kind — moves to the
+corrections ledger, which exists and is cited.

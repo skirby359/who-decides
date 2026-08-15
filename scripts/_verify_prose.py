@@ -793,6 +793,15 @@ def audit_basis_consistency(path: Path | None = None) -> list[str]:
     its group's MODAL value must name where the paper discloses it, in
     `divergence_disclosed`. That keeps the finding visible instead of resolving it by
     loosening the check, which is this repo's standing rule for a failing gate.
+
+    THE DISCLOSURE IS PER AXIS (2026-08-14, Pass 1 of the calculation review). It must
+    open with the diverging column's name in square brackets — `[cycle_window] …` — and a
+    row diverging on several axes tags each. The first version accepted ANY non-blank
+    disclosure for EVERY axis, so a row that had disclosed its cycle divergence was also
+    silently waived on footprint, tier and source — one free-text cell standing in for six
+    checks, which is this repo's first-named failure mode (a control written down as
+    working that the workflow cannot enforce). Shown failing in
+    tests/test_infrastructure/test_basis_registry_rollout.py before shipping.
     """
     from collections import Counter, defaultdict
     groups = defaultdict(list)
@@ -810,15 +819,18 @@ def audit_basis_consistency(path: Path | None = None) -> list[str]:
                 continue
             modal = Counter(vals).most_common(1)[0][0]
             undisclosed = [r for r, v in zip(rows, vals)
-                           if v != modal and not (r.get("divergence_disclosed") or "").strip()]
+                           if v != modal
+                           and f"[{col}]" not in (r.get("divergence_disclosed") or "")]
             if undisclosed:
                 who = ", ".join(f"{r['verifier']}:{r['key_pattern']}" for r in undisclosed)
                 fails.append(
                     f"basis: quantity {q!r} departs from its modal {col} "
-                    f"({modal!r}) at {who}, with no divergence_disclosed. Either put the "
-                    f"rows on one footing or name where the paper discloses the "
-                    f"difference — an undisclosed basis difference inside a comparison is "
-                    f"how a comparison becomes a contradiction (0b6f7c1).")
+                    f"({modal!r}) at {who}, and divergence_disclosed does not carry the "
+                    f"'[{col}]' tag for that axis. Either put the rows on one footing or "
+                    f"name where the paper discloses THIS difference — an undisclosed "
+                    f"basis difference inside a comparison is how a comparison becomes a "
+                    f"contradiction (0b6f7c1), and a disclosure for one axis is not a "
+                    f"disclosure for the others.")
     return fails
 
 

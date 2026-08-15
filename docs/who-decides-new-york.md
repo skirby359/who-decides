@@ -37,7 +37,7 @@ Board of Elections' published enrollment series, via
 `scripts/diag_ny_enrollment_validation.py` — the one place in this paper where an external
 source enters. Each figure below traces to one of these scripts.*
 
-*Load-bearing caveats, both temporal, both revised 2026-08-08 after external review.*
+*Load-bearing caveats, both temporal, both revised 2026-08-11 after external review.*
 
 ***(1) Party of record is CURRENT enrollment, not enrollment at the election analysed.**
 NYSVOTER carries one enrollment field and no history of it, so every party-resolved
@@ -168,19 +168,23 @@ simple rightward headcount shift.
 
 A quarter of New York registrants (25.3% of the active roll; 25.5% of the full roll) enroll in no party.
 This section is **cross-sectional** — it describes the 2026 roll, so the temporal caveat on
-party of record does not reach it.
+party of record does not reach it — with one exception: the 2024-turnout column is an event
+rate, and like every rate in this paper it is denominated on registrants enrolled on or
+before that election (see the correction note under §III's table).
 
 | | median age | %65+ | %18–29 | 2024 turnout | matched donors / 1k |
 |---|--:|--:|--:|--:|--:|
-| DEM | 49 | 26.5% | 18.0% | 57.8% | 55.3 |
-| REP | 55 | 30.4% | 14.9% | **68.7%** | 48.5 |
-| NOPARTY | **42** | 17.4% | **25.6%** | **49.3%** | **22.7** |
+| DEM | 49 | 26.5% | 18.0% | 60.5% | 55.3 |
+| REP | 55 | 30.4% | 14.9% | **70.8%** | 48.5 |
+| NOPARTY | **42** | 17.4% | **25.6%** | **53.1%** | **22.7** |
 
 <sub>"Matched donors / 1k" is the rate at which each party's active registrants appear in the
 donor paper's matched contribution panel (FEC plus New York State disclosure, full-name key) —
 not a measure of giving in general, and not a dollar figure. The ordering is not an artifact of
 that match specification: on the retired 308,032-voter panel the NOPARTY-to-DEM ratio is 0.375
-against 0.412 here.</sub>
+against 0.412 here. The composition columns describe the whole pinned active roll; the
+turnout column's denominator is the subset enrolled in time to vote in the 2024
+general.</sub>
 
 The blank bloc is the **youngest, least likely to vote, and least likely to appear as a
 political donor** group in the state. What it is *not* is measured here: we observe no
@@ -222,7 +226,9 @@ That is the only enrollment drift a single extract can see; movement between the
 parties is invisible here.
 
 > **The denominator of this table has been wrong twice, in opposite directions, and the
-> record of both is kept here.** Every rate in §III and the under-30 pair in §I is
+> record of both is kept here — with a third instance, in §II, found by the round after the
+> one that wrote this note.** Every rate in §III, the under-30 pair in §I, and §II's
+> 2024-turnout column is
 > **roll-denominated**: a participation rate whose denominator is a slice of the registration
 > file. Appendix A and the rest of §I are **electorate**-denominated — the set of people who
 > voted in a past election cannot change when registrants are added — which is why they have
@@ -233,7 +239,7 @@ parties is invisible here.
 > printing values to asserting them, and both were recomputed against the roll as it then
 > stood, with the divergence attributed to growth in the file.
 >
-> **2026-08-08, after external review: that recomputation introduced an error and misdiagnosed
+> **2026-08-11, after external review: that recomputation introduced an error and misdiagnosed
 > its own cause.** A participation rate must be denominated on the people who *could* have
 > voted — active registrants enrolled on or before the contest. The recomputed figures were
 > denominated on the whole current active roll, which counts someone who registered in 2025 as
@@ -255,6 +261,19 @@ parties is invisible here.
 > exceeds Republican in the odd-year and state contests; the ordering within every column is
 > unchanged; and §I's under-30 ratio moves from 1.96× to 1.97×.
 >
+> **2026-08-13, the same defect in the one cell the paragraph above missed.** The 2026-08-11
+> correction scoped itself to §III and §I's under-30 pair, and §II's 2024-turnout column — the
+> only other roll-denominated rate in the paper — kept the whole-roll denominator, counting
+> the **6.35%** of the active roll registered after the 2024 general as non-voters. Restoring
+> the cutoff moves DEM 57.8% → **60.5%**, REP 68.7% → **70.8%**, NOPARTY 49.3% → **53.1%**;
+> the ordering is unchanged and the blank bloc remains lowest. One caveat applies to every
+> corrected rate in this paper alike: the file's registration date is the date of the most
+> recent registration *transaction*, so the cutoff also removes **122,088** registrants —
+> **1.69%** of the recorded 2024 voters on this basis — whose 2024 ballot preceded a later
+> re-registration. They leave the numerator and denominator together, so each printed rate
+> slightly understates the true rate over everyone enrolled in time; a single extract cannot
+> reconstruct the eligibility history that would recover them.
+>
 > The donors-per-thousand column moved for a second and unrelated reason: it was still built
 > on the pre-2026-07-27 New York match (308,032 voters) rather than the full-name-key
 > specification now used throughout the series (558,017). It is rebuilt on the current panel
@@ -272,7 +291,7 @@ parties is invisible here.
 >
 > Pinning changed no figure — all asserted values reproduced against the snapshot on the
 > day it was taken, which is the check that distinguishes freezing a number from altering one.
-> The snapshot was re-taken on **2026-08-08** to add each registrant's registration date, which
+> The snapshot was re-taken on **2026-08-11** to add each registrant's registration date, which
 > is what the corrected denominators require and what its absence had made impossible. That
 > re-pin is likewise value-identical: every party, active-status and birth-year aggregate is
 > unchanged, because the field was appended to the tie-break key rather than inserted into it.
@@ -314,7 +333,7 @@ five points on registration; 19/26 and 105/150 lean Democratic. The asymmetry ru
 **no New York district at either level is R+40**, so on the same threshold that makes 64 seats
 safe for Democrats, none is safe for Republicans.
 
-<sub>The bands were asymmetric until 2026-08-08 — 40+/20–40/5–20 on the Democratic side against
+<sub>The bands were asymmetric until 2026-08-11 — 40+/20–40/5–20 on the Democratic side against
 5–20/20+ on the Republican, so a D+25 district was labelled "Likely D" and an R+25 "Safe R."
 The symmetric table above is the same data. The ±5 count, which is the finding, was never
 affected; the seven Assembly seats formerly shown as "Safe R" are R+20–40.</sub>
@@ -391,11 +410,12 @@ gap between them measures observability, not a rise in re-registration.
   and major-party-to-major-party movement is unobservable in a single extract. Aggregate
   enrollment by county and district is published historically by the State Board of Elections
   and is the natural external validation; it is not yet incorporated here.
-- **Turnout rates are denominated on contemporaneous eligibility.** Every rate in §I and §III
-  counts only registrants enrolled on or before the contest. That is the correct
-  specification and it is not what this paper printed between 2026-08-01 and 2026-08-08 —
-  see the note under §III. Composition *shares* (Appendix A, §I) are a different cut and
-  carry the survivorship caveat below rather than this one.
+- **Turnout rates are denominated on contemporaneous eligibility.** Every rate in §I, §II's
+  turnout column, and §III counts only registrants enrolled on or before the contest. That
+  is the correct specification and it is not what this paper printed between 2026-08-01 and
+  2026-08-11 (§I, §III) or until 2026-08-13 (§II) — see the note under §III's table.
+  Composition *shares* (Appendix A, §I, §II's other columns) are a different cut and carry
+  the survivorship caveat below rather than this one.
 - **Survivorship, measured rather than assumed.** Voters purged since an election are absent
   from the file, and purging is invisible in a single extract. Using inactive status as the
   visible pre-purge state: among 2021 general voters, the inactive rate spans 3.23–3.58%
@@ -470,7 +490,8 @@ the finding that the Republican electorate ages hardest. It sits in these litera
 - **Off-cycle election timing, composition, and representation.** Anzia, *Timing and
   Turnout* (2014); Hajnal & Trounstine, "Where Turnout Matters" (2005); Hajnal, Kogan
   & Markarian, "Who Votes: City Election Timing and Voter Composition" (2022); Einstein
-  et al., "The Gray Vote" (2024) — the closest analog to the age result. Motivates the
+  , Palmer, Hamilton & Singer, "Age and Homeownership Drive the Local Turnout
+  Gap," *Urban Affairs Review* (2025) — the closest analog to the age result. Motivates the
   on-cycle remedy.
 - **The primary as the real election under one-party dominance.** V.O. Key, *Southern
   Politics in State and Nation* (1949); Hirano & Snyder, *Primary Elections in the
@@ -633,7 +654,7 @@ number, and a silent renumbering would re-point those citations at different con
 | §II | **§I** | The graying is not partisan-neutral |
 | §III | **§II** | The unaffiliated quarter |
 | §IV | **§III** | The nominating electorate |
-| §V | **§IV** | The registration map (titled "Safe-seat New York" until 2026-08-08) |
+| §V | **§IV** | The registration map (titled "Safe-seat New York" until 2026-08-11) |
 | §VI | **§V** | Recent registration cohorts choosing no party |
 
 So a pre-2026-08-06 reference to "NY §III/§IV" — the roll-denominated blocks recomputed on

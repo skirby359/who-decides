@@ -10,8 +10,9 @@ generating, modifying and reviewing analysis code, including the SQL producing t
 figures and the verification script that re-derives them; checking citations and statutory
 references; and proposing robustness analyses, several of which were adopted. This is AI use
 affecting methods, analysis and code, not only language. AI was not an author and did not adjudicate any
-match-validation record. **Every verdict in the match-precision validation is the author's**,
-across the original pass, a blind re-rate and an independent rater's pass; the match itself is
+match-validation record. **Every verdict in the match-precision validation is a human's and
+none was AI-assisted**: the author's on the original pass and the blind re-rate, an independent
+rater's on the third pass and the 204-record Idaho sample; the match itself is
 deterministic local code.
 Verdicts are published at row level and both passes and their divergences are reported
 (Appendix F). Assistance operated on code, schemas, aggregate outputs and prose. Person-level data
@@ -49,7 +50,7 @@ systems, and a voter roll can be matched to either. Every result below is theref
 Pooling the two inflates measured concentration, because one person's federal and state giving
 stacks into a single donor total while a one-system donor's does not. On Washington's data, and
 on the primary match specification throughout, pooling reads top-1% **46.6%** against **41.2%**
-federal and **43.5%** state — a 3.0-point overstatement against the higher of the two panels it
+federal and **43.5%** state — a 3.1-point overstatement against the higher of the two panels it
 is built from. All three figures are on the same specification; mixing specifications between a
 pooled and a single-panel figure is itself an error, and the retired all-tier trio (47.7 / 42.4 /
 43.8) appears only in Appendix F, where it is labelled.
@@ -58,9 +59,9 @@ pooled and a single-panel figure is itself an error, and the retired all-tier tr
 estimated separately in both panels, and the principal directional patterns — older than the
 registered electorate, dollars concentrated at the top, geographically concentrated, coincident with high turnout,
 and (where party is observable) tilted toward registered Democrats and against the
-unaffiliated — the New York party result robust to match error under both validation bounds, the
-Idaho one conditional on the pooled strict-key assumption pending independent panel-specific
-validation — recur in every state-and-panel combination in which they can be
+unaffiliated — the New York party result robust to detectable match error under both validation
+bounds, the Idaho one resting on the per-stratum bound its independent 204-record validation
+supports — recur in every state-and-panel combination in which they can be
 measured. That is within-state repetition across two separately administered disclosure
 systems, not independent replication. Party is **not** observable in Washington, and Idaho's turnout figures are reported
 as composition rather than rates, so no claim here is that every finding is measured in every
@@ -85,25 +86,28 @@ produces it.
 ## Abstract
 
 Campaign money is usually described by how much is raised; this paper asks whose it is. Three
-state voter files — Washington, New York and Idaho, the last two publishing party of record —
-are linked person by person to itemized contributions under a deterministic
-uniqueness rule. The baseline is the **registered electorate**: each state's active roll, not the
-voting-eligible population. Because donors give into two separately regulated systems, every
+state voter files — Washington, New York and Idaho, the last two with party of record —
+are linked person by person to itemized contributions. The baseline is the
+**registered electorate**: each state's active roll, not the voting-eligible population.
+Donors give into two separately regulated systems, so every
 result is computed twice, federal and state, never pooled.
 Matched donors are much older than the roll: 49.9% of New York's federal donors and 66.8% of
-Idaho's are 65 or older, against a quarter and a third of registrants. Matched dollars
+Idaho's are 65 or older, against 25.3% and 31.0% of registrants. Matched dollars
 are concentrated: the top 1% of donors supply 41.2% of federal dollars in Washington, 50.7% in
-New York and 37.2% in Idaho; one county supplies a fifth to three-fifths of each panel total. Where party of record is published, registered Democrats are over-represented and
+New York and 37.2% in Idaho. Where party of record is published, registered Democrats are over-represented and
 unaffiliated registrants under-represented relative to registration in both deep-blue New York
 and deep-red Idaho. Both persist after adjustment for the roll's joint age and county
-distribution, and are not explained by measured roll-side strict-key matchability (about one
-point across parties). **New York's party result survives both validation error bounds;
-Idaho's survives the pooled bound but not the wider panel-specific one, and a fresh Idaho sample
-is outstanding.**
-Matched donors also vote more often than non-donors, by 23 to 26 points among registrants
-eligible for every election in the window, age-standardized. A blinded rating
-of 480 records found precision differed sharply by match tier; the paper uses only the tier with
-no detected false match, narrowing the donor population as it sharpens it. All findings describe
+distribution, and are not explained by roll-side strict-key matchability (about one
+point across parties). **New York's party result survives both validation bounds. Idaho's
+survives a per-stratum bound — an independent 204-record rating detected no false match;
+the design-respecting 95% upper bound is 18.4% per party stratum — but not the panel-wide
+construction.**
+Matched donors vote more often than non-donors — in New York and Washington, by 23 to 26
+points among registrants eligible for every election in the window, age-standardized; Idaho
+is composition-only. A blinded 480-record rating
+found precision differs sharply by match tier; the paper uses only the tier with
+no detected false match — **the same 75 records read correct in all three ratings, one
+independent** — which narrows the donor population as it sharpens it. All findings describe
 itemized, matched donors; every association is descriptive.
 
 **Keywords:** campaign finance; political donors; voter files; record linkage; party of
@@ -145,8 +149,10 @@ substantially under-representing the largest non-partisan bloc. The notable part
 the Democratic tilt of the donor class relative to registration appears in deep-blue New
 York **and in deep-red Idaho**: it is not mechanically attributable to which party holds
 the statewide registration plurality. The New York result survives both error bounds the
-validation supports; **Idaho's remains conditional on the pooled strict-key error assumption
-pending independent panel-specific validation**, which is drawn and outstanding (Appendix F).
+validation supports; **Idaho's rests on a per-stratum bound from a second,
+independent rating** — 204 records, no false match detected, 95% upper bound 18.4% at the
+design's party × dollar-band cells — and not
+on the panel-wide construction, which it fails. Both are set out in Appendix F §F7.
 
 ---
 
@@ -220,8 +226,8 @@ rate is measured and its detectable error estimated and bounded**, rather than a
 left there — true linkage error is not fully measured, and where the bound is wide the paper says
 so; and the party comparison runs in a deep-blue and a deep-red state at once, which is what
 separates a finding about donors from a finding about whichever party happens to hold a
-registration plurality — securely in New York, and in Idaho conditional on the pooled
-strict-key error assumption pending the independent validation described in Appendix F.
+registration plurality — securely in New York, and in Idaho on the per-stratum bound
+established by the independent rating in Appendix F §F7.
 
 ---
 
@@ -329,14 +335,15 @@ panel is built from the first tier alone; the superseded all-tier panels are ret
 reported alongside rather than discarded.
 
 **What the validation establishes, and what it cannot.** "No false match detected in 120
-records" bounds the error rate at roughly **3%** — the Wilson lower bound — and does **not**
+records" bounds the error rate at roughly **3%** — the Wilson *upper* bound on the error rate,
+equivalently a 96.9% lower bound on precision — and does **not**
 establish that it is zero. A true namesake at the same ZIP5 cannot be reliably distinguished
 using the fields available to this linkage, at any sample size, because there is no field left
 to separate them. Precision is also reported
 population-weighted per panel, since the sample deliberately oversamples the weak tiers by
-30–300× and its raw mean is not a panel estimate. **Every verdict is the author's**; no part of
-the adjudication was AI-assisted. All three passes are published at row level so they can be
-re-scored. The second was a **blinded author re-rate** of a subset, which makes its agreement
+30–300× and its raw mean is not a panel estimate. **No part of the adjudication was
+AI-assisted**: the first two passes are the author's, the third an independent rater's. All
+three passes are published at row level so they can be re-scored. The second was a **blinded author re-rate** of a subset, which makes its agreement
 statistics **test–retest**; the third was an **independent rater** over the same subset
 (2026-08-06), which supplies **inter-rater** reliability, and the two are reported separately
 rather than pooled. The Idaho panels, where an independent reading mattered most, were rated in
@@ -345,6 +352,10 @@ the same round and returned **zero errors in 204 records** (below).
 **Spending the error budget against each finding — on a common-rate assumption that is stated,
 not assumed.** A bound that is stated but never applied is not much of a bound, so it is applied.
 It is applied twice, because there are two defensible bounds and they differ by a factor of five.
+Throughout this paper, every such figure is a **95% upper validation bound on *detectable* error
+under this protocol**, not a logical ceiling on linkage error: an exact namesake who shares
+surname, full first name and ZIP5 is invisible to human adjudication on these fields and lies
+structurally outside every bound here.
 
 The blinded sample allocates **20** full-name records to each of the six panels. Zero detected
 errors in 20 bounds a *single panel's* error rate at **16.1%** — not 3.1%. The 3.1% figure is the
@@ -353,7 +364,7 @@ strict-key error rate. That is a real assumption and the paper's own evidence do
 support it: linkage error here is systematic, and two panels carry source-specific parsing
 defects. It is defensible on the primary key in particular, because both of those defects were
 confined to the initial-based tiers this specification excludes. But it is an assumption, so
-**the pooled figure is reported as a common-error-rate sensitivity and the panel-specific ceiling
+**the pooled figure is reported as a common-error-rate sensitivity and the panel-specific bound
 beside it, never in place of it.**
 
 The primary key eliminates the household-error mechanism **as it was observed**, within a
@@ -369,16 +380,21 @@ it cannot be is a merge between two people both distinctly on the active roll. A
 the roll-collision measurements behind that argument and the full deletion table, computed at the
 pooled 3.1% and again at the panel-specific 16.1%.
 
-**The age finding survives both budgets; the Idaho party rows survive only the pooled one, and
-that is stated rather than smoothed over.** At the pooled 3.1% the 65+ share moves by 1.1 to 2.0
+**The age finding survives both budgets; the Idaho party rows survive the panel-wide
+construction only at the pooled budget, and that is stated rather than smoothed over.** At the
+pooled 3.1% the 65+ share moves by 1.1 to 2.0
 points against baselines 20 to 35 points below it, and the Democratic share by 1.1 to 2.5 points. At the
 panel-specific 16.1% every 65+ row still clears its roll baseline — New York's federal donors read
 40.2% against a roll of 25.3%, Idaho's 60.4% against 31.0% — and New York's party rows still clear
 registration. **Idaho's do not**: 20.4% falls to 5.2% against an 11.8% registration share, and the
-state panel likewise. So the claim that the party finding is insensitive to match error holds for
-New York on either budget and for Idaho **only under the common-rate assumption**. What would
-settle it is a larger full-name sample drawn per Idaho panel and rated by someone other than the
-author. That sample has been drawn (Appendix F) and no figure here reflects it.
+state panel likewise. What settles Idaho is the sample that question demanded, and it has now
+been drawn *and rated*: an independent rater scored **204** fresh Idaho full-name records —
+stratified on party precisely because the vulnerability is party-specific — and detected **zero
+errors** in every stratum. On the per-stratum construction that rating supports, Idaho's
+Democratic shares stay well above registration under adverse deletion (Appendix F §F7, which
+also records the 2026-08-14 correction to the bound's arithmetic); under a panel-wide budget
+they do not, and the paper keeps that asymmetry explicit: **New York clears every construction;
+Idaho clears the per-stratum one its validation was designed to support.**
 
 Turnout is omitted from the exercise because even a 16.1% deletion cannot close a 23-to-26-point
 gap between groups of 269,218 and 12.2 million. Concentration is omitted for a different reason —
@@ -813,6 +829,49 @@ which they do not come close to doing federally. Washington's King barely moves
 share is nearly identical in the two federal panels — WA **68.7%**, NY **68.6%** — and
 collapses to **46.7%** in New York's state panel.
 
+**Does the linkage's geographic non-match manufacture any of this?** It is the fair question to
+put to a geographic finding computed on matched donors, because Appendix F reports that the
+largest identified non-match bucket is keys whose surname and full first name sit on the roll
+**at a different ZIP5** — displacement by definition. The answer is no, and the movement runs
+the *other* way.
+
+The primary specification requires ZIP5 equality, so a matched donor's county of registration is
+the county of the ZIP they filed from, and the question reduces to selection: do the keys that
+match distribute across counties like the keys that do not? Holding geography to one source —
+the county of the filing ZIP — for both sides:
+
+| panel · county | matched multiplier | all eligible keys | movement |
+|---|--:|--:|--:|
+| WA federal · King | 2.06 | 2.09 | -0.03 |
+| NY federal · New York | **5.96** | **6.87** | -0.91 |
+| NY federal · Westchester | 2.59 | 2.01 | +0.58 |
+| NY state · New York | 2.45 | 3.64 | -1.19 |
+| ID federal · Ada | 1.26 | 1.25 | +0.01 |
+| ID federal · Blaine | **7.83** | **8.34** | -0.51 |
+| ID state · Blaine | 3.47 | 4.13 | -0.66 |
+
+*`diag_donor_geography_selection.py`, which reimplements the key rule from the specification
+rather than importing it, and reports each panel's reconstructed match rate against the
+published one before reporting any geography. Five panels reconstruct to within 0.3 points and
+their matched multipliers reproduce the published ones above exactly. **Washington's state panel
+does not reconstruct** — 8.8% of in-state dollars against the published 37.1%, because the PDC
+name-order defect means the naive strict key cannot reach the keys the production matcher does —
+so it is excluded rather than reported, consistent with its treatment as a secondary panel
+throughout. Across the five, the largest county multiplier movement is 1.19. ZIP5 is assigned to its modal county on each state's own roll; that assignment
+covers 98.6–99.3% of registrants in their own ZIP. One cell differs from the multiplier
+reported earlier in this section — Idaho's state Blaine reads **3.47** here against **3.48**
+above — and the gap is the point rather than a discrepancy: it is the whole effect of
+geolocating by filing ZIP instead of county of registration, which is the substitution this
+check relies on being small. It is 0.01.*
+
+**Every headline county in this section is understated by the matched panel, not overstated.**
+Manhattan's federal multiplier is 5.96× on matched donors and 6.87× across all eligible resident
+keys; Blaine's is 7.83× against 8.34×. The keys that fail to match are drawn disproportionately
+from the *most* concentrated places — which is what mobility, second residences and work-address
+filing would predict — so the concentration reported here is a floor. The two counties that move
+the other way, Westchester (+0.58) and Bonneville (+0.42), are suburban and secondary, and
+neither carries a claim in this paper.
+
 (Idaho is the least concentrated of the three in both panels, and its state filings bunch
 hard on round statutory values — 6,797 itemized state gifts land on exactly $1,000, against 448
 at $750 — which is consistent with some donors responding to a salient limit, though these rows
@@ -837,7 +896,7 @@ metro.
 
 ---
 
-## Finding 3 — Registered Democrats are over-represented relative to registration (New York *and* Idaho; the Idaho result independently validated, zero errors in 204 records)
+## Finding 3 — Registered Democrats are over-represented relative to registration (New York *and* Idaho)
 
 This is the cut Washington cannot supply. Using each donor's **own** NY party
 enrollment (100% present), the donor class over-represents registered Democrats
@@ -855,7 +914,7 @@ against the two NY panel tables. **Baseline = active registrants** (`status_code
 12,448,081 of 13,540,558 records), which is the universe the matcher itself draws from.
 On an all-records baseline every skew moves by at most 0.4 points. Scripts:
 `match_ny_voters_to_donors.py`, `diag_donor_class_revisions.py`; re-derived by
-`verify_donor_class.py`.*
+`verify_donor_class.py`. **The skew column is computed on unrounded shares**, so it can differ by 0.1 from the difference of the two rounded shares printed beside it — five cells in this paper do. The unrounded difference is the figure; the printed shares are the rounding.*
 
 Registered Democrats are +16.1 points over their share of the active roll in federal money
 and supply **72.5% of federal matched dollars**; Republicans give roughly in proportion. The
@@ -884,6 +943,13 @@ they gave to both. Donors none of whose recipients could be assigned a party are
 reported for every row, and D-only + R-only + Mixed = 100%. A separate final column gives
 the genuine **dollar-flow** measure: the share of a group's party-resolved dollars that
 reached Democratic recipients.
+
+One temporal caveat applies to every row. **"Own party" is enrollment at the roll's
+extract date; the contributions span up to nine years.** A donor who changed enrollment
+during that window is classified by where they ended up, so a row pairing current
+Democrats with past Republican-side gifts (or the reverse) can reflect a party switch
+rather than cross-party giving. The tables measure *current enrollees' accumulated giving*,
+not giving against enrollment at the time of each gift, which neither voter file records.
 
 Recipient party comes from the bulk FEC committee and candidate masters on the federal
 panel (`backfill_ny_committee_party.py`) and, on the state panel, from
@@ -1041,7 +1107,7 @@ own Idaho affiliation, in each panel separately:
 
 *Source: `data/id_vrdb.duckdb` `voters.party` at extract date against the two ID panels.
 All 1,029,938 ID records are active, so the active and all-records baselines are
-identical. Re-derived by `verify_donor_class.py`. **These skews are unadjusted for age.** The
+identical. Re-derived by `verify_donor_class.py`. **The skew column is computed on unrounded shares**, so it can differ by 0.1 from the difference of the two rounded shares printed beside it — five cells in this paper do. The unrounded difference is the figure; the printed shares are the rounding. **These skews are unadjusted for age.** The
 Republican row does not survive age standardization — see the subsection below, where the
 federal +4.2 becomes −0.1 and is withdrawn. The Democratic and unaffiliated rows do survive.*
 
@@ -1334,7 +1400,12 @@ York's, and is reported here as composition rather than as a participation rate:
 *Source: `data/id_vrdb.duckdb` `voters.party` × `voter_participation`; party at extract
 date. Script: `diag_donor_class_revisions.py`; re-derived by `verify_donor_class.py`.
 Ballots actually pulled in the 2024 primary: Republican 229,173 (83.7%), Democratic
-33,535 (12.2%), unaffiliated 9,567 (3.5%), Libertarian 952, Constitution 657.*
+33,535 (12.2%), unaffiliated 9,567 (3.5%), Libertarian 952, Constitution 657. Those five sum to
+**273,884** against the 274,684 in the table above, and the shares in this note are computed on
+the smaller total. The **800**-record difference is participants whose `ballot_choice` is blank
+in the roll — recorded as having voted in the primary, with no party ballot recorded. The table
+counts participants; this note counts party ballots, so neither total is a subset error and the
+gap is the unrecorded-ballot bucket rather than a reconciliation failure.*
 
 Unaffiliated registrants are 23.9% of Idaho's roll and 22.6% of its 2024 general
 electorate, but **5.9% of its 2024 primary electorate**. Two mechanisms produce that drop
@@ -1468,32 +1539,33 @@ registration baseline, top-heavy, geographically concentrated, and — where par
 observable — tilted toward registered Democrats relative to registration and away from
 the unaffiliated.** The party half of that carries an asymmetry worth restating here rather
 than leaving in the appendix: New York's result survives both error bounds the validation
-supports, while **Idaho's holds under the pooled strict-key assumption and not under the wider
-panel-specific bound the current sample permits**, pending the independent rating that is drawn
-but not yet done. That the pattern reappears in every state-and-panel combination where
+supports, while **Idaho's holds under the per-stratum bound its stratified independent
+validation was designed to support, and not under a panel-wide one** — a distinction §F7
+states explicitly, because the stratified second draw is what licenses the stratum
+construction. That the pattern reappears in every state-and-panel combination where
 it can be measured is evidence that the findings are not confined to a single state panel or
 disclosure system — with the caveat that the two systems' panels are largely
 different people under different disclosure floors, so their *differences* are descriptive
 rather than identified.
 
-New York and Idaho's party of record turns the Washington finding from "the donor class is
-demographically unrepresentative" into the sharper claim that it is *also*
-partisan-unrepresentative in a specific direction — and, critically, in the **same**
+New York and Idaho's party of record turns the Washington finding from "the matched
+itemized donor class is demographically unrepresentative" into the sharper claim that it
+is *also* partisan-unrepresentative in a specific direction — and, critically, in the **same**
 direction in a deep-blue and a deep-red state, so the result is not mechanically
 attributable to which party holds the statewide registration plurality. Whether it
 reflects something more general about who gives, this design cannot say.
 
 Combined with the turnout and safe-seat papers, the picture is a series of narrowing
 filters between the registered population and the population that acts — who votes, who
-votes in the decisive primary, and who pays. Taken together those companion studies identify
+participates in the nominating primary, and who pays. Taken together those companion studies identify
 several stages at which the politically active population differs from the registration
 baseline; they do **not** establish a uniform monotonic ordering across every state and stage,
 which would require one set of states, dates, denominators and age definitions that they do not
 share. Whether acting translates into influence is not measured here.
 This is the evidentiary core of the electoral-health series' "donor class ≠ electorate"
 finding, extended to party of record in two politically contrasting party-registration states —
-established for New York on either error bound, and for Idaho conditional on the pooled
-strict-key assumption until the outstanding independent rating is in.
+established for New York on either error bound, and for Idaho on the
+per-stratum bound the independent rating supports.
 
 ---
 
@@ -1557,8 +1629,9 @@ is disproportionately untraced and the 19.1% D-only share of resolved recipients
 upper bound on that crossover rate. The tables are presented as exploratory for this reason.
 
 **On the strength of the two patterns the paper does claim, this objection is partly
-sustained.** Those patterns — near-monolithic
-Democratic loyalty, and unaffiliated donors' resolved giving leaning Democratic — survive an
+sustained.** Those patterns — currently enrolled Democrats' resolved giving being
+near-monolithically Democratic-side, and unaffiliated donors' resolved giving leaning
+Democratic — survive an
 extreme bound on the **federal** panels, where resolution is 87.6–88.8% and where assigning
 the entire unresolved pool to the rival side still leaves D-only ahead (NY unaffiliated 52.1%
 against 45.1%; ID unaffiliated 65.0% against 34.1%, as shares of matched donors). They do
@@ -1712,7 +1785,7 @@ behavioral one.
   quantitatively: pooling lets one person's federal and state giving stack into a single
   donor total while a one-system donor's does not, which mechanically raises measured
   concentration — on the primary specification Washington reads top-1% 46.6% pooled against
-  41.2% federal and 43.5% state, a 3.0-point overstatement against the higher panel. (The
+  41.2% federal and 43.5% state, a 3.1-point overstatement against the higher panel. (The
   corresponding all-tier trio is 47.7 / 42.4 / 43.8; a pooled figure and a panel figure must be
   read on the same specification, and Appendix F keeps the all-tier set separate for that
   reason.) It also matters conceptually, since the two systems are capped and administered
@@ -1865,7 +1938,8 @@ behavioral one.
   election it funds, so the 2018 cycle carries transaction dates from 2017, which is why the
   panel's *date* coverage is described as 2017–2026 while its *cycle* coverage is 2018–2026.
   The two are the same records. That gives 3,954,090 contributions totalling $880.3M, of which
-  $379.5M matches to a registered New York voter. Out-of-state donors are retained, as they
+  $339.8M matches to a registered New York voter on the primary match
+  specification ($379.5M on the retired all-tier key). Out-of-state donors are retained, as they
   are in the WA and ID state panels; the voter-roll join drops them. Odd cycles are
   included deliberately: New York runs odd-year municipal and county elections, and the
   Washington state panel likewise spans its odd years.
@@ -2276,7 +2350,7 @@ file:
 
 | statewide concentration | WA | NY | TX | ID |
 |---|--:|--:|--:|--:|
-| top 1% → share of $ | 39.3% | 47.5% | 41.7% | 36.0% |
+| top 1% → share of $ | 39.3% | 47.5% | 41.7% | 36.1% |
 | top 10% → share of $ | 72.3% | 78.7% | 74.5% | 69.2% |
 | Gini | 0.800 | 0.848 | 0.818 | 0.775 |
 
@@ -2627,6 +2701,27 @@ regardless of sample size.
 tiers by 30–300×, so its raw mean (67.6%) is *not* a panel estimate. Reweighting each
 tier's precision by that tier's actual share of the panel:
 
+**The 480-record design answered the question it was built for, and that is why a second draw
+was needed.** Its purpose was to test whether precision differs *by match key*, and for that
+question oversampling the weak tiers by 30–300× is the correct allocation: the tiers with the
+least population carry the most uncertainty, so that is where the records belong. It answered
+that question decisively — 100% on the full-name key against 47.9–71.7% on the initial-based
+ones — and the answer retired three of the four tiers.
+
+But allocation optimal for *discriminating between* tiers is not allocation optimal for
+*validating* the one that wins. The full-name key carries **80.7–89.2%** of matches and received
+25% of the sample: **20 records per panel**. That is the whole reason the panel-specific bound
+is 16.1% rather than something tighter, and the whole reason Idaho needed a second draw. Read
+that way the Idaho 204 is not a patch on a defect but the second stage of a two-stage design —
+stage one locates the specification, stage two validates it at the population the specification
+actually reaches.
+
+**The same logic says what is still owed.** Washington and New York remain at 20 primary-key
+records per panel, so **16.1% remains their operative panel-specific bound**, and only Idaho
+has been carried to the second stage. That is stated here rather than left for a reader to infer
+from the sample sizes: Idaho's party rows were taken to stage two because they were the rows that
+failed, not because the other panels are finished.
+
 | panel | donors with a positive total | weighted precision | bound (all U wrong) |
 |---|--:|--:|--:|
 | WA federal | 172,998 | **93.3%** | 93.3% |
@@ -2716,8 +2811,9 @@ concentration finding runs on, and it is why the de-merge exercise above is reta
 being stylized. The blind re-rate ticked the column on 1 record against the first pass's 8, so
 the count rests on a single reading and should be read as indicative.
 
-**Who adjudicated, and what the re-rating does and does not establish.** **Every verdict in
-this validation was produced by the author.** No part of the adjudication was AI-assisted: the
+**Who adjudicated, and what the re-rating does and does not establish.** **The first two passes
+of this validation are the author's; the third pass and the 204-record Idaho sample were rated
+by an independent rater** (both below). No part of any adjudication was AI-assisted: the
 match itself is deterministic local code, and the rating is a human reading two names and
 deciding whether they are one person. The AI assistance disclosed for this project covers prose,
 analysis code, citation checking and proposed robustness tests — it does not extend to any
@@ -2794,6 +2890,7 @@ statement than either the original pass or the author's re-rate could make alone
 | agreement, all four verdicts | 76.0% observed, κ 0.516 |
 | agreement, collapsed to same/different | **97.6% observed, κ 0.935**, PABAK 0.952 |
 | donor-weighted precision, frozen shares | **91.0%** against the published 93.0% |
+| the same, `NC`+`NP`+`U` all counted against | **90.4%** |
 
 **Read the two agreement figures together, and in that order.** The four-category κ of 0.516 and
 the binary κ of 0.935 are not in tension: they measure different things. The independent rater
@@ -2806,10 +2903,25 @@ and `U` is no call. A shift that one-sided across 34 of 36 cases is a threshold 
 disagreement about who is who. **The two raters agree about identity and differ about how to
 label uncertainty**, and it is the binary coefficient that measures the first.
 
+**That reading is testable on the paper's own pre-committed sensitivity, and it holds.** If the
+eleven-fold rise in `U` were concealing disagreement about identity rather than expressing a
+different threshold, counting every `U` against the match would move the donor-weighted figure a
+long way. It moves it **0.6 points**, from 91.0% to **90.4%**, because the `U` verdicts sit
+almost entirely in the weak tiers, which carry little donor weight. The **primary specification
+is unmoved at 100.0% under both conventions**: all 75 of its records are confident `Y`, so the
+harsh convention has nothing there to reclassify. The `NC`+`NP`+`U` sensitivity was fixed in the
+scoring plan before any verdict existed; what was missing until now was its donor-weighted
+aggregate, which is the one figure that could have tested this reading.
+
 **The published figure is now bracketed from both sides, which is the most useful thing this pass
-produced.** The author's re-rate diverged *more permissively* than the published pass (95.7%
-donor-weighted); the independent rater diverges *more cautiously* (91.0%). The published **93.0%**
-sits between them. Two repeat readings that disagree with the original in opposite directions is
+produced — and the bracket belongs to the RETIRED all-tier specification, not to the one this
+paper runs on.** All three of 95.7%, 93.0% and 91.0% are donor-weighted across every tier,
+including the initial-based keys the paper no longer uses. The author's re-rate diverged *more
+permissively* than the published pass (95.7% donor-weighted); the independent rater diverges
+*more cautiously* (91.0%). The published **93.0%** sits between them. **The primary specification
+has no bracket because it has no spread**: the full-name block reads 75/75 `Y` in the original
+pass, 75/75 in the author's blinded re-rate and 75/75 in the independent rater's — three
+readings, one of them by someone with no stake in the result, unanimous. Two repeat readings that disagree with the original in opposite directions is
 much better evidence that the published figure is not systematically optimistic than either
 reading alone, and it is evidence the paper could not offer before this pass existed. The range
 the weak-tier rates should be read across accordingly widens rather than narrows — which is the
@@ -2902,24 +3014,33 @@ on the weak tiers rather than on the primary key. What the primary key did produ
 total includes another person's gift — which is the one detected instance of exactly the
 dollar-inflation this exercise models.
 
-**The Idaho sample, drawn and outstanding.** Because Idaho's party rows are the one result that
-fails the panel-specific bound, a fresh strict-key sample was drawn on 2026-08-01 for each Idaho
-panel: **204 records, 102 per panel**, all on the primary full-name key, balanced across
+**The second Idaho draw, and why the design needed one.** Because Idaho's party rows are the one
+result that fails the panel-wide bound, a fresh strict-key sample was drawn on 2026-08-01 for each
+Idaho panel: **204 records, 102 per panel**, all on the primary full-name key, balanced across
 registered Democrats, Republicans and unaffiliated registrants (68 each) and across the top dollar
 decile and the rest (102 each). It excludes by voter id every record rated in the 480-record pass,
 and it uses a fresh opaque id space, because the published `S####` and `H####` ids appear in
 committed files *beside their verdicts* — a rater handed either could look up a prior answer. It
-is to be rated by someone other than the author under the same blinded protocol.
+was rated by someone other than the author under the same blinded protocol, and the result is
+reported at the end of this subsection.
 
-**No figure in this paper reflects it, and the analysis is pre-specified.** The draw is a
+**The analysis was pre-specified — and the pre-specified plan itself contained the pooled-bound
+error, one level down. Found by an external referee; corrected 2026-08-14.** The draw is a
 deliberately **disproportionate stratified** sample, not a simple random sample of the panel, so
-pooling its 102 records into one binomial bound would not bound the panel's error rate — it would
-repeat, in a new place, exactly the pooled-bound error corrected above. What the design supports
-is a bound **per stratum**:
+pooling its 102 records into one binomial bound would not bound the panel's error rate — the plan
+said so, and then bounded each party stratum at its pooled n = 34 anyway. But the party stratum
+is itself two deliberately balanced dollar-band cells of **17**, while the top decile is roughly
+a tenth of the donor population: the 34 records over-weight the top decile about five-fold, so an
+n = 34 binomial bound is not a bound on the party stratum's error rate, for exactly the reason
+the plan refused to pool the 102. The design-respecting construction is per **party ×
+dollar-band cell**. With zero errors in both of a party's cells, any design weighting of the two
+equal cell bounds equals the cell bound, **18.4%**; a conservative simultaneous construction
+(each cell at 97.5%) gives **22.8%**. What the design supports:
 
-| stratum | records | zero-error Wilson 95% ceiling |
+| stratum | records | zero-error Wilson 95% upper bound |
 |---|--:|--:|
-| one registered party, one panel | 34 | **10.2%** |
+| one party × dollar-band cell, one panel — **the operative bound** | 17 | **18.4%** |
+| one registered party, one panel — *retired: pools its two dollar-band cells* | 34 | 10.2% |
 | one dollar band, one panel | 51 | 7.0% |
 | one panel, composition-reweighted | 102 | 3.6% — an estimate, not a binomial bound |
 | *what the current evidence supports* | *20* | *16.1%* |
@@ -2928,9 +3049,31 @@ is a bound **per stratum**:
 specifically whether match error inflates the *Democratic* share rather than the panel as a
 whole. Applied directly, and as a worst case that deletes that share of the panel's registered
 Democrats outright, a clean Democratic stratum would take Idaho's federal panel from 20.4% to
-**18.4%** and its state panel from 21.6% to **19.4%**, both still far above the 11.8%
-registration share. That is a stronger and more directly relevant defence than a panel-average
-figure would have been.
+**16.7%** and its state panel from 21.6% to **17.6%** at the 18.4% bound — and to **15.8%** and
+**16.7%** at the simultaneous 22.8% — all still well above the 11.8%
+registration share. (An earlier version printed 18.4% and 19.4% here: the same deletion at the
+retired 10.2% pooled bound.)
+
+**This is a different construction from the deletion table above, and the difference is what the
+Idaho result turns on.** The table applies the budget *panel-wide*: it deletes
+`budget × panel size` records, all of them from the bucket supporting the finding, which is why
+Idaho's federal row falls to **5.2%** at a 16.1% budget — that deletion removes about four in
+five of the panel's registered Democrats. The stratum construction applies the bound *within
+the stratum*, holding the panel denominator fixed. The two are not the same operation on a
+smaller budget, and the panel-wide one **fails decisively at the corrected bound**: at 18.4% it
+takes Idaho's federal registered-Democrat share to **2.5%** and the state panel to **3.9%**,
+both far below the 11.8% registration baseline.
+
+So the Idaho party result stands on the licence to bound per stratum, and that licence
+should be stated rather than assumed. It rests on the design: the second draw was stratified on
+registered party *precisely because* the vulnerability is party-specific, 34 records were rated
+in each party cell of each panel — 17 in each of its dollar-band cells — and a bound computed
+within those cells is the quantity the design was built to produce. A panel-wide budget assumes
+instead that every error the panel
+could contain lands on Democrats — defensible as a stress test, which is what the table above
+is for, but not the bound this sample supports. A reader who prefers the panel-wide construction
+should read both Idaho party rows as unresolved; New York's
+result is unaffected either way, and clears both constructions at both budgets.
 
 The scoring plan is fixed before the rater begins, so it cannot be chosen after the verdicts are
 seen: errors reported by panel × party stratum and by dollar band, intervals computed within
@@ -2940,9 +3083,9 @@ party result. Verdict handling is fixed with it, on the same convention that sco
 480: `NC` and `NP` count as errors and `U` is excluded from the denominator but reported, with
 **NC only** and **NC + NP + U** pre-committed as sensitivities; a `partial_merge` tick is a
 dollar-attribution issue rather than a misidentification and is reported separately, since the
-party result turns on identities. If the rating finds an error, the "no detected false match on the primary key"
-claim becomes a measured low rate rather than an undetected zero — a larger revision than it
-sounds, and one that would reach the abstract. The sample is drawn by
+party result turns on identities. The plan committed in advance that if the rating found an error, the "no detected false match on
+the primary key" claim would become a measured low rate rather than an undetected zero — a larger
+revision than it sounds, and one that would have reached the abstract. It found none. The sample is drawn by
 `diag_match_validation_stratified.py`, restricted to Idaho and to the primary key, stratified on
 registered party, and excluding every previously rated record by voter id; the rater's brief and
 the full scoring plan are in `idaho-validation-rater-instructions.md`.
@@ -2956,16 +3099,19 @@ Idaho state panel carry a `partial_merge` tick and are reported here separately,
 requires: the matched voter genuinely is a donor and the attributed dollar total sweeps in
 another person's gift, which is a dollar-attribution problem and not a misidentification.
 
-**What that changes, and what it does not.** The stratum ceilings in the table above are
-unchanged — they are properties of the design, not of the verdicts, and a zero-error result is
+**What that changes, and what it does not.** The stratum bounds in the table above are
+properties of the design, not of the verdicts, and a zero-error result is
 what makes them the operative bound rather than a floor to be raised. So the deletion exercise
-below now rests on a **measured** clean Democratic stratum rather than an assumed one: the
-worst-case Idaho figures of **18.4%** federal and **19.4%** state are the same numbers, but they
-are now the consequence of a rating that found nothing rather than of a bound applied in the
+rests on a **measured** clean Democratic stratum rather than an assumed one: the
+worst-case Idaho figures of **16.7%** federal and **17.6%** state are
+the consequence of a rating that found nothing rather than of a bound applied in the
 absence of one. The claim that survives is deliberately the weaker of the two available: **no
-false match was detected on the primary key in 204 Idaho records**, with a per-party-stratum
-ceiling of 10.2%, rather than a claim that the error rate is zero. A sample of 34 per cell cannot
-establish that, and the ceiling is reported precisely because it cannot.
+false match was detected on the primary key in 204 Idaho records**, with a 95% upper validation
+bound of 18.4% per party × dollar-band cell, rather than a claim that the error rate is zero. A
+sample of 17 per cell cannot
+establish that, and the bound is reported precisely because it cannot — and, like every bound in
+this appendix, it bounds *detectable* error under this protocol, not the structurally
+unobservable exact-namesake case.
 
 ### F8 — How far the linkage reaches, and what it does not
 

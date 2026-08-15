@@ -32,8 +32,8 @@ Washington, New York, Texas, and Idaho — across the 2018 through 2026 cycles, 
 Election Commission bulk records, and then measures the money flowing the other way, into those
 states' congressional races, from a recipient-anchored dataset built for the purpose. The
 pooled concentration ordering does not track partisanship, though it is only partly stable
-across cycles: New York is the most top-heavy in every cycle, while Washington and Idaho
-trade the bottom two places (§A). New York is the most
+across cycles: New York is the most top-heavy in every cycle, while the ordering beneath it
+shifts from cycle to cycle (§A). New York is the most
 top-heavy: its top one percent of donors supply **47.5%** of its federal dollars, against
 **41.7%** in Texas, **39.3%** in Washington, and **36.1%** in Idaho, with Gini coefficients from
 **0.848** down to **0.775**. Idaho, the smallest and reddest of the four, is the most retail on

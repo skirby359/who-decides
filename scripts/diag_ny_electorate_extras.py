@@ -35,10 +35,17 @@ def s1_blank_bloc(con):
     print("=" * 76)
     print("1. THE UNAFFILIATED 'BLANK' BLOC vs the major parties (active roll)")
     print("=" * 76)
+    # TURNOUT DENOMINATOR CORRECTED 2026-08-13: the 2024-turnout column counts only
+    # registrants enrolled on or before 2024-11-05 (a rate over people who could have
+    # voted), while the composition columns stay on the whole active roll — they
+    # describe the 2026 roll. The whole-roll turnout denominator was the same defect
+    # the paper's §III carried until 2026-08-11; see verify_who_decides_ny.py.
     rows = con.execute(f"""
         WITH base AS (
             SELECT v.state_voter_id, {PARTY} AS party,
                    date_diff('year', v.birthdate, DATE '2024-11-05') AS age,
+                   (v.registration_date IS NULL
+                    OR v.registration_date <= DATE '2024-11-05') AS elig24,
                    v.county_name
             FROM vrdb.voters v
             WHERE v.status_code='A' AND v.birthdate IS NOT NULL
@@ -51,7 +58,8 @@ def s1_blank_bloc(con):
                median(age) med_age,
                100.0*count(*) FILTER(WHERE age>=65)/count(*) p65,
                100.0*count(*) FILTER(WHERE age<30)/count(*) p18_29,
-               100.0*count(*) FILTER(WHERE state_voter_id IN (SELECT state_voter_id FROM voted24))/count(*) turnout24,
+               100.0*count(*) FILTER(WHERE elig24 AND state_voter_id IN (SELECT state_voter_id FROM voted24))
+                    /count(*) FILTER(WHERE elig24) turnout24,
                1000.0*count(*) FILTER(WHERE state_voter_id IN (SELECT state_voter_id FROM don))/count(*) donor_per_1k
         FROM base GROUP BY party ORDER BY n DESC
     """).fetchall()

@@ -137,7 +137,7 @@ deadline. (3) In blue NY the **Democratic primary draws far more participation t
 Republican** in the state and odd-year contests (2021 odd-year DEM 16.9% vs REP 5.0%; 2024
 state DEM 7.7% vs REP 1.7%).
 
-<sub>**Two prose corrections, 2026-08-08.** The residual blank participation was previously
+<sub>**Two prose corrections, 2026-08-11.** The residual blank participation was previously
 described as "nonpartisan/special races." A closed primary admits only enrollees, so a
 now-blank voter recorded in one changed enrollment afterwards — and the 2024 *presidential*
 primary, which carries no nonpartisan contest anywhere in the state, still shows a non-zero

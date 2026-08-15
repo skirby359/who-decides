@@ -1326,6 +1326,110 @@ def _d_counties(con, prefix, panel, out, roll_where="status_code='A'"):
         out[f"{prefix}_cty{i}_mult"] = float(pct) / rs if rs else 0.0
         out[f"{prefix}_cty{i}_n"] = int(n)
 
+
+# Name parse and eligibility for the geographic-selection check. These MUST stay identical to
+# `diag_match_rate.py`'s, because that script's denominator is what Appendix F §F8 publishes as
+# the match rate, and the check below validates itself against that published figure. A drift
+# here would make the reconstruction miss and the panel silently drop out of the check.
+_MR_LAST = """CASE WHEN contributor_name LIKE '%,%'
+        THEN UPPER(TRIM(SPLIT_PART(contributor_name, ',', 1)))
+        ELSE UPPER(TRIM(SPLIT_PART(contributor_name, ' ', -1))) END"""
+_MR_FIRST = """CASE WHEN contributor_name LIKE '%,%'
+        THEN UPPER(TRIM(SPLIT_PART(TRIM(SPLIT_PART(contributor_name, ',', 2)), ' ', 1)))
+        ELSE UPPER(TRIM(SPLIT_PART(contributor_name, ' ', 1))) END"""
+_MR_ELIGIBLE = """
+    contributor_name IS NOT NULL AND contributor_name <> ''
+    AND contributor_zip IS NOT NULL AND contributor_zip <> ''
+    AND UPPER(contributor_name) NOT IN
+        ('SMALL CONTRIBUTIONS', 'UNITEMIZED', 'ANONYMOUS')
+    AND COALESCE(contributor_type, 'UNKNOWN')
+        NOT IN ('ORGANIZATION', 'COMMITTEE', 'BUSINESS', 'PAC')
+"""
+
+
+@_timed
+def _d_geo_selection(con, prefix, source, state, counties, out, roll_where="status_code='A'"):
+    """Finding 2's geographic-selection check: matched multiplier vs all eligible resident keys.
+
+    Answers the sharpest question available against a geographic finding computed on matched
+    donors — whether the geographically-structured non-match (Appendix F's largest bucket is
+    keys matching at a DIFFERENT ZIP5) manufactures the county disproportions.
+
+    Both sides are geolocated the same way, by the county of the ZIP5 on the FILING, so the
+    comparison isolates selection rather than address source. That is legitimate here precisely
+    because the primary specification requires ZIP5 equality: a matched donor's county of
+    registration IS the county of their filing ZIP, but for ZIP5s crossing a county line.
+
+    The key rule is reimplemented from the specification rather than read off the panel table,
+    which is what makes this an independent check — and it is why `diag_donor_geography_selection.py`
+    validates its reconstruction against the published match rate before reporting anything.
+    Washington's state panel does not reconstruct (the PDC name-order defect) and is not called
+    here; the paper says so and excludes it.
+    """
+    con.execute("DROP TABLE IF EXISTS _gsz")
+    con.execute(f"""
+        CREATE TEMP TABLE _gsz AS
+        WITH z AS (SELECT SUBSTR(reg_zip,1,5) z5, county_name cty, COUNT(*) n
+                   FROM vrdb.voters
+                   WHERE {roll_where} AND reg_zip IS NOT NULL AND county_name IS NOT NULL
+                   GROUP BY 1,2),
+        r AS (SELECT z5, cty, ROW_NUMBER() OVER (PARTITION BY z5 ORDER BY n DESC, cty) rk
+              FROM z WHERE LENGTH(z5)=5)
+        SELECT z5, cty FROM r WHERE rk=1""")
+    con.execute("DROP TABLE IF EXISTS _gsk")
+    con.execute(f"""
+        CREATE TEMP TABLE _gsk AS
+        WITH ids AS (
+            SELECT {_MR_LAST} AS last_nm, {_MR_FIRST} AS first_nm,
+                   SUBSTR(contributor_zip,1,5) AS z5, SUM(contribution_amount) AS amt
+            FROM individual_contributions
+            WHERE SPLIT_PART(contribution_id, ':', 1) = '{source}' AND {_MR_ELIGIBLE}
+              AND UPPER(TRIM(contributor_state)) = '{state}'
+            GROUP BY 1,2,3),
+        elig AS (SELECT * FROM ids
+                 WHERE last_nm <> '' AND LENGTH(first_nm) > 1 AND LENGTH(z5)=5 AND amt > 0),
+        roll AS (SELECT UPPER(TRIM(last_name)) last_nm, UPPER(TRIM(first_name)) first_nm,
+                        SUBSTR(reg_zip,1,5) z5, COUNT(*) n_reg
+                 FROM vrdb.voters
+                 WHERE {roll_where} AND first_name IS NOT NULL AND last_name IS NOT NULL
+                   AND reg_zip IS NOT NULL
+                 GROUP BY 1,2,3)
+        SELECT e.z5, e.amt, COALESCE(r.n_reg,0) = 1 AS matched
+        FROM elig e LEFT JOIN roll r USING (last_nm, first_nm, z5)""")
+
+    roll = dict(con.execute(
+        f"SELECT county_name, COUNT(*) FROM vrdb.voters WHERE {roll_where} GROUP BY 1").fetchall())
+    rt = sum(roll.values())
+    shares = {c: (float(m), float(a)) for c, m, a in con.execute("""
+        SELECT z.cty,
+               100.0*SUM(k.amt) FILTER (WHERE k.matched)
+                     /SUM(SUM(k.amt) FILTER (WHERE k.matched)) OVER (),
+               100.0*SUM(k.amt)/SUM(SUM(k.amt)) OVER ()
+        FROM _gsk k JOIN _gsz z ON z.z5 = k.z5 GROUP BY 1""").fetchall()}
+    # The reconstruction's own quality figures, so the footnote's claims are asserted rather
+    # than merely described: the match rate this rule reaches, and how pure the ZIP->county
+    # assignment is. `diag_donor_geography_selection.py` refuses to report geography for a panel
+    # whose rate misses the published one; here they are derived and the paper states them.
+    out[f"{prefix}_gs_rate"], = con.execute(
+        "SELECT 100.0*SUM(amt) FILTER (WHERE matched)/SUM(amt) FROM _gsk").fetchone()
+    out[f"{prefix}_gs_purity"], = con.execute(
+        "SELECT 100.0*SUM(modal_n)/SUM(tot) FROM ("
+        "  SELECT z5, MAX(n) modal_n, SUM(n) tot FROM ("
+        f"    SELECT SUBSTR(reg_zip,1,5) z5, county_name cty, COUNT(*) n FROM vrdb.voters"
+        f"    WHERE {roll_where} AND reg_zip IS NOT NULL AND county_name IS NOT NULL"
+        "     GROUP BY 1,2) WHERE LENGTH(z5)=5 GROUP BY 1)").fetchone()
+
+    for cty in counties:
+        m_pct, a_pct = shares.get(cty, (0.0, 0.0))
+        rs = 100.0 * roll.get(cty, 0) / rt if rt else 0.0
+        key = cty.lower().replace(" ", "")
+        out[f"{prefix}_gs_{key}_m"] = m_pct / rs if rs else 0.0
+        out[f"{prefix}_gs_{key}_a"] = a_pct / rs if rs else 0.0
+        out[f"{prefix}_gs_{key}_d"] = ((m_pct - a_pct) / rs) if rs else 0.0
+    con.execute("DROP TABLE IF EXISTS _gsk")
+    con.execute("DROP TABLE IF EXISTS _gsz")
+
+
 @_timed
 def _d_named_county(con, prefix, panel, county, out, roll_where="status_code='A'"):
     """Same cut for one named county — Blaine's 7.83x is the paper's sharpest single figure."""
@@ -1440,6 +1544,14 @@ def derive_prose():
     # Largest-donor-COUNTY cut, per panel (counties for all three states since 2026-07-28).
     for tag, panel in (("fed", FED), ("state", STATE)):
         _d_counties(wa, f"wa_{tag}", panel, d)
+    # Geographic-selection check, Finding 2. WA STATE IS DELIBERATELY ABSENT — its panel does
+    # not reconstruct from the bare key rule (PDC name-order defect), so the paper reports
+    # federal only for Washington and says why.
+    _d_geo_selection(wa, "wa_fed", "FEC", "WA", ("KING",), d)
+    # WA state, for its reconstruction RATE only. The paper cites 8.8% against the
+    # published 37.1% as the reason this panel is excluded from the check, and a figure
+    # cited as a reason has to be derived like any other. No counties are requested.
+    _d_geo_selection(wa, "wa_state", "PDC", "WA", (), d)
     # Give<->vote stacking, per panel.
     for tag, panel in (("fed", FED), ("state", STATE)):
         for donor, sup, prop in wa.execute(f"""
@@ -1538,6 +1650,8 @@ def derive_prose():
     # Geography: counties, with the roll-share multiplier (the paper's sharpest cut).
     for tag, panel in (("fed", FED), ("state", STATE)):
         _d_counties(ny, f"ny_{tag}", panel, d)
+    _d_geo_selection(ny, "ny_fed", "FEC", "NY", ("NEW YORK", "WESTCHESTER"), d)
+    _d_geo_selection(ny, "ny_state", "NY", "NY", ("NEW YORK",), d)
     # Appendix E's competitiveness bands. |predicted margin| over the NY CDs, the same
     # construction as diag_ny_electorate_extras.py — except that script reads the POOLED
     # match, so these are recomputed per panel.
@@ -1647,6 +1761,9 @@ def derive_prose():
                     ("REP", "DEM", "UNAFF", "OTHER"), d)
     for tag, panel in (("fed", FED), ("state", STATE)):
         _d_counties(ic, f"id_{tag}", panel, d, roll_where="1=1")
+    _d_geo_selection(ic, "id_fed", "FEC", "ID", ("ADA", "BLAINE", "BONNEVILLE"), d,
+                     roll_where="1=1")
+    _d_geo_selection(ic, "id_state", "SUNSHINE", "ID", ("BLAINE",), d, roll_where="1=1")
     # Blaine is named explicitly: 1.5% of the roll against 11.4% of federal dollars is the
     # largest single-county disproportion in the paper, and it is not the largest county so
     # the top-3 cut would not always surface it.
@@ -1829,14 +1946,18 @@ def derive_prose():
     _d_match_rate(d)
     _d_sensitivity(d)
     _d_county_split(d)
+    _d_geo_selection_rollup(d)
     _d_residual(d)
     _d_pdc_name_order(d)
     _d_idaho_sample(d)
     _d_sens_summary(d)
+    _d_id_primary_ballots(d)
     _d_res_summary(d)
     _d_validation(d)
     _d_appf_panels(d)
     _d_appf_allsix(d)
+    # After everything it reads: jaccards (F8 layer), id_state_n/id_fedal_n (panels).
+    _d_coverage_extension(d)
     return d
 
 @_timed
@@ -1943,7 +2064,21 @@ def _d_sensitivity(out):
 @_timed
 def _d_sens_summary(out):
     """Ranges the D1 prose quotes, derived from the per-panel cells rather than exempted."""
+    # The abstract's turnout-gap span (Pass 2, 2026-08-14): min/max of the four
+    # eligible-for-all age-standardized gaps (NY+WA x fed/state — the four cells F4's
+    # table prints; Idaho is composition-only and the abstract now says so). Derived
+    # from the same keys the F4 probe asserts, so the abstract cannot quote a span the
+    # table no longer supports.
+    _eg = [out[f"{s}_{t}_egap_age"] for s in ("ny", "wa") for t in ("fed", "state")
+           if f"{s}_{t}_egap_age" in out]
+    if len(_eg) == 4:
+        out["abs_egap_lo"], out["abs_egap_hi"] = min(_eg), max(_eg)
     out["sens_budget_pct"] = 3.1
+    # The pooling demonstration's own subtraction. Printed as 3.0 until 2026-08-11; the
+    # unrounded difference is 3.06 and rounds to 3.1 either way, so the old figure was wrong on
+    # both conventions. Differenced here so it cannot drift from the three figures it summarises.
+    if "wa_pooled_top1" in out and "wa_state_top1" in out:
+        out["pool_overstate"] = out["wa_pooled_top1"] - out["wa_state_top1"]
     # Differenced from the cells ROUNDED to the paper's printed precision, not from the raw
     # values. The prose claim is a summary of the table above it — "the numbers in that table
     # span 1.1 to 2.0" — so differencing raw values answers a slightly different question and
@@ -2193,23 +2328,91 @@ def _d_idaho_sample(out):
         return 100.0 * z2 / (n + z2)
 
     # The 2026-08-01 `idaho1` draw: 204 records, 102 per panel, 68 per party across the two
-    # panels (34 per party per panel), 51 per dollar band per panel.
+    # panels (34 per party per panel), 51 per dollar band per panel — and, NESTED inside each
+    # party stratum, two deliberately balanced dollar-band cells of 17.
     out["idaho_n_total"] = 204.0
     out["idaho_n_panel"] = 102.0
     out["idaho_n_party_panel"] = 34.0
     out["idaho_n_band_panel"] = 51.0
-    out["idaho_bound_party_panel"] = wilson_zero(34)   # the one the party finding rests on
+    out["idaho_n_party_cell"] = 17.0
+    # THE PARTY-STRATUM BOUND, DESIGN-CORRECTED 2026-08-14 (external referee, publication
+    # blocker). The pre-specified plan pooled each party's two dollar-band cells and put a
+    # Wilson bound on the pooled n=34 — repeating, one level down, the pooled-bound error
+    # the plan was written to avoid: the top decile is ~10% of the donor population but half
+    # the party stratum's observations, so the n=34 bound is not a binomial bound on the
+    # party stratum's error rate. The design-respecting bound is per party x dollar-band
+    # CELL (n=17): with zero errors in both cells, any design weighting of the two equal
+    # cell bounds equals the cell bound, and a conservative simultaneous construction
+    # (each cell at 97.5%, Bonferroni) is derived beside it. The pooled n=34 figure is
+    # retained ONLY as the retired pre-specification, quoted by the correction note.
+    out["idaho_bound_party_cell"] = wilson_zero(17)          # 18.43 — the operative bound
+    _z975 = 2.2414027276049473
+    out["idaho_bound_party_cell_simul"] = 100.0 * _z975**2 / (17 + _z975**2)   # 22.81
+    out["idaho_bound_party_panel"] = wilson_zero(34)   # RETIRED pooled construction (10.15)
     out["idaho_bound_band_panel"] = wilson_zero(51)
     out["idaho_bound_panel_pooled"] = wilson_zero(102)  # reweighted estimate only, not a bound
     out["idaho_bound_current"] = wilson_zero(20)        # what 20 full-name records support now
 
     # Apply the Democratic-stratum bound to the party rows it is there to defend. Worst case:
-    # delete that share of the panel's registered Democrats outright.
+    # delete that share of the panel's registered Democrats outright — at the corrected cell
+    # bound, and at the simultaneous construction so the paper can say both clear.
     for tag in ("fed", "state"):
         dem = out.get(f"sens_id_{tag}_dem")
         if dem is None:
             continue
-        out[f"idaho_dem_after_stratum_{tag}"] = dem * (1.0 - out["idaho_bound_party_panel"] / 100.0)
+        out[f"idaho_dem_after_stratum_{tag}"] = (
+            dem * (1.0 - out["idaho_bound_party_cell"] / 100.0))
+        out[f"idaho_dem_after_simul_{tag}"] = (
+            dem * (1.0 - out["idaho_bound_party_cell_simul"] / 100.0))
+        # The same deletion at the RETIRED pooled n=34 bound — quoted only by the paper's
+        # correction parenthetical ("An earlier version printed ... here"), derived rather
+        # than left as a literal so the historical figures stay tied to their construction.
+        out[f"idaho_dem_after_retired_{tag}"] = (
+            dem * (1.0 - out["idaho_bound_party_panel"] / 100.0))
+
+    # The per-cell confidence of the simultaneous construction: Bonferroni splits the 5%
+    # across the party stratum's two cells, so each cell is bounded at 100 - 5/2 = 97.5%.
+    out["idaho_simul_cell_conf"] = 100.0 - 5.0 / 2.0
+
+    # THE PANEL-WIDE CONSTRUCTION AT THE SAME CEILING (added 2026-08-11 after external review;
+    # recomputed at the corrected cell bound 2026-08-14). F7's deletion table applies the
+    # budget PANEL-WIDE — delete `budget x panel` records, all from the bucket supporting the
+    # finding — while the stratum defence applies the bound WITHIN the stratum with the panel
+    # denominator fixed. Those are different operations, and the Idaho result survives on the
+    # second and not the first — at the corrected bound the panel-wide construction fails
+    # DECISIVELY rather than narrowly, which the paper now states.
+    b = out["idaho_bound_party_cell"] / 100.0
+    for tag in ("fed", "state"):
+        dem = out.get(f"sens_id_{tag}_dem")
+        if dem is None:
+            continue
+        out[f"idaho_dem_panelwide_at_party_ceiling_{tag}"] = (
+            (dem / 100.0 - b) / (1.0 - b) * 100.0)
+
+
+@_timed
+def _d_id_primary_ballots(out):
+    """The 2024 Idaho primary: participants, party ballots, and the gap between them.
+
+    F4's footnote lists five party-ballot counts that sum to 273,884 against the 274,684
+    participants in the table above it. That 800-record difference was silent until an external
+    read caught it, in a paper that reconciles 555,922 against 555,107 down to the individual
+    comma-bearing key. It is participants whose `ballot_choice` is blank — recorded as voting in
+    the primary with no party ballot recorded — and the footnote now says so, which means the
+    number has to be derived.
+    """
+    p = DATA / "id_vrdb.duckdb"
+    if not p.exists():
+        return
+    con = _conn("id_vrdb")
+    rows = dict(con.execute("""
+        SELECT COALESCE(NULLIF(TRIM(ballot_choice), ''), '(blank)'),
+               COUNT(DISTINCT state_voter_id)
+        FROM voter_participation WHERE election_year = 2024 AND kind = 'PRIMARY'
+        GROUP BY 1""").fetchall())
+    out["id_pri_participants"] = sum(rows.values())
+    out["id_pri_party_ballots"] = sum(v for k, v in rows.items() if k != "(blank)")
+    out["id_pri_no_ballot"] = rows.get("(blank)", 0)
 
 
 @_timed
@@ -2235,6 +2438,37 @@ def _d_res_summary(out):
         out["res_inactive_lo"], out["res_inactive_hi"] = _inact[0], _inact[-1]
 
 @_timed
+
+def _d_geo_selection_rollup(out):
+    """Aggregate the geographic-selection check into the figures the prose quotes.
+
+    Derived from the per-panel cells rather than typed, so a change to any cell moves the
+    summary with it — the drift this series keeps finding is a summary that outlived the table
+    it summarises.
+    """
+    stems = [k[:-2] for k in out if k.endswith("_m") and "_gs_" in k]
+    if stems:
+        out["gs_worst_move"] = max(abs(out[f"{st}_d"]) for st in stems if f"{st}_d" in out)
+    # WA state carries a purity figure but no counties; it belongs in the range all the same,
+    # because the range describes the ZIP->county assignment per STATE, not per panel.
+    pur = [v for k, v in out.items() if k.endswith("_gs_purity")]
+    if pur:
+        out["gs_purity_lo"], out["gs_purity_hi"] = min(pur), max(pur)
+    # The one cell that differs from the multiplier reported earlier in the section. That gap
+    # IS the address-source effect the check assumes is negligible, so it is derived, not
+    # asserted in prose alone.
+    if "cty_id_state_blaine_mult" in out and "id_state_gs_blaine_m" in out:
+        out["gs_blaine_basis_gap"] = abs(
+            out["cty_id_state_blaine_mult"] - out["id_state_gs_blaine_m"])
+    # How far the five reconstructable panels sit from their published match rates. The paper
+    # says "within 0.3 points"; PUBLISHED is the same table diag_donor_geography_selection.py
+    # validates against, and mr_*_cov is this script's own independent re-derivation of it.
+    drifts = [abs(out[f"{k}_gs_rate"] - out[f"mr_{k}_cov"])
+              for k in ("wa_fed", "ny_fed", "ny_state", "id_fed", "id_state")
+              if f"{k}_gs_rate" in out and f"mr_{k}_cov" in out]
+    if drifts:
+        out["gs_recon_worst"] = max(drifts)
+
 def _d_county_split(out):
     """D2 — participation and intensity factors of each named county's dollar multiplier."""
     named = {
@@ -2449,6 +2683,88 @@ def _d_appf_panels(out):
     # the mode is now measured directly by `_d_pdc_name_order`, which rebuilds the key both ways
     # and carries a placebo control. Deleting it also removes a full-roll scan from every cold
     # derive; nothing references its two output keys.
+
+
+@_timed
+def _d_coverage_extension(out):
+    """Derivations for the sections brought under the audit on 2026-08-14 (full-paper
+    coverage): the front matter's two-panels block, the limits bullets, Appendix C's
+    New York state-panel paragraph, and Appendix E's four-state statewide table.
+
+    Two of these derivations exist because writing them found live defects:
+      * Appendix C said "$379.5M matches to a registered New York voter" — that is the
+        RETIRED all-tier panel's dollars (measured 379.46 on
+        voter_donor_affiliation_state_alltier); the primary specification is 339.8. The
+        paragraph survived the tier-switch prose sweep (audit-log R17–R24) by sitting
+        outside every slice. The paper now states both, labelled.
+      * Appendix E's statewide table printed Idaho's top-1% as 36.0 against an unrounded
+        36.0519 (→ 36.1) — the same stale last digit verify_cross_state_money.py's
+        2026-08-02 round corrected in ITS paper, surviving here as an unsliced copy.
+    """
+    # --- WA retired all-tier trio, quoted in the front matter's pooling demonstration.
+    wa = _conn("wa_statewide")
+    for tag, tbl in (("pooled", "voter_donor_affiliation_alltier"),
+                     ("fed", "voter_donor_affiliation_fec_alltier"),
+                     ("state", "voter_donor_affiliation_state_alltier")):
+        v, = wa.execute(f"""
+            WITH r AS (SELECT total_donated t, NTILE(100) OVER (ORDER BY total_donated DESC) p
+                       FROM {tbl} WHERE total_donated > 0)
+            SELECT 100.0*SUM(t) FILTER (WHERE p=1)/SUM(t) FROM r""").fetchone()
+        out[f"wa_{tag}_alltier_top1"] = float(v)
+
+    # --- Jaccard span, quoted as a range in the front matter and the limits bullet.
+    _j = [out[k] for k in ("wa_jaccard", "ny_jaccard", "id_jaccard") if k in out]
+    if len(_j) == 3:
+        out["jaccard_lo"], out["jaccard_hi"] = min(_j), max(_j)
+
+    # --- Idaho state-vs-aligned-federal reach ("59% more", the limits bullet).
+    if "id_state_n" in out and "id_fedal_n" in out:
+        out["id_state_reach_gain_pct"] = (
+            100.0 * (out["id_state_n"] - out["id_fedal_n"]) / out["id_fedal_n"])
+
+    # --- Appendix C's New York state-panel paragraph: the feed, the two match totals,
+    # and the no-prefix residue. All from ny_statewide, which this gate already opens.
+    ny = _conn("ny_statewide")
+    out["ny_feed_rows"], out["ny_feed_m"] = (
+        float(x) for x in ny.execute("""
+            SELECT COUNT(*), SUM(contribution_amount)/1e6 FROM individual_contributions
+            WHERE contribution_id LIKE 'NY:%'""").fetchone())
+    out["ny_state_alltier_m"], = (float(x) for x in ny.execute(
+        "SELECT SUM(total_donated)/1e6 FROM voter_donor_affiliation_state_alltier"
+    ).fetchone())
+    out["ny_noprefix_rows"], out["ny_noprefix_m"] = (
+        float(x) for x in ny.execute("""
+            SELECT COUNT(*), SUM(contribution_amount)/1e6 FROM individual_contributions
+            WHERE contribution_id NOT LIKE 'NY:%' AND contribution_id NOT LIKE 'FEC:%'
+        """).fetchone())
+
+    # --- Appendix E's statewide (all-itemized-donor) concentration table, four states.
+    # Same donor proxy (name|ZIP within the outflow filter) verify_cross_state_money.py
+    # asserts its paper's copies with, at the same 0.05 tolerance; the two papers print
+    # the same quantity and must not drift apart again. TX has no other use in this gate,
+    # so its connection is local rather than pooled.
+    for st in ("wa", "ny", "id", "tx"):
+        con = (duckdb.connect(str(DATA / "tx_statewide.duckdb"), read_only=True)
+               if st == "tx" else _conn(f"{st}_statewide"))
+        t1, t10, g = con.execute(f"""
+            WITH dd AS (SELECT contributor_name || '|' || COALESCE(contributor_zip,'') dnr,
+                               SUM(contribution_amount) amt
+                        FROM individual_contributions
+                        WHERE regexp_matches(COALESCE(fec_candidate_id,''),'^[CPHS][0-9]')
+                          AND contributor_state='{st.upper()}' AND contribution_amount>0
+                        GROUP BY 1),
+            r AS (SELECT amt, NTILE(100) OVER (ORDER BY amt DESC) p,
+                         ROW_NUMBER() OVER (ORDER BY amt) rn,
+                         COUNT(*) OVER () n, SUM(amt) OVER () s
+                  FROM dd)
+            SELECT 100.0*SUM(amt) FILTER (WHERE p=1)/ANY_VALUE(s),
+                   100.0*SUM(amt) FILTER (WHERE p<=10)/ANY_VALUE(s),
+                   (2.0*SUM(rn*amt)/(MAX(n)*MAX(s))) - (MAX(n)+1.0)/MAX(n)
+            FROM r""").fetchone()
+        out[f"sw_{st}_top1"], out[f"sw_{st}_top10"], out[f"sw_{st}_gini"] = (
+            float(t1), float(t10), float(g))
+        if st == "tx":
+            con.close()
 
 
 @_timed
@@ -2825,6 +3141,12 @@ def cached_derive():
 # states (the "18-29" age row appears in both the NY and the ID table) cannot be asserted
 # against the wrong state's derivation.
 SECTION_BOUNDS = {
+    # The ABSTRACT, added 2026-08-14 (Pass 2 of the calculation review). It was the one
+    # result-bearing block of this paper outside every slice — the coverage gate audited
+    # nineteen sections of the WA paper including its abstract while the lead article's
+    # abstract carried a single probe. The scope doc weights abstracts first for exactly
+    # this reason: an abstract restates four sections and is what an editor reads.
+    "abstract": ("## Abstract", "## The question"),
     # The main-body methods section, added 2026-07-29 for review #10. Every figure in it
     # but two restates one published elsewhere in the paper, which is exactly why it is
     # audited rather than trusted.
@@ -2967,6 +3289,27 @@ SECTION_BOUNDS = {
                    "**Giving and turnout, side by side.**"),
     "appe_turnout": ("**Giving and turnout, side by side.**",
                      "## Appendix F —"),
+    # ------------------------------------------------------------------
+    # FULL-PAPER COVERAGE, 2026-08-14. These eleven slices close every gap between the
+    # slices above, so the audit now partitions the paper from title to the last
+    # reference — the WA paper's standard. The census that drove this found two live
+    # defects INSIDE the gaps (Appendix C's all-tier $379.5M and Appendix E's stale 36.0),
+    # which is the whole argument for partitioning rather than slicing the parts one
+    # thought of.
+    "frontmatter": ("# Who Gives?", "## Abstract"),
+    "question": ("## The question", "## Prior work, and what this paper adds"),
+    "f1_intro": ("## Finding 1 —", "**New York** (`match_ny_voters_to_donors.py`)"),
+    "limits_head": ("## What this paper does not claim",
+                    "- **Itemized giving only — but the panels are not truncated"),
+    "limits_mid": ("- **Panel comparisons are descriptive",
+                   "**Recipient party is partial, differentially missing"),
+    "limits_tail": ("- **No policy-influence claim.**", "## What it means"),
+    "meaning": ("## What it means", "# Appendices"),
+    "appc_nystate": ("**The New York state panel.**", "**The match key and its four tiers.**"),
+    "appe_statewide": ("**Statewide (all itemized donors",
+                       "**Candidate money versus total flow.**"),
+    "datacode": ("## Data, code, and reproduction", "## References"),
+    "references": ("## References", "must replace this branch reference before submission."),
 }
 
 # ------------------------------------------------------------------------- probes
@@ -2974,6 +3317,57 @@ SECTION_BOUNDS = {
 # Bold markers are written `\*{0,2}` so re-bolding a figure does not disarm a probe;
 # the anchor is the surrounding WORDS.
 PROBES = [
+    # --- Finding 2's geographic-selection check, added 2026-08-11 after external review.
+    # Every cell of the table is probed: it is the paper's answer to the sharpest objection
+    # available against a geographic finding computed on matched donors, so an unchecked cell
+    # here would be an unchecked defence. The two prose restatements are probed separately,
+    # because a table and its summary are exactly where a summary drifts.
+    ("Finding 2 geo-selection — WA federal King", "f2_tail",
+     r"\| WA federal · King \| ([\d.]+) \| ([\d.]+) \| (-[\d.]+) \|",
+     ("wa_fed_gs_king_m", "wa_fed_gs_king_a", "wa_fed_gs_king_d"), 0.005),
+    ("Finding 2 geo-selection — NY federal Manhattan", "f2_tail",
+     r"\| NY federal · New York \| \*\*([\d.]+)\*\* \| \*\*([\d.]+)\*\* \| (-[\d.]+) \|",
+     ("ny_fed_gs_newyork_m", "ny_fed_gs_newyork_a", "ny_fed_gs_newyork_d"), 0.005),
+    ("Finding 2 geo-selection — NY federal Westchester", "f2_tail",
+     r"\| NY federal · Westchester \| ([\d.]+) \| ([\d.]+) \| (\+[\d.]+) \|",
+     ("ny_fed_gs_westchester_m", "ny_fed_gs_westchester_a", "ny_fed_gs_westchester_d"), 0.005),
+    ("Finding 2 geo-selection — NY state Manhattan", "f2_tail",
+     r"\| NY state · New York \| ([\d.]+) \| ([\d.]+) \| (-[\d.]+) \|",
+     ("ny_state_gs_newyork_m", "ny_state_gs_newyork_a", "ny_state_gs_newyork_d"), 0.005),
+    ("Finding 2 geo-selection — ID federal Ada", "f2_tail",
+     r"\| ID federal · Ada \| ([\d.]+) \| ([\d.]+) \| (\+[\d.]+) \|",
+     ("id_fed_gs_ada_m", "id_fed_gs_ada_a", "id_fed_gs_ada_d"), 0.005),
+    ("Finding 2 geo-selection — ID federal Blaine", "f2_tail",
+     r"\| ID federal · Blaine \| \*\*([\d.]+)\*\* \| \*\*([\d.]+)\*\* \| (-[\d.]+) \|",
+     ("id_fed_gs_blaine_m", "id_fed_gs_blaine_a", "id_fed_gs_blaine_d"), 0.005),
+    ("Finding 2 geo-selection — ID state Blaine", "f2_tail",
+     r"\| ID state · Blaine \| ([\d.]+) \| ([\d.]+) \| (-[\d.]+) \|",
+     ("id_state_gs_blaine_m", "id_state_gs_blaine_a", "id_state_gs_blaine_d"), 0.005),
+    ("Finding 2 geo-selection — the Manhattan pair restated in prose", "f2_tail",
+     r"Manhattan's federal multiplier is ([\d.]+)× on matched donors and ([\d.]+)× across all",
+     ("ny_fed_gs_newyork_m", "ny_fed_gs_newyork_a"), 0.005),
+    ("Finding 2 geo-selection — Bonneville's movement, quoted in prose", "f2_tail",
+     r"Westchester \(\+([\d.]+)\) and Bonneville \(\+([\d.]+)\)",
+     ("ny_fed_gs_westchester_d", "id_fed_gs_bonneville_d"), 0.005),
+    ("Finding 2 geo-selection — WA state's reconstruction against the published rate", "f2_tail",
+     r"reconstruct\*\* — ([\d.]+)% of in-state dollars against the published ([\d.]+)%",
+     ("wa_state_gs_rate", "mr_wa_state_cov"), 0.05),
+    ("Finding 2 geo-selection — the ZIP5 purity range across panels", "f2_tail",
+     r"covers ([\d.]+)–([\d.]+)% of registrants in their own ZIP",
+     ("gs_purity_lo", "gs_purity_hi"), 0.05),
+    ("Finding 2 geo-selection — the ID state Blaine basis gap", "f2_tail",
+     r"reads \*\*([\d.]+)\*\* here against \*\*([\d.]+)\*\* above",
+     ("id_state_gs_blaine_m", "cty_id_state_blaine_mult"), 0.005),
+    ("Finding 2 geo-selection — that gap stated as a number", "f2_tail",
+     r"check relies on being small\. It is ([\d.]+)\.", "gs_blaine_basis_gap", 0.005),
+    ("Finding 2 geo-selection — the largest movement, quoted in prose", "f2_tail",
+     r"the largest county multiplier movement is ([\d.]+)\.", "gs_worst_move", 0.005),
+    ("Finding 2 geo-selection — the reconstruction tolerance", "f2_tail",
+     r"Five panels reconstruct to within ([\d.]+) points", "gs_recon_worst", 0.05),
+    ("Finding 2 geo-selection — the Blaine pair restated in prose", "f2_tail",
+     r"Blaine's is ([\d.]+)× against ([\d.]+)×",
+     ("id_fed_gs_blaine_m", "id_fed_gs_blaine_a"), 0.005),
+
     # --- panel sizes, stated in the header table, the abstract and the provenance note
     ("header table, federal donors", None,
      r"FEC itemized individual contributions \| WA ([\d,]+) · NY ([\d,]+) · ID ([\d,]+) \|",
@@ -3168,6 +3562,9 @@ PROBES = [
      r"allocates \*{0,2}([\d]+)\*{0,2}\s+full-name records to each of the six panels\. Zero "
      r"detected\s+errors in \d+ bounds a \*?single panel's\*? error rate at \*{0,2}([\d.]+)%",
      ("val_t0_panel_n", "val_t0_panel_err_hi"), 0.05),
+    ("D1 the Idaho draw restated in the budget prose", "sensitivity",
+     r"an independent rater scored \*\*(\d+)\*\* fresh Idaho full-name records",
+     ("idaho_n_total",), 0),
     ("D1 sensitivity table, panel-specific column", "appf_budget",
      r"\| WA federal \| [\d.]+ → \*{0,2}[\d.]+\*{0,2} \| → ([\d.]+) \|.*?"
      r"\| WA state \| [\d.]+ → \*{0,2}[\d.]+\*{0,2} \| → ([\d.]+) \|.*?"
@@ -3298,6 +3695,32 @@ PROBES = [
     ("AppC pooled trio restated", "appc_head",
      r"reads top-1% ([\d.]+)% pooled against\s+([\d.]+)% federal and ([\d.]+)% state",
      ("wa_pooled_top1", "wa_fed_top1", "wa_state_top1"), 0.05),
+    # --- added 2026-08-11 after external review ------------------------------------------
+    ("AppC pooling overstatement, differenced", "appc_head",
+     r"a ([\d.]+)-point overstatement against the higher panel",
+     ("pool_overstate",), 0.05),
+    ("Front-matter copy of the same overstatement", None,
+     r"a ([\d.]+)-point overstatement against the higher of the two panels",
+     ("pool_overstate",), 0.05),
+    ("F7 panel-wide construction at the party-stratum bound", "appf_budget",
+     r"fails decisively at the corrected bound\*\*: at ([\d.]+)% it\s*"
+     r"takes Idaho's federal registered-Democrat share to \*\*([\d.]+)%\*\* and the state "
+     r"panel to \*\*([\d.]+)%\*\*,\s*both far below the ([\d.]+)% registration baseline",
+     ("idaho_bound_party_cell", "idaho_dem_panelwide_at_party_ceiling_fed",
+      "idaho_dem_panelwide_at_party_ceiling_state", "id_fed_reg_DEM"), 0.05),
+    ("F7 the panel-wide row it contrasts with", "appf_budget",
+     r"Idaho's federal row falls to \*\*([\d.]+)%\*\* at a ([\d.]+)% budget",
+     ("sens_id_fed_dem_pbd", "val_t0_panel_err_hi"), 0.05),
+    ("F4 Idaho primary ballots against participants", "f4",
+     r"Those five sum to\s+\*\*([\d,]+)\*\* against the ([\d,]+) in the table above",
+     ("id_pri_party_ballots", "id_pri_participants"), 0),
+    ("F4 the unrecorded-ballot bucket", "f4",
+     r"The \*\*([\d,]+)\*\*-record difference is participants whose `ballot_choice` is blank",
+     ("id_pri_no_ballot",), 0),
+    ("AppF the primary tier's share of matches, restated in the two-stage note", "appf_weighted",
+     r"The full-name key carries \*\*([\d.]+)–([\d.]+)%\*\* of matches",
+     ("tier0_share_lo", "tier0_share_hi"), 0.05),
+
     ("AppC below-floor trigger table", "appd_belowfloor",
      r"\| Federal \(FEC\) \| > \$200 / cycle \| ([\d.]+)% \|[\s\S]{0,120}?"
      r"\| ([\d.]+)% \(≤\$100\) \| \*\*([\d.]+)%\*\* of matched panel donors \(([\d.]+)% ≤ \$25\) \|"
@@ -3571,19 +3994,52 @@ PROBES = [
      r"The observed ([\d.]+)% therefore exceeds the coincidence rate by ([\d.]+) points",
      ("pdcno_rev_pct", "pdcno_excess_pts"), 0.05),
     ("F7 Idaho sample, stratum table", "appf_budget",
-     r"\| one registered party, one panel \| (\d+) \| \*\*([\d.]+)%\*\* \|\s*"
+     r"\| one party × dollar-band cell, one panel — \*\*the operative bound\*\* \| (\d+) \| "
+     r"\*\*([\d.]+)%\*\* \|\s*"
+     r"\| one registered party, one panel — \*retired: pools its two dollar-band cells\* \| "
+     r"(\d+) \| ([\d.]+)% \|\s*"
      r"\| one dollar band, one panel \| (\d+) \| ([\d.]+)% \|\s*"
      r"\| one panel, composition-reweighted \| (\d+) \| ([\d.]+)% [^|]*\|\s*"
      r"\| \*what the current evidence supports\* \| \*(\d+)\* \| \*([\d.]+)%\* \|",
-     ("idaho_n_party_panel", "idaho_bound_party_panel",
+     ("idaho_n_party_cell", "idaho_bound_party_cell",
+      "idaho_n_party_panel", "idaho_bound_party_panel",
       "idaho_n_band_panel", "idaho_bound_band_panel",
       "idaho_n_panel", "idaho_bound_panel_pooled",
       "val_t0_panel_n", "idaho_bound_current"), 0.05),
+    # The design-correction paragraph, 2026-08-14 (external referee, publication blocker).
+    # Every figure it argues from is tied back to the draw's design constants and the two
+    # corrected constructions, so the correction cannot drift from the bound it installs.
+    ("F7 correction, the pooled n it retires", "appf_budget",
+     r"bounded each party stratum at its pooled n = (\d+) anyway",
+     ("idaho_n_party_panel",), 0),
+    ("F7 correction, the cell decomposition", "appf_budget",
+     r"two deliberately balanced dollar-band cells of \*\*(\d+)\*\*",
+     ("idaho_n_party_cell",), 0),
+    ("F7 correction, the over-weighting arithmetic", "appf_budget",
+     r"the (\d+) records over-weight the top decile about five-fold, so an\s*"
+     r"n = (\d+) binomial bound is not a bound",
+     ("idaho_n_party_panel", "idaho_n_party_panel"), 0),
+    ("F7 correction, the refused pool", "appf_budget",
+     r"the plan refused to pool the (\d+)", ("idaho_n_panel",), 0),
+    ("F7 correction, the two corrected bounds", "appf_budget",
+     r"equals the cell bound, \*\*([\d.]+)%\*\*; a conservative simultaneous construction\s*"
+     r"\(each cell at ([\d.]+)%\) gives \*\*([\d.]+)%\*\*",
+     ("idaho_bound_party_cell", "idaho_simul_cell_conf",
+      "idaho_bound_party_cell_simul"), 0.05),
     ("F7 Idaho sample, Democratic-stratum worst case", "appf_budget",
      r"federal panel from ([\d.]+)% to\s*\*\*([\d.]+)%\*\* and its state panel from ([\d.]+)% "
-     r"to \*\*([\d.]+)%\*\*, both still far above the ([\d.]+)%",
+     r"to \*\*([\d.]+)%\*\* at the ([\d.]+)% bound — and to \*\*([\d.]+)%\*\* and\s*"
+     r"\*\*([\d.]+)%\*\* at the simultaneous ([\d.]+)% — all still well above the ([\d.]+)%\s*"
+     r"registration share",
      ("sens_id_fed_dem", "idaho_dem_after_stratum_fed", "sens_id_state_dem",
-      "idaho_dem_after_stratum_state", "id_fed_reg_DEM"), 0.05),
+      "idaho_dem_after_stratum_state", "idaho_bound_party_cell",
+      "idaho_dem_after_simul_fed", "idaho_dem_after_simul_state",
+      "idaho_bound_party_cell_simul", "id_fed_reg_DEM"), 0.05),
+    ("F7 correction, the earlier printed deletion", "appf_budget",
+     r"\(An earlier version printed ([\d.]+)% and ([\d.]+)% here: the same deletion at the\s*"
+     r"retired ([\d.]+)% pooled bound\.\)",
+     ("idaho_dem_after_retired_fed", "idaho_dem_after_retired_state",
+      "idaho_bound_party_panel"), 0.05),
     ("F7 Idaho sample, total drawn", "appf_budget",
      r"\*\*(\d+) records, \d+ per panel\*\*", ("idaho_n_total",), 0),
     # The zero-error result, 2026-08-06. These three are RESTATEMENTS in the prose that reports
@@ -3593,8 +4049,12 @@ PROBES = [
     ("F7 Idaho rated, worst-case figures restated", "appf_budget",
      r"worst-case Idaho figures of \*\*([\d.]+)%\*\* federal and \*\*([\d.]+)%\*\* state",
      ("idaho_dem_after_stratum_fed", "idaho_dem_after_stratum_state"), 0.05),
-    ("F7 Idaho rated, party-stratum ceiling restated", "appf_budget",
-     r"per-party-stratum ceiling of ([\d.]+)%", ("idaho_bound_party_panel",), 0.05),
+    ("F7 Idaho rated, cell bound restated", "appf_budget",
+     r"95% upper validation\s*bound of ([\d.]+)% per party × dollar-band cell",
+     ("idaho_bound_party_cell",), 0.05),
+    ("F7 Idaho rated, cell n restated", "appf_budget",
+     r"A\s*sample of (\d+) per cell cannot\s*establish that",
+     ("idaho_n_party_cell",), 0),
     # --- the independent rater's pass, 2026-08-06 ----------------------------------------
     # Section None: this block sits in `appf_tail`, which the coverage audit exempts for its
     # ceiling analysis and survivorship note. Rather than widen that exemption to cover ten
@@ -3709,10 +4169,120 @@ PROBES = [
      ("wa_pooled_top1", "wa_fed_top1", "wa_state_top1"), 0.05),
     ("Methods, WA vote records", "methods",
      r"([\d.]+)M individual vote records", ("wa_vote_records_m",), 0.05),
-    ("abstract top-1% by state", None,
+    # --- The abstract, sliced and audited 2026-08-14 (Pass 2). Section-scoped, because a
+    # probe that matches but is not attributed to a section proves nothing to the audit.
+    ("abstract top-1% by state", "abstract",
      r"top 1% of donors suppl(?:y|ying) ([\d.]+)% of\s+federal dollars in Washington, "
      r"([\d.]+)% in New York and ([\d.]+)% in Idaho",
      ("wa_fed_top1", "ny_fed_top1", "id_fed_top1"), 0.05),
+    ("abstract, donor vs roll 65+", "abstract",
+     r"([\d.]+)% of New York's federal donors and ([\d.]+)% of\s+Idaho's are 65 or older, "
+     r"against ([\d.]+)% and ([\d.]+)% of registrants",
+     ("ny_fed_b65", "id_fed_b65", "ny_active_b65", "id_roll_b65"), 0.05),
+    ("abstract, the Idaho per-stratum bound", "abstract",
+     r"an independent (\d+)-record rating detected no false match;\s+"
+     r"the design-respecting 95% upper bound is ([\d.]+)% per party stratum",
+     ("idaho_n_total", "idaho_bound_party_cell"), 0.05),
+    # Integer restatement of F4's unrounded 22.89-26.28 span, so tol 0.5.
+    ("abstract, eligible-for-all turnout gap span", "abstract",
+     r"in New York and Washington, by (\d+) to (\d+)\s+points among registrants "
+     r"eligible for every election in the window",
+     ("abs_egap_lo", "abs_egap_hi"), 0.5),
+
+    # --- Full-paper coverage, 2026-08-14: the front matter's two-panels block. Every
+    # figure here restates one asserted deeper in the paper, which is exactly why it is
+    # probed rather than trusted — a restatement is where the tier switch's stale copies
+    # survived.
+    ("front matter, disclosure — the Idaho sample size", "frontmatter",
+     r"an independent\s+rater's on the third pass and the (\d+)-record Idaho sample",
+     ("idaho_n_total",), 0),
+    ("front matter, panel table — federal row", "frontmatter",
+     r"\| \*\*Federal\*\* \*\(primary\)\* \| FEC itemized individual contributions \| "
+     r"WA ([\d,]+) · NY ([\d,]+) · ID ([\d,]+) \|",
+     ("wa_fed_n", "ny_fed_n", "id_fed_n"), 0),
+    ("front matter, panel table — state row", "frontmatter",
+     r"\| \*\*State\*\* \*\(secondary\)\* \| [^|]+ \| WA ([\d,]+) · NY ([\d,]+) · "
+     r"ID ([\d,]+) \|",
+     ("wa_state_n", "ny_state_n", "id_state_n"), 0),
+    ("front matter — the pooling demonstration", "frontmatter",
+     r"pooling reads top-1% \*\*([\d.]+)%\*\* against \*\*([\d.]+)%\*\*\s+federal and "
+     r"\*\*([\d.]+)%\*\* state — a ([\d.]+)-point overstatement",
+     ("wa_pooled_top1", "wa_fed_top1", "wa_state_top1", "pool_overstate"), 0.05),
+    ("front matter — the retired all-tier trio, labelled", "frontmatter",
+     r"the retired all-tier trio \(([\d.]+) / ([\d.]+) /\s+([\d.]+)\)",
+     ("wa_pooled_alltier_top1", "wa_fed_alltier_top1", "wa_state_alltier_top1"), 0.05),
+    ("front matter — the Jaccard overlap span", "frontmatter",
+     r"overlap by a Jaccard coefficient of only ([\d.]+)–([\d.]+) in all three states",
+     ("jaccard_lo", "jaccard_hi"), 0.005),
+    ("front matter — the operational match-rate span", "frontmatter",
+     r"resolving ([\d.]+)% to ([\d.]+)% of resident contributor keys",
+     ("_mr_recall_lo", "_mr_recall_hi"), 0.05),
+    ("front matter — federal money is older money, all four cells", "frontmatter",
+     r"federal donors are ([\d.]+)% over 65 against ([\d.]+)% of its state donors, "
+     r"Idaho's ([\d.]+)% against\s+([\d.]+)%",
+     ("ny_fed_b65", "ny_state_b65", "id_fed_b65", "id_state_b65"), 0.05),
+    ("front matter — WA Silent multipliers, both panels", "frontmatter",
+     r"Silent Generation multiplier runs ([\d.]+)× federal against ([\d.]+)× state",
+     ("wa_fed_mult_silent", "wa_state_mult_silent"), 0.005),
+    ("front matter — the aligned-window widening", "frontmatter",
+     r"widens\*\* the gap to ([\d.]+)% against ([\d.]+)%",
+     ("id_fedal_b65", "id_state_b65"), 0.05),
+
+    # --- "The question": restates the Idaho bound the abstract states.
+    ("question — the Idaho per-stratum bound restated", "question",
+     r"independent rating\*\* — (\d+) records, no false match detected, 95% upper bound "
+     r"([\d.]+)% at the\s+design's party × dollar-band cells",
+     ("idaho_n_total", "idaho_bound_party_cell"), 0.05),
+
+    # --- The limits bullets brought under audit.
+    ("limits — full-name key rating, restated", "limits_head",
+     r"no detectable false match\*\* there\s+\(120/120, Wilson \[([\d.]+)–100\]\) against "
+     r"\*\*([\d.]+)–([\d.]+)%\*\* on the three initial-based keys",
+     ("val_t0_lo", "val_t2_prec", "val_t1_prec"), 0.05),
+    ("limits — all-tier weighted precision and the decile pair", "limits_head",
+     r"population-weighted precision was \*\*([\d.]+)%\*\*, and precision was \*lower\* in "
+     r"the top dollar\s+decile \(([\d.]+)% vs ([\d.]+)% raw\)",
+     ("val_wprec_all", "val_band_top", "val_band_rest"), 0.05),
+    ("limits — the Jaccard span restated", "limits_mid",
+     r"overlap by a Jaccard coefficient of ([\d.]+)–([\d.]+)",
+     ("jaccard_lo", "jaccard_hi"), 0.005),
+    ("limits — the match-reach span restated", "limits_mid",
+     r"from ([\d.]+)% to ([\d.]+)% of resident contributor keys",
+     ("_mr_recall_lo", "_mr_recall_hi"), 0.05),
+    ("limits — Idaho state reach vs aligned federal", "limits_mid",
+     r"state panel reaches ([\d,]+) against\s+the\s+federal panel's ([\d,]+) — (\d+)% more",
+     ("id_state_n", "id_fedal_n", "id_state_reach_gain_pct"), 0.5),
+    ("limits — the WA state-panel parser mode, three figures", "limits_mid",
+     r"\*\*([\d.]+)%\*\* of comma-less resident keys and \*\*([\d.]+)%\*\* of their dollars"
+     r"[^.]*?against a\s+\*\*([\d.]+)%\*\* coincidence baseline",
+     ("pdcno_rev_pct", "pdcno_rev_dollar_pct", "pdcno_placebo_pct"), 0.05),
+
+    # --- Appendix C's New York state-panel paragraph.
+    ("Appendix C, NY state panel — the feed and both match totals", "appc_nystate",
+     r"gives ([\d,]+) contributions totalling \$([\d.]+)M, of which\s+\$([\d.]+)M matches "
+     r"to a registered New York voter on the primary match\s+specification "
+     r"\(\$([\d.]+)M on the retired all-tier key\)",
+     ("ny_feed_rows", "ny_feed_m", "ny_state_m", "ny_state_alltier_m"), 0.05),
+    ("Appendix C, NY state panel — the no-prefix residue", "appc_nystate",
+     r"A further ([\d,]+) rows \(\$([\d.]+)M\) in the NY contribution table carry no source",
+     ("ny_noprefix_rows", "ny_noprefix_m"), 0.05),
+
+    # --- Appendix E's statewide four-state table: the same quantity
+    # verify_cross_state_money.py asserts in ITS paper, derived here on the same proxy so
+    # the two papers cannot drift apart again (they had: this table carried Idaho's
+    # pre-correction 36.0).
+    ("Appendix E — statewide concentration, all twelve cells", "appe_statewide",
+     r"\| top 1% → share of \$ \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| "
+     r"\| top 10% → share of \$ \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| "
+     r"\| Gini \| ([\d.]+) \| ([\d.]+) \| ([\d.]+) \| ([\d.]+) \|",
+     ("sw_wa_top1", "sw_ny_top1", "sw_tx_top1", "sw_id_top1",
+      "sw_wa_top10", "sw_ny_top10", "sw_tx_top10", "sw_id_top10",
+      "sw_wa_gini", "sw_ny_gini", "sw_tx_gini", "sw_id_gini"), 0.05),
+
+    # --- Data, code, and reproduction: the public-matcher reproduction count.
+    ("datacode — the Idaho federal reproduction row count", "datacode",
+     r"0 differing rows across all 9 columns of all ([\d,]+)\s+rows",
+     ("id_fed_n",), 0),
     ("F2 prose, state-vs-federal top-1%", "f2",
      r"more\*{0,2} concentrated in Washington \(([\d.]+)% vs ([\d.]+)%\) and Idaho "
      r"\(([\d.]+)% vs ([\d.]+)%\) but \*{0,2}less\*{0,2} so in New York "
@@ -4039,6 +4609,7 @@ PROBES = [
 # Sections audited for coverage. A section can be probed but not audited (audit is the
 # stronger requirement); every audited section must appear in SECTION_BOUNDS.
 AUDITED_SECTIONS = (
+    "abstract",
     "methods",
     "sensitivity",
     "matchrate",
@@ -4064,6 +4635,10 @@ AUDITED_SECTIONS = (
     "appf_head", "appf_mid", "appf_tail",
     "appf_budget", "appf_reach",
     "appc_mid", "appc_tail2",
+    # Full-paper coverage, 2026-08-14 — see the SECTION_BOUNDS note.
+    "frontmatter", "question", "f1_intro",
+    "limits_head", "limits_mid", "limits_tail", "meaning",
+    "appc_nystate", "appe_statewide", "datacode", "references",
 )
 
 # Sliced but NOT YET audited, with the count of unmapped numeric tokens each still carries.
@@ -4119,6 +4694,13 @@ COVERAGE_EXEMPT_LITERAL = {
              "verdict CSV's 20 full-name records per panel and probed twice in `sensitivity`; "
              "the section restates the same constant in both table headers and twice in prose",
     "50.4%": "ZIP3-tier precision from the frozen verdict CSV (Appendix F), same class as 96.9",
+    "12.6M": "the size of the FULL NYSBOE feed as published (data.ny.gov 4j2b-6a2j, rows back "
+             "to 1999) — a property of the source, not of what this paper loads. The loaded "
+             "slice's count and dollars are derived (ny_feed_rows / ny_feed_m) and probed in "
+             "appc_nystate",
+    "0.66%": "the content-level duplicate-dollar residue in the NYSBOE feed, owned by "
+             "scripts/sanity_check_ny_contributions.py, which the paragraph cites and which "
+             "audits the load on every run",
     "269,204": "all-tier WA state row count, probed once in `appf_weighted`; the denominator "
                "note restates it a second time in the same sentence",
     "32.6%": "the RETIRED name-heuristic estimate of Idaho's organisation dollar share, quoted "
@@ -4139,7 +4721,9 @@ COVERAGE_EXEMPT_LITERAL = {
     "47.7": "pooled top-1% on the RETIRED all-tier specification, quoted only to label it as "
             "retired. Appendix F carries the all-tier panels; not re-derived here because the "
             "paper's point is that it must not be compared with a primary-spec figure",
-    "3.0": "arithmetic on the three pooled-trio figures probed immediately above",
+    # "3.0" (arithmetic on the pooled trio) pruned 2026-08-14: the overstatement is now
+    # derived as pool_overstate and probed in both appc_head and frontmatter, so the token
+    # stopped firing — the 2026-08-14 gate run flagged the exemption as stale.
     # --- Appendix E's candidate-money cut and Appendix G's displacement tail ----------
     "0.69": "Gini of candidate-committee inflow, owned and asserted by verify_cross_state_money.py "
             "against fec_inflow.duckdb — a different database this verifier does not open",
@@ -4382,6 +4966,12 @@ _INTERVAL_RX = re.compile(r"\[[\s\d.,+−–—-]+\]")
 # originating script must be named. A block that is merely tedious arithmetic does not qualify —
 # Appendix F's three RATING tables were derived from the frozen verdict CSVs for that reason.
 COVERAGE_EXEMPT_SECTIONS = {
+    "references":
+        "A bibliography. Its numeric tokens are page ranges, volume/issue numbers and DOIs — "
+        "citations, not quantities — and the figures those works are cited FOR are asserted "
+        "by verify_donor_class.py's own probes where the paper uses them (the Related-work "
+        "and prior-work sections are audited by derivation). The same closure the WA paper's "
+        "Appendix D carries.",
     "appf_head":
         "Appendix F's matchability and tier-composition blocks. The P(matchable) spreads and the "
         "inverse-propensity re-weighted multipliers come from diag_ny_match_bias.py and its WA "

@@ -14,6 +14,24 @@ from the WA voter file (data/wa_vrdb.duckdb: voters + voting_history),
 Age = 2025 - birth year (the paper's convention; the file carries year of
 birth only).
 
+TURNOUT DENOMINATORS, CORRECTED 2026-08-13. The two turnout columns divide by
+registrants at that age enrolled ON OR BEFORE the election
+(`registration_date <= election_date`) — the body rate table's own basis,
+which Appendix H claimed ("the same caveats as the body's rate table") while
+this script divided by the whole April-2026 roll at that age. The gap ran
++0.9 to +5.2 points on the 2024 column across the printed rows, largest at
+the young end where post-election registration is heaviest. The `roll` column
+stays the full April-2026 count at that age — a descriptive column, not the
+turnout denominator. RETENTION IS UNCHANGED: its denominator is that age's
+2024 voters, so the eligibility filter cannot reach it.
+
+The same correction retired a young-end claim: on the whole-roll basis age 19
+read as "the minimum of the young range" (50.8%). That was the denominator
+artifact — 19-year-olds who registered after Nov 2024 could not have voted in
+it — and on the eligible basis 19 sits at 59.8%, above the mid-20s trough at
+25 (56.8%), which is the actual minimum. The first-election bump at 20
+survives (60.5%, a local peak above both 19 and 21).
+
 WHAT THE APPENDIX REPORTS, CORRECTED 2026-08-09. This docstring used to call
 the gradient "a smooth, MONOTONE age ramp … and a decline from ~84". Neither
 half survives measurement: retention peaks at 72.0% at age **79** and declines
@@ -26,10 +44,7 @@ people sit at each age as well as on how they behave.
 What the curve does show: retention climbs from ~23% at age 20 to that peak at
 79, averaging ~0.8 points per year but unevenly (~0.4/yr through the forties,
 ~1.4/yr through the early sixties), with NO discontinuity at 65 — the 64→66
-step is 1.50 points/year against 1.43 for 60→64. At the young end age 20 is a
-local peak (55.3%) above the mid-20s, while age **19 is the minimum of the
-young range** at 50.8%, so the shape is a 19-year-old low, a 20-year-old bump
-and a shallow early-20s dip, not a flat 18-20 plateau.
+step is 1.50 points/year against 1.43 for 60→64.
 
 The robustness conclusion is now made on the composition measure directly (the
 off-year-to-presidential share ratio by five-year band), not on this curve's
@@ -58,7 +73,11 @@ def main():
         base AS (
             SELECT 2025 - YEAR(v.birthdate) AS age,
                    (a.state_voter_id IS NOT NULL) AS voted24,
-                   (b.state_voter_id IS NOT NULL) AS voted25
+                   (b.state_voter_id IS NOT NULL) AS voted25,
+                   (v.registration_date IS NOT NULL
+                    AND v.registration_date <= DATE '{D24}') AS elig24,
+                   (v.registration_date IS NOT NULL
+                    AND v.registration_date <= DATE '{D25}') AS elig25
             FROM voters v
             LEFT JOIN v24 a USING (state_voter_id)
             LEFT JOIN v25 b USING (state_voter_id)
@@ -67,7 +86,11 @@ def main():
         SELECT age, COUNT(*) n_roll,
                SUM(CASE WHEN voted24 THEN 1 ELSE 0 END) n24,
                SUM(CASE WHEN voted25 THEN 1 ELSE 0 END) n25,
-               SUM(CASE WHEN voted24 AND voted25 THEN 1 ELSE 0 END) n_both
+               SUM(CASE WHEN voted24 AND voted25 THEN 1 ELSE 0 END) n_both,
+               COUNT(*) FILTER (WHERE elig24) n_elig24,
+               COUNT(*) FILTER (WHERE elig25) n_elig25,
+               SUM(CASE WHEN voted24 AND elig24 THEN 1 ELSE 0 END) n24_elig,
+               SUM(CASE WHEN voted25 AND elig25 THEN 1 ELSE 0 END) n25_elig
         FROM base WHERE age BETWEEN 18 AND 95
         GROUP BY 1 ORDER BY 1
     """).fetchall()
@@ -78,17 +101,18 @@ def main():
     out = {}
     print(f"{'age':>4} {'roll':>9} {'t2024%':>7} {'t2025%':>7} {'ret%':>6} "
           f"{'sh24%':>6} {'sh25%':>6}")
-    for age, n, n24, n25, nb in rows:
+    for age, n, n24, n25, nb, ne24, ne25, n24e, n25e in rows:
         rec = {
             "roll": n,
-            "turnout_2024": round(n24 / n * 100, 1) if n else None,
-            "turnout_2025": round(n25 / n * 100, 1) if n else None,
+            "turnout_2024": round(n24e / ne24 * 100, 1) if ne24 else None,
+            "turnout_2025": round(n25e / ne25 * 100, 1) if ne25 else None,
             "retention": round(nb / n24 * 100, 1) if n24 else None,
             "share_2024": round(n24 / tot24 * 100, 2),
             "share_2025": round(n25 / tot25 * 100, 2),
         }
         out[age] = rec
-        print(f"{age:>4} {n:>9,} {rec['turnout_2024']:>7} {rec['turnout_2025']:>7} "
+        print(f"{age:>4} {n:>9,} {str(rec['turnout_2024']):>7} "
+              f"{str(rec['turnout_2025']):>7} "
               f"{str(rec['retention']):>6} {rec['share_2024']:>6} {rec['share_2025']:>6}")
 
     # Structural reads the appendix reports. Ages 18-19 are excluded from the

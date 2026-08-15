@@ -207,3 +207,30 @@ are in `reference/primary_spec_figures_2026-07-27.md`.
 `ny-turnout-by-party-age.md` and `who-decides-new-york.md`. The retired figures may still appear
 in this ledger and in `electoral-health-audit-log.md`; recording a withdrawn number is what those
 files are for.
+
+## Corrected 2026-08-14 — the Idaho per-party-stratum bound (external referee, publication blocker)
+
+**What was published.** §F7 and every restatement gave the Idaho validation's operative error
+bound as **10.2%**, the zero-error Wilson 95% upper bound at the party stratum's pooled
+**n = 34**, and applied it: worst-case deletion figures of **18.4% / 19.4%** for the federal and
+state registered-Democrat shares, and a panel-wide construction read as marginal — 11.5%
+federal (just below the 11.8% registration baseline) and 12.7% state (clearing it "only
+narrowly").
+
+**Why it fell.** The pre-specified scoring plan refused to pool the draw's 102 records per panel
+into one binomial bound — the draw is deliberately disproportionate — and then bounded each party
+stratum at its pooled n = 34 anyway. The party stratum is itself two deliberately balanced
+dollar-band cells of **17**, while the top decile is roughly a tenth of the donor population: the
+34 records over-weight the top decile about five-fold, so the n = 34 bound repeats the
+pooled-bound error one level down. Found by an external referee.
+
+**What replaced it.** The design-respecting construction is per **party × dollar-band cell**:
+zero-error Wilson 95% upper bound **18.4%** (n = 17), with a conservative simultaneous
+construction (each cell at 97.5%, Bonferroni) of **22.8%**. Corrected consequences: worst-case
+deletion **16.7%** federal / **17.6%** state (15.8% / 16.7% at the simultaneous bound), both
+still well above the 11.8% registration share, so the finding survives; the panel-wide
+construction now **fails decisively** (2.5% / 3.9%) rather than narrowly, and the paper says so.
+The zero-error verdicts are unchanged — this corrects arithmetic on an unchanged rating.
+`scripts/score_idaho_validation.py` prints both constructions, the pooled one labelled retired;
+`verify_donor_class.py` derives and asserts every corrected figure; checklist row A9x carries the
+supersession note.

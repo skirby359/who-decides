@@ -1,0 +1,4 @@
+election,county,registered_voters,ballots_counted,statewide_ballots_counted,source_url,retrieved
+2021-11-02,KING,1400396,607869,1896481,https://results.vote.wa.gov/results/20211102/turnout.html,2026-08-14
+2023-11-07,KING,1381573,516012,1758084,https://results.vote.wa.gov/results/20231107/turnout.html,2026-08-14
+2025-11-04,KING,1444306,654742,2001425,https://results.vote.wa.gov/results/20251104/turnout.html,2026-08-14

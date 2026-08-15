@@ -616,7 +616,8 @@ age result, not the discovery of the mechanisms. It sits in these literatures:
   *Who Votes Now?* (2013). Section I's presidential→midterm falloff is this.
 - **Off-cycle / election-timing and representation.** Anzia, *Timing and Turnout*
   (2014); Hajnal & Trounstine (2005); Kogan, Lavertu & Peskowitz (2018, on school
-  boards); Einstein et al., "The Gray Vote" (2024) — the closest analog to the age
+  boards); Einstein, Palmer, Hamilton & Singer, "Age and Homeownership Drive the
+  Local Turnout Gap," *Urban Affairs Review* (2025) — the closest analog to the age
   result. Motivates the on-cycle remedy.
 - **Primary-electorate representativeness (the tension).** Sides, Tausanovitch,
   Vavreck & Warshaw, "On the Representativeness of Primary Electorates" (2020) —

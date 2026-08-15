@@ -24,7 +24,7 @@ their cells reproduced exactly. Sections II and III are ROLL-denominated and eve
 off. Both blocks were recomputed against the roll as it then stood, and the divergence was
 attributed to growth in the file.
 
-THE 2026-08-01 RECOMPUTATION WAS ITSELF WRONG, AND WAS CORRECTED 2026-08-08 AFTER EXTERNAL
+THE 2026-08-01 RECOMPUTATION WAS ITSELF WRONG, AND WAS CORRECTED 2026-08-11 AFTER EXTERNAL
 REVIEW. Read this before touching a denominator in this file.
 
 A participation rate is voters divided by the people who COULD have voted: active registrants
@@ -76,7 +76,7 @@ static FOIL extract cannot move. It moved. `scripts/pin_ny_roll.py` freezes it t
 Washington's is — `ny_paper_roll`, 13,540,505 registrants of whom 12,448,034 are
 active — and every roll-denominated derivation below reads that snapshot rather than `voters`.
 Appendix A and Section I still read `voters` directly and correctly: they are
-electorate-denominated and cannot drift. The snapshot was re-taken 2026-08-08 to add
+electorate-denominated and cannot drift. The snapshot was re-taken 2026-08-11 to add
 `registration_date`, whose absence is what made the wrong denominator unavoidable; the re-pin
 is value-identical on every column it already carried.
 
@@ -121,7 +121,7 @@ PARTY = ("CASE WHEN party='DEM' THEN 'DEM' WHEN party='REP' THEN 'REP' "
 GENERALS = [("2024-11-05", 2024, "g24"), ("2022-11-08", 2022, "g22"),
             ("2025-11-04", 2025, "g25"), ("2023-11-07", 2023, "g23")]
 
-# Contemporaneous-eligibility cutoffs, added 2026-08-08. A participation RATE is
+# Contemporaneous-eligibility cutoffs, added 2026-08-11. A participation RATE is
 # voters / people who could have voted, so every denominator below is restricted to
 # registrants enrolled on or before the contest. These dates are the same ones
 # `diag_ny_primary_participation.py` has carried since its first commit; the two scripts
@@ -205,19 +205,65 @@ def derive() -> dict:
     # Section II — the blank bloc, over the PINNED active roll, with 2024 turnout attached.
     # Age is 2024 minus birth year, which is what date_diff('year', ...) returned on the live
     # table too — the paper's stated convention, unchanged by the pin.
+    #
+    # TURNOUT DENOMINATOR CORRECTED 2026-08-13 (Pass 1 of the calculation review). The
+    # composition columns (median, %65+, %18-29) are cross-sectional descriptions of the
+    # 2026 roll and stay on the whole pinned active roll. The 2024-turnout column is a
+    # RATE, and it was denominated on that same whole roll — counting the 6.35% of the
+    # active roll registered after 2024-11-05 as non-voters. That is the §III defect the
+    # 2026-08-11 round fixed, in the one roll-denominated rate its taxonomy missed (§III,
+    # §I and Appendix A were named; §II was not). Eligible basis moves the printed cells
+    # DEM 57.8 -> 60.5, REP 68.7 -> 70.8, NOPARTY 49.3 -> 53.1; the ordering (NOPARTY
+    # lowest) is unchanged. Same NULL convention as §I's 2025 block below. One caveat,
+    # which applies equally to the §III fix: registration_date is a most-recent-
+    # transaction date, so the cutoff also drops registrants recorded as voting in 2024
+    # who re-registered after it (~122K, 1.6% of 2024 voters) — the paper's basis note
+    # says so.
     rows = con.execute(f"""
         WITH e AS (
             SELECT v.party p, 2024 - v.birth_year a,
                    CASE WHEN v.state_voter_id IN (
                         SELECT DISTINCT state_voter_id FROM voter_participation
-                        WHERE election_year=2024 AND kind='GENERAL') THEN 1 ELSE 0 END v24
+                        WHERE election_year=2024 AND kind='GENERAL') THEN 1 ELSE 0 END v24,
+                   (v.registration_date IS NULL
+                    OR v.registration_date <= DATE '2024-11-05') AS elig
             FROM {PIN} v WHERE v.is_active AND v.birth_year IS NOT NULL)
         SELECT p, median(a), 100.0*COUNT(*) FILTER (WHERE a>=65)/COUNT(*),
-               100.0*COUNT(*) FILTER (WHERE a<30)/COUNT(*), 100.0*SUM(v24)/COUNT(*)
+               100.0*COUNT(*) FILTER (WHERE a<30)/COUNT(*),
+               100.0*SUM(v24) FILTER (WHERE elig) / COUNT(*) FILTER (WHERE elig)
         FROM e GROUP BY 1""").fetchall()
     for p, med, p65, p1829, turn in rows:
         d[f"bloc_{p}_median"], d[f"bloc_{p}_65"] = float(med), float(p65)
         d[f"bloc_{p}_1829"], d[f"bloc_{p}_turn"] = float(p1829), float(turn)
+
+    # The 2026-08-13 note's own figures — derived, never transcribed, the same rule the
+    # 2026-08-11 note follows ("they were reproducible the whole time — by dropping the
+    # cutoff"). The retired whole-roll rates come from dropping the eligibility filter;
+    # the caveat's size is measured, and measuring it corrected the draft's own 1.65%
+    # to 1.69% before it was printed.
+    for p, raw in con.execute(f"""
+        WITH e AS (
+            SELECT v.party p,
+                   CASE WHEN v.state_voter_id IN (
+                        SELECT DISTINCT state_voter_id FROM voter_participation
+                        WHERE election_year=2024 AND kind='GENERAL') THEN 1 ELSE 0 END v24
+            FROM {PIN} v WHERE v.is_active AND v.birth_year IS NOT NULL)
+        SELECT p, 100.0*SUM(v24)/COUNT(*) FROM e GROUP BY 1""").fetchall():
+        if p in ("DEM", "REP", "NOPARTY"):   # OTHER is not printed; an unread key is
+            d[f"bloc_{p}_turn_raw"] = float(raw)  # the e3938bd shape, so it stays local
+    (d["bloc_late_pct"], d["bloc_late_voters"],
+     d["bloc_late_voters_pct"]) = (float(x) for x in con.execute(f"""
+        WITH e AS (
+            SELECT CASE WHEN v.state_voter_id IN (
+                        SELECT DISTINCT state_voter_id FROM voter_participation
+                        WHERE election_year=2024 AND kind='GENERAL') THEN 1 ELSE 0 END v24,
+                   (v.registration_date IS NULL
+                    OR v.registration_date <= DATE '2024-11-05') AS elig
+            FROM {PIN} v WHERE v.is_active AND v.birth_year IS NOT NULL)
+        SELECT 100.0*COUNT(*) FILTER (WHERE NOT elig)/COUNT(*),
+               SUM(v24) FILTER (WHERE NOT elig),
+               100.0*SUM(v24) FILTER (WHERE NOT elig)/SUM(v24)
+        FROM e""").fetchone())
 
     # The unaffiliated bloc's share OF THE ROLL, and its share of each general
     # electorate. The paper contrasts the two ("25.5% of the roll, but only
@@ -244,7 +290,7 @@ def derive() -> dict:
     # RATE in an otherwise electorate-denominated section, which is how it survived the
     # 2026-08-01 recompute untouched.
     #
-    # DENOMINATOR CORRECTED 2026-08-08 to contemporaneously eligible registrants. It was
+    # DENOMINATOR CORRECTED 2026-08-11 to contemporaneously eligible registrants. It was
     # computed against the whole pinned active roll, which counts everyone who registered
     # AFTER 4 Nov 2025 — 1.89% of the active roll — as a 2025 non-voter. That basis was
     # enumerated when the pair was restated on 2026-08-06 (it is the "live active, registered
@@ -271,7 +317,7 @@ def derive() -> dict:
     # different contests rather than three; grouping by year alone would silently merge the
     # April presidential and June state primaries into one 2024 figure.
     #
-    # DENOMINATOR CORRECTED 2026-08-08 — the same defect as §I's under-30 pair, and the one
+    # DENOMINATOR CORRECTED 2026-08-11 — the same defect as §I's under-30 pair, and the one
     # that mattered most. Each rate is now denominated on active registrants enrolled on or
     # before that primary, which is the specification
     # `diag_ny_primary_participation.py` — the script this paper names as §III's provenance —
@@ -346,7 +392,7 @@ def derive() -> dict:
     # pin: the pin deliberately carries no district column, and §IV's cells are integer district
     # COUNTS that a 36-registrant change cannot move.
     #
-    # BANDS SYMMETRISED 2026-08-08. They were 40+ / 20-40 / 5-20 / ±5 on the Democratic side
+    # BANDS SYMMETRISED 2026-08-11. They were 40+ / 20-40 / 5-20 / ±5 on the Democratic side
     # against 5-20 / 20+ on the Republican, so a D+25 district read "Likely D" while an R+25
     # read "Safe R" — an avoidable methodology objection on a table whose actual finding
     # (21 of 176 districts inside ±5) is symmetric and unaffected. The seventh band is not
@@ -419,7 +465,7 @@ def derive() -> dict:
                 HAVING COUNT(DISTINCT {col}) > 1)""").fetchone()
 
     # §V — the re-registration share of each cohort, and whether it biases the trend
-    # (2026-08-08). `registration_date` is the most recent registration TRANSACTION, not
+    # (2026-08-11). `registration_date` is the most recent registration TRANSACTION, not
     # necessarily an initial one, so a "cohort" is not a set of first-time registrants. The
     # test is exact rather than inferred: voting requires being registered, so a cohort member
     # with a participation record predating their own registration_date was registered earlier.
@@ -455,7 +501,7 @@ def derive() -> dict:
               AND v.state_voter_id {op} (SELECT DISTINCT state_voter_id
                   FROM voter_participation WHERE election_year < 2024)""").fetchone()
 
-    # Boundary of inference — SURVIVORSHIP, MEASURED RATHER THAN ASSERTED (2026-08-08).
+    # Boundary of inference — SURVIVORSHIP, MEASURED RATHER THAN ASSERTED (2026-08-11).
     # The paper claimed composition shares were "robust" and that the survivorship bias "hits
     # every group equally". Neither was established, and the second is testable. Voters who
     # were purged outright are invisible in a single extract, but INACTIVE status is the
@@ -488,7 +534,7 @@ def derive() -> dict:
                 WHERE election_year=2023 AND kind='GENERAL')""").fetchone()
     d["att23_ratio"] = d["att23_young"] / d["att23_mid"]
 
-    # The size of the denominator error the 2026-08-08 correction removes: the share of
+    # The size of the denominator error the 2026-08-11 correction removes: the share of
     # today's active roll that registered after the oldest contest the paper rates.
     d["post21_share"], = con.execute(f"""
         SELECT 100.0*COUNT(*) FILTER (WHERE registration_date > DATE '{PRIMARY_DATE["pp21"]}')
@@ -759,6 +805,22 @@ PROBES = [
      r"specification now used throughout the series \((\d[\d,]*)\)",
      ("_prev_panel", "panel_n"), 0),
 
+    # ---- The 2026-08-13 note paragraph (§II turnout denominator). Every figure it
+    # states is derived: the retired whole-roll rates by dropping the cutoff, the
+    # corrected rates against the same keys the table probes, and the caveat's size
+    # by measurement. The retired→corrected pairs capture BOTH sides of each arrow.
+    ("§III note 08-13 — the share of the roll the cutoff removes",
+     r"counting\s+the \*\*([\d.]+)%\*\* of the active roll registered after the 2024 general",
+     "bloc_late_pct", 0.05),
+    ("§III note 08-13 — the three retired→corrected pairs",
+     r"moves DEM ([\d.]+)% → \*\*([\d.]+)%\*\*, REP ([\d.]+)% → \*\*([\d.]+)%\*\*,\s+"
+     r"NOPARTY ([\d.]+)% → \*\*([\d.]+)%\*\*",
+     ("bloc_DEM_turn_raw", "bloc_DEM_turn", "bloc_REP_turn_raw", "bloc_REP_turn",
+      "bloc_NOPARTY_turn_raw", "bloc_NOPARTY_turn"), 0.05),
+    ("§III note 08-13 — the transaction-date caveat's size",
+     r"removes \*\*([\d,]+)\*\* registrants —\s+\*\*([\d.]+)%\*\* of the recorded 2024 voters",
+     ("bloc_late_voters", "bloc_late_voters_pct"), 0.05),
+
     # ---- Section IV
     ("§III 2024 presidential primary",
      r"\| 2024 Presidential \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \|",
@@ -850,7 +912,7 @@ PROBES = [
     ("§III — the decisive-contest restatement, 2021 then 2024",
      r"2021 odd-year DEM ([\d.]+)% vs REP ([\d.]+)%; 2024 state DEM ([\d.]+)% vs REP ([\d.]+)%",
      ("pp21_DEM", "pp21_REP", "pp24_DEM", "pp24_REP"), 0.05),
-    # The 2026-08-08 note quantifies its own correction. These probes exist because the note
+    # The 2026-08-11 note quantifies its own correction. These probes exist because the note
     # they replace carried its figures UNPROBED, which is how it kept a wrong mechanism in
     # print: "the roll grew" was a sentence no assertion could reach.
     ("§III note — the size of the denominator correction, both endpoints",
@@ -888,7 +950,7 @@ PROBES = [
     ("abstract — roll scale restated",
      r"individual-record measurement on ([\d.]+)M New York", "roll_m", 0.05),
 
-    # ---- added 2026-08-08, the external-review round. Every claim introduced by that round
+    # ---- added 2026-08-11, the external-review round. Every claim introduced by that round
     # is probed, on the rule that a caveat carrying a number is a result: the 2026-08-01
     # round's own recompute note carried unprobed figures and that is how it kept a wrong
     # mechanism in print for a week.
@@ -974,7 +1036,7 @@ PROBES = [
     ("front matter — Appendix C's ceiling, restated in caveat (2)",
      r"external\s+ceiling of \*\*([\d.]+) points\*\*", "nysboe_worst", 0.005),
 
-    # ---- §V's re-registration caveat, 2026-08-08.
+    # ---- §V's re-registration caveat, 2026-08-11.
     ("§V — re-registration lower bound, both measurable cohorts",
      r"at least \*\*([\d.]+)%\*\* of the 2020 cohort and\s+\*\*([\d.]+)%\*\* of the 2024 cohort",
      ("rereg2020_share", "rereg2024_share"), 0.005),
@@ -1034,7 +1096,7 @@ AUDIT_BOUNDS = {
 COVERAGE_EXEMPT = [
     (r"^(?:19|20)\d{2}$", "a calendar year, not a result"),
     (r"^\d{1,2}$", "small integer — chamber sizes, band edges, list ordinals"),
-    # Added 2026-08-08 with the source-identity block. A SHA-256 tokenises into runs of
+    # Added 2026-08-11 with the source-identity block. A SHA-256 tokenises into runs of
     # digits, so the gate sees '256', '027', '4807' and so on as unmapped figures. They are
     # fragments of one opaque identifier, not results, and the identifier IS checkable — the
     # byte count beside it is asserted against the file on disk by the probe "Methods — the
@@ -1049,7 +1111,7 @@ COVERAGE_EXEMPT = [
 ]
 
 COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
-    # PRUNED 2026-08-08. The six literals that used to sit here covered the 2026-08-01
+    # PRUNED 2026-08-11. The six literals that used to sit here covered the 2026-08-01
     # recompute note's deltas and the retired sides of its two arrows. That note has been
     # replaced: its figures are now derived — including the UNCORRECTED ones, by
     # `raw_*` — so nothing in it needs exempting. The rule that produced them was sound

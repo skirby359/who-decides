@@ -321,7 +321,7 @@ rather than assumed.
 | state (chamber) | loaded / expected | not close | no D-v-R |
 |---|---|--:|--:|
 | WA House 2024 | 98 / 98 | **87.8%** | 39.8% (39) |
-| NY Assembly 2022 | 150 / 150 | **88.0%** | 32.0% (48) |
+| NY Assembly 2022 | 149 loaded + 1 certified supplement (AD-23) | **88.0%** | 32.0% (48) |
 | TX House 2024 | 96 canvass + 54 certified single-candidate | **94.0%** | 40.7% (61) |
 | ID House 2024 | 70 / 70 | **92.9%** | 28.6% (20) |
 
@@ -612,7 +612,7 @@ chambers come from `scripts/diag_safe_seat_robustness.py`.
 | ID House | 95.7% | 92.9% | 92.9% | 91.4% | 90.0% | 70 |
 
 Even at a stringent 15-point cut, **74–90%** of seats are not close; at a loose 5-point
-cut, 93–98%. Across every tested cutoff from 5 to 15 points, a large majority of seats
+cut, 92–98%. Across every tested cutoff from 5 to 15 points, a large majority of seats
 remain not close.
 
 Both New York rows — this sweep and the four-state table above — are now on the complete

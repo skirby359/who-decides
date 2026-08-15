@@ -36,7 +36,7 @@ of each workbook rather than assumed, because the minor-party columns change acr
 parties gain and lose ballot status.
 
 PROVENANCE. Figures below are the "Statewide Total / Active" row of the NYSBOE workbook served
-at `https://elections.ny.gov/<slug>`, retrieved 2026-08-08. Those URLs return .xlsx directly
+at `https://elections.ny.gov/<slug>`, retrieved 2026-08-11. Those URLs return .xlsx directly
 and the host answers 403 to scripted clients, so they were read through a browser rather than
 fetched here; the constants are transcribed so this script has no network dependency and no
 downloaded artifact to keep in step. Re-check them against the published workbook, not against

@@ -726,6 +726,80 @@ def participation(d):
     return []
 
 
+def percycle_ordering_claims(d) -> list[str]:
+    """The abstract's two per-cycle ordering claims, checked as claims (2026-08-14, Pass 2).
+
+    "New York is the most top-heavy in every cycle, while the ordering beneath it shifts
+    from cycle to cycle (§A)." §A's table is owned by its diag script and exempted from
+    this gate, so the abstract's summary of it was checked by nothing — and its previous
+    wording ("Washington and Idaho trade the bottom two places") was FALSE for 2018, where
+    Idaho ranked second and the bottom two were Washington and Texas. Same blind spot as
+    "the highest of the four": an ordering carries no numeric token.
+
+    Derived ordinally on the outflow() filter (donor = name|ZIP within cycle). This basis
+    reproduces §A's printed cells to the last digit on 18 of 20 and within 0.1 on the rest,
+    and every ordinal gap it relies on exceeds 1 point, so last-digit basis differences
+    cannot flip a verdict. `d` carries `pc_top1_<cycle>_<st>` for the report.
+    """
+    fails = []
+    per_cyc: dict[int, dict[str, float]] = {}
+    filt = ("regexp_matches(COALESCE(fec_candidate_id,''),'^[CPHS][0-9]') "
+            "AND contributor_state='{st}' AND contribution_amount>0")
+    for st in HEADLINE_STATES:
+        con = duckdb.connect(str(DATA / f"{st.lower()}_statewide.duckdb"), read_only=True)
+        rows = con.execute(f"""
+            WITH dd AS (SELECT election_cycle cyc,
+                              contributor_name || '|' || COALESCE(contributor_zip,'') dnr,
+                              SUM(contribution_amount) amt
+                        FROM individual_contributions WHERE {filt.format(st=st)}
+                        GROUP BY 1, 2),
+            r AS (SELECT cyc, amt,
+                         ROW_NUMBER() OVER (PARTITION BY cyc ORDER BY amt DESC) rn,
+                         COUNT(*) OVER (PARTITION BY cyc) n,
+                         SUM(amt) OVER (PARTITION BY cyc) s
+                  FROM dd)
+            SELECT cyc, 100.0*SUM(amt) FILTER (WHERE rn <= CEIL(n*0.01))/ANY_VALUE(s)
+            FROM r GROUP BY 1""").fetchall()
+        con.close()
+        for cyc, share in rows:
+            per_cyc.setdefault(int(cyc), {})[st] = float(share)
+    not_ny = [c for c, row in sorted(per_cyc.items())
+              if max(row, key=row.get) != "NY"]
+    if not_ny:
+        fails.append(
+            f"abstract: 'New York is the most top-heavy in every cycle' is false in "
+            f"{not_ny} — fix the sentence, not this guard.")
+    tails = {c: tuple(sorted((s for s in row if s != "NY"), key=row.get, reverse=True))
+             for c, row in per_cyc.items()}
+    if len(set(tails.values())) < 2:
+        fails.append(
+            "abstract: 'the ordering beneath it shifts from cycle to cycle' is false — "
+            "the non-NY ordering is identical in every cycle. Fix the sentence, not this "
+            "guard.")
+    # "Washington has the broadest donor participation relative to population" — a
+    # four-state superlative over pc_*_rate, previously asserted value-by-value only.
+    rates = {st: d.get(f"pc_{st}_rate") for st in HEADLINE_STATES}
+    if all(v is not None for v in rates.values()):
+        top = max(rates, key=rates.get)
+        if top != "WA":
+            fails.append(
+                f"abstract: 'Washington has the broadest donor participation relative to "
+                f"population' is false — {top} leads at {rates[top]:.2f}% vs WA "
+                f"{rates['WA']:.2f}%. Fix the sentence, not this guard.")
+    # §3's HEADING is an ordering ("largest in Idaho, then Washington"): each value is
+    # probed, but a WA/TX swap would leave every value probe green while the heading went
+    # false — the same shape the other guards here close.
+    ret = {st: d.get(f"out_{st}_retired") for st in HEADLINE_STATES}
+    if all(v is not None for v in ret.values()):
+        order = sorted(ret, key=ret.get, reverse=True)
+        if order[:2] != ["ID", "WA"]:
+            fails.append(
+                f"§3 heading: 'The retired-donor economy is largest in Idaho, then "
+                f"Washington' is false — measured ordering is {' > '.join(order)}. Fix "
+                f"the heading, not this guard.")
+    return fails
+
+
 def verify_individual_layer():
     """Derive the headline table plus F5/F6 and assert both against the paper's prose."""
     d = {
@@ -755,6 +829,7 @@ def verify_individual_layer():
              ["§E: the paper calls Idaho's Senate out-of-state share 'the highest of the "
               "four', and it is not — a probe cannot catch a superlative, so it is checked "
               "here"])
+    extra += percycle_ordering_claims(d)
     norm = vp.normalise(PAPER.read_text(encoding="utf-8"))
     audit_sections, offsets, spans = {}, {}, {}
     for name, (start, end) in AUDIT_BOUNDS.items():

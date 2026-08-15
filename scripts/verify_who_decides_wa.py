@@ -10,10 +10,11 @@ hundred cells by eye, every time, which is not a gate.
 The derivations were sound — every cell spot-checked against the paper reproduced — so what
 changed is that the comparison is now performed by the machine and its failure is fatal.
 
-This paper is POSTED (SSRN abstract 7149263, 2026-07-26) and unmodified since. A failure here
-is therefore a correction to a public preprint rather than a pre-submission fix, which raises
-the bar for changing the paper and lowers it for suspecting the probe. Reproduce a mismatch
-by hand before editing anything.
+This paper is POSTED (SSRN abstract 7149263, 2026-07-26). The SOURCE has been revised since —
+the corrections ledger (docs/who-decides-wa-corrections-ledger.md) records every change, and
+the posted PDF still serves the pre-correction text until the owed re-upload — so "posted"
+raises the bar for changing the paper and lowers it for suspecting the probe, but does NOT
+mean the source is frozen. Reproduce a mismatch by hand before editing anything.
 
 Hits data/wa_vrdb.duckdb DIRECTLY with from-scratch SQL, not by importing the diag scripts.
 Read-only; AGGREGATE OUTPUT ONLY — the VRDB carries personal data under RCW 29A.08.720 and
@@ -252,6 +253,30 @@ def _a_rejection(con, d: dict) -> None:
             "Appendix A's rejection check needs `voter_ballot_status`, which is absent. "
             "Load a per-voter SoS ballot-status file (`main.py refresh-gotv`). Failing "
             "rather than skipping: an unmeasured channel must not read as a measured one.")
+    # ⚠ THIS BASIS FLOATS, AND AS OF 2026-08-13 THIS BLOCK IS EXPECTED TO FAIL. Read this
+    # before "fixing" anything.
+    #
+    # `MAX(report_date)` means the three Appendix A rejection figures are recomputed against
+    # whatever ballot-status snapshot was loaded most recently, so every load moves them. The
+    # paper says so in its own words — "it reads the panel at its latest snapshot" — which
+    # declares the basis as floating rather than pinning it, and that is the defect.
+    #
+    # The 2026-08-13 load demonstrated it rather than leaving it hypothetical: 2.89 -> 2.96
+    # (under-30), 0.76 -> 0.82 (65+), ratio 3.8 -> 3.6. Nothing about the finding changes —
+    # the channel shifts the 18-29 share by 0.13 points against a 6.6-point composition gap —
+    # but these are PUBLISHED figures (SSRN 7149263) and they will keep moving, because Too
+    # Late rejections accumulate after election day: statewide rejection ran 0.70% on
+    # 2026-07-21, 0.65% on 08-05 and 1.29% on 08-13, and it climbs until certification.
+    #
+    # AUTHOR DECISION 2026-08-13: do NOT pin yet and do NOT resubmit yet. Pinning now would
+    # fix the figures to a pre-certification count and then need re-pinning anyway, so the
+    # gate is left FAILING on these three cells deliberately, until the certified file lands
+    # (~three weeks post-primary). At that point: pin to the certified snapshot, state the
+    # date in the paper in place of "its latest snapshot", derive against that fixed date,
+    # and record the move in `who-decides-wa-corrections-ledger.md`.
+    #
+    # So: a red run on THESE THREE CELLS is expected and accepted. A red run anywhere else in
+    # this verifier is not.
     d["a_rej_date"], = con.execute(
         "SELECT MAX(report_date) FROM voter_ballot_status").fetchone()
     rows = con.execute("""
@@ -432,8 +457,30 @@ def _f_odd(con, d: dict) -> None:
     d["f_king_share_lo"] = 100.0 * min(shares.values())
     d["f_king_share_hi"] = 100.0 * max(shares.values())
 
+    # EXACT non-King denominators (2026-08-14, referee item 7). The statewide-item
+    # denominator was previously `ballots * (1 - VRDB King share)` — an estimate the
+    # paper itself flagged as unbuilt work. King's certified countywide ballots are on
+    # the same SoS turnout pages as the OFFICIAL constants; they are pinned with source
+    # URLs in docs/reference/wa_county_turnout_king_oddyears.csv, and the pin's statewide
+    # column must reconcile with OFFICIAL exactly or the run stops — a pinned file that
+    # disagrees with the constant it rode in with is a transcription error, not a basis.
+    import csv as _csv
+    _king_pin = {}
+    _pin_path = vp.DOCS / "reference" / "wa_county_turnout_king_oddyears.csv"
+    with _pin_path.open(newline="", encoding="utf-8") as fh:
+        for r in _csv.DictReader(fh):
+            _king_pin[r["election"]] = int(r["ballots_counted"])
+            if int(r["statewide_ballots_counted"]) != OFFICIAL[r["election"]]:
+                raise RuntimeError(
+                    f"{_pin_path.name}: statewide count for {r['election']} disagrees with "
+                    f"the OFFICIAL constant — re-fetch the turnout page.")
+    d["f_king_2021"] = _king_pin["2021-11-02"]
+    d["f_king_2023"] = _king_pin["2023-11-07"]
+    d["f_king_2025"] = _king_pin["2025-11-04"]
+
     for eid, lab, ballots in _F_ODD:
-        denom = ballots * (1 - shares[lab])
+        date = {"2021": "2021-11-02", "2023": "2023-11-07", "2025": "2025-11-04"}[lab]
+        denom = ballots - _king_pin[date]
         rows = con.execute("""
             SELECT SUM(pr.votes) FROM races r JOIN precinct_results pr USING (race_id)
             JOIN precincts p USING (precinct_id)
@@ -940,6 +987,81 @@ def derive() -> dict:
     d["tenure_off_lo"] = min(_tenure[t] for t in OFF_YEARS)
     d["tenure_off_hi"] = max(_tenure[t] for t in OFF_YEARS)
 
+    # --- Registration-date validation (2026-08-14, referee item 1) -------
+    # WAC 434-324-045 lets an update's receipt date become the registration date, so
+    # `registration_date <= election` could in principle misdate updaters and the
+    # decomposition's reconstructed rolls with them. Measured two ways, both derived
+    # here so the paper's validation is asserted rather than narrated:
+    #   (a) SNAPSHOT IDENTITY — of registrants present in BOTH the September-2023
+    #       snapshot and the April-2026 roll, the share whose registration_date is
+    #       byte-identical across the 31 months, and the share re-stamped LATER;
+    #   (b) the PER-ELECTION CEILING — credited voters at E whose current date
+    #       postdates E (their own ballot credit proves registration by E), and the
+    #       largest movement any published participation rate shows when they and
+    #       every other provably-registered voter are reclassified as eligible.
+    (d["regv_common_m"], d["regv_same_pct"],
+     d["regv_restamp_pct"]) = (float(x) for x in con.execute("""
+        WITH j AS (SELECT s.registration_date r23, v.registration_date r26
+                   FROM voters_20230901 s JOIN voters v USING (state_voter_id))
+        SELECT COUNT(*)/1e6,
+               100.0*COUNT(*) FILTER (WHERE r23 = r26)/COUNT(*),
+               100.0*COUNT(*) FILTER (WHERE r26 > r23)/COUNT(*) FROM j""").fetchone())
+    _late, _rdelta = [], []
+    for date, _tg in ELECTIONS:
+        row = con.execute(f"""
+            WITH earliest AS (SELECT state_voter_id, MIN(election_date) fe
+                              FROM voting_history GROUP BY 1),
+            b AS (SELECT (v.registration_date IS NOT NULL
+                          AND v.registration_date <= DATE '{date}') reg_ok,
+                         (ee.fe IS NOT NULL AND ee.fe <= DATE '{date}') voted_by,
+                         (h.state_voter_id IS NOT NULL) voted_e
+                  FROM voters v
+                  LEFT JOIN earliest ee USING (state_voter_id)
+                  LEFT JOIN (SELECT DISTINCT state_voter_id FROM voting_history
+                             WHERE election_date = DATE '{date}') h
+                         USING (state_voter_id)
+                  WHERE v.birthdate IS NOT NULL AND {_age(date)} >= 18)
+            SELECT 100.0*COUNT(*) FILTER (WHERE voted_e AND NOT reg_ok)
+                   / NULLIF(COUNT(*) FILTER (WHERE voted_e), 0),
+                   100.0*COUNT(*) FILTER (WHERE voted_e AND reg_ok)
+                   / NULLIF(COUNT(*) FILTER (WHERE reg_ok), 0),
+                   100.0*COUNT(*) FILTER (WHERE voted_e AND (reg_ok OR voted_by))
+                   / NULLIF(COUNT(*) FILTER (WHERE reg_ok OR voted_by), 0)
+            FROM b""").fetchone()
+        _late.append(float(row[0]))
+        _rdelta.append(abs(float(row[2]) - float(row[1])))
+    d["regv_late_max"] = max(_late)
+    d["regv_rate_maxdelta"] = max(_rdelta)
+
+    # --- Longitudinal generals participation (2026-08-14, referee item 4) ---
+    # The measure that EARNS the word "habitual": how many of the five 2021-2025
+    # November generals each off-year electorate's members are credited in, against
+    # the presidential electorate on the same panel. Current-roll panel, so the
+    # neighbouring survivorship caveats apply here too.
+    _GEN5 = "('2021-11-02','2022-11-08','2023-11-07','2024-11-05','2025-11-04')"
+    _hm, _hg = [], []
+    for date in ("2021-11-02", "2023-11-07", "2025-11-04"):
+        m, g = con.execute(f"""
+            WITH e AS (SELECT DISTINCT state_voter_id FROM voting_history
+                       WHERE election_date = DATE '{date}'),
+            k AS (SELECT e.state_voter_id, COUNT(DISTINCT h.election_date) n
+                  FROM e JOIN voting_history h USING (state_voter_id)
+                  WHERE h.election_date IN {_GEN5} GROUP BY 1)
+            SELECT AVG(n), 100.0*COUNT(*) FILTER (WHERE n >= 4)/COUNT(*)
+            FROM k""").fetchone()
+        _hm.append(float(m))
+        _hg.append(float(g))
+    d["hab5_mean_lo"], d["hab5_mean_hi"] = min(_hm), max(_hm)
+    d["hab5_ge4_lo"], d["hab5_ge4_hi"] = min(_hg), max(_hg)
+    d["hab5_pres_mean"], d["hab5_pres_ge4"] = (float(x) for x in con.execute(f"""
+        WITH p AS (SELECT DISTINCT state_voter_id FROM voting_history
+                   WHERE election_date = DATE '2024-11-05'),
+        k AS (SELECT p.state_voter_id, COUNT(DISTINCT h.election_date) n
+              FROM p JOIN voting_history h USING (state_voter_id)
+              WHERE h.election_date IN {_GEN5} GROUP BY 1)
+        SELECT AVG(n), 100.0*COUNT(*) FILTER (WHERE n >= 4)/COUNT(*)
+        FROM k""").fetchone())
+
     # Cited-literature figures in the Interpretation section. TRANSCRIBED, not
     # derived — same treatment as the OFFICIAL turnout benchmarks above, and
     # asserted at tolerance 0 because a transcription's only failure mode is a
@@ -1183,12 +1305,23 @@ def derive() -> dict:
     # coverage and nothing checks it.
     #
     # BASIS, taken from scripts/diag_wa_age_curve.py rather than guessed: age is
-    # `2025 - YEAR(birthdate)`, the roll is every registrant at that age in the
-    # April 2026 extract, turnout divides by that roll, and retention divides the
-    # both-voted count by the 2024 voters. Note `_ret` above restricts to 19-95;
-    # age 18 must stay out of any peak or extremum, because an 18-year-old in
-    # November 2025 was 17 at the 2024 general and the retention cell has no
-    # honest denominator.
+    # `2025 - YEAR(birthdate)`, the Roll column is every registrant at that age
+    # in the April 2026 extract, and retention divides the both-voted count by
+    # the 2024 voters. Note `_ret` above restricts to 19-95; age 18 must stay
+    # out of any peak or extremum, because an 18-year-old in November 2025 was
+    # 17 at the 2024 general and the retention cell has no honest denominator.
+    #
+    # TURNOUT DENOMINATORS CORRECTED 2026-08-13 (Pass 1 of the calculation
+    # review). The two turnout columns divide by registrants enrolled on or
+    # before EACH election — the body rate table's `_eligible` basis, which the
+    # appendix claimed ("the same caveats as the body's rate table") while both
+    # this derivation and the diag script divided by the whole April-2026 roll
+    # at that age. The gap was +0.9 to +5.2 points on the 2024 column across
+    # the printed rows. Retention is untouched: its denominator is 2024 voters.
+    # The correction also retired "age 19 is the minimum of the young range" —
+    # a denominator artifact (19-year-olds registered after Nov 2024 could not
+    # have voted in it); the true minimum is the mid-20s trough at 25. Ledger
+    # item C11 in docs/who-decides-wa-corrections-ledger.md.
     _curve = con.execute("""
         WITH v24 AS (SELECT DISTINCT state_voter_id FROM voting_history
                      WHERE election_date = DATE '2024-11-05'),
@@ -1196,13 +1329,20 @@ def derive() -> dict:
                      WHERE election_date = DATE '2025-11-04'),
              base AS (SELECT 2025 - YEAR(v.birthdate) AS age,
                              (a.state_voter_id IS NOT NULL) AS v_24,
-                             (b.state_voter_id IS NOT NULL) AS v_25
+                             (b.state_voter_id IS NOT NULL) AS v_25,
+                             (v.registration_date IS NOT NULL AND
+                              v.registration_date <= DATE '2024-11-05') AS e_24,
+                             (v.registration_date IS NOT NULL AND
+                              v.registration_date <= DATE '2025-11-04') AS e_25
                       FROM voters v
                       LEFT JOIN v24 a USING (state_voter_id)
                       LEFT JOIN v25 b USING (state_voter_id)
                       WHERE v.birthdate IS NOT NULL)
-        SELECT age, COUNT(*), 100.0 * SUM(CASE WHEN v_24 THEN 1 ELSE 0 END) / COUNT(*),
-               100.0 * SUM(CASE WHEN v_25 THEN 1 ELSE 0 END) / COUNT(*)
+        SELECT age, COUNT(*),
+               100.0 * SUM(CASE WHEN v_24 AND e_24 THEN 1 ELSE 0 END)
+                     / NULLIF(COUNT(*) FILTER (WHERE e_24), 0),
+               100.0 * SUM(CASE WHEN v_25 AND e_25 THEN 1 ELSE 0 END)
+                     / NULLIF(COUNT(*) FILTER (WHERE e_25), 0)
         FROM base WHERE age BETWEEN 18 AND 95 GROUP BY 1 ORDER BY 1""").fetchall()
     d["h_n_ages"] = len(_curve)
     _roll = {int(r[0]): int(r[1]) for r in _curve}
@@ -1215,9 +1355,13 @@ def derive() -> dict:
         d[f"hrow_{_a}_ret"] = float(_ret[_a])
 
     # The young end, where the non-monotonicity is in TURNOUT and not retention —
-    # the appendix says so explicitly, so both measures are asserted.
+    # the appendix says so explicitly, so both measures are asserted. The
+    # minimum-of-the-young-range claim is asserted as the AGE holding it (the
+    # tossup18_next_year pattern): on the retired whole-roll basis that age was
+    # 19, which the eligibility correction exposed as a denominator artifact.
     for _a in (19, 20, 25):
         d[f"h_t24_{_a}"] = _t24[_a]
+    d["h_t24_young_min_age"] = float(min(range(19, 30), key=lambda a: _t24[a]))
     for _a in (19, 21):
         d[f"h_ret_{_a}"] = float(_ret[_a])
     d["h_ret_20"] = float(_ret[20])
@@ -1412,19 +1556,25 @@ def derive() -> dict:
               "acs_cvap_18-29": 19.8, "acs_cvap_30-44": 26.7,
               "acs_cvap_45-64": 30.9, "acs_cvap_65+": 22.6})
 
-    # The registered roll itself, as of the current extract.
+    # The registered roll itself, as of the current extract — on BOTH bases. The
+    # ladder's primary row is the ACTIVE roll since 2026-08-14 (referee item 5):
+    # once the paper had itself measured that the full roll's inactive rows are much
+    # younger and that the full-roll basis flatters the ladder's gradient by about a
+    # point, series consistency stopped being a reason to keep the flattering basis
+    # as the headline. The full-roll figures stay derived for the sensitivity note.
     a26 = _age("2026-04-01")
-    rows = con.execute(f"""
-        WITH e AS (SELECT {_band('2026-04-01')} b FROM voters v
-                   WHERE v.birthdate IS NOT NULL AND {a26} >= 18)
-        SELECT b, COUNT(*) FROM e GROUP BY 1""").fetchall()
-    rd = dict(rows)
-    rt = sum(rd.values()) or 1
-    for b in BANDS:
-        d[f"roll_{b}"] = 100.0 * rd.get(b, 0) / rt
-    d["roll_median"], = con.execute(
-        f"SELECT median({a26}) FROM voters v WHERE v.birthdate IS NOT NULL AND {a26} >= 18"
-    ).fetchone()
+    for pfx, where in (("roll", "1=1"), ("aroll", "v.status_code = 'A'")):
+        rows = con.execute(f"""
+            WITH e AS (SELECT {_band('2026-04-01')} b FROM voters v
+                       WHERE v.birthdate IS NOT NULL AND {a26} >= 18 AND {where})
+            SELECT b, COUNT(*) FROM e GROUP BY 1""").fetchall()
+        rd = dict(rows)
+        rt = sum(rd.values()) or 1
+        for b in BANDS:
+            d[f"{pfx}_{b}"] = 100.0 * rd.get(b, 0) / rt
+        d[f"{pfx}_median"], = con.execute(
+            f"SELECT median({a26}) FROM voters v "
+            f"WHERE v.birthdate IS NOT NULL AND {a26} >= 18 AND {where}").fetchone()
 
     # Survivorship: voters who cast a ballot and are no longer on the roll, aged via the
     # retained September-2023 snapshot (the only way to age someone the current roll lost).
@@ -1653,9 +1803,16 @@ def build_probes(derived: dict):
 
     # Who is counted.
     p += [
-        ("who is counted — registered roll",
-         r"\| Registered roll \(April 2026\) \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| "
+        # The ladder's roll row is the ACTIVE roll since 2026-08-14 (referee item 5);
+        # the full-roll figures move to the sensitivity note beneath the table and
+        # stay asserted there, so neither basis can drift.
+        ("who is counted — active registered roll",
+         r"\| Active registered roll \(April 2026\) \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| "
          r"([\d.]+)% \| (\d+) \|",
+         tuple(f"aroll_{b}" for b in BANDS) + ("aroll_median",), 0.05),
+        ("who is counted — the full-roll sensitivity figures in the note",
+         r"full roll including inactive registrants reads ([\d.]+)% / ([\d.]+)% / "
+         r"([\d.]+)% / ([\d.]+)% with median (\d+)",
          tuple(f"roll_{b}" for b in BANDS) + ("roll_median",), 0.05),
         ("who is counted — 2024 returners",
          r"\| 2024 presidential ballot-returners \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| "
@@ -1708,10 +1865,10 @@ def build_probes(derived: dict):
          r"with\s*the midterm in between \(([\d.]+)% 65\+\)", "e22_comp_65+", 0.05),
         ("prose — 65+ ladder across the five benchmark rows",
          r"The 65\+ share climbs \*\*([\d.]+)% → ([\d.]+)% → ([\d.]+)% → ([\d.]+)% → ([\d.]+)%\*\*",
-         ("acs_adult_65+", "acs_cvap_65+", "roll_65+", "e24_comp_65+", "off_comp_65+"), 0.05),
+         ("acs_adult_65+", "acs_cvap_65+", "aroll_65+", "e24_comp_65+", "off_comp_65+"), 0.05),
         ("prose — 18-29 ladder across the five benchmark rows",
          r"the 18–29 share falls \*\*([\d.]+)% → ([\d.]+)% → ([\d.]+)% → ([\d.]+)% → ([\d.]+)%\*\*",
-         ("acs_adult_18-29", "acs_cvap_18-29", "roll_18-29", "e24_comp_18-29",
+         ("acs_adult_18-29", "acs_cvap_18-29", "aroll_18-29", "e24_comp_18-29",
           "off_comp_18-29"), 0.05),
         ("who is counted — ACS adult residents (consistency, not verification)",
          r"\| WA adult residents \(ACS 2020–24\) \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| "
@@ -1788,7 +1945,7 @@ def build_probes(derived: dict):
         ("prose — the median ladder, off-year against roll and CVAP",
          r"The median off-year\s*ballot-returner is \*\*(\d+)\*\*, about a decade older than "
          r"the median registered voter \((\d+)\)",
-         ("off_median", "roll_median"), 0.5),
+         ("off_median", "aroll_median"), 0.5),
         ("appendix H — the age the tail decline begins",
          r"declines from \*\*(\d+)\*\* onward", "h_decline_start", 0.0),
         ("prose — off-year returner senior share",
@@ -1797,7 +1954,7 @@ def build_probes(derived: dict):
          r"Voters 65\+ make up \*\*~([\d.]+)–([\d.]+)%\*\*",
          ("off_65_band_lo", "off_65_band_hi"), 0.5),
         ("prose — the headline ~38% restated in the basis note",
-         r"and the headline ~([\d.]+)% — has the \*\*active\*\* ro",
+         r"and the headline ~([\d.]+)% — has the active roll as\s+its denominator",
          "off_turnout_avg", 0.5),
         ("prose — participation rate gap, 18-29 vs 65\\+",
          r"participation falls from \*\*([\d.]+)%\*\* \(2024\) to about \*\*([\d.]+)%\*\* "
@@ -1962,12 +2119,14 @@ def build_probes(derived: dict):
           "e21_cov_pct", "e21_min65", "e21_max65"), 0.05),
     ]
     p += [
-        # ADDED 2026-08-09. The ladder's roll row is the full roll and every
-        # turnout rate in the paper is on the active roll; nothing said so.
+        # ADDED 2026-08-09; RE-ANCHORED 2026-08-14 when the ladder's primary row
+        # switched to the active roll (referee item 5) and the note inverted —
+        # the same nine figures, in the note's new arrangement.
         ("prose — active vs full roll, the ladder's basis disclosure",
-         r"The ([\d.]+)M\s*roll carries ([\d,]+) inactive registrants \(([\d.]+)%\), who are much younger "
-         r"than active ones\s*\(median (\d+) against (\d+); ([\d.]+)% are 65\+ against "
-         r"([\d.]+)%; ([\d.]+)% are under 30 against ([\d.]+)%\)",
+         r"The ([\d.]+)M full roll additionally\s+carries ([\d,]+) inactive registrants "
+         r"\(([\d.]+)%\), who are much\s+younger than active ones \(median (\d+) against "
+         r"(\d+); ([\d.]+)% are 65\+ against ([\d.]+)%; ([\d.]+)% are\s+under 30 against "
+         r"([\d.]+)%\)",
          ("roll_m", "roll_inactive_n", "roll_inactive_pct", "roll_inactive_median",
           "roll_active_median", "roll_inactive_65+", "roll_active_65+",
           "roll_inactive_18-29", "roll_active_18-29"), 0.05),
@@ -1987,10 +2146,9 @@ def build_probes(derived: dict):
         ("prose — how closely the implied denominator lands on the active roll",
          r"against an active roll of [\d,]+, a ([\d.]+)% match",
          "roll_active_implied_gap", 0.005),
-        ("prose — the ladder row restated on the active basis",
-         r"the row would read 65\+ \*\*([\d.]+)%\*\*, 18–29 \*\*([\d.]+)%\*\*, median "
-         r"\*\*(\d+)\*\*",
-         ("roll_active_65+", "roll_active_18-29", "roll_active_median"), 0.05),
+        # The retired "the row would read ..." probe's three figures now live in the
+        # note's "full roll including inactive registrants reads ..." sentence, which
+        # the who-is-counted full-roll probe above asserts in full.
     ]
 
     # ---------------------------------------------------------------
@@ -2002,10 +2160,39 @@ def build_probes(derived: dict):
     # content, which is why it went before the three larger appendices.
     # ---------------------------------------------------------------
     p += [
-        ("interpretation — habitual core span (RAW basis, not the harmonizer's)",
-         r"Roughly \*\*(\d+)–(\d+)%\*\* of each off-year electorate also cast a 2024 "
-         r"presidential ballot",
+        # RESTRUCTURED 2026-08-14 (referee item 4): the corrected bound now leads and
+        # the uncorrected raw span sits in the parenthetical, so both are captured from
+        # the one sentence — the lead is what a citing reader takes.
+        ("interpretation — the corrected overlap bound leads; the raw span follows",
+         r"At most \*\*(\d+)–(\d+)%\*\* of each off-year electorate also cast a 2024\s+"
+         r"presidential ballot \(the survivorship-corrected bound derived below; the "
+         r"uncorrected,\s+roll-visible figures read (\d+)–(\d+)%\)",
+         ("core_corr_lo", "core_corr_hi", "core_lo", "core_hi"), 0.5),
+        # The longitudinal measure that earns the word "habitual" (referee item 4):
+        # off-year voters' participation across ALL FIVE 2021-2025 November generals,
+        # against the presidential electorate on the same current-roll panel.
+        ("interpretation — the sub-note's uncorrected-range lead",
+         r"The uncorrected (\d+)–(\d+)% range is biased upward",
          ("core_lo", "core_hi"), 0.5),
+        ("interpretation — longitudinal generals participation, off-year vs presidential",
+         r"averaged\s+\*\*([\d.]+)–([\d.]+)\*\* of the five 2021–2025 November generals, "
+         r"and \*\*([\d.]+)–([\d.]+)%\*\* cast a ballot in at\s+least four of the five, "
+         r"against \*\*([\d.]+)\*\* and \*\*([\d.]+)%\*\* for the presidential electorate",
+         ("hab5_mean_lo", "hab5_mean_hi", "hab5_ge4_lo", "hab5_ge4_hi",
+          "hab5_pres_mean", "hab5_pres_ge4"), 0.05),
+        # The registration-date validation (referee item 1): both instruments, all five
+        # figures, so the paper's strongest new methods claim is asserted, not narrated.
+        ("interpretation — registration-date validation, snapshot identity",
+         r"Of the\s+\*\*([\d.]+) million\*\* registrants present in both the "
+         r"September-2023 snapshot and the\s+April-2026 roll, \*\*([\d.]+)%\*\* carry a "
+         r"byte-identical registration date across the 31\s+months between them and only "
+         r"\*\*([\d.]+)%\*\* were re-stamped later",
+         ("regv_common_m", "regv_same_pct", "regv_restamp_pct"), 0.05),
+        ("interpretation — registration-date validation, per-election ceiling",
+         r"at most\s+\*\*([\d.]+)%\*\* of credited voters carry a registration date later "
+         r"than the election they are\s+credited in.*?moves no participation rate in this "
+         r"paper by\s+more than \*\*([\d.]+)\*\* points",
+         ("regv_late_max", "regv_rate_maxdelta"), 0.05),
         # The reverse overlap. Endpoints are the paper's TRUNCATION of
         # 42.5455-48.2530; see the derivation for why that is encoded there
         # rather than absorbed into a tolerance.
@@ -2195,6 +2382,11 @@ def build_probes(derived: dict):
         ("appendix F — King's share of the odd-year electorate",
          r"King — ([\d.]+)–([\d.]+)% of each odd-year\s*electorate",
          ("f_king_share_lo", "f_king_share_hi"), 0.5),
+        # King's certified countywide ballots, from the pinned turnout-page CSV that
+        # made the statewide-item denominator exact (2026-08-14, referee item 7).
+        ("appendix F — King's certified ballots, all three odd years",
+         r"King: ([\d,]+) in 2021, ([\d,]+) in 2023, ([\d,]+) in 2025",
+         ("f_king_2021", "f_king_2023", "f_king_2025"), 0),
         # The odd-year table. 2023's statewide cell is "*none on the ballot*" and is
         # asserted as a COUNT of zero rather than left to a missing regex group — SB
         # 5082 repealed the advisory votes, so an empty cell is the right answer and
@@ -2350,10 +2542,13 @@ def build_probes(derived: dict):
         ("appendix H — the steepest stretch really is 65-70 (superlative as a figure)",
          r"\*\*([\d.]+) from 65 to 70\*\*, the steepest\s*five-year stretch on the curve",
          "h_slope_65_70", 0.05),
+        # The minimum's AGE is captured as well as its value (the
+        # tossup18_next_year pattern): the retired whole-roll basis put the
+        # minimum at 19, and only the attribution check would notice it moving.
         ("appendix H — young end, presidential TURNOUT not retention",
-         r"age 20 is a local peak\s*\(([\d.]+)%\), above the mid-20s \(([\d.]+)% at 25\).*?"
-         r"age 19\s*is the minimum of the whole young range at ([\d.]+)%",
-         ("h_t24_20", "h_t24_25", "h_t24_19"), 0.05),
+         r"age 20 is a local peak\s*\(([\d.]+)%\), above both 19 \(([\d.]+)%\) and the "
+         r"mid-20s trough.*?minimum of the whole young range at (\d+) \(([\d.]+)%\)",
+         ("h_t24_20", "h_t24_19", "h_t24_young_min_age", "h_t24_25"), 0.05),
         ("appendix H — young end, retention is flat where turnout is not",
          r"nearly flat \(([\d.]+)% at 19, ([\d.]+)% at 20, ([\d.]+)% at 21\)",
          ("h_ret_19", "h_ret_20", "h_ret_21"), 0.05),
@@ -2596,6 +2791,17 @@ def claim_guards(d: dict) -> list[str]:
     `tests/test_infrastructure/test_wa_claim_guards.py`.
     """
     fails = []
+    # The formal bound's SUBSET assumption (2026-08-14, referee item 6): the residual
+    # `official − analyzable` is a strict bound only if the analyzable records are a
+    # subset of the certified-ballot universe. The paper now states the assumption; this
+    # asserts its observable implication — analyzable never exceeds certified.
+    _over = {t: d[f"{t}_cov_pct"] for _, t in ELECTIONS if d.get(f"{t}_cov_pct", 0) > 100}
+    if _over:
+        fails.append(
+            f"claim: the worst-case bound assumes analyzable ⊆ certified ballots, and the "
+            f"reconstruction now EXCEEDS the certified count in {_over} — the residual is "
+            f"no longer pure omission, so the bound construction is invalid there. Fix the "
+            f"data or the bound, not this guard.")
     if d["h_steepest_5yr_start"] != 65:
         fails.append(
             f"claim: Appendix H calls 65→70 'the steepest five-year stretch on the curve', "

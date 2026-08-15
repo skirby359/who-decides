@@ -19,10 +19,20 @@ than loudly:
   * It has no `partial_merge` concept, so it would silently drop a column the specification
     requires to be reported.
 
+**Design correction, 2026-08-14 (external referee — publication blocker).** The pre-specified
+plan bounded each party stratum at its pooled n = 34, but the party stratum is itself two
+deliberately balanced dollar-band cells of 17 while the top decile is roughly a tenth of the
+donor population — so the n = 34 bound repeats, one level down, the pooled-bound error the plan
+refused to commit over the full 102. The design-respecting bound is per **panel × party ×
+dollar-band cell** (n = 17, zero-error Wilson 18.4%; conservative simultaneous construction at
+97.5% per cell, 22.8%). This script now prints that corrected block beside the original
+panel × party block, which is retained UNLABELLED-AS-OPERATIVE as the pre-specification record —
+the paper's §F7 states which construction each printed figure uses.
+
 What this script deliberately does NOT do. It stops at stratum bounds. Translating a bound
 into the paper's adversarial-deletion table — the step that takes ID federal from 20.4% to
-18.4% — belongs to whatever already computes that table, not to a second implementation here.
-Two implementations of one number is how they drift apart.
+16.7% at the corrected cell bound — belongs to whatever already computes that table, not to a
+second implementation here. Two implementations of one number is how they drift apart.
 
     python scripts/score_idaho_validation.py --self-test
     python scripts/score_idaho_validation.py --extract      # verdicts-only, no names
@@ -67,6 +77,17 @@ SPEC_BLURB = {
 # self-test: if the arithmetic here disagrees with the number the author published in the
 # design document, one of the two is wrong and it must not be discovered later.
 DOCUMENTED_CEILINGS = {20: 16.1, 34: 10.2, 51: 7.0, 102: 3.6}
+
+# The 2026-08-14 design correction (see the module docstring): the operative bound is per
+# panel x party x dollar-band CELL, n = 17, and a conservative simultaneous construction
+# bounds each of a party's two cells at 97.5% (Bonferroni split of the 5% across the pair).
+CORRECTED_BOUNDS = {17: 18.4}
+Z_9750 = 2.2414027276049473  # one-sided 97.5%-coverage z for the simultaneous construction
+
+
+def simultaneous_cell_bound(n: int) -> float:
+    """Zero-error upper bound at 97.5% per cell: z^2 / (n + z^2) with z = Z_9750."""
+    return 100.0 * Z_9750 ** 2 / (n + Z_9750 ** 2)
 
 
 def wilson(k: int, n: int, z: float = 1.96) -> tuple[float, float]:
@@ -171,6 +192,7 @@ def report(key: dict[str, dict], verdicts: list[dict], label: str) -> int:
         k = key[sid]
         panel, party, band = k["panel"], k["reg_party"], k["dollar_band"]
         cells[("panel_party", panel, party)][v["verdict"]] += 1
+        cells[("panel_party_band", panel, party, band)][v["verdict"]] += 1
         cells[("panel_band", panel, band)][v["verdict"]] += 1
         cells[("panel", panel)][v["verdict"]] += 1
         cells[("party", party)][v["verdict"]] += 1
@@ -191,13 +213,25 @@ def report(key: dict[str, dict], verdicts: list[dict], label: str) -> int:
         print(f"\n{'-' * 92}\n{spec.upper()}  —  {SPEC_BLURB[spec]}\n{'-' * 92}")
         print(f"  {'stratum':<34}{'n':>5}{'err':>5}{'err %':>9}{'95% upper':>11}")
 
-        print("\n  by panel x registered party   <-- the bound that carries the party finding")
+        print("\n  by panel x registered party   [RETIRED 2026-08-14 — pre-specification record;")
+        print("  pools each party's two dollar-band cells, over-weighting the top decile ~5x]")
         for panel in PANELS:
             for party in PARTIES:
                 n, e, pct, hi = tally(cells[("panel_party", panel, party)], spec)
-                star = "  *" if (party == "DEM" and e == 0) else ""
                 print(f"  {'ID ' + panel + ' / ' + party:<34}{n:>5}{e:>5}"
-                      f"{pct:>8.1f}%{hi:>10.1f}%{star}")
+                      f"{pct:>8.1f}%{hi:>10.1f}%")
+
+        print("\n  by panel x party x dollar band   <-- DESIGN-CORRECTED 2026-08-14: the")
+        print("  operative bound for the party finding (per-cell; simultaneous in brackets)")
+        for panel in PANELS:
+            for party in PARTIES:
+                for band in BANDS:
+                    n, e, pct, hi = tally(
+                        cells[("panel_party_band", panel, party, band)], spec)
+                    sim = f"  [{simultaneous_cell_bound(n):.1f}%]" if e == 0 and n else ""
+                    star = "  *" if (party == "DEM" and e == 0) else ""
+                    print(f"  {'ID ' + panel + ' / ' + party + ' / ' + band:<34}{n:>5}{e:>5}"
+                          f"{pct:>8.1f}%{hi:>10.1f}%{sim}{star}")
 
         print("\n  by panel x dollar band")
         for panel in PANELS:
@@ -223,9 +257,15 @@ def report(key: dict[str, dict], verdicts: list[dict], label: str) -> int:
     print(f"\n{'=' * 92}")
     if dem_clean:
         lo = min(tally(cells[("panel_party", p, "DEM")], "primary")[0] for p in PANELS)
-        print(f"Zero errors in both Democratic strata. Panel-specific ceiling {ceiling(lo):.1f}% "
-              f"(n={lo}).")
-        print("Apply it to the party result via the paper's existing deletion table — not here.")
+        cell_n = min(tally(cells[("panel_party_band", p, "DEM", b)], "primary")[0]
+                     for p in PANELS for b in BANDS)
+        print(f"Zero errors in both Democratic strata, in every dollar-band cell.")
+        print(f"  operative bound (per party x dollar-band cell, n={cell_n}): "
+              f"{ceiling(cell_n):.1f}%; simultaneous {simultaneous_cell_bound(cell_n):.1f}%")
+        print(f"  retired pooled construction (n={lo}, pre-specification record): "
+              f"{ceiling(lo):.1f}%")
+        print("Apply the operative bound to the party result via the paper's existing deletion")
+        print("table — not here.")
     else:
         print("AT LEAST ONE ERROR IN A DEMOCRATIC STRATUM. Per §4.3 of the instructions this is")
         print("not to be smoothed: the 'no detected false match on the primary key' claim must be")
@@ -244,6 +284,15 @@ def self_test() -> int:
         match = abs(got - want) < 0.05
         ok &= match
         print(f"  {n:>5}{want:>12.1f}%{got:>10.1f}%   {'ok' if match else 'MISMATCH'}")
+
+    print("\nAnd the 2026-08-14 design-corrected per-cell bound (paper §F7):\n")
+    for n, want in sorted(CORRECTED_BOUNDS.items()):
+        got = ceiling(n)
+        sim = simultaneous_cell_bound(n)
+        match = abs(got - want) < 0.05 and abs(sim - 22.8) < 0.05
+        ok &= match
+        print(f"  {n:>5}{want:>12.1f}%{got:>10.1f}%   simultaneous {sim:.1f}%   "
+              f"{'ok' if match else 'MISMATCH'}")
     if not ok:
         print("\n!! The scorer disagrees with the published design. Resolve before rating.")
         return 1

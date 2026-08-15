@@ -28,7 +28,7 @@ keep in step. Neither is the donor panel: its specification is the donor paper's
 full-name key, 558,017 New York voters) and freezing a copy here would let the two diverge
 silently, which is the failure this script exists to prevent, one level up.
 
-REGISTRATION DATE WAS ADDED 2026-08-08, and its absence was a defect rather than an omission.
+REGISTRATION DATE WAS ADDED 2026-08-11, and its absence was a defect rather than an omission.
 Every rate in §III, and the under-30 pair in §I, is a participation rate against a past
 election, so its denominator must be the people who could have voted in that election —
 active registrants enrolled on or before it. `diag_ny_primary_participation.py`, which the
@@ -41,7 +41,7 @@ to 14.26%.
 The correction is checkable rather than argued: the contemporaneous basis reproduces the
 figures the paper carried BEFORE 2026-08-01 (16.9 and 17.9) exactly, and roll growth explains
 none of the gap — the pinned and live rolls return 14.26% alike, to the last digit. See the
-2026-08-08 round in `docs/electoral-health-audit-log.md`.
+2026-08-11 round in `docs/electoral-health-audit-log.md`.
 
 `registration_date` is 100% populated in the NYSVOTER extract (0 nulls in 13,540,558 rows),
 so the `IS NULL OR` guard in the consuming queries is defensive and never fires. It is kept
@@ -83,7 +83,7 @@ META = "ny_paper_roll_meta"
 NOTE = ("all registrants, one row per state_voter_id, with party bucket, is_active, "
         "birth year and registration date, pinned so who-decides-new-york.md's "
         "roll-denominated sections II and III do not drift when the NYSVOTER extract is "
-        "reloaded; registration date added 2026-08-08 so participation rates can be "
+        "reloaded; registration date added 2026-08-11 so participation rates can be "
         "denominated on contemporaneously eligible registrants; duplicate identifiers "
         "collapsed deterministically via MIN(STRUCT_PACK(...))")
 

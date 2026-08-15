@@ -81,16 +81,16 @@ about this work anywhere.
 
 `scripts/verify_donor_class.py` reaches the databases with from-scratch SQL, imports no
 analysis code, and re-derives the designated results independently of the build path. It
-**scrapes the manuscript's own prose and tables** and asserts **1,324 figures** against the
+**scrapes the manuscript's own prose and tables** and asserts **1,446 figures** against the
 databases — over the manuscript, the supplement, and the submission memo, cover letter and metadata,
 which restate paper figures and were previously unchecked.
 
-A reader running it from the public repository will see **1,305**, not 1,324, and the
+A reader running it from the public repository will see **1,427**, not 1,446, and the
 difference is not a discrepancy: the memo, cover letter and metadata are operational documents
 that are withheld by design, so the six probes that read them skip with a printed notice. A
 missing *paper* still fails the run. The 19-figure gap is exactly those six probes.
 
-It also runs a **coverage audit**: every numeric token in the **48** designated result
+It also runs a **coverage audit**: every numeric token in the **60** designated result
 sections must either be captured by an assertion or carry a written exemption naming where it
 *is* verified, and the run fails otherwise. So the claim is "nothing in those sections is
 unaccounted for", not merely "the figures someone thought to check agree."
@@ -103,18 +103,24 @@ Appendix F's matchability-by-party block **and its three rating tables — the p
 distinction matters, because "nothing unaccounted for" would otherwise be read as "everything
 re-derived", and it is not.
 
-**Closed by derivation — 44 sections.** The four findings; the main-body methods section and its
+**Closed by derivation — 55 sections.** The abstract and the front matter's two-panels block
+(both brought under the audit 2026-08-14, when the paper's partition was completed title to
+references); the four findings; the main-body methods section and its
 match-rate and sensitivity blocks; the crossover tables and their restatements; the
-limitations bullets; Appendices A, B, D and E; the derived parts of C and G; **Appendix F's
+limitations bullets — all of them, not only the two the audit originally reached; "The
+question" and "What it means"; Appendices A, B, D and E, including E's four-state statewide
+table; the derived parts of C — now including the New York state-panel paragraph — and G;
+the data-and-code section; **Appendix F's
 three rating tables**; and **Appendix F §§F7–F8**, which hold the error-budget, de-merge,
 residual-cascade and name-order tables relocated from the article body in review round 17. The
 rating tables are asserted against the frozen verdict CSVs — counts, precision and
 Wilson intervals recomputed from the adjudication record rather than trusted.
 
-**Closed by written reason — 4 sections**, each naming the script that owns its figures:
+**Closed by written reason — 5 sections**, each naming the script that owns its figures:
 Appendix F's matchability and tier-composition blocks (`diag_ny_match_bias.py`,
 `diag_donor_class_revisions.py`), its per-tier donor-side risk and rating design
-(`diag_match_validation_stratified.py`), its error-mode tail, and Appendix C's match-key section.
+(`diag_match_validation_stratified.py`), its error-mode tail, Appendix C's match-key section,
+and the References (a bibliography: page ranges and DOIs, not quantities).
 These are separate **instruments** — inverse-propensity re-weighting, a household over-exclusion,
 a persisted-column filter — and reimplementing an instrument inside the verifier copies it instead
 of checking it. Appendix G's G3 and G4 tables have been exempt on that basis since review round 9.

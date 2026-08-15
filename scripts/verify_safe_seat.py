@@ -350,6 +350,13 @@ def derive_wa(d: dict) -> dict[int, list[dict]]:
     # The one same-party general that was a real contest: WA-04, R-v-R.
     contest = [x for x in same if x["margin"] is not None and x["margin"] < 10]
     d["wa04_margin"] = contest[0]["margin"] if len(contest) == 1 else -1.0
+    # Appendix E's threshold sweep, WA rows (2026-08-14, full-paper coverage): the same
+    # margins Dimension 1 bands, evaluated at every printed cutoff. sweep_wa_all_10 must
+    # and does reproduce d1_2024_notclose — same rule, different banding arithmetic.
+    for scope_tag, rows_ in (("all", r24), ("hse", [x for x in r24 if x["chamber"] == "HSE"])):
+        for t in (5, 8, 10, 12, 15):
+            d[f"sweep_wa_{scope_tag}_{t}"] = 100.0 * sum(
+                1 for x in rows_ if x["margin"] is None or x["margin"] >= t) / len(rows_)
     d["tossup18"] = d["d1_2018_tossup"]
     # 2018's tossup count against the rest of the series. THE CLAIM USED TO BE "more than
     # double any other year in the series" and it was FALSE (round 1, 2026-08-10): 19 against
@@ -479,18 +486,40 @@ def derive_comparison(d: dict) -> None:
                    COALESCE(SUM(vv) FILTER (WHERE pty = 'R'), 0) rv
             FROM v GROUP BY 1""").fetchall()
         con.close()
-        rows += _ny_ad23_supplement(tag)
+        # `loaded` counts the warehouse's rows and NOTHING ELSE (2026-08-14, Pass 1 of the
+        # calculation review). The AD-23 supplement is a hand-pinned certified contest, not
+        # a loaded return, and counting it as loaded made the four-state table print
+        # "150 / 150" under a column headed "loaded / expected" while the loaded returns
+        # carry 149 — the TX row splits its two sources inline for exactly this reason.
         loaded = len(rows)
-        n_nodr = n_notclose = 0
+        rows += _ny_ad23_supplement(tag)
+        d[f"fs_{tag}_supplement"] = len(rows) - loaded
+        if tag != "ny" and d[f"fs_{tag}_supplement"]:
+            raise SystemExit(f"{tag}: a supplement row appeared for a state that has none")
+        if tag != "ny":
+            del d[f"fs_{tag}_supplement"]      # only NY prints one; an unread key is the
+        n_nodr = n_notclose = 0                # e3938bd shape
+        # Per-threshold counts feed Appendix E's sweep table (2026-08-14); the 10-point
+        # column is the four-state figure and must reproduce it, which the shared loop
+        # guarantees by construction.
+        sweep = {t: 0 for t in (5, 8, 10, 12, 15)}
         for _, ncand, dv, rv in rows:
             dv, rv = float(dv), float(rv)
             nodr = ncand <= 1 or dv == 0 or rv == 0
             n_nodr += nodr
             n_notclose += nodr or (abs(dv - rv) / (dv + rv) * 100 >= 10)
-        n = loaded
+            for t in sweep:
+                sweep[t] += nodr or (abs(dv - rv) / (dv + rv) * 100 >= t)
+        n = len(rows)                        # warehouse rows plus any certified supplement
         if backfill_to:                      # TX: the canvass omits uncontested seats
-            absent = backfill_to - loaded
+            absent = backfill_to - len(rows)
+            # The loaded-only shares Appendix F quotes to show what the backfill corrects
+            # ("Texas would read 90.6% and just 7.3%"): the 96 contested-skewed districts.
+            d[f"fs_{tag}_notclose_loaded_pct"] = 100.0 * n_notclose / len(rows)
+            d[f"fs_{tag}_nodr_loaded_pct"] = 100.0 * n_nodr / len(rows)
             n, n_nodr, n_notclose = backfill_to, n_nodr + absent, n_notclose + absent
+            for t in sweep:
+                sweep[t] += absent
             d[f"fs_{tag}_backfill"] = absent
             d[f"fs_{tag}_loaded"] = loaded
         d[f"fs_{tag}_seats"] = n
@@ -498,6 +527,12 @@ def derive_comparison(d: dict) -> None:
         d[f"fs_{tag}_nodr_n"] = n_nodr
         d[f"fs_{tag}_nodr"] = 100.0 * n_nodr / n
         d[f"fs_{tag}_notclose"] = 100.0 * n_notclose / n
+        if backfill_to:
+            # Only TX's count is published ("141 of 150 = 94.0%", Appendix F); an
+            # unpublished stored key is the e3938bd shape, so the others stay local.
+            d[f"fs_{tag}_notclose_n"] = n_notclose
+        for t, cnt in sweep.items():
+            d[f"sweep_{tag}_{t}"] = 100.0 * cnt / n
         # Share of the chamber present in the canvass source, as a PERCENTAGE.
         # The caveat bullet states it that way ("Texas is 64% loaded"); the
         # four-state table states the raw count. Both are now asserted — the
@@ -526,6 +561,23 @@ def derive_wa_house(d: dict, by_year: dict[int, list[dict]]) -> None:
     d["fs_all_lo"], d["fs_all_hi"] = min(lo), max(lo)
     cmp_only = [d[f"fs_{t}_notclose"] for t in ("ny", "tx", "id")]
     d["fs_cmp_lo"], d["fs_cmp_hi"] = min(cmp_only), max(cmp_only)
+
+    # Appendix E's sweep spans, and the abstract's whole-grid range. The five sweep
+    # scopes are the table's five rows: WA all seats, WA House, and the three
+    # comparison chambers.
+    _scopes = ("wa_all", "wa_hse", "ny", "tx", "id")
+    _grid = [d[f"sweep_{s}_{t}"] for s in _scopes for t in (5, 8, 10, 12, 15)]
+    d["sweep_min"], d["sweep_max"] = min(_grid), max(_grid)
+    _c15 = [d[f"sweep_{s}_15"] for s in _scopes]
+    d["sweep15_lo"], d["sweep15_hi"] = min(_c15), max(_c15)
+    _c5 = [d[f"sweep_{s}_5"] for s in _scopes]
+    d["sweep5_lo"], d["sweep5_hi"] = min(_c5), max(_c5)
+
+    # Appendix A's seat/vote restatement: the not-close split's Democratic share, and
+    # its gap against the presidential comparator the exploratory section states
+    # (59.5, owned by diag_safe_seat_robustness.py; the share itself derives here).
+    d["safe24_d_share"] = 100.0 * d["safe24_d"] / (d["safe24_d"] + d["safe24_r"])
+    d["safe24_d_gap"] = d["safe24_d_share"] - 59.5
 
 
 # ------------------------------------------------------------------------------- the probes
@@ -665,9 +717,16 @@ def build_probes():
         ("four-state, WA House",
          r"\| WA House 2024 \| (\d+) / \d+ \| \*\*([\d.]+)%\*\* \| ([\d.]+)% \((\d+)\) \|",
          ("fs_wa_seats", "fs_wa_notclose", "fs_wa_nodr", "fs_wa_nodr_n"), 0.05),
+        # Both source counts are captured, the TX-row pattern: "loaded" means the
+        # warehouse's rows, and the certified AD-23 pin is named as what it is
+        # rather than folded into the load (2026-08-14 — the row printed
+        # "150 / 150" under a column headed "loaded / expected" while the loaded
+        # returns carry 149).
         ("four-state, NY Assembly",
-         r"\| NY Assembly 2022 \| (\d+) / 150 \| \*\*([\d.]+)%\*\* \| ([\d.]+)% \((\d+)\) \|",
-         ("fs_ny_loaded", "fs_ny_notclose", "fs_ny_nodr", "fs_ny_nodr_n"), 0.05),
+         r"\| NY Assembly 2022 \| (\d+) loaded \+ (\d+) certified supplement \(AD-23\) \| "
+         r"\*\*([\d.]+)%\*\* \| ([\d.]+)% \((\d+)\) \|",
+         ("fs_ny_loaded", "fs_ny_supplement", "fs_ny_notclose", "fs_ny_nodr",
+          "fs_ny_nodr_n"), 0.05),
         ("four-state, TX House",
          r"\| TX House 2024 \| (\d+) canvass \+ (\d+) certified single-candidate \| "
          r"\*\*([\d.]+)%\*\* \| ([\d.]+)% \((\d+)\) \|",
@@ -688,6 +747,105 @@ def build_probes():
          r"the chamber reads\s+\*\*([\d.]+)%\*\* not close with \*\*([\d.]+)%\*\* offering "
          r"no D-vs-R option", ("fs_ny_notclose", "fs_ny_nodr"), 0.05),
     ]
+    # ---- Full-paper coverage, 2026-08-14: the sections newly under the audit.
+    p += [
+        # Front matter: the 2026-07-28 revision note's before/after pairs. The retired
+        # values are historical literals; the current ones assert against the live keys.
+        ("front matter — revision note, the primary/general median pair",
+         r"primary/general median moves ([\d.]+)% → \*\*([\d.]+)%\*\*",
+         ("_lit_pg2020_prev", "pg_2020"), 0.05),
+        ("front matter — revision note, the NY ≥12 pair (both historical: on 149 seats)",
+         r"≥12-point cell moves ([\d.]+)% → \*\*([\d.]+)%\*\*",
+         ("_lit_ny12_mis", "_lit_ny12"), 0.05),
+        ("limits — the retired 149-seat bound, quoted by the sentence retiring it",
+         r"the former ([\d.]+)–([\d.]+)% bound is retired",
+         ("_lit_bound_lo", "_lit_bound_hi"), 0.05),
+        ("appendix C — the previously published approximations",
+         r"previously published ~(\d+)% and ~(\d+)%",
+         ("_lit_c51", "_lit_c62"), 0.5),
+        # The contest-gap table (Appendix E). The actual column asserts against the live
+        # four-state keys; the presidential-lean column and the gaps are owned by
+        # diag_safe_seat_robustness.py and asserted as literals for internal consistency,
+        # so the table cannot drift from the paragraph restating it.
+        ("appendix E — contest gap, WA row",
+         r"\| WA House \| ([\d.]+)% \| ([\d.]+)% \| \*\*\+([\d.]+) pp\*\* \|",
+         ("fs_wa_notclose", "_lit_lean_safe_wa", "_lit_gap_wa"), 0.05),
+        ("appendix E — contest gap, TX row",
+         r"\| TX House \| ([\d.]+)% \| ([\d.]+)% \| \*\*\+([\d.]+) pp\*\* \|",
+         ("fs_tx_notclose", "_lit_lean_safe_tx", "_lit_gap_tx"), 0.05),
+        ("appendix E — contest gap, ID row",
+         r"\| ID House \| ([\d.]+)% \| ([\d.]+)% \| −([\d.]+) pp \|",
+         ("fs_id_notclose", "_lit_lean_safe_id", "_lit_gap_id"), 0.05),
+        ("appendix E — the two gaps restated in the mechanism paragraph",
+         r"produces \*this\* \+([\d.]+) and \+([\d.]+)\.",
+         ("_lit_gap_wa", "_lit_gap_tx"), 0.05),
+        # Abstract + Appendix A: the whole-grid threshold range, now derived from the
+        # sweep rather than owned elsewhere. Integer restatements of 73.7-98.0, tol 0.5.
+        ("abstract — the threshold-sweep range",
+         r"not-close share stays between (\d+)% and (\d+)% across cuts",
+         ("sweep_min", "sweep_max"), 0.5),
+        ("appendix A — the threshold-sweep range restated",
+         r"not-close share moves between (\d+)% and (\d+)% across cuts",
+         ("sweep_min", "sweep_max"), 0.5),
+        ("appendix A — the not-close split's Democratic share and its gap",
+         r"not-close seats split 68 D to 43 R — ([\d.]+)% Democratic — against a "
+         r"([\d.]+)% Democratic\s+share of the two-party presidential vote, a gap of "
+         r"([\d.]+)\s+points",
+         ("safe24_d_share", "_lit_pres_d_share", "safe24_d_gap"), 0.05),
+        ("appendix A — the TX headline unchanged by the seat-by-seat check",
+         r"headline was unchanged by the check \(([\d.]+)% either way\)",
+         ("fs_tx_notclose",), 0.05),
+        # Appendix C: the five-cycle unmatched-check restatement, and the corrected
+        # WA House figure beside its superseded 88.8 (the latter a literal).
+        ("appendix C — the five-cycle median restatement",
+         r"cycles match completely\): ([\d.]+) / ([\d.]+) / ([\d.]+) / ([\d.]+) / ([\d.]+)% "
+         r"for 2016–2024",
+         tuple(f"pg_{y}" for y in YEARS), 0.05),
+        ("appendix C — the corrected universe figure beside the superseded one",
+         r"on the certified universe \(([\d.]+)%\), which is authoritativ",
+         ("fs_wa_notclose",), 0.05),
+        # Appendix E: every cell of the threshold sweep, one probe per row so a failure
+        # names the chamber. The ≥10 column reproduces the four-state figures by
+        # construction — same loop, same rule.
+        ("appendix E sweep — WA all seats",
+         r"\| WA all seats \| ([\d.]+)% \| ([\d.]+)% \| \*\*([\d.]+)%\*\* \| ([\d.]+)% \| "
+         r"([\d.]+)% \| (\d+) \|",
+         ("sweep_wa_all_5", "sweep_wa_all_8", "sweep_wa_all_10", "sweep_wa_all_12",
+          "sweep_wa_all_15", "d1_2024_seats"), 0.05),
+        ("appendix E sweep — WA House",
+         r"\| WA House \| ([\d.]+)% \| ([\d.]+)% \| \*\*([\d.]+)%\*\* \| ([\d.]+)% \| "
+         r"([\d.]+)% \| (\d+) \|",
+         ("sweep_wa_hse_5", "sweep_wa_hse_8", "sweep_wa_hse_10", "sweep_wa_hse_12",
+          "sweep_wa_hse_15", "u2024_house"), 0.05),
+        ("appendix E sweep — NY Assembly",
+         r"\| NY Assembly \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| "
+         r"([\d.]+)% \| (\d+) \|",
+         ("sweep_ny_5", "sweep_ny_8", "sweep_ny_10", "sweep_ny_12", "sweep_ny_15",
+          "fs_ny_seats"), 0.05),
+        ("appendix E sweep — TX House",
+         r"\| TX House \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| "
+         r"([\d.]+)% \| (\d+) \|",
+         ("sweep_tx_5", "sweep_tx_8", "sweep_tx_10", "sweep_tx_12", "sweep_tx_15",
+          "fs_tx_seats"), 0.05),
+        ("appendix E sweep — ID House",
+         r"\| ID House \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| "
+         r"([\d.]+)% \| (\d+) \|",
+         ("sweep_id_5", "sweep_id_8", "sweep_id_10", "sweep_id_12", "sweep_id_15",
+          "fs_id_seats"), 0.05),
+        ("appendix E — the 15-point and 5-point ranges",
+         r"at a stringent 15-point cut, \*\*(\d+)–(\d+)%\*\* of seats are not "
+         r"close; at a loose 5-point\s+cut, (\d+)–(\d+)%",
+         ("sweep15_lo", "sweep15_hi", "sweep5_lo", "sweep5_hi"), 0.5),
+        ("appendix E — the two NY ≥10 cells agree",
+         r"≥10-point cells agree at \*\*([\d.]+)%\*\*", ("fs_ny_notclose",), 0.05),
+        # Appendix F: what the backfill corrects, and the headline it leaves unchanged.
+        ("appendix F — the loaded-only TX shares the backfill corrects",
+         r"Texas would read ([\d.]+)% and just ([\d.]+)% without a D-vs-R option",
+         ("fs_tx_notclose_loaded_pct", "fs_tx_nodr_loaded_pct"), 0.05),
+        ("appendix F — the certified not-close count and share",
+         r"Not-close remains \*\*(\d+) of 150 = ([\d.]+)%\*\* on cert",
+         ("fs_tx_notclose_n", "fs_tx_notclose"), 0.05),
+    ]
     return [x for x in p if x[2]]      # drop the prose-only anchor placeholder
 
 
@@ -698,8 +856,16 @@ UNCHECKED = [
     "The Texas seat-by-seat backfill roster and its 56 D / 85 R split — sourced from the TX "
     "SoS certified results in Appendix F, independently derived by "
     "scripts/diag_safe_seat_party_ratio.py",
-    "Appendix E's threshold sweep (74%-98% across 15-to-5-point cuts) and the no-major-choice "
-    "re-scoring counts — derived by scripts/diag_safe_seat_robustness.py",
+    # NARROWED 2026-08-14 (full-paper coverage): the threshold sweep itself is now DERIVED
+    # here, cell by cell (sweep_*), on the same margins as Dimension 1 and the four-state
+    # rule — the ≥10 column reproduces both by construction. What stays owned by
+    # diag_safe_seat_robustness.py is the presidential-lean side of the contest-gap table
+    # and the exploratory seat/vote and efficiency-gap cuts, all in the reason-closed
+    # sections of Appendix E.
+    "Appendix E's presidential-lean comparators and exploratory seat/vote and "
+    "efficiency-gap cuts — owned by scripts/diag_safe_seat_robustness.py and "
+    "scripts/diag_efficiency_gap.py; the lean column is asserted here as _lit_* literals "
+    "for internal consistency only",
 ]
 
 
@@ -708,18 +874,83 @@ UNCHECKED = [
 # The result sections, partitioned so no slice overlaps another: spans are
 # per-section coordinates, so a slice that swallows another reports the inner
 # one's probed cells as unmapped.
+#
+# EXTENDED TO THE WHOLE PAPER 2026-08-14 (full-paper coverage round). The four
+# original result sections covered a third of the paper's numeric content; ~200
+# substantive tokens sat outside every span, in exactly the places the series'
+# recent defects lived (this paper's own 26.9/27.6 exemption tangle was in an
+# audited section; the false "more than double" superlative was not). The paper
+# is now partitioned from title to the companion links, the WA paper's standard.
 AUDIT_BOUNDS = {
+        "frontmatter": ("# Safe-Seat Washington", "## Abstract"),
+        "abstract": ("## Abstract", "## The question"),
+        "question": ("## The question", "## The seat universe"),
         "universe": ("## The seat universe", "## Dimension 1"),
         "dim1": ("## Dimension 1", "## Dimension 2"),
         "dim2": ("## Dimension 2", "## The four-state comparison"),
         "fourstate": ("## The four-state comparison", "## Why it matters"),
+        "why": ("## Why it matters", "## What this paper does not claim"),
+        "limits": ("## What this paper does not claim", "## Appendix A"),
+        "appendixA": ("## Appendix A", "## Appendix B"),
+        "appendixB": ("## Appendix B", "## Appendix C"),
+        "appendixC": ("## Appendix C", "## Appendix D"),
+        "appendixD": ("## Appendix D", "## Appendix E"),
+        # Appendix E is cut in three: the threshold sweep (derived cell by cell), the
+        # contest-gap table (actual column derived, lean column diag-owned literals),
+        # and the two exploratory blocks (closed by written reason — see
+        # COVERAGE_EXEMPT_SECTIONS).
+        "appendixE_sweep": ("## Appendix E", "**The contest gap.**"),
+        "appendixE_gap": ("**The contest gap.**", "**Exploratory: seat/vote ratio"),
+        "appendixE_explore": ("**Exploratory: seat/vote ratio", "## Appendix F"),
+        "appendixF": ("## Appendix F", "## Appendix G"),
+        "appendixG": ("## Appendix G", "## End note"),
+        # The End note runs to end-of-document; explicit tail anchor, the WA pattern.
+        "endnote": ("## End note", "Companion to the electoral-health series lead,"),
     }
 
 COVERAGE_EXEMPT = [
     (r"^(?:19|20)\d{2}$", "a calendar year, not a result"),
     (r"^\d{1,2}$", "small integer — list ordinals, chamber ids, column counts"),
+    (r"^20\d{6}$", "an election-date stamp inside a certified filename "
+                   "(e.g. 20161108_AllState.csv), not a figure"),
 ]
+
+# Sections closed by a written reason rather than a derivation (2026-08-14). Each reason
+# names where the figures ARE verified — the audit-log rule.
+COVERAGE_EXEMPT_SECTIONS = {
+    "appendixD":
+        "A bibliography. Its numeric tokens are page ranges, volume/issue numbers, DOIs and "
+        "ISBNs — citations, not quantities; the figures those works are cited for are "
+        "asserted where the paper uses them. The WA paper's Appendix D closure.",
+    "appendixE_explore":
+        "The two blocks the paper itself labels exploratory. The seat/vote asymmetry points "
+        "(+2.1/+3.3/+18.9, the 61.6-vs-59.5 lower-chamber statement, the retired 51 D / 90 R "
+        "imputation and its +6.9 gap) are owned by scripts/diag_safe_seat_robustness.py; the "
+        "efficiency-gap values (6.5%/0.1%) by scripts/diag_efficiency_gap.py; the forecast "
+        "comparison (53 of 59, 90%) by the forecast model, and the paper stresses it is not "
+        "a validation. The all-seats split share (61.3%) and its +1.8 gap ARE derived and "
+        "probed where Appendix A states them (safe24_d_share / safe24_d_gap).",
+    "appendixG":
+        "The revision record. Every figure here is either a retired value quoted as history "
+        "(the 88.8% conflated-universe headline, the 51 D / 90 R imputation, the 149-seat "
+        "cells reconstructed in the AD-23 note) or a current value asserted in its own "
+        "section (the 150-based threshold cells, in Appendix E's sweep probes) or owned by "
+        "scripts/diag_safe_seat_party_ratio.py (the certified 56 D / 85 R split, named in "
+        "UNCHECKED).",
+}
 COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
+    "359": "part of the GitHub account name `skirby359` in the repository URL, not a "
+           "figure — the tokenizer sees the digits inside the identifier",
+    "2.1": "the WA seat/vote asymmetry point, quoted in the front matter's revision note; "
+           "owned by scripts/diag_safe_seat_robustness.py and stated in the "
+           "reason-closed exploratory block of Appendix E",
+    "3.3": "the TX seat/vote asymmetry point, as above",
+    "88.8": "the SUPERSEDED WA House share from the conflated pre-rebuild universe, quoted "
+            "as history in Appendix C and the End note. The current figure is 87.8, "
+            "asserted as fs_wa_notclose. No current result in this paper reads 88.8",
+    "206": "the TLC report id (r206) inside two file names, not a figure",
+    "2316": "the TLC plan id (planh2316) inside the same file names",
+    "144": "a Texas House district number in Appendix F's misimputation list (HD 144)",
     "48.5": "the 2016 outlier share, stated in the Dimension-2 table one line "
             "above and asserted there; the prose repeats the table cell",
     "51,981": "an illustrative candidate vote count naming the Klippert/Regev "
@@ -802,6 +1033,21 @@ def main() -> int:
     derive_comparison(d)
     derive_wa_house(d, by_year)
     d.update(_NY_AD23_CACHE)
+    # Literals (`_lit_*`), asserted so restatements cannot drift while the source stays
+    # put. Two kinds, both named in their probes: HISTORICAL values the revision notes
+    # quote (retired by construction, never re-derivable), and DIAG-OWNED values from
+    # scripts/diag_safe_seat_robustness.py quoted beside derived ones for internal
+    # consistency — the contest-gap table's presidential-lean column and the 59.5
+    # presidential share Appendix A differences against.
+    d.update({
+        "_lit_pg2020_prev": 61.6, "_lit_ny12_mis": 85.2, "_lit_ny12": 85.9,
+        "_lit_bound_lo": 88.0, "_lit_bound_hi": 88.7,
+        "_lit_c51": 51.0, "_lit_c62": 62.0,
+        "_lit_pres_d_share": 59.5,
+        "_lit_lean_safe_wa": 79.6, "_lit_gap_wa": 8.2,
+        "_lit_lean_safe_tx": 84.0, "_lit_gap_tx": 10.0,
+        "_lit_lean_safe_id": 94.3, "_lit_gap_id": 1.4,
+    })
     raw = PAPER.read_text(encoding="utf-8")
     _spelled = _check_spelled_out_counts(raw, d)
     # One slice, for the one pattern that is genuinely ambiguous document-wide: the universe
@@ -822,7 +1068,8 @@ def main() -> int:
           "what\n  makes the paper's 'exactly one name' reading of the single-candidate count "
           "exact\n  rather than merely probable.")
     fails = vp.audit_coverage(audit_sections, spans, offsets, tuple(AUDIT_BOUNDS),
-                              COVERAGE_EXEMPT, COVERAGE_EXEMPT_LITERAL, strict_units=True,
+                              COVERAGE_EXEMPT, COVERAGE_EXEMPT_LITERAL,
+                              COVERAGE_EXEMPT_SECTIONS, strict_units=True,
         bold_is_result=True)
     fails += _spelled
     # Basis registry (2026-08-10). This paper is the ROLLOUT PILOT — see

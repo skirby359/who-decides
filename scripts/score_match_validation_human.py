@@ -57,7 +57,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from score_match_validation import (  # noqa: E402
     HEADER, PANEL_N_2026_07_27, PANELS, PRIMARY_TIER, TIER_SHARES_2026_07_27, TIERS,
-    VALID, line, precision, wilson,
+    VALID, bound, line, precision, wilson,
 )
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -266,27 +266,44 @@ def main() -> int:
     print("\n--- HUMAN PRECISION REWEIGHTED ON THE FROZEN ALL-TIER SHARES " + "-" * 35)
     print("Directly comparable to the FIRST pass's 93.0% donor-weighted figure. Uses the")
     print("same pinned 2026-07-27 shares, so any gap is rater disagreement, not weights.")
-    gn = gd = 0.0
-    print(f"\n  {'panel':<16}{'donors':>10}{'weighted':>11}")
+    # THE NC+NP+U COLUMN IS THE PRE-COMMITTED SENSITIVITY, AGGREGATED (added 2026-08-11).
+    # `bound()` — every unverifiable record counted as a false match — was already computed
+    # and printed for every cell above; what was missing was its donor-weighted aggregate, so
+    # the one figure that tests the "threshold convention, not a disagreement" reading of this
+    # rater's eleven-fold rise in `U` was the one figure absent. That is a gap in reporting a
+    # pre-specified sensitivity, NOT a new statistic chosen after seeing verdicts: the harsh
+    # convention is named in the A9x scoring protocol and in `bound()`, both frozen before any
+    # verdict existed. It is aggregated here on identical weights so the two columns differ
+    # only in how `U` is treated.
+    gn = gd = bn = 0.0
+    print(f"\n  {'panel':<16}{'donors':>10}{'weighted':>11}{'NC+NP+U':>10}")
     for state, panel in PANELS:
         w = TIER_SHARES_2026_07_27[(state, panel)]
-        num = wsum = 0.0
+        num = wsum = bnum = 0.0
         for t in TIERS:
             c = by[("tp", state, panel, t)]
             p, _lo, _hi, judged = precision(c)
             if judged:
                 num += w.get(t, 0.0) * p
                 wsum += w.get(t, 0.0)
+            if sum(c[k] for k in VALID):
+                bnum += w.get(t, 0.0) * bound(c)
         if not wsum:
             continue
-        wp = num / wsum
+        wp, wb = num / wsum, bnum / wsum
         n = PANEL_N_2026_07_27[(state, panel)]
-        print(f"  {state + ' ' + panel:<16}{n:>10,}{wp:10.1f}%")
+        print(f"  {state + ' ' + panel:<16}{n:>10,}{wp:10.1f}%{wb:9.1f}%")
         gn += wp * n
+        bn += wb * n
         gd += n
     if gd:
         print(f"\n  Donor-weighted across panels: {gn / gd:.1f}%   "
               f"(first pass on the same weights: 93.0%)")
+        print(f"  Same weights, NC+NP+U counted against:  {bn / gd:.1f}%")
+        print("  NB both are the RETIRED all-tier specification. The PRIMARY specification is")
+        print("  the full-name tier alone, which reads 100.0% on this pass under BOTH")
+        print("  conventions - all 75 of its records are confident Y, so the harsh convention")
+        print("  has no `U` there to reclassify.")
 
     # ---------- agreement ----------
     print(f"\n--- AGREEMENT: FIRST PASS vs {_PASS_LABEL.upper()}  ({_RELIABILITY}) "
