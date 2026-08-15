@@ -1396,17 +1396,46 @@ def derive() -> dict:
     # found SIX wrong cells in four rows — last-digit errors of exactly the class
     # `check_rounding` exists to catch. One derivation and one row-loop is not
     # "tripling the file", and the exemption was wrong on its own terms.
+    # KITTITAS/KLICKITAT LABEL CORRECTION (2026-08-15). The loader's county-code map
+    # inverts the SoS KT/KS codes (documented in config/counties.py and
+    # docs/known_issues.md since 2026-04-30), and the VRDB loader derives
+    # `voters.county_name` from that same map — so the rows labelled KLICKITAT are
+    # Kittitas County's registrants and vice versa. Caught by
+    # scripts/diag_wa_roll_reconciliation.py against the certified 2025 turnout page
+    # (Kittitas 32,251 registered vs Klickitat 16,421; our labels carried the
+    # opposite). The load stays inverted deliberately — the precinct namespace and
+    # the VRDB crosswalk are internally consistent on the inverted labels — so the
+    # correction is applied HERE, at the only place a county label reaches a
+    # published attribution. If the mapping is ever fixed and the VRDB reloaded,
+    # this CASE double-swaps and diag_wa_roll_reconciliation.py fails loudly:
+    # remove both together.
+    _CTY_FIX = """CASE UPPER(TRIM(v.county_name))
+                    WHEN 'KITTITAS' THEN 'KLICKITAT'
+                    WHEN 'KLICKITAT' THEN 'KITTITAS'
+                    ELSE UPPER(TRIM(v.county_name)) END"""
     for date, tag in [("2024-11-05", "e24"), ("2023-11-07", "e23"),
                       ("2025-11-04", "e25"), ("2021-11-02", "e21")]:
         for county, pct in con.execute(f"""
-            SELECT UPPER(TRIM(v.county_name)),
+            SELECT {_CTY_FIX},
                    100.0 * SUM(CASE WHEN {_age(date)} >= 65 THEN 1 ELSE 0 END) / COUNT(*)
             FROM voters v {_voted(date)}
             WHERE h.state_voter_id IS NOT NULL AND v.birthdate IS NOT NULL
               AND v.county_name IS NOT NULL
             GROUP BY 1""").fetchall():
             d[f"cty_{county}_{tag}"] = float(pct)
-    _counties = sorted({k.split("_")[1] for k in d if k.startswith("cty_")})
+    # The correction note under the Appendix E table quotes the two certified
+    # registered-voter counts that exposed the transposition. Derived from the
+    # pinned certified turnout frame rather than restated, so the note cannot
+    # drift from the evidence it cites.
+    import csv as _csv
+    with (Path(__file__).resolve().parent.parent / "docs" / "reference"
+          / "wa_registration_20251104_by_county.csv").open(encoding="utf-8") as _fh:
+        for _row in _csv.DictReader(_fh):
+            if _row["county"] in ("KITTITAS", "KLICKITAT"):
+                d[f"cty_pin_{_row['county']}_reg"] = float(_row["registered_voters"])
+
+    _counties = sorted({k.split("_")[1] for k in d if k.startswith("cty_")
+                        and not k.startswith("cty_pin_")})
     for c_ in _counties:
         # The paper's last column: mean of the two HIGH-COVERAGE off-years
         # (2023, 2025) minus the presidential share. 2021 is excluded there and
@@ -2594,6 +2623,13 @@ def build_probes(derived: dict):
                   _CTY_RX.format(c=re.escape(_disp)),
                   (f"cty_{_c}_e24", f"cty_{_c}_e23", f"cty_{_c}_e25", f"cty_{_c}_gap2"),
                   0.05))
+    # The 2026-08-15 transposition correction cites the two certified counts that
+    # exposed it; both come from the pinned certified turnout frame, so the note
+    # is tied to its evidence rather than restated.
+    p.append(("appendix E — the Kittitas/Klickitat correction's certified counts",
+              r"certified November 2025 turnout page \(Kittitas ([\d,]+)\s*"
+              r"registered; Klickitat ([\d,]+)\)",
+              ("cty_pin_KITTITAS_reg", "cty_pin_KLICKITAT_reg"), 0))
     return p
 
 

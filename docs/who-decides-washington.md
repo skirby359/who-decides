@@ -826,7 +826,7 @@ county (King +7.5 to Franklin +16.1).
 | Clallam | 47.3% | 59.9% | 60.9% | +13.1 | Kitsap | 32.2% | 44.1% | 44.5% | +12.1 |
 | San Juan | 47.3% | 59.5% | 57.8% | +11.4 | Grant | 32.0% | 47.1% | 48.3% | +15.7 |
 | Ferry | 45.4% | 55.7% | 62.1% | +13.5 | Yakima | 31.5% | 47.4% | 48.1% | +16.3 |
-| Wahkiakum | 45.0% | 54.0% | 56.9% | +10.5 | Klickitat | 31.3% | 45.0% | 44.5% | +13.4 |
+| Wahkiakum | 45.0% | 54.0% | 56.9% | +10.5 | Kittitas | 31.3% | 45.0% | 44.5% | +13.4 |
 | Island | 43.0% | 54.5% | 60.1% | +14.3 | Thurston | 30.9% | 43.4% | 42.8% | +12.2 |
 | Columbia | 42.4% | 51.8% | 55.9% | +11.5 | Adams | 30.2% | 43.2% | 43.5% | +13.1 |
 | Garfield | 42.4% | 54.4% | 50.5% | +10.1 | Whatcom | 29.6% | 37.5% | 40.0% | +9.1 |
@@ -836,7 +836,7 @@ county (King +7.5 to Franklin +16.1).
 | Pend Oreille | 39.9% | 54.8% | 58.6% | +16.8 | Pierce | 26.7% | 39.9% | 40.4% | +13.4 |
 | Lincoln | 39.6% | 51.4% | 54.2% | +13.2 | Whitman | 26.3% | 38.5% | 40.4% | +13.1 |
 | Grays Harbor | 39.4% | 54.7% | 57.6% | +16.8 | Snohomish | 25.5% | 36.8% | 38.4% | +12.1 |
-| Kittitas | 38.6% | 49.8% | 54.1% | +13.3 | Franklin | 24.0% | 39.8% | 42.6% | +17.2 |
+| Klickitat | 38.6% | 49.8% | 54.1% | +13.3 | Franklin | 24.0% | 39.8% | 42.6% | +17.2 |
 | Stevens | 38.4% | 50.3% | 56.0% | +14.7 | King | 23.0% | 32.2% | 30.7% | +8.4 |
 | Skagit | 38.3% | 52.3% | 54.3% | +15.0 | | | | | |
 | Walla Walla | 35.6% | 48.6% | 52.3% | +14.8 | | | | | |
@@ -849,6 +849,16 @@ On the two high-coverage off-years this table reports, the county 65+ share aver
 span widens to **28.7%** (King 2021) to **66.1%** (Jefferson 2023). Every
 county moves toward seniors off-cycle (gaps +8.4 to +17.7 points). The result is a
 statewide phenomenon; King is simply its youngest instance.
+
+*Correction (2026-08-15).* An earlier version of this table transposed the **Kittitas**
+and **Klickitat** labels: the voter-file loader's county-code map inverts the Secretary
+of State's `KT`/`KS` codes, so the file's rows labelled Klickitat are Kittitas County's
+registrants and vice versa. The transposition was caught by reconciling the file's
+per-county counts against the certified November 2025 turnout page (Kittitas 32,251
+registered; Klickitat 16,421), and the labels above are now corrected at derivation. No
+other county is affected, and no statewide, metro/rural, or King-scoped figure in this
+paper moves — the two counties sit in the same rural stratum, and the table's range and
+all-positive conclusions hold under either labelling.
 
 ## Appendix F — Contest-level roll-off on the even-year ballot
 
@@ -1210,7 +1220,7 @@ Those rules do not remove every barrier as information costs, mobility, local at
 address stability, and uneven political recruitment are still factors, but they make it
 hard to chalk the age gap up mainly to the friction of voting.
 
-**Reproduction.** `scripts/verify_who_decides_wa.py` re-derives **873 figures** from
+**Reproduction.** `scripts/verify_who_decides_wa.py` re-derives **875 figures** from
 scratch, including the composition, rate and finer-cohort tables, the coverage and
 bounding tables, the habitual-core overlap, the snapshot cross-validation, the
 representativeness index, the turnout decomposition and Appendix H's banding-robustness
