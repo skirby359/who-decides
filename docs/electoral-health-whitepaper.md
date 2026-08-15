@@ -319,7 +319,9 @@ concrete analysis to run.
   [38.7–48.9], Gini **0.821** [0.806–0.838]. *(This line previously read 42.4% [40.2–44.9]
   for the federal panel — the all-tier value, contradicting the 41.2% in the panel note
   directly above it. The bootstrap CIs are the per-panel re-runs in
-  [`cross-state-fec-money.md`](cross-state-fec-money.md) §F4.)*
+  [`cross-state-fec-money.md`](cross-state-fec-money.md) §F4; the panels are full
+  populations, so read the intervals as resampling sensitivity to donor composition,
+  not sampling error.)*
 - **Party-resolved — DONE for NY + ID** ([`donor-class-and-the-electorate.md`](donor-class-and-the-electorate.md)):
   with party of record the demographic claim sharpens into a partisan one, and the striking
   result is that it holds **in both directions of the spectrum** — the donor class

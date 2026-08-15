@@ -3045,6 +3045,10 @@ equal cell bounds equals the cell bound, **18.4%**; a conservative simultaneous 
 | one panel, composition-reweighted | 102 | 3.6% — an estimate, not a binomial bound |
 | *what the current evidence supports* | *20* | *16.1%* |
 
+(The dollar-band row is licensed the same way the cell row is — the draw balanced the two
+bands by design, so a within-band bound is a construction the design supports. It is reported
+for completeness: no finding in this paper rests on a dollar-band error rate.)
+
 **The party-stratum bound is the one the Idaho finding needs**, because the vulnerability is
 specifically whether match error inflates the *Democratic* share rather than the panel as a
 whole. Applied directly, and as a worst case that deletes that share of the panel's registered

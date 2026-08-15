@@ -544,6 +544,14 @@ uses the neutral PVI baseline, and discount Findings 2b and 2c accordingly.
   expenditure. Memo rows (`memo_code='X'`) are excluded as subtotals of money itemized
   elsewhere. Both exclusions are properties of the summing view, not of the stored table,
   which retains the notice rows so the reporting lag stays observable.
+- **Estimator and intervals, everywhere.** Every slope in this paper — the federal IE
+  regression, all four state-legislative specifications, the placebo pair, and the early/late
+  split — is estimated by **ordinary least squares** (simple bivariate OLS; the early/late
+  split is a two-regressor OLS), and every correlation is Pearson's r. Every "95% bootstrap
+  interval" is a **case-resampling (pairs) percentile bootstrap with 5,000 replicates and a
+  fixed seed**, so the intervals are deterministic and reproduce exactly. No
+  heteroskedasticity-robust or weighted variant is used anywhere; at these sample sizes the
+  honest summary is the interval, not the standard-error recipe.
 - **Inference threshold.** The IE script refuses to report a slope as inferential below 10
   scorable races and prints its data inventory instead. That threshold is now cleared; the
   behavior is deliberate and should be preserved.

@@ -139,8 +139,8 @@ Big Tech (WA), Wall Street (NY), Energy/Industrial (TX), MLM/timber (ID).**
   Limits) — though the gift-size *amount* cut is computed directly from the dollar value and
   is unaffected by that.
 - **Why the size effect does not carry the Idaho result.** The concession above is real for the
-  top-1% and Gini measures, which are rank statistics over a donor pool and therefore do depend
-  on how many donors there are to rank. It does not extend to the **gift-size** cuts, which are
+  top-1%, top-10% and Gini measures alike — all three are rank statistics over a donor pool and
+  therefore do depend on how many donors there are to rank. It does not extend to the **gift-size** cuts, which are
   ratios of dollars to dollars at a fixed threshold: the share of money arriving in gifts under
   $200, or in gifts of $5,000 and up, is computed from the amounts themselves and has no
   mechanical dependence on pool size. Idaho is the most retail on those cuts too — 29.0% under
@@ -527,8 +527,10 @@ strengthen. Rebuild with `scripts/match_wa_voters_to_donors.py --source {fec,sta
 
 **F4 — Robustness: concentration precision + match validation.**
 - **Bootstrap CIs on concentration** (`scripts/diag_donor_concentration_bootstrap.py`, B=1000).
-  Because donor identity is a name+zip5 *proxy*, the concentration estimates carry
-  sampling-style uncertainty — but it is small. Matched-donor **Gini 0.857**,
+  The panels are full populations, not samples, so these are not sampling intervals: they
+  bound each estimate's **sensitivity to donor composition under resampling** — not linkage,
+  coverage or disclosure error — the same reading the donor paper gives its identical
+  construction. That sensitivity is small. Matched-donor **Gini 0.857**,
   **top-1% 46.6%**, **top-10% 79.3%**; the inflow side (2024) is tighter
   still (Gini 0.690 [0.688–0.692]). Re-bootstrapped per panel on the current specification: federal **Gini 0.815
   [0.806–0.822]**, top-1% **41.2% [38.6–43.4]**; state **Gini 0.821 [0.806–0.838]**, top-1%

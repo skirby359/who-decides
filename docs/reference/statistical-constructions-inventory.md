@@ -43,32 +43,40 @@ donor,Idaho simultaneous construction (97.5% per cell),bonf975,17,22.8
 
 ## Findings from compiling this inventory (2026-08-15)
 
-Actionable, referee-grade gaps the extraction surfaced. None is a numeric defect — every
-printed value reconciles with its verifier — these are places where the **construction or its
-description** falls short of what a methods referee will ask for. Fixing each is a paper edit
-and therefore a gate-run: queued for the next revision round of the affected paper, author's
-call on timing.
+Actionable, referee-grade gaps the extraction surfaced. None was a numeric defect — every
+printed value reconciled with its verifier — these were places where the **construction or its
+description** fell short of what a methods referee will ask for. **Findings 1–4 were applied
+2026-08-15, the same day; finding 5 is a standing do-not-upgrade list.** The pre-fix text of
+each is retained below with its resolution, because the finding is the record of what the
+inventory caught.
 
-1. **`does-money-move-votes.md` never names an estimator, anywhere.** Every slope (the federal
-   +0.515, the four legislative specifications, the placebo pair, the early/late joint
-   regression) is reported without saying OLS/WLS/robust, and every "95% bootstrap interval"
-   is reported without the resampling scheme (pairs vs residual) or the replicate count. The
-   companion cross-state paper prints **B = 1000** for its bootstrap; the money paper prints
-   nothing. One sentence in Appendix C fixes all of it.
-2. **The bootstrap-CI license differs across the three papers that resample a census.** The
-   donor paper states it exactly ("these intervals bound sensitivity to donor composition
-   under resampling and not linkage, coverage or disclosure error"); `cross-state-fec-money.md`
-   §F4 says the estimates "carry sampling-style uncertainty", which reads as a sampling claim
-   over full-population data; the whitepaper inherits §F4's numbers with no design-based
-   statement. Harmonize on the donor paper's wording.
-3. **Two constructions carry `not stated` licenses that deserve one sentence each**: the
-   cross-state top-10% share (its top-1% neighbour carries the pool-size concession; the
-   top-10% row does not), and the donor paper's n = 51 dollar-band bound row in §F7's table
-   (every other row of that table carries its license inline).
-4. **The Idaho paper's Das-Gupta row is direction-only by design** ("reported here as
-   directionally consistent … where the roll is stable and the decomposition is reliable") —
-   correct as stated, but the synthesis paper cites "each single-state paper's" decomposition
-   as if all three carry numbers. The synthesis sentence should carve out Idaho.
+1. ✅ **APPLIED.** **`does-money-move-votes.md` never named an estimator, anywhere.** Every
+   slope was reported without saying OLS/WLS/robust, and every "95% bootstrap interval"
+   without the resampling scheme or replicate count. *Fix:* Appendix C now states it —
+   bivariate OLS everywhere (two-regressor OLS for the early/late split), Pearson's r, and a
+   case-resampling (pairs) percentile bootstrap with **5,000** replicates and a fixed seed.
+   The replicate count is read out of the four IE scripts' own source by
+   `derive_estimator_facts` in `verify_money_votes.py` (they must all agree), and the paper's
+   sentence is probed against it — gate now 135 figures, the new key shown caught in the
+   2026-08-15 mutation sweep. (The earlier draft of this finding guessed the companion
+   paper's B = 1000 might be the shared value; measured, the IE scripts use 5,000.)
+2. ✅ **APPLIED.** **The bootstrap-CI license differed across the three papers that resample a
+   census.** The donor paper stated it exactly; `cross-state-fec-money.md` §F4 said the
+   estimates "carry sampling-style uncertainty", a sampling claim over full-population data;
+   the whitepaper inherited §F4's numbers with no design statement. *Fix:* §F4 now reads the
+   intervals as bounding "sensitivity to donor composition under resampling — not linkage,
+   coverage or disclosure error", citing the donor paper's identical construction, and the
+   whitepaper's Finding 5 row carries the same one-line reading.
+3. ✅ **APPLIED.** **Two constructions carried `not stated` licenses**: the cross-state
+   top-10% share (the pool-size concession named only the top-1% and Gini) and the donor
+   paper's n = 51 dollar-band row in §F7's table. *Fix:* the concession now names all three
+   rank statistics, and §F7 carries a parenthetical licensing the band row (design-balanced
+   bands; reported for completeness; no finding rests on it).
+4. ✅ **APPLIED.** **The synthesis cited "each single-state paper's" Das-Gupta decomposition
+   as if all three carried numbers**, but the Idaho paper deliberately reports direction
+   only (roll churn makes the numeric split unreliable). *Fix:* the synthesis sentence now
+   attributes numeric decompositions to Washington and New York and states Idaho's as
+   directionally consistent only, with the reason.
 5. **Constructions that self-identify as non-inferential and should stay that way** (no action;
    listed so a future round does not "upgrade" them): the whitepaper's elicited-judgment
    22/100 index (self-invalidating by design); the WA county roll-off correlation (n = 39,
@@ -256,7 +264,7 @@ derived bound, ratio or reconstructed denominator.*
 | 18 | §F7 table — operative row | Zero-error Wilson bound, one party × dollar-band cell | Wilson upper bound, 0 errors in a cell; design weighting of two equal cell bounds equals the cell bound | n = 17 (204 total) | Disproportionate stratified ID draw, prior-rated ids excluded | "any design weighting of the two equal cell bounds equals the cell bound, 18.4%" | 18.4% |
 | 19 | §F7 | Simultaneous (Bonferroni) construction across the two cells | Each cell at 97.5% | 2 × 17 | as row 18 | "a conservative simultaneous construction (each cell at 97.5%) gives 22.8%" | 22.8% |
 | 20 | §F7 table — retired row | Retired party-stratum bound pooling the two cells | Wilson on pooled n=34 | 34 | as row 18 (top decile over-weighted ~5×) | "retired: pools its two dollar-band cells"; "found by an external referee; corrected 2026-08-14" | 10.2% retired; earlier 18.4/19.4 deletions withdrawn |
-| 21 | §F7 table | Zero-error bound, one dollar band | Wilson on 0/51 | 51 | as row 18 | not stated | 7.0% |
+| 21 | §F7 table | Zero-error bound, one dollar band | Wilson on 0/51 | 51 | as row 18 | licensed inline since 2026-08-15: design-balanced bands; "reported for completeness: no finding in this paper rests on a dollar-band error rate" | 7.0% |
 | 22 | §F7 table | Composition-reweighted panel figure | Pooled 102 reweighted to actual party composition | 102 per panel | as row 18 | "3.6% — an estimate, not a binomial bound" | 3.6% |
 | 23 | Data/linkage; §F7 | Household de-merge stress test on concentration | De-merge the largest 3.1% of donors into equal halves | Six panels | Stipulated split, not measured | "Read this as a stress test, not as spent error budget" | top-1% falls 6.1–8.3 pts |
 | 24 | §F7 | Roll-collision measurement bounding the household mechanism | Colliding full-name+ZIP5 keys vs surname+ZIP5-different-first-name shares | Full rolls 5.10M/12.45M/1.03M | Full population (active rolls) | "the quantitative form of '129 of 129 landed on the weaker keys'" | 3.03/5.11/2.75% vs 76.7/77.0/82.6% |
@@ -372,8 +380,8 @@ derived bound, ratio or reconstructed denominator.*
 | 12 | 2a | Cross-cycle persistence correlations of allocation shares | r of a candidate's share cycle-on-cycle | not stated | Full population | "allocation *is* a real and stable candidate trait" | 0.83; 0.998 |
 | 13 | 2a | Field share vs raw overperformance (directional hint) | r against overperf | not stated | as row 6 | "the one directional hint runs against the folk theory" | −0.24 |
 | 14 | 2b | Model-term zeroing as implicit specification comparison | Zero the fundraising term post-2022; compare forecast quality | post-2022 districts | Full population | "leaving it in produced worse forecasts" | D+28 vs D+5–8 |
-| 15 | 2c | Federal IE regression: residual on net pro-D IE | Net IE = supD+oppR−supR−oppD; estimator not named (OLS implied) | n = 34 of 50 race-cycles | Full population minus uncontested and no-national-data — non-random dropout | "The IE script refuses to report a slope as inferential below 10 scorable races … now cleared" | +0.515 per $1M |
-| 16 | 2c | 95% bootstrap CI on the federal slope | Scheme not stated | 34 | as row 15 | "The interval crosses zero … wide enough to admit effects that would decide a close race" | −0.600 to +2.821 |
+| 15 | 2c | Federal IE regression: residual on net pro-D IE | Net IE = supD+oppR−supR−oppD; bivariate OLS (named in Appendix C since 2026-08-15) | n = 34 of 50 race-cycles | Full population minus uncontested and no-national-data — non-random dropout | "The IE script refuses to report a slope as inferential below 10 scorable races … now cleared" | +0.515 per $1M |
+| 16 | 2c | 95% bootstrap CI on the federal slope | Pairs percentile bootstrap, B=5,000, fixed seed (Appendix C, 2026-08-15) | 34 | as row 15 | "The interval crosses zero … wide enough to admit effects that would decide a close race" | −0.600 to +2.821 |
 | 17 | 2c | Pearson r for the federal cross-section | as stated | 34 | as row 15 | not stated | +0.186 |
 | 18 | 2c | Earlier single-cycle version (sign-stability comparison) | Same design, 2024 only | 7 | Full population of 2024 races | "at these sample sizes the sign is a coin flip and the interval is the only honest summary" | −0.39 |
 | 19 | 2c | National rank of WA-03 2024 IE, before/after de-dup | Rank corrected total among all IE-drawing races | 387 races | Full population 2024 | "At the true $18.61M the race ranks 22nd; at the doubled $40.1M no race in the country exceeded it" | 22nd of 387 |
@@ -403,8 +411,10 @@ derived bound, ratio or reconstructed denominator.*
 | 43 | Appendix E | Extreme-case comparison: three largest IE totals vs fundamentals | Residuals of the three largest-IE races | 3 | Full population of the panel | "a reader who suspects the null is an artifact of small money should know what the largest observation looks like" | +8.78 / +0.38 / +0.06 |
 | 44 | Appendix A #5 | Baseline-validation cross-check (against circularity) | Safe-seat paper's projection vs observed | not stated | Full population | "validated independently" | "within a few points" |
 
-*Extraction note (finding 1 of this inventory): no estimator is named anywhere in the paper and
-no bootstrap scheme or replicate count is specified for any interval.*
+*Extraction note: at extraction time no estimator was named anywhere and no bootstrap scheme
+or replicate count was specified — finding 1, applied 2026-08-15: Appendix C now states
+bivariate OLS, Pearson's r, and a pairs percentile bootstrap (B=5,000, fixed seed), probed
+against the scripts' own source.*
 
 ## 7. cross-state-fec-money.md (60 constructions)
 
@@ -413,7 +423,7 @@ no bootstrap scheme or replicate count is specified for any interval.*
 | 1 | Scope and method | De-merging stress test (imported from donor paper) | Split largest merged donors into equal halves | donor pools 54,155–836,784 | Full population; four purposive states | "over-merges common names, which **overstates** concentration — the direction the donor paper's de-merging stress test establishes" | −6.1 to −8.3 pts |
 | 2 | Headline | Gini on donor-level dollars (outflow, pooled) | Gini over name+zip5 donor totals | 361,818/671,488/836,784/54,155 donors | Full population (FEC bulk), purposive | "mechanically high everywhere … only the *gap* between states is informative" | 0.800/0.848/0.818/0.775 |
 | 3 | Headline / Finding 1 | Top-1% donor dollar-share estimator (pooled) | Rank share at the 1% cut | as row 2 | as row 2 | "rank statistics over a donor pool and therefore do depend on how many donors there are to rank" | 39.3/47.5/41.7/36.1% |
-| 4 | Headline / Finding 1 | Top-10% share | Rank share at the 10% cut | as row 2 | as row 2 | not stated (see inventory finding 3) | 72.3/78.7/74.5/69.2% |
+| 4 | Headline / Finding 1 | Top-10% share | Rank share at the 10% cut | as row 2 | as row 2 | pool-size concession extended to it 2026-08-15 ("top-1%, top-10% and Gini measures alike") | 72.3/78.7/74.5/69.2% |
 | 5 | Finding 1 | Robustness argument: gift-size cuts immune to pool size | Dollar-to-dollar ratios at a fixed threshold | as row 2 | Full population | "the finding survives the objection on the measure the objection cannot reach" | 29.0% vs 13.8% |
 | 6 | Abstract / §A | Ordering claim across states and cycles | Pooled orderings; per-cycle re-ranking inspected | 4 × 5 | Full population, purposive | "about *variation in shape* across a deliberately dissimilar set, never about a population of states"; no resampling of the ordering — otherwise not stated | "NY most top-heavy in every cycle; the ordering beneath it shifts" |
 | 7 | Finding 2 | Per-capita standardization of donor counts + ratio | Donors ÷ ACS B01003 population (pinned) | donors as row 2; pops 7.82M–30.19M | Full numerator; ACS survey denominator | "The denominators, stated rather than assumed… pinned"; total residents, not VEP — "every rate is biased downward" | 4.6/3.4/2.8/2.8%; "two-thirds again" |
@@ -438,7 +448,7 @@ no bootstrap scheme or replicate count is specified for any interval.*
 | 26 | F2 | Person-level concentration on the matched panel, pooled and per-panel | Gini/top shares | 314,974; 147,745; 217,114 | Matched subset; pooled mixes two systems | "Pooling inflates measured concentration… those supersede the pooled numbers here" | 46.6/41.2/43.5% |
 | 27 | F2 | Directional worst-case bound on the age skew | Mobility channel runs the same direction | as row 24 | Matched subset | "raw should be read as an **upper bound** on the true age skew" | direction only |
 | 28 | F3 | Donor/non-donor super-voter ratio + mean propensity | as stated | 312,245 scored | Matched subset, cross-sectional | "cross-sectional association, not a causal 'giving makes you vote' claim" | 87.6/50.9 (1.72×); 0.967/0.749 |
-| 29 | F4 | Bootstrap CIs on concentration statistics | B = 1000 resamples | panels as row 26 | Full population treated as carrying "sampling-style uncertainty" (see inventory finding 2) | "Because donor identity is a name+zip5 *proxy*, the concentration estimates carry sampling-style uncertainty — but it is small." | Gini 0.815 [0.806–0.822] etc. |
+| 29 | F4 | Bootstrap CIs on concentration statistics | B = 1000 resamples | panels as row 26 | Full population; §F4 reworded 2026-08-15 to the resampling-sensitivity reading | "they bound each estimate's sensitivity to donor composition under resampling — not linkage, coverage or disclosure error" (reworded 2026-08-15) | Gini 0.815 [0.806–0.822] etc. |
 | 30 | F4 | Wilson 95% CI on match precision | Wilson on 120/120 | 120 of 480 | Stratified blinded rating | "precision is **a property of the match key**, not a single pooled number" | [96.9–100] |
 | 31 | F4 | Population-weighted precision (post-stratification) | Reweight by panel shares | 480; 152 false; 129 household | Stratified blinded | "the pooled figures in F1–F3 above are the all-tier match and therefore carry the 93.0%" | 93.0% |
 | 32 | F4 | Test-retest re-rate | 75/75 reproduced | 150 of 480 | Same-rater subsample | "test-retest, not inter-rater reliability" | 75/75 |
@@ -485,7 +495,7 @@ no bootstrap scheme or replicate count is specified for any interval.*
 | 8 | Finding 1 | Point-climb across a recency-ordered series | Climb in points across contests | NY 4; ID 3 | as row 6 | "**cross-state comparisons of the low-salience *level* are not safe**" | +13; +7 |
 | 9 | Finding 1 | Lag-span quantification disqualifying level comparison | Cells at different lags (ID 2 years; NY 1–9) | 3 states | as row 6 | "What the confound does not touch is the within-state *direction*" | lags 2 vs 1–9 |
 | 10 | Finding 1 | Cross-state convergence at high salience as mechanism signature | Presidential rows nearly identical across states | 3 electorates | Full population | "the convergence confirms a weak prior rather than identifying a mechanism" | 28–29% / 14–15% |
-| 11 | Finding 1 | Kitagawa/Das-Gupta decomposition (cited from companions) | Attributed mostly to differential turnout | inherited | Full population per companion | as cited — see inventory finding 4 (Idaho is direction-only) | no numbers here |
+| 11 | Finding 1 | Kitagawa/Das-Gupta decomposition (cited from companions) | Attributed mostly to differential turnout | inherited | Full population per companion | sentence corrected 2026-08-15: WA/NY numeric, Idaho directionally consistent only | no numbers here |
 | 12 | Finding 1 | Senior-to-youth ratio on unrounded shares | 65+ ÷ 18–29, unrounded | 3/5/3 + presidential | Full population | "the same convention the Idaho paper states for its R−D margins" | 2.0 → 4.9–9.7:1 |
 | 13 | Finding 1 | Ratio-multiplication factor (gradient magnitude) | Low-salience ratio ÷ presidential ratio | 3 states | Full population | "the harmonized numbers are what show it" | 1.5× to 5.1× |
 | 14 | Finding 1 | Dissimilarity index applied to ID primaries vs all generals | Duncan index vs CVAP | 3 primaries | Full population of pulled ballots | "'exceeds every odd-year general' … is false on the full set and is withdrawn" | 25.0–27.8 |
@@ -550,7 +560,7 @@ no bootstrap scheme or replicate count is specified for any interval.*
 | 25 | Finding 5 | Sign-of-residual-bias upper-bound argument | Unobservable bias runs the same direction | n/a | Analytic argument | "the raw skew is an upper bound"; income/race "proxied, not tested" | direction |
 | 26 | Finding 5 | Donor-dollar concentration (top shares) | Top-1%/top-10% of matched dollars | three panels | Linkage subset | pooling "**inflates concentration**" — panels separated | 46.6/41.2/43.5% |
 | 27 | Finding 5 | Gini of matched-donor dollars by panel | as stated | as row 26 | as row 26 | as row 26 | 0.857/0.815/0.821 |
-| 28 | Finding 5 | Bootstrap CIs on concentration | Per-panel re-runs (cross-state §F4) | panels | Bootstrap over a non-random matched set — no design-based justification stated here (see inventory finding 2) | "The bootstrap CIs are the per-panel re-runs" | 41.2 [38.6–43.4] |
+| 28 | Finding 5 | Bootstrap CIs on concentration | Per-panel re-runs (cross-state §F4) | panels | Bootstrap over a non-random matched set; design statement added 2026-08-15 (resampling sensitivity, not sampling error) | "The bootstrap CIs are the per-panel re-runs" | 41.2 [38.6–43.4] |
 | 29 | Finding 5 | Geographic concentration share | Two Seattle-metro ZIP3s | pooled + federal | Linkage subset | not stated | 61.4%; 63.5% |
 | 30 | Finding 5 | Occupation-bloc shares on a re-based (panel-scoped) denominator | FEC-resident basis replacing the unfiltered pooled table | $646.2M vs $1,050.8M | Source+residence-filtered | "the same two-money-system pooling this series corrected everywhere else" | RETIRED 23.8%; NOT EMPLOYED 19.9% |
 | 31 | Finding 5 party-resolved | Party over/under-representation gap | Donor party share − electorate share, by state and layer | NY 13.54M; ID 1.03M | Full rolls; donors record-linked | "it holds **in both directions of the spectrum**" | NY +16.1; ID +8.6 |
