@@ -6807,3 +6807,200 @@ Two items left to the author and deliberately not actioned: the AI-disclosure sc
 the cover letter (which state, how many rows, retention, what changed), and whether the residual
 revision narration — four phrases of the "an earlier draft implied" kind — moves to the
 corrections ledger, which exists and is cited.
+
+---
+
+## 2026-08-15 — DISCLOSURE: four person-level voter rows reached a hosted model via `grep`
+
+**Reported immediately, per the standing rule in `CLAUDE.md`. Not minimised, and the count below
+is what I can establish rather than the smallest defensible number.**
+
+### What happened
+
+Opening the Idaho referee round, I searched the repo for the hard-coded Secretary of State
+ballot constants a referee had challenged. The command was
+
+```
+grep -rn "917608|917,608|595602|...|121,015" --include=*.py --include=*.md --include=*.csv .
+```
+
+`--include=*.csv` from the repo root reaches `data/raw/`. Six- and seven-digit strings of that
+shape occur inside voter ids, addresses and dollar amounts, so the search matched **raw
+person-level files** and printed whole source lines.
+
+- **Rows matched across raw person-level files: 223** — 133 in
+  `data/raw/ny/Campaign_Finance_Disclosure_Reports_Contributions...csv`, 73 in the NY
+  expenditures export, **14 in `data/raw/id/id_statewide_voter_history_20260629.csv`**, 2 in
+  `data/raw/wa_pp_matchback/2024-03/Pierce.csv`, 1 in `data/raw/id/_source/id_2024_TCON.csv`.
+- **Rows that entered the model's context: four (4)**, all from the Idaho statewide voter file.
+  The harness truncated the 96.7 KB result to an on-disk file and returned only a 2 KB preview;
+  the preview contained four complete voter records. The remaining ~219 matched rows were
+  written to the local tool-results file and, so far as the harness's own truncation notice
+  states, were not returned to the model.
+- **Fields on those four rows:** state voter id, age, **first / middle / last name**, sex, birth
+  year, **full street address, city, ZIP, county**, mailing address, registration date, **party
+  of record**, precinct code and name, and per-election vote history including primary ballot
+  choice. This is a voter-roll record, and it is the exact category the rule names.
+
+### Why it happened
+
+The 2026-08-10 disclosure established that *the projection is not the control* for DuckDB reads
+and added `ignore_errors=true` to `CLAUDE.md`. That control is scoped to CSV **parsers**. A
+plain text search has no projection at all — it returns whole lines by construction — and
+nothing in the rule as written flags it, because the rule's mental model is "querying data",
+not "searching the repo". The instruction gap is the same shape as last time: a control written
+down for the mechanism that had already fired.
+
+The specific error is mine and was avoidable without any new rule: the search targets were
+`scripts/`, `docs/` and `config/`, and passing those paths instead of `.` would have made the
+match impossible. `--include=*.csv` over a repo whose `data/raw/` holds three voter productions
+is the hazard.
+
+### The generalisable finding
+
+**`grep`/`rg` over the repo root is a disclosure channel of the same class as `SELECT *`.** Any
+recursive content search must be path-scoped to non-data directories, or must exclude
+`data/`, regardless of the file-type filter. A `--include` list is not a scope.
+
+### What was changed
+
+- `CLAUDE.md`'s hard-rule section names recursive content search as a channel and requires
+  explicit non-data path scoping.
+
+### What is NOT claimed
+
+Nothing here asserts anything about earlier sessions' searches. Per the standing rule, that is
+a question for the author, not an inference from artifacts.
+
+### Author's decision still open
+
+Whether four voter-roll rows warrants any further step — and whether P02's disclosure sentence,
+already known to be false on a plain reading because of the `cure-list`/`chase-list` stdout
+previews, needs a second amendment — is the author's call. It is recorded here so the call is
+made on facts.
+
+---
+
+## 2026-08-15 — Idaho, external referee round: 16 items, 15 conceded, 1 reversed against the paper
+
+**Every empirical claim the referee made was reproduced against the databases before it was
+accepted.** All of them reproduced. One item he raised as unmeasured turned out to be
+measurable, and the measurement went **against the paper**, not for it.
+
+### The verdict, and what moved
+
+He classified the paper as major revision on one central point: **Idaho is a dominant-party
+state whose pre-November Republican nomination process determines most seats, but the closed
+primary electorate itself does not decide "the great majority" of them.** That is right on the
+paper's own counts — 52 of 105 is 49.5% — and those counts had been printed three paragraphs
+below the headline they contradicted since the seat-outcome work was added.
+
+The replacement is a four-way decomposition over all 105 seats, which is sharper than either
+the old framing or the referee's own three-way version:
+
+| venue | seats | share |
+|---|--:|--:|
+| contested Republican primary; R won in November | 52 | 49.5% |
+| candidate filing — one R filed; that R won | 38 | 36.2% |
+| the November general — one R filed; a **D** won | 9 | 8.6% |
+| candidate filing — **no** R filed; a D won | 6 | 5.7% |
+
+**Where the referee was wrong, and it is worth recording.** His decomposition put all fifteen
+Democratic seats in the November column. Six of them drew no Republican primary at all, so they
+were settled at filing too, and the count that genuinely turned on the general is nine. Filing
+settles 44 seats against the primary's 52 — two stages of comparable size, one of which has no
+electorate. Reproduce before conceding, in both directions.
+
+### The one item that reversed on measurement
+
+§III explained the roll's contraction partly by "the non-persistence of the 121,000 voters who
+registered same-day on Election Day 2024". He objected that it was never measured. It is
+measurable in the file the paper already uses — an election-day registrant carries that date —
+and measured, **109,441 of the 121,015 are still on the 2026 roll, at least 90.4%**. The claim
+was false. Withdrawn, not softened.
+
+Two more of his items were conceptual and both hold. A stock difference is a **lower** bound on
+gross departures, not "an upper bound on turnover" — the direction was inverted. And
+"party-neutral age gap" was false against the paper's own §II table: Democratic and unaffiliated
+voters are level on the under-30 share (19.4 / 19.6), so the parity is a **senior-end** result
+only.
+
+### The verifier could not have caught the item that mattered most, and says so now
+
+Two of the three Idaho SoS ballot counts were wrong — 2022 read 595,602 against 599,493, 2024
+read 917,608 against 917,469. They were Python literals in `verify_who_decides_id.py`. **Both of
+this project's known blind spots were present in the same eight lines:**
+
+* **2024's count appeared only inside a regex ANCHOR.** A number in an anchor looks probed and
+  is not; it is a precondition, so the check silently stops running if it changes. Third
+  instance of this shape in the repo.
+* **2022's count WAS probed — against the same wrong literal.** The probe compared a constant to
+  itself and passed forever. This is the referee's own point: an asserting verifier can
+  faithfully assert an incorrect external constant, and no amount of internal rigour touches it.
+
+Fixed by pinning to `docs/reference/id_sos_turnout_history_2026-08-15.csv` with source URL and
+retrieval date, capturing the ballot column in all three coverage rows, and refusing to fall
+back to literals if the pin is missing. **Pinning does not verify the SoS. It makes the constant
+checkable in one click, which is the most a repo can do.** The correction moves 2022 coverage
+96.0 → 95.4% and its bound 33.0–37.0 → 32.8–37.4; the two intervals still do not overlap, so
+§I's finding survives. *The referee's own 2024 bound (28.4–30.4%) was slightly wrong — derived,
+it is 28.4–30.5% — because he reconstructed it from rounded cells. Playbook rule 3, from the
+other side.*
+
+### The relation gates, and why they moved out of `derive()`
+
+Five of his sixteen items were **claims with no numeric token**: "great majority",
+"party-neutral", "roughly doubled", "direction-safe", "locked out". No coverage gate can see any
+of them. They are now nine guards in `assert_relations()`, and the reason that function exists
+rather than nine inline `if`s is that **`mutation_probe_verifiers.py` cannot reach a guard
+inside `derive()`** — it perturbs the derived dict after `derive()` returns. A guard the sweep
+cannot exercise is the exact shape of the two no-op gates already shipped here.
+`tests/test_infrastructure/test_id_relation_gates.py` perturbs one key per guard, requires
+SystemExit, and carries a meta-check that every `raise` has a case.
+
+Closure: 287 keys caught / 0 uncaught in the mutation sweep
+(`docs/reference/probe_mutation_2026-08-15.csv`); the 5 new no-probe keys are guard inputs and
+min/max feeders, which is the documented correct category.
+
+### What the hand sweep of satellites found that no gate reads
+
+- **`id-submission-notes.md` bullet 2 asserted the closing-door reading of the unaffiliated
+  Republican-ballot series** — "the closing is observed rather than modelled" — which the paper
+  withdrew as a snapshot artifact in an earlier round. The notes had carried the retired claim
+  ever since.
+- **`diag_id_electorate_extras.py` still labelled §VI's table "NEW-REGISTRANT COHORTS"** and said
+  the rows were voters who "first registered that year". The referee found this one himself.
+- Two live restatements **inside the same paper**, introduced by earlier rounds and surviving
+  this one's first pass: the front-matter caveat still said "same-day registrants churn", and a
+  Boundary bullet still said "the unaffiliated excluded … who is shut out". Both were caught by
+  the withdrawn-claims register on the first run after the new rows landed.
+
+### A register-scope finding
+
+`id-behavior-not-rolls` cannot be a `forbidden_pattern`. The phrase "Behavior, not rolls" is
+**live and correct in three New York documents**, where the roll is stable and the Das-Gupta
+decomposition is reliable — the Idaho sentence being withdrawn said so itself. The register is
+series-wide with no per-paper scope, so forbidding the phrase would fail three papers for
+correct behaviour. Recorded as `unpatternable` with that reason, guarded instead by the Idaho
+paper's own §I narration and the diagnostic's docstring. `id-unaffiliated-locked-out` had the
+same collision with `ny-submission-notes.md` and was narrowed to Idaho-specific wording rather
+than left to over-match.
+
+### State at the end of the round
+
+`verify_who_decides_id.py` exit 0, **432 figures** (was 350), all nine coverage spans fully
+mapped. `verify_who_returns_ballot.py` exit 0 at 183 (was 180) after Finding 2's Idaho
+generalisation was narrowed with it. `verify_who_decides_ny.py`, `verify_cross_state_money.py`,
+`verify_safe_seat.py` exit 0. `check_cross_doc_consistency.py` 0 findings.
+`tests/test_infrastructure/` 517 passed.
+
+### PRE-EXISTING FAILURE, NOT TOUCHED, NOT CAUSED HERE
+
+**`verify_whitepaper.py` exits 1 with five Finding 6 failures**, all against
+`does-money-move-votes.md`: the legislative sign range reads 3.816 / 4.89 against derived
+3.836 / 4.871, and three derivations (`money_r_fundraising`, `money_holdout_alloc`) no longer
+exist. Neither the whitepaper, the money paper nor their verifiers were modified in this round
+(`git status` confirms), so this is staleness left by the 2026-08-15 money-votes referee
+revision, `081f452` — the synthesis was not swept after the source paper's derivations changed.
+**Diagnosing it needs the money paper as source of truth and is its own round.** Not guessed at
+here.

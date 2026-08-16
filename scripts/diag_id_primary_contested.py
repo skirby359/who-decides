@@ -158,10 +158,12 @@ def main():
 
     print("\nRepublican legislative-primary contestation over time:")
     print("  " + " → ".join(f"{yr} {pc:.0f}%" for yr, n, con, pc in rep_trend))
-    print("  The 'decisive' Republican primary is increasingly a real contest — the")
-    print("  contested share roughly doubled across the decade, peaking in 2022 (the")
-    print("  first post-redistricting cycle) — even as the primary stays closed to the")
-    print("  unaffiliated quarter of the electorate. Democratic primaries are almost")
+    print("  The contested share rose to a peak in 2022 (the first post-redistricting")
+    print("  cycle) and then FELL in 2024, which still leaves it well above the 2010s.")
+    print("  With four comparable observations and 2020 missing, that is not a trend.")
+    print("  (This block said the share 'roughly doubled across the decade' until")
+    print("  2026-08-15; 36 -> 53 is 1.4x. The 1.9x is 2016 to the 2022 peak.)")
+    print("  Democratic primaries are almost")
     print("  never contested (a one-party state fields few Democrats). 2020 legislative")
     print("  is n/a: the SoS published that cycle at county level only (no precinct file).")
 

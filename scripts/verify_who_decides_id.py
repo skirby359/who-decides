@@ -52,6 +52,43 @@ PARTY = ("CASE WHEN party='REP' THEN 'REP' WHEN party='DEM' THEN 'DEM' "
 _AGE = "(v.age - (2026 - {yr}))"
 
 
+SOS_PIN = vp.DOCS / "reference" / "id_sos_turnout_history_2026-08-15.csv"
+
+
+def _id_sos_turnout() -> dict[int, dict[str, int | float]]:
+    """The Idaho SoS's own registration/turnout table, read from the pin.
+
+    These are EXTERNAL constants — the voter file cannot reproduce them, and that is the
+    point of every figure that uses them. They lived as Python literals until an external
+    referee found two of them wrong on 2026-08-15 (2022 ballots 595,602 against the SoS's
+    599,493; 2024 917,608 against 917,469). Nothing in this file could have caught that:
+    an asserting verifier checks the paper against the constant, never the constant
+    against the world. Pinning does not fix that either — it makes the constant's source
+    and retrieval date checkable in one click, which is the most a repo can do.
+
+    A missing pin is a FAILURE, not a fallback to literals. The failure mode this whole
+    section exists to prevent is a plausible number with no provenance.
+    """
+    if not SOS_PIN.exists():
+        raise SystemExit(
+            f"FATAL: the Idaho SoS turnout pin is missing ({SOS_PIN}). The coverage table, "
+            f"the bounds it supports and the official turnout rate all rest on it. Refusing "
+            f"to fall back to in-code constants — that is exactly how the retired 595,602 "
+            f"and 917,608 survived unreviewed.")
+    out: dict[int, dict[str, int | float]] = {}
+    for line in SOS_PIN.read_text(encoding="utf-8").splitlines():
+        if line.startswith("#") or line.startswith("election_date") or not line.strip():
+            continue
+        date_s, kind, reg, ballots, turnout = line.split(",")
+        if kind != "general":
+            continue
+        out[int(date_s[:4])] = {"registered": int(reg), "ballots_cast": int(ballots),
+                                "turnout_pct": float(turnout)}
+    if not out:
+        raise SystemExit(f"FATAL: the SoS pin {SOS_PIN} parsed to zero general-election rows.")
+    return out
+
+
 def _band(agesql: str) -> str:
     return (f"CASE WHEN {agesql}<30 THEN '18-29' WHEN {agesql}<45 THEN '30-44' "
             f"WHEN {agesql}<65 THEN '45-64' ELSE '65+' END")
@@ -137,6 +174,21 @@ def derive() -> dict:
     for p, p65, p1829, med in rows:
         d[f"e24_{p}_65"], d[f"e24_{p}_1829"], d[f"e24_{p}_median"] = \
             float(p65), float(p1829), float(med)
+
+    # THE PARTY-NEUTRALITY CLAIM, narrowed and then asserted (2026-08-15, referee item 5).
+    #
+    # §II and the abstract said the age gap is "party-neutral" and that Idaho's youth "sits
+    # in the unaffiliated bloc rather than in either party". The first half is a real
+    # finding: R and D are within a fraction of a point on the 65+ share. The second half is
+    # not true of Democrats — Democratic and unaffiliated 2024 general voters are within
+    # 0.2 points of each other on the under-30 share (19.4 / 19.6), while Republicans sit
+    # nearly seven points below both.
+    #
+    # So what distinguishes the unaffiliated bloc is the SENIOR end, not the young end: it
+    # carries ten fewer points of 65+ than either party. Both relations are asserted, because
+    # the narrowed sentence needs both to be true and neither has a token a probe could read.
+    d["e24_RD_65_gap"] = abs(d["e24_REP_65"] - d["e24_DEM_65"])
+    d["e24_DU_1829_gap"] = abs(d["e24_DEM_1829"] - d["e24_UNAFF_1829"])
 
     # Section III — the same profile over the ROLL, which is a different denominator and
     # gives different numbers for the same words. Both appear in the paper.
@@ -247,6 +299,17 @@ def derive() -> dict:
             f"matches — both make the range say something other than it claims.")
     d["dprim_lo"], d["dprim_hi"] = min(_dcycles), max(_dcycles)
 
+    # THE SHAPE OF THE SERIES, checked in code (2026-08-15, referee item 11). §IV said the
+    # contested rate "roughly doubled across the decade" and printed 36 → 43 → 68 → 53. It
+    # did not: it rose to 1.9x its 2016 level in 2022 and then fell by a sixth. "Doubled
+    # across the decade" is an endpoint claim and the endpoints are 36 and 53.
+    #
+    # This is the class of defect no coverage gate can see, because a superlative or a trend
+    # word has no numeric token to probe — the same blind spot that let "highest of the four"
+    # stand false in the money paper. So the shape is asserted here instead of described.
+    d["rprim_peak_ratio"] = d["rprim_2022"] / d["rprim_2016"]
+    d["rprim_endpoint_ratio"] = d["rprim_2024"] / d["rprim_2016"]
+
     d["prim_single"] = d["prim_races"] - d["prim_contested"]
     d["prim_contested_pct"] = 100.0 * d["prim_contested"] / d["prim_races"]
     d["prim_single_pct"] = 100.0 * d["prim_single"] / d["prim_races"]
@@ -269,8 +332,11 @@ def derive() -> dict:
     # it is named here rather than inlined so that the turnover figure below is
     # visibly a comparison against an outside source rather than the roll compared
     # with itself.
-    ID_SOS_REG_2024 = 1_178_750
-    d["roll_turnover_pct"] = 100.0 * (ID_SOS_REG_2024 - d["roll_n"]) / ID_SOS_REG_2024
+    _sos = _id_sos_turnout()
+    ID_SOS_REG_2024 = _sos[2024]["registered"]
+    d["id_sos_reg_2024"] = ID_SOS_REG_2024
+    d["roll_net_decline_pct"] = 100.0 * (ID_SOS_REG_2024 - d["roll_n"]) / ID_SOS_REG_2024
+    d["roll_net_decline_n"] = ID_SOS_REG_2024 - d["roll_n"]
 
     # The inflated all-voter rate the boundary section quotes as ~94% to show WHY a
     # shrunken roll cannot be used as a turnout denominator. The point of the
@@ -290,11 +356,16 @@ def derive() -> dict:
     # analogy is sound and is retained, but the bound below is Idaho's own data and
     # is a limit rather than a direction — which is what the section needed.
     #
-    # SoS certified ballots cast, from the official canvasses:
-    #   2020  878,527   (1,082,417 registered, 81.2%)
-    #   2022  595,602   (1,048,263 registered, 56.8%)
-    #   2024  917,608   (1,178,750 registered, 77.8%)
-    ID_SOS_BALLOTS = {2020: 878_527, 2022: 595_602, 2024: 917_608}
+    # SoS ballots cast, READ FROM THE PIN rather than hand-written here. Until
+    # 2026-08-15 these were three Python literals, and two of them were wrong —
+    # 2022 read 595,602 against the SoS's 599,493 and 2024 read 917,608 against
+    # 917,469. An external referee found it; this verifier could not, and no
+    # verifier of this design can. Asserting a paper against a constant checks
+    # that the paper matches the constant, and says nothing about whether the
+    # constant matches the world. The pin carries the source URL and retrieval
+    # date so the next reader can re-check it against the world in one click.
+    ID_SOS_BALLOTS = {y: r["ballots_cast"] for y, r in _sos.items()
+                      if y in (2020, 2022, 2024)}
     for yr, official in ID_SOS_BALLOTS.items():
         n, = con.execute(
             f"SELECT COUNT(DISTINCT state_voter_id) FROM voter_participation "
@@ -348,6 +419,29 @@ def derive() -> dict:
     # Idaho's election-day registrations inside the SoS's 2024 registered total —
     # quoted so the "same-day registrants churn" clause carries its magnitude.
     d["id_edr_2024"] = 121_015
+
+    # --- DID THEY ACTUALLY CHURN? (2026-08-15, referee item 9.)
+    #
+    # §III explained the roll's contraction partly by "the non-persistence of the 121,000
+    # voters who registered same-day on Election Day 2024". The referee's objection was that
+    # the claim was never measured — and it is measurable in the file the paper already uses,
+    # because a voter who registered at the polls on 2024-11-05 carries that date.
+    #
+    # Measured, the claim is FALSE, and not marginally: 109,441 of the 121,015 are still on
+    # the 2026 roll, a 90.4% floor. A floor rather than a rate because `registration_date` is
+    # the MOST RECENT registration event — a same-day registrant who has since moved or
+    # changed party carries a later date and is counted here as absent. The true retention
+    # can only be higher.
+    #
+    # This is the one referee item that reversed on measurement rather than being conceded,
+    # and it reversed against the paper. The mechanism sentence is withdrawn, not softened.
+    d["edr_persist_n"], = con.execute(
+        "SELECT COUNT(*) FROM voters WHERE registration_date = DATE '2024-11-05'").fetchone()
+    d["edr_persist_pct"] = 100.0 * d["edr_persist_n"] / d["id_edr_2024"]
+    d["edr_persist_voted24"], = con.execute("""
+        SELECT COUNT(*) FROM voters v WHERE v.registration_date = DATE '2024-11-05'
+          AND v.state_voter_id IN (SELECT DISTINCT state_voter_id FROM voter_participation
+                                   WHERE election_year=2024 AND kind='GENERAL')""").fetchone()
 
     d["wachurn_gone_n"], d["wachurn_kept_n"] = int(g_n), int(r_n)
     d["wachurn_gone_65"], d["wachurn_kept_65"] = float(g65), float(r65)
@@ -449,7 +543,79 @@ def derive() -> dict:
     _donor_ballot_measure_split(con, d)
     _primary_vs_donor_age(con, d)
     con.close()
+    assert_relations(d)
     return d
+
+
+def assert_relations(d: dict) -> None:
+    """Every RELATION the paper asserts in words, checked as a relation.
+
+    CONSOLIDATED HERE 2026-08-15, and the reason is freeze-rule 2 rather than tidiness.
+    These guards were written inline beside their derivations, which is where they read
+    best — and `scripts/mutation_probe_verifiers.py` cannot reach them there, because it
+    perturbs the derived dict AFTER `derive()` has returned. A guard the mutation sweep
+    cannot exercise is exactly the shape of gate this project has twice shipped believing
+    it worked. Pulled into one pure function of the derived dict, every one can be shown
+    firing: `tests/test_infrastructure/test_id_relation_gates.py` perturbs a single key per
+    case and requires SystemExit.
+
+    These are the claims a coverage gate structurally cannot see. "Within a fraction of a
+    point", "level with", "roughly doubled", "direction-safe", "largely persisted" — none
+    carries a numeric token to probe, and each of them was either wrong or unsupported in
+    the version an external referee read on 2026-08-15.
+    """
+    if d["e24_RD_65_gap"] > 1.0:
+        raise SystemExit(
+            f"FATAL: the senior-share parity is Sec II's surviving novel finding "
+            f"(R {d['e24_REP_65']:.1f}% vs D {d['e24_DEM_65']:.1f}%). The gap is now "
+            f"{d['e24_RD_65_gap']:.1f} points, not 'within a fraction of a point'.")
+    if d["e24_DU_1829_gap"] > 1.0:
+        raise SystemExit(
+            f"FATAL: Sec II now says Democratic and unaffiliated voters are LEVEL on the "
+            f"under-30 share — that is why the 'youth sits outside both parties' claim was "
+            f"withdrawn. Measured D {d['e24_DEM_1829']:.1f}% vs UNAFF "
+            f"{d['e24_UNAFF_1829']:.1f}%, a gap of {d['e24_DU_1829_gap']:.1f} points.")
+    if not (d["e24_UNAFF_65"] < d["e24_DEM_65"] - 5
+            and d["e24_UNAFF_65"] < d["e24_REP_65"] - 5):
+        raise SystemExit(
+            f"FATAL: Sec II's replacement claim is that the unaffiliated bloc is younger "
+            f"than both parties at the SENIOR end specifically. That no longer holds "
+            f"(UNAFF {d['e24_UNAFF_65']:.1f}% vs REP {d['e24_REP_65']:.1f}% / "
+            f"DEM {d['e24_DEM_65']:.1f}%).")
+    if not (d["rprim_2022"] > d["rprim_2024"] > d["rprim_2018"] > d["rprim_2016"]):
+        raise SystemExit(
+            f"FATAL: Sec IV now says the Republican contested rate rose to a 2022 peak and "
+            f"then fell, with 2024 still above 2018. That ordering no longer holds "
+            f"({d['rprim_2016']:.1f} / {d['rprim_2018']:.1f} / {d['rprim_2022']:.1f} / "
+            f"{d['rprim_2024']:.1f}), so the sentence describes a different series.")
+    if d["rprim_endpoint_ratio"] >= 1.8:
+        raise SystemExit(
+            f"FATAL: Sec IV withdrew 'roughly doubled across the decade' because the "
+            f"endpoints are {d['rprim_endpoint_ratio']:.2f}x, not 2x. They now are — the "
+            f"withdrawal needs revisiting rather than being left as it stands.")
+    if d["edr_persist_pct"] < 50.0:
+        raise SystemExit(
+            f"FATAL: Sec III now states that the election-day-2024 registrants largely "
+            f"PERSISTED ({d['edr_persist_pct']:.1f}% floor), which is why the churn "
+            f"explanation was withdrawn. Measured below 50%, that withdrawal is itself "
+            f"wrong and the section must be re-derived — never re-toleranced.")
+    if d["venue_total"] != 105:
+        raise SystemExit(
+            f"FATAL: the decision-venue decomposition covers {d['venue_total']} seats, not "
+            f"Idaho's 105. Every share in Sec IV is over that denominator.")
+    if d["venuepct_contested_republican"] >= 50.0:
+        raise SystemExit(
+            f"FATAL: the contested-Republican-primary share is "
+            f"{d['venuepct_contested_republican']:.1f}%, at or above 50%, so Sec IV's "
+            f"correction — the primary electorate is the largest single venue but settles "
+            f"less than half of seats — no longer describes the data.")
+    if d.get("xo_UNAFF_survives") or not d.get("xo_DEM_survives"):
+        raise SystemExit(
+            f"FATAL: Sec VII's revised claim is that Democratic donor loyalty survives the "
+            f"hostile bound and the unaffiliated Democratic tilt does NOT. Measured: DEM "
+            f"survives={d.get('xo_DEM_survives')}, UNAFF "
+            f"survives={d.get('xo_UNAFF_survives')}. The robustness language must be "
+            f"re-derived, not adjusted.")
 
 
 def _poll_book_conversion(con, d: dict) -> None:
@@ -489,6 +655,14 @@ def _poll_book_conversion(con, d: dict) -> None:
             GROUP BY 1""").fetchall())
         d[f"{tag}_rep_ballot_share"] = (
             100.0 * allrows.get("REP", 0) / sum(allrows.values()))
+        # How completely the ballot column is populated, per cycle. §IV's basis note
+        # (2026-08-15) argues that ballot choice is the sound measure and party of record
+        # is the contaminated one; "populated for 99.6-99.9% of participants" is the claim
+        # that makes the first half of that true, and it needs deriving rather than
+        # asserting. Complement of the `nochoice_pct_*` range already used two sections up.
+        d[f"{tag}_ballot_recorded_pct"] = (
+            100.0 * (sum(allrows.values()) - allrows.get("(none)", 0))
+            / sum(allrows.values()))
         # Concordance: current-REP voters pulling a REP ballot. Definitional, not
         # behavioural, and printed so the paper can say why.
         n, k = con.execute(f"""
@@ -572,6 +746,50 @@ def _seat_outcomes(d: dict) -> None:
         d["single_prim_d_won"] = rows.get("true|Democratic", 0)
         d["single_prim_n"] = d["single_prim_r_won"] + d["single_prim_d_won"]
         d["filing_settled_pct"] = 100.0 * d["single_prim_r_won"] / d["seats24_r"]
+
+        # --- THE DECISION-VENUE DECOMPOSITION over all 105 seats (2026-08-15).
+        #
+        # Added because an external referee pointed out that the paper's own seat counts
+        # defeat its own headline: 52 of 105 is 49.5%, which is not "the great majority".
+        # His decomposition was three-way (52 primary / 38 filing / 15 November) and is
+        # right in structure, but it puts all fifteen Democratic seats in November. Six of
+        # them had NO Republican primary at all — no Republican filed — so those were
+        # settled at filing too, in the Democrats' favour, and the count that genuinely
+        # turned on the general is nine, not fifteen.
+        #
+        # A four-way cut over the same 105 seats is therefore both more accurate and
+        # sharper than either the old framing or the referee's. It is derived here from
+        # the loaded canvasses rather than reasoned from the printed cells.
+        for a, b, n in con.execute(f"""
+            WITH gseat AS (SELECT race_name seat, p FROM (
+                SELECT r.race_name, cd.party_normalized p,
+                       ROW_NUMBER() OVER (PARTITION BY r.race_name
+                                          ORDER BY SUM(pr.votes) DESC) rk
+                FROM races r JOIN precinct_results pr USING (race_id)
+                JOIN candidates cd USING (candidate_id)
+                WHERE r.election_id = {gen} AND {_leg} GROUP BY 1, 2) WHERE rk = 1),
+            rprim AS (
+                SELECT REPLACE(r.race_name, ' REPUBLICAN', '') seat,
+                       COUNT(DISTINCT cd.candidate_id) n_r
+                FROM races r JOIN precinct_results pr USING (race_id)
+                JOIN candidates cd USING (candidate_id)
+                WHERE r.election_id = {pri} AND r.race_name LIKE '% REPUBLICAN' AND {_leg}
+                GROUP BY 1)
+            SELECT CASE WHEN rprim.n_r IS NULL THEN 'norprim'
+                        WHEN rprim.n_r = 1 THEN 'single' ELSE 'contested' END,
+                   gseat.p, COUNT(*)
+            FROM gseat LEFT JOIN rprim USING (seat) GROUP BY 1, 2""").fetchall():
+            d[f"venue_{a}_{str(b).lower()}"] = n
+        d["venue_total"] = sum(v for k, v in d.items() if k.startswith("venue_"))
+        for key in ("contested_republican", "single_republican",
+                    "single_democratic", "norprim_democratic"):
+            d[f"venuepct_{key}"] = 100.0 * d.get(f"venue_{key}", 0) / d["venue_total"]
+        # Filing plus primary — every seat the Republican nomination process produced the
+        # eventual winner of. This is the number that carries "the great majority", and it
+        # is about the nomination PROCESS, not about the primary ELECTORATE.
+        d["venue_r_nomination_n"] = (d.get("venue_contested_republican", 0)
+                                     + d.get("venue_single_republican", 0))
+        d["venue_r_nomination_pct"] = 100.0 * d["venue_r_nomination_n"] / d["venue_total"]
     finally:
         con.close()
 
@@ -631,6 +849,7 @@ def _donor_ballot_measure_split(con, d: dict) -> None:
     def contributor_type_person_sql(alias: str = "ic") -> str:
         col = f"{alias}.contributor_type" if alias else "contributor_type"
         return f"COALESCE({col}, 'UNKNOWN') NOT IN ('ORGANIZATION', 'COMMITTEE')"
+
 
     sd = str(vp.DATA / "id_statewide.duckdb")
     c = duckdb.connect(sd, read_only=True)
@@ -776,6 +995,19 @@ def _section_vii(con, d: dict) -> None:
     d["don_ada"], = con.execute(f"""
         SELECT 100.0*SUM(a.total_donated) FILTER (WHERE v.county_name='ADA')/SUM(a.total_donated)
         FROM {P} a JOIN voters v USING (state_voter_id)""").fetchone()
+    # ADA NORMALIZED TO ITS REGISTRATION WEIGHT (2026-08-15, referee item 15). "Boise is half
+    # the money" sounds more geographically extreme than it is, because Ada is also the
+    # largest county on the roll. The donor-class companion already reports county
+    # concentration as a RATIO to roll share, so the bare share was also inconsistent across
+    # the series. Both sides of the ratio are derived here so the ratio cannot be read off two
+    # rounded cells — a fourth-decimal trap this project has already been bitten by twice.
+    d["ada_roll_share"], = con.execute(
+        "SELECT 100.0*COUNT(*) FILTER (WHERE county_name='ADA')/COUNT(*) FROM voters").fetchone()
+    d["ada_dollar_ratio"] = d["don_ada"] / d["ada_roll_share"]
+    d["don_ada_donors"], = con.execute(f"""
+        SELECT 100.0*COUNT(*) FILTER (WHERE v.county_name='ADA')/COUNT(*)
+        FROM {P} a JOIN voters v USING (state_voter_id)""").fetchone()
+    d["ada_donor_ratio"] = d["don_ada_donors"] / d["ada_roll_share"]
 
     # Donor mix by district safety, banded the same way §V bands them, so the two sections
     # cannot drift apart. Solid-R is net>=40 (the 27); Likely+Lean is 5<=net<40 (the 8).
@@ -809,6 +1041,31 @@ def _section_vii(con, d: dict) -> None:
     d["xo_res_donors"], d["xo_res_dollars"] = (float(x) for x in con.execute(f"""
         SELECT 100.0*COUNT(*) FILTER (WHERE d_amount+r_amount>0)/COUNT(*),
                100.0*SUM(d_amount+r_amount)/SUM(total_donated) FROM {P}""").fetchone())
+
+    # --- PARTY-SPECIFIC MISSINGNESS AND THE HOSTILE BOUND (2026-08-15, referee item 14).
+    #
+    # §VII called two crossover rows "robust, direction-safe" while conceding the Republican
+    # row is an upper bound because the unresolved pool skews Republican. That concession is
+    # the argument that breaks the unaffiliated row, and the paper made it without noticing:
+    # if unresolved recipients lean Republican, they lean Republican for UNAFFILIATED donors
+    # too, and the unaffiliated row is the LEAST resolved of the four.
+    #
+    # The bound is arithmetic. Assign every unresolved donor in a group to R-only — the
+    # hostile assignment for a Democratic-tilt claim — and ask whether D-only still exceeds
+    # R-only. `xo_<p>_survives` is that test, and it is what the word "direction-safe" has to
+    # mean if it means anything.
+    for p, n_all, n_res, d_only, r_only in con.execute(f"""
+        SELECT {PARTY} p, COUNT(*), COUNT(*) FILTER (WHERE a.d_amount+a.r_amount>0),
+               COUNT(*) FILTER (WHERE a.d_amount>0 AND a.r_amount=0),
+               COUNT(*) FILTER (WHERE a.r_amount>0 AND a.d_amount=0)
+        FROM {P} a JOIN voters v USING (state_voter_id) GROUP BY 1""").fetchall():
+        if not n_res:
+            continue
+        unres = n_all - n_res
+        d[f"xo_{p}_resolved_pct"] = 100.0 * n_res / n_all
+        d[f"xo_{p}_hostile_d"] = 100.0 * d_only / n_all
+        d[f"xo_{p}_hostile_r"] = 100.0 * (r_only + unres) / n_all
+        d[f"xo_{p}_survives"] = d_only > r_only + unres
 
     # Methods: the ID FEC layer's scale, and the pooled table the methods note contrasts.
     d["fec_rows"], fm = con.execute(
@@ -882,9 +1139,8 @@ PROBES = [
     ("§IV the 2024 unaffiliated share restated as a lower bound",
      r"The ([\d.]+)% unaffiliated share of the May 2024 primary\s*electorate is not a "
      r"measurement", "p24_UNAFF", 0.05),
-    ("§IV Democrats won seats, restated in the section lead",
-     r"Democrats won (\d+) of Idaho's (\d+) legislative seats in\s*November 2024",
-     ("seats24_d", "seats24_total"), 0),
+    ("Conclusion — the D seat count, restated where the decomposition is summarised",
+     r"Democrats took the remaining (\d+) in November", "seats24_d", 0),
     ("§IV the 2026 unaffiliated share is the honest estimate",
      r"unaffiliated registrants are \*\*([\d.]+)%\*\* of that primary electorate",
      "p26_una_share", 0.05),
@@ -899,25 +1155,40 @@ PROBES = [
     ("abstract — the registration headline",
      r"Idaho is \*\*(\d+)%\*\* Republican and \*\*(\d+)%\*\* Democratic by registration",
      ("roll_REP", "roll_DEM"), 0.5),
-    ("Boundary — the same turnover figure, restated as an upper bound",
-     r"the ~(\d+)% gap is an upper bound", "roll_turnover_pct", 0.5),
-    ("§III — the roll's turnover against the SoS's 2024 registered total",
-     r"roughly a \*\*(\d+)%\s+turnover in eighteen months\*\*", "roll_turnover_pct", 0.5),
+    ("Boundary — the net decline, restated as a lower bound on gross departures",
+     r"the ~(\d+)% gap is a net change", "roll_net_decline_pct", 0.5),
+    ("§III — the roll's NET DECLINE against the SoS's 2024 registered total",
+     r"net decline of\s*(?:\*\*)?([\d,]+) registrations, ([\d.]+)%\*\*",
+     ("roll_net_decline_n", "roll_net_decline_pct"), 0.05),
     ("§IV — the unaffiliated share, roll against primary",
      r"falls from ~(\d+)% of the roll to roughly \*\*(\d+)–(\d+)%\*\* of the primary",
      ("roll_UNAFF", "una_prim_lo", "una_prim_hi"), 0.5),
     ("§IV — the share of Republican-held seats settled at filing, both statements",
      r"seats, (\d+)%\*\*", "filing_settled_pct", 0.5),
-    ("§IV — the same share restated in the next sentence",
-     r"For that (\d+)% of Republican-held seats", "filing_settled_pct", 0.5),
+    # Repurposed 2026-08-15. It probed "For that 42% of Republican-held seats", a sentence
+    # the decomposition rewrite deleted; the same key is still asserted twice elsewhere
+    # (§IV and §V), so no check is lost. It now covers the abstract's four venue shares,
+    # which are the paper's new headline and were unprobed the moment they were written.
+    ("abstract — venue 1, the contested Republican primary",
+     r"a \*\*contested\*\* Republican primary for \*\*(\d+)\*\* of them \(\*\*([\d.]+)%\*\*\)",
+     ("venue_contested_republican", "venuepct_contested_republican"), 0.05),
+    ("abstract — venue 2, a single Republican filer who won",
+     r"single filed candidate for \*\*(\d+)\*\* more \(\*\*([\d.]+)%\*\*\)",
+     ("venue_single_republican", "venuepct_single_republican"), 0.05),
+    ("abstract — venue 3, the November general",
+     r"the November general for \*\*(\d+)\*\* \(\*\*([\d.]+)%\*\*\)",
+     ("venue_single_democratic", "venuepct_single_democratic"), 0.05),
+    ("abstract — venue 4, no Republican filed at all",
+     r"the remaining \*\*(\d+)\*\* \(\*\*([\d.]+)%\*\*\)",
+     ("venue_norprim_democratic", "venuepct_norprim_democratic"), 0.05),
     ("§IV — the Republican contested-rate series",
      r"\*\*(\d+)% \(2016\) → (\d+)% \(2018\) → (\d+)% \(2022\) → (\d+)% \(2024\)\*\*",
      ("rprim_2016", "rprim_2018", "rprim_2022", "rprim_2024"), 0.5),
     ("§IV — the Democratic contested range over the same cycles",
      r"almost never contested \((\d+)–(\d+)% across these cycles\)",
      ("dprim_lo", "dprim_hi"), 0.5),
-    ("§IV — the unaffiliated quarter shut out of the closed primary",
-     r"stays \*closed\* to the ~(\d+)% of registrants", "roll_UNAFF", 0.5),
+    ("Opening — the unaffiliated quarter facing the affiliation requirement",
+     r"The (\d+)% of registrants who decline a party", "roll_UNAFF", 0.5),
     ("§VI — the full table's Democratic and unaffiliated endpoints",
      r"Democratic share sits near (\d+)% and the unaffiliated share climbs\s+to (\d+)%",
      ("coh2024_DEM", "coh2024_UNAFF"), 0.5),
@@ -938,28 +1209,42 @@ PROBES = [
      r"as a (\d+)%-Republican state must", "roll_REP", 0.5),
     ("§VII — Democratic donor loyalty",
      r"near-monolithic donors \((\d+)% give only to Democrats", "xo_DEM_d", 0.5),
-    ("§VII — Republican donor loyalty and the apparent crossover",
-     r"predominantly fund Republicans \((\d+)%\); the apparent ~(\d+)% giving only to",
-     ("xo_REP_r", "xo_REP_d"), 0.5),
+    ("§VII — Republican donor loyalty",
+     r"predominantly fund Republicans \((\d+)%\)", "xo_REP_r", 0.5),
     # --- Boundary: the coverage table and the bounds it supports (2026-08-10).
-    ("Boundary — 2024 coverage row",
-     r"\| Nov 2024 \| 917,608 \| ([\d,]+) \| \*\*([\d.]+)%\*\* \| ([\d.]+)% \| "
+    #
+    # RESTRUCTURED 2026-08-15, after an external referee found two of the three SoS ballot
+    # counts wrong. The old shape had both failure modes this project keeps re-learning:
+    #
+    #   * 2024's ballot count, 917,608, appeared ONLY inside a regex ANCHOR. A number in an
+    #     anchor looks probed and is not — it is a precondition for the check, so the check
+    #     silently stops running if it changes, and nothing ever compares it to anything.
+    #     That is the same defect the 2026-08-11 WA sitting recorded, in the same file shape.
+    #   * 2022's count WAS probed — against `id_sos_2022`, which was the same wrong literal.
+    #     A probe that asserts a constant against itself passes forever and carries no
+    #     information. It is the referee's own point: an asserting verifier can faithfully
+    #     assert an incorrect external constant, and the only real check is provenance.
+    #
+    # So the ballot column is now CAPTURED in every row and asserted against the pin, and
+    # the pin carries the URL and retrieval date. That still cannot verify the SoS; it makes
+    # the paper, the verifier and one citable source agree or fail loudly.
+    ("Boundary — 2024 coverage row, ballot count included",
+     r"\| Nov 2024 \| ([\d,]+) \| ([\d,]+) \| \*\*([\d.]+)%\*\* \| ([\d.]+)% \| "
      r"\*\*([\d.]+) – ([\d.]+)%\*\* \|",
-     ("cover2024_n", "cover2024_pct", "gen2024_65+", "bound2024_lo", "bound2024_hi"), 0.05),
-    ("Boundary — the SoS ballot counts the coverage table divides by",
-     r"\| Nov 2022 \| ([\d,]+) \|", "id_sos_2022", 0),
-    ("Boundary — the 2020 SoS ballot count",
-     r"\| Nov 2020 \| ([\d,]+) \|", "id_sos_2020", 0),
-    ("Boundary — 2022 coverage row",
-     r"\| Nov 2022 \| 595,602 \| ([\d,]+) \| \*\*([\d.]+)%\*\* \| ([\d.]+)% \| "
+     ("id_sos_2024", "cover2024_n", "cover2024_pct", "gen2024_65+",
+      "bound2024_lo", "bound2024_hi"), 0.05),
+    ("Boundary — 2022 coverage row, ballot count included",
+     r"\| Nov 2022 \| ([\d,]+) \| ([\d,]+) \| \*\*([\d.]+)%\*\* \| ([\d.]+)% \| "
      r"\*\*([\d.]+) – ([\d.]+)%\*\* \|",
-     ("cover2022_n", "cover2022_pct", "gen2022_65+", "bound2022_lo", "bound2022_hi"), 0.05),
-    ("Boundary — 2020 coverage row",
-     r"\| Nov 2020 \| 878,527 \| ([\d,]+) \| \*\*([\d.]+)%\*\* \| ([\d.]+)% \| "
+     ("id_sos_2022", "cover2022_n", "cover2022_pct", "gen2022_65+",
+      "bound2022_lo", "bound2022_hi"), 0.05),
+    ("Boundary — 2020 coverage row, ballot count included",
+     r"\| Nov 2020 \| ([\d,]+) \| ([\d,]+) \| \*\*([\d.]+)%\*\* \| ([\d.]+)% \| "
      r"\*\*([\d.]+) – ([\d.]+)%\*\* \|",
-     ("cover2020_n", "cover2020_pct", "gen2020_65+", "bound2020_lo", "bound2020_hi"), 0.06),
-    ("Boundary — election-day registrants inside the SoS registered total",
-     r"([\d,]+) of that 1\.18M\s+registered on election day", "id_edr_2024", 0),
+     ("id_sos_2020", "cover2020_n", "cover2020_pct", "gen2020_65+",
+      "bound2020_lo", "bound2020_hi"), 0.06),
+    ("Boundary — election-day registrants, now cited as a withdrawn mechanism",
+     r"the churn of the\s*([\d,]+) election-day registrants", "id_edr_2024", 0),
     ("Boundary — Washington's roll churn, the mechanism argument",
      r"the ([\d,]+) voters\s+who left the rolls are \*\*([\d.]+)% 65\+ against ([\d.]+)% "
      r"of the ([\d,]+) retained\*\*",
@@ -988,13 +1273,13 @@ PROBES = [
     ("§V single-candidate primaries did not all settle a seat",
      r"Of the (\d+) seats whose Republican primary drew a single candidate",
      "single_prim_n", 0),
-    ("§V what filing actually settled",
-     r"\*\*(\d+) of the (\d+) Republican-held seats \((\d+)%\)\*\*",
-     ("single_prim_r_won", "seats24_r", "filing_settled_pct"), 0.5),
-    ("§V single-candidate primary outcomes, both ways",
-     r"Of those 47, \*\*(\d+)\*\* were\s*won by a Republican in November and \*\*(\d+)\*\* by a "
-     r"Democrat",
-     ("single_prim_r_won", "single_prim_d_won"), 0),
+    ("abstract — the nomination process against the primary electorate",
+     r"produced\s*the winner in \*\*(\d+) of (\d+)\*\* seats, \*\*([\d.]+)%\*\*",
+     ("venue_r_nomination_n", "venue_total", "venue_r_nomination_pct"), 0.05),
+    ("§IV single-candidate primary outcomes, both ways",
+     r"\*\*(\d+) of them were won by a Democrat in November\*\*,\s*while all (\d+)\s*"
+     r"contested-primary seats went Republican",
+     ("single_prim_d_won", "venue_contested_republican"), 0),
     ("§V filing-settled share restated",
      r"\*\*(\d+) of the\s*(\d+) Republican-held seats, (\d+)%\*\*",
      ("single_prim_r_won", "seats24_r", "filing_settled_pct"), 0.5),
@@ -1026,7 +1311,7 @@ PROBES = [
      r"65-and-over share, \*\*([\d.]+)%\*\* against \*\*([\d.]+)%\*\*",
      ("e24_REP_65", "e24_DEM_65"), 0.05),
     ("abstract — 2024 primary electorate against the roll, REP share",
-     r"primary electorate runs \*\*([\d.]+)%\*\* Republican by registration against "
+     r"primary electorate is\s*\*\*([\d.]+)%\*\* Republican by party of record against\s*"
      r"\*\*([\d.]+)%\*\* of the roll", ("p24_REP", "roll_REP"), 0.05),
     ("abstract — Republican-minus-Democratic margin, primary against roll",
      r"margin of \*\*([\d.]+)\*\* points against \*\*([\d.]+)\*\* on the rolls",
@@ -1134,8 +1419,8 @@ PROBES = [
      0.5),
 
     # ---- Section V
-    ("§V legislative districts by registration lean",
-     r"the (\d+) Solid-R", "ld_safe_r", 0),
+    ("§VII districts in the widest registration band, cross-checked against §V's count",
+     r"the (\d+) districts at R\+40 or more", "ld_safe_r", 0),
 
     # ---- added 2026-08-06 by the coverage gate -------------------------------------------
     # §IV: the primary-electorate age table, both rows (see derive() on the two age bases).
@@ -1229,11 +1514,15 @@ PROBES = [
     ("§VII concentration — top 1% and top 10%",
      r"top 1% of matched donors supply \*\*([\d.]+)%\*\* of the matched dollars; the top 10% "
      r"supply \*\*([\d.]+)%\*\*", ("don_top1", "don_top10"), 0.5),
-    ("§VII geography — Ada County's dollar share",
-     r"Ada County \(Boise\) alone accounts for \*\*([\d.]+)%\*\*", "don_ada", 0.5),
-    ("§VII donors by district safety — Solid-R then the competitive-adjacent eight",
-     r"the 27 Solid-R districts hold ([\d,]+) donors who are \*\*([\d.]+)% Republican / "
-     r"([\d.]+)% Democratic\*\*, while the eight Likely-R and Lean-R districts hold ([\d,]+) "
+    ("§VII geography — Ada's dollars, its roll weight, and the ratio of the two",
+     r"Ada County \(Boise\) accounts for \*\*([\d.]+)%\*\* of matched donor dollars\s*"
+     r"against \*\*([\d.]+)%\*\* of the roll — \*\*([\d.]+)×\*\*",
+     ("don_ada", "ada_roll_share", "ada_dollar_ratio"), 0.05),
+    ("§VII geography — the same on donor counts rather than dollars",
+     r"it is ([\d.]+)%, or ([\d.]+)×", ("don_ada_donors", "ada_donor_ratio"), 0.05),
+    ("§VII donors by registration band — widest band, then the eight narrower ones",
+     r"more hold\s*([\d,]+) donors who are \*\*([\d.]+)% Republican / ([\d.]+)% "
+     r"Democratic\*\*, while the eight districts\s*between R\+5 and R\+40 hold ([\d,]+) "
      r"donors at a far more balanced \*\*([\d.]+)% / ([\d.]+)%\*\*",
      ("don_solid_n", "don_solid_r", "don_solid_d", "don_marg_n", "don_marg_r",
       "don_marg_d"), 0.5),
@@ -1260,6 +1549,128 @@ PROBES = [
      ("fec_rows", "fec_m", "fec_matched"), 0.05),
     ("Methods — the pooled table both money systems land in",
      r"both money systems in one table, ([\d,]+) donors", "pooled_n", 0),
+
+    # ================================================================================
+    # ADDED 2026-08-15 — the external Idaho referee round. Every figure the rewrite
+    # introduced gets a probe in the same round that writes it, which is freeze-rule 2:
+    # a round must close its own additions. The RELATIONS these figures support (the
+    # senior-share parity, the under-30 level-pegging, the hostile-bound direction test,
+    # the contestation series' shape, the election-day persistence floor) have no numeric
+    # token a coverage gate can see, so they are asserted as guards in derive() /
+    # _seat_outcomes / _section_vii instead.
+    # ================================================================================
+    ("abstract — the seat denominator the whole decomposition sits on",
+     r"decomposition of all\s*\*\*(\d+)\*\* legislative seats", "venue_total", 0),
+    ("abstract — the unaffiliated bloc's senior share against the two parties'",
+     r"\*\*([\d.]+)%\*\* aged 65 or\s*over against roughly ([\d.]+)% in both parties",
+     ("e24_UNAFF_65", "_rd_65_mean"), 0.06),
+    ("abstract — unaffiliated and Democratic level on the under-30 share",
+     r"level at \*\*([\d.]+)%\*\* and \*\*([\d.]+)%\*\* under 30",
+     ("e24_UNAFF_1829", "e24_DEM_1829"), 0.05),
+    ("abstract — the directly observed Republican ballot share, 2024",
+     r"\*\*([\d.]+)%\*\* of 2024 primary participants took a\s*Republican ballot",
+     "p24_rep_ballot_share", 0.05),
+
+    # ---- §II, the narrowed party-neutrality claim
+    ("§II — the unaffiliated senior deficit against both parties",
+     r"\(([\d.]+)% against ([\d.]+)% and ([\d.]+)%\)",
+     ("e24_UNAFF_65", "e24_REP_65", "e24_DEM_65"), 0.05),
+    ("§II — unaffiliated and Democratic level on the under-30 share",
+     r"level there — ([\d.]+)% against\s*([\d.]+)%",
+     ("e24_UNAFF_1829", "e24_DEM_1829"), 0.05),
+
+    # ---- §III, the measured refutation of the same-day-churn mechanism
+    ("§III — election-day registrants still on the roll, the floor and its base",
+     r"\*\*([\d,]+) of the ([\d,]+) election-day registrants are still on the 2026\s*"
+     r"roll, at least ([\d.]+)%\*\*",
+     ("edr_persist_n", "id_edr_2024", "edr_persist_pct"), 0.05),
+    ("§III — how many of those carry a 2024 general vote record",
+     r"and ([\d,]+) of them carry a 2024 general vote record", "edr_persist_voted24", 0),
+
+    # ---- §IV, the decision-venue table
+    ("§IV venue table — contested Republican primary",
+     r"a Republican won in November \| \*\*(\d+)\*\* \| \*\*([\d.]+)%\*\* \|",
+     ("venue_contested_republican", "venuepct_contested_republican"), 0.05),
+    ("§IV venue table — single Republican filer who won",
+     r"that Republican won in November \| \*\*(\d+)\*\* \| \*\*([\d.]+)%\*\* \|",
+     ("venue_single_republican", "venuepct_single_republican"), 0.05),
+    ("§IV venue table — single Republican filer who lost",
+     r"a \*\*Democrat\*\* won \| \*\*(\d+)\*\* \| \*\*([\d.]+)%\*\* \|",
+     ("venue_single_democratic", "venuepct_single_democratic"), 0.05),
+    ("§IV venue table — no Republican filed",
+     r"no\* Republican filed; a Democrat won \| \*\*(\d+)\*\* \| \*\*([\d.]+)%\*\* \|",
+     ("venue_norprim_democratic", "venuepct_norprim_democratic"), 0.05),
+    ("§IV — the nomination process against the primary electorate",
+     r"eventual winner of \*\*(\d+) of (\d+) seats \(([\d.]+)%\)\*\*",
+     ("venue_r_nomination_n", "venue_total", "venue_r_nomination_pct"), 0.05),
+    ("§IV — the contested primary as the largest single venue",
+     r"contested primary settles (\d+) seats, ([\d.]+)%\*\*",
+     ("venue_contested_republican", "venuepct_contested_republican"), 0.05),
+    ("§IV — the filing total, and the two bands that make it up",
+     r"\*\*(\d+) seats\*\* \((\d+) Republican-held plus (\d+) Democratic-held\)",
+     ("_filing_total", "venue_single_republican", "venue_norprim_democratic"), 0),
+
+    # ---- §IV, the two-denominator basis note (referee item 4)
+    ("§IV basis note — ballot choice against party of record, both cycles",
+     r"Republican ballots were \*\*([\d.]+)%\*\* of 2024 primary participants against\s*"
+     r"([\d.]+)% classified\s*Republican, and \*\*([\d.]+)%\*\* in 2022 against ([\d.]+)%",
+     ("p24_rep_ballot_share", "p24_REP", "p22_rep_ballot_share", "p22_REP"), 0.05),
+    ("§IV basis note — how completely the ballot column is populated",
+     r"populated for ([\d.]+)–([\d.]+)% of participants",
+     ("_ballot_recorded_lo", "_ballot_recorded_hi"), 0.05),
+
+    # ---- §VII, the party-specific hostile bounds (referee item 14)
+    ("§VII — resolution rate by donor registration, all three groups",
+     r"resolves for \*\*([\d.]+)%\*\* of Republican donors, \*\*([\d.]+)%\*\* of\s*"
+     r"Democratic donors and only \*\*([\d.]+)%\*\* of unaffiliated donors",
+     ("xo_REP_resolved_pct", "xo_DEM_resolved_pct", "xo_UNAFF_resolved_pct"), 0.05),
+    ("§VII hostile bound — registered Republicans",
+     r"\| Registered Republican \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \|",
+     ("xo_REP_resolved_pct", "xo_REP_d", "xo_REP_hostile_d", "xo_REP_hostile_r"), 0.05),
+    ("§VII hostile bound — registered Democrats, the row that survives",
+     r"\| Registered Democratic \| ([\d.]+)% \| ([\d.]+)% \| \*\*([\d.]+)%\*\* \| ([\d.]+)% \|",
+     ("xo_DEM_resolved_pct", "xo_DEM_d", "xo_DEM_hostile_d", "xo_DEM_hostile_r"), 0.05),
+    ("§VII hostile bound — registered unaffiliated, the row that does not",
+     r"\| Registered unaffiliated \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \|",
+     ("xo_UNAFF_resolved_pct", "xo_UNAFF_d", "xo_UNAFF_hostile_d", "xo_UNAFF_hostile_r"), 0.05),
+    ("§VII — the unresolved share of unaffiliated donors, restated in prose",
+     r"hostile assignment of\s*the unresolved (\d+)%", "_unaff_unresolved_pct", 0.5),
+
+
+    # ---- Restatements introduced by the 2026-08-15 rewrite. Every one is a figure the
+    # paper prints twice, and the project's rule is to close an unmapped token with a
+    # DERIVATION rather than an exemption wherever the figure is derivable — a second
+    # printing is exactly where a paper drifts against itself.
+    ("§III — the unaffiliated primary share, restated after the mechanism paragraph",
+     r"So the ([\d.]+)% is not a measure of people turned away", "p24_UNAFF", 0.05),
+    ("§III — gross departures bounded below by the net decline",
+     r"at least\*\* ([\d,]+) and could be far more", "roll_net_decline_n", 0),
+    ("§IV — the seat denominator, restated at the table",
+     r"The decision venue, all (\d+) legislative seats", "venue_total", 0),
+    ("§IV — the arithmetic the referee's objection rested on",
+     r"(\d+) of (\d+) is ([\d.]+)%, so \"the closed",
+     ("venue_contested_republican", "venue_total", "venuepct_contested_republican"), 0.05),
+    ("§IV — the contaminated headline share, quoted then translated",
+     r"\"([\d.]+)% of the 2024 primary electorate was Republican\" therefore means, "
+     r"exactly, \*([\d.]+)% of", ("p24_REP", "p24_REP"), 0.05),
+    ("§IV — both ratios the withdrawn 'doubled' claim is measured against",
+     r"36 → 53 is ([\d.]+)×, and the ([\d.]+)× is 2016 to the 2022 peak",
+     ("rprim_endpoint_ratio", "rprim_peak_ratio"), 0.05),
+    ("§VII — Ada's dollar share as it was previously printed, rounded",
+     r"The bare (\d+)% stood alone here", "don_ada", 0.5),
+    ("§VII — the Republican crossover upper bound, restated in the bounds table",
+     r"\(the ([\d.]+)% is an upper bound\)", "xo_REP_d", 0.05),
+    ("Boundary — the corrected SoS counts, restated in the correction note",
+     r"against the Secretary of State's ([\d,]+) and ([\d,]+)",
+     ("id_sos_2024", "id_sos_2022"), 0),
+    ("Boundary — what the correction moved, 2022 coverage and bound",
+     r"to ([\d.]+)% and its bound from [\d.]+–[\d.]+ to ([\d.]+)–([\d.]+)",
+     ("cover2022_pct", "bound2022_lo", "bound2022_hi"), 0.05),
+    ("Boundary — the election-day persistence floor, restated",
+     r"at least ([\d.]+)% of them are still on the roll", "edr_persist_pct", 0.05),
+    ("Boundary — the official turnout rate's two inputs",
+     r"\(([\d,]+) ballots / ([\d,]+) registered", ("id_sos_2024", "id_sos_reg_2024"), 0),
+
 ]
 
 UNCHECKED = [
@@ -1283,12 +1694,16 @@ AUDIT_BOUNDS = {
     # reasoning as the New York companion: the abstract restates results from five sections, and
     # a drift there is the most expensive kind because it is what a referee reads first.
     "abstract": ("## Abstract", "## The question"),
-    "sec1": ("## I. The off-year electorate is older", "## II. In Idaho the age gap"),
-    "sec2": ("## II. In Idaho the age gap", "## III. The unaffiliated quarter"),
-    "sec3": ("## III. The unaffiliated quarter", "## IV. The closed primary"),
-    "sec4": ("## IV. The closed primary", "## V. Safe-seat Idaho"),
-    "sec5": ("## V. Safe-seat Idaho", "## VI. A leading indicator"),
-    "sec6": ("## VI. A leading indicator", "## VII. The donor class"),
+    # Six of these eight anchors changed on 2026-08-15 because the headings did. Anchors are
+    # section IDENTITY here, not decoration: a start anchor that no longer matches raises
+    # rather than skipping (by design — see _verify_prose.slice_with_offset), which is what
+    # forced this edit rather than letting six sections quietly drop out of the coverage gate.
+    "sec1": ("## I. The midterm electorate", "## II. Senior representation"),
+    "sec2": ("## II. Senior representation", "## III. The unaffiliated quarter"),
+    "sec3": ("## III. The unaffiliated quarter", "## IV. Where seats are actually settled"),
+    "sec4": ("## IV. Where seats are actually settled", "## V. Every district carries"),
+    "sec5": ("## V. Every district carries", "## VI. Recently-dated registration"),
+    "sec6": ("## VI. Recently-dated registration", "## VII. The donor class"),
     "sec7": ("## VII. The donor class", "## Boundary of inference"),
     "boundary": ("## Boundary of inference", "## What it means"),
 }
@@ -1311,8 +1726,8 @@ COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
           "Owned by verify_donor_class.py, which asserts it against the frozen "
           "verdict CSVs; the lower end 48 is exempt as a bare integer. Restated "
           "here as context for the full-name restriction, not measured here",
-    "904": "part of the statutory citation Idaho Code § 34-904A, the poll-book "
-           "affiliation provision. Not a quantity. Its CONSEQUENCES are asserted: see "
+    "904": "part of the statutory citation Idaho Code § 34-904A, the primary-eligibility "
+           "provision that makes the primary closed. Not a quantity. Its CONSEQUENCES are asserted: see "
            "the four '§IV the conversion signature' probes",
     "4.1": "years between the May 2022 primary and the 2026 snapshot — the recency "
            "column of the ballot-choice table, which is arithmetic on two dates rather "
@@ -1330,10 +1745,34 @@ COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
             "holds the 2026 extract (1.03M), which IS derived",
     "77.8": "official 2024 general turnout rate, Idaho SoS. External by design — the paper "
             "cites it to show its own ~94% is survivorship-inflated",
-    "917,608": "official 2024 ballots cast, Idaho SoS; as above",
-    "1,178,750": "official 2024 registered total, Idaho SoS; as above",
-    "121,000": "Election-Day same-day registrants, Idaho SoS. An external count cited as a "
-               "mechanism for roll churn, not a cut of the file",
+    # --- RETIRED FIGURES, narrated in place. Each is a number the paper printed until
+    # 2026-08-15 and now prints only to say what it was and why it is gone. They are not
+    # derivable — that is what "retired" means — so an exemption is the only honest
+    # treatment, and each names what REPLACED it so the pairing cannot be lost. Retired
+    # figures deliberately do NOT go in withdrawn_claims.csv: that register guards
+    # PHRASES, and forbidding a number there fails papers for quoting their own history
+    # correctly (see tests/test_infrastructure/test_withdrawn_claims.py).
+    "917,608": "RETIRED 2026-08-15. The wrong 2024 ballots-cast figure, carried as a "
+               "Python literal in this file and in the Boundary table. The SoS's own "
+               "figure is 917,469, now pinned in id_sos_turnout_history_2026-08-15.csv "
+               "and probed as id_sos_2024",
+    "595,602": "RETIRED 2026-08-15. The wrong 2022 ballots-cast figure; the SoS's is "
+               "599,493, pinned and probed as id_sos_2022. This one was PROBED against "
+               "the same wrong literal, so the check compared a constant to itself",
+    "96.0": "RETIRED 2026-08-15. The 2022 coverage share computed on the wrong ballot "
+            "count; the corrected value is 95.4%, probed as cover2022_pct",
+    "33.0": "RETIRED 2026-08-15. The lower end of the 2022 65+ bound on the wrong ballot "
+            "count; corrected to 32.8, probed as bound2022_lo",
+    "37.0": "RETIRED 2026-08-15. The upper end of the same bound; corrected to 37.4, "
+            "probed as bound2022_hi",
+    "121,000": "Election-Day same-day registrants, Idaho SoS, rounded. The exact count "
+               "121,015 is probed as id_edr_2024, and §III now measures what became of "
+               "that cohort rather than assuming it churned",
+    "411": "part of the statutory citation Idaho Code § 34-411A, which supplies the "
+           "same-day affiliation mechanism and the clause requiring the county clerk to "
+           "record the affiliation in the registration system. Not a quantity — same "
+           "treatment as the 904 of § 34-904A above. Its CONSEQUENCES are asserted: see "
+           "the four '§IV the conversion signature' probes",
     "100": "the survivorship caveat's '2020 even computes above 100%' — a reductio showing "
            "the rate basis is unusable, not a reported rate",
     "120": "the blinded-validation sample size (120/120), owned by the donor-class paper's "
@@ -1393,6 +1832,14 @@ def main() -> int:
     # The paper prints two skews with a minus sign the capture group cannot carry.
     d["_neg_unaff_skew"] = -d["don_UNAFF_skew"]
     d["_neg_other_skew"] = -d["don_OTHER_skew"]
+    # Derived-from-derived, kept here rather than in derive() so it is obvious these are
+    # presentation conveniences for a sentence, not independent measurements. Each is
+    # computed on UNROUNDED inputs — the rounding rule that produced the +76.8/+76.9 flip.
+    d["_rd_65_mean"] = (d["e24_REP_65"] + d["e24_DEM_65"]) / 2.0
+    d["_filing_total"] = d["venue_single_republican"] + d["venue_norprim_democratic"]
+    d["_unaff_unresolved_pct"] = 100.0 - d["xo_UNAFF_resolved_pct"]
+    d["_ballot_recorded_lo"] = min(d[f"p{y}_ballot_recorded_pct"] for y in (22, 24, 26))
+    d["_ballot_recorded_hi"] = max(d[f"p{y}_ballot_recorded_pct"] for y in (22, 24, 26))
     stats: dict = {}
     rc = vp.run("WHO DECIDES IDAHO — prose scraped and asserted against the voter file",
                 norm, PROBES, d, UNCHECKED, vp.wants_coverage(), spans_out=spans,

@@ -1,0 +1,22 @@
+# Idaho Secretary of State, "Historical Registration & Turnout", general elections.
+# Retrieved 2026-08-15 from https://voteidaho.gov/election-results/
+#
+# WHY THIS FILE EXISTS. verify_who_decides_id.py carried these as hand-written Python
+# constants, and two of them were wrong: 2022 ballots read 595,602 against the SoS's
+# 599,493, and 2024 read 917,608 against 917,469. An asserting verifier cannot catch that
+# — it faithfully asserts whatever external constant it is given — so the constants are
+# pinned here with their provenance instead, and the verifier reads this file.
+#
+# Note without an explanation: the retired 2024 figure, 917,608, is one less than the
+# SoS's 2018 REGISTERED total, 917,609, which sits two rows above it in the same table.
+# That is recorded as a coincidence, not a diagnosis. What produced the two retired
+# figures is a question for the author, not an inference from the artifact.
+#
+# `ballots_cast` is the SoS's own total-ballots column; `registered` is its
+# registered-voter column at that election. Turnout is theirs, not recomputed.
+election_date,election,registered,ballots_cast,turnout_pct
+2024-11-05,general,1178750,917469,77.83
+2022-11-08,general,1048263,599493,57.20
+2020-11-03,general,1082417,878527,81.16
+2018-11-06,general,917609,612536,66.75
+2016-11-08,general,936529,710545,75.87

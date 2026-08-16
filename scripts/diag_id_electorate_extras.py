@@ -4,9 +4,10 @@ diag_ny_electorate_extras.py). No new data needed:
 1. The unaffiliated bloc characterized (24% of the roll, the recurring blind spot).
 2. Donor party mix x legislative-district competitiveness.
 3. Turnout decomposition (Das-Gupta, party-resolved): 2024 presidential ->
-   2022 midterm — is the grayer midterm electorate a behavior (rate) or a
-   registration (composition) effect, per party?
-4. Registration-cohort trend: party mix + age-at-registration of NEW registrants.
+   2022 midterm. DIAGNOSTIC ONLY — the paper does not report it, see s3's
+   docstring.
+4. Registration-event-year trend: party mix + age at the most recent registration
+   event. NOT a cohort series — see s4_registration_trend's docstring.
 5. Idaho safe-seat map from registration lopsidedness (CD + LD).
 
 Age note: ID gives current (2026) age, not DOB. Election-time / registration-time
@@ -113,9 +114,22 @@ def s2_donor_mix_competitiveness(con):
 
 
 def s3_decomposition(con):
+    """Das-Gupta rate/composition split — RETAINED AS A DIAGNOSTIC, NOT A RESULT.
+
+    Section I cited this as evidence that the presidential-to-midterm graying is "behavior,
+    not rolls". It was withdrawn from the paper on 2026-08-15: the decomposition
+    reconstructs historical roll populations from the CURRENT roll and the current
+    `registration_date`, and the same paper establishes that those denominators are
+    unusable (survivorship, resetting registration dates, non-uniform attrition). A
+    rate-based decomposition inherits every one of those defects, so it cannot carry a
+    mechanism claim even though it happens to point the same way.
+
+    It stays here because a diagnostic that says "this is what a rate cut would show, and
+    here is why we do not report it" is worth more than a deleted function.
+    """
     print("\n" + "=" * 76)
     print("3. TURNOUT DECOMPOSITION (Das-Gupta), party-resolved: 2024 pres -> 2022 midterm")
-    print("   does the grayer midterm electorate come from RATE (behavior) or COMPOSITION (roll)?")
+    print("   DIAGNOSTIC ONLY — the paper reports no mechanism from this (see docstring)")
     print("=" * 76)
 
     def cohorts(year):
@@ -160,12 +174,26 @@ def s3_decomposition(con):
         comp_eff = 0.5 * (share65(rollO, rateP) - share65(rollP, rateP)) \
             + 0.5 * (share65(rollO, rateO) - share65(rollP, rateO))
         print(f"  {party:8} {100*sPP:9.1f}% {100*sOO:8.1f}% {100*(sOO-sPP):+9.1f} {100*rate_eff:+8.1f} {100*comp_eff:+8.1f}")
-    print("  (RATE eff >> COMP eff => midterm skew is behavior/salience, fixable by on-cycle timing)")
+    print("  (RATE eff >> COMP eff would read as behavior rather than roll composition —")
+    print("   but BOTH columns are built on reconstructed historical rolls, which this file's")
+    print("   own survivorship caveat says are unusable. Directional only; the paper reports")
+    print("   the COMPOSITION change and no mechanism. Withdrawn from §I on 2026-08-15.)")
 
 
 def s4_registration_trend(con):
+    """Party mix and age by the YEAR OF THE MOST RECENT REGISTRATION EVENT.
+
+    NOT cohorts, and the labels said cohorts until 2026-08-15. `registration_date` is
+    rewritten on an address change, a party change (including the § 34-411A poll-book
+    affiliation) and an election-day registration, so a row groups people who have avoided
+    a resetting event for N years — not people who entered the electorate in that year. The
+    paper (§VI) has carried that correction since an earlier round; this script's headings
+    still said "NEW-REGISTRANT COHORTS" and "voters ... who first registered that year",
+    and an external referee found the stale text here rather than in the paper.
+    """
     print("\n" + "=" * 76)
-    print("4. NEW-REGISTRANT COHORTS over time: party mix + age at registration")
+    print("4. REGISTRATION-EVENT YEARS over time: party mix + age at that event")
+    print("   (NOT cohorts — registration_date is the most recent event, not the first)")
     print("=" * 76)
     rows = con.execute(f"""
         SELECT year(v.registration_date) ry, count(*) n,
@@ -182,7 +210,9 @@ def s4_registration_trend(con):
     print(f"  {'reg year':9} {'new regs':>10} {'%REP':>7} {'%DEM':>7} {'%UNAFF':>8} {'med age@reg':>12}")
     for ry, n, rp, dp, up, ma in rows:
         print(f"  {ry:<9} {n:>10,} {rp:6.1f}% {dp:6.1f}% {up:7.1f}% {ma:11.0f}")
-    print("  (cohort = voters still on the current roll who first registered that year)")
+    print("  (row = voters on the current roll whose MOST RECENT registration event falls")
+    print("   in that year — re-registrations, moves, party changes and election-day sign-ups")
+    print("   are all in it. 36.3% of the 2024 row had already voted in an earlier election.)")
 
 
 def s5_safe_seat_registration(con):
