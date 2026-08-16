@@ -376,13 +376,11 @@ SATELLITES = {
                                  "cross-state-money-submission-notes.md"),
     "who-decides-cross-state.md": ("who-returns-ballot-submission-metadata.md",
                                    "who-returns-ballot-submission-notes.md"),
-    # The synthesis paper has no submission metadata YET. It was a prospectus, and the
-    # empty tuple recorded that as a decision rather than an omission (author's call,
-    # 2026-08-06). It became a synthesis paper on 2026-08-16, so the empty tuple is now a
-    # PENDING state, not a settled one: when it acquires submission metadata and notes like
-    # the other eight papers, register them here or the satellite-count gate will not read
-    # them. Left empty deliberately rather than pointed at files that do not exist.
-    "electoral-health-whitepaper.md": (),
+    # Registered 2026-08-16, when the synthesis paper acquired the metadata and notes every
+    # other paper in the series carries. It held an EMPTY tuple from 2026-08-06 — a recorded
+    # decision, not an omission, for as long as it was a prospectus with no submission intent.
+    "electoral-health-whitepaper.md": ("electoral-health-submission-metadata.md",
+                                       "electoral-health-submission-notes.md"),
 }
 
 # Each pattern must capture a count a document states about THIS verifier, in the

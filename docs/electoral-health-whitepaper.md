@@ -89,6 +89,12 @@ when they were Washington's alone.
   this document used to headline is a **retired estimand**; see the panel note in Finding 5.
 
 
+**Legal basis for each voter file, since a synthesis is where a reader looks for it.**
+Washington under **RCW 29A.08.720**; New York under **NYSVOTER**, obtained by FOIL and used
+under the elections-purpose certification of **N.Y. Elec. Law § 3-103(5)**; Idaho under
+**Idaho Code § 34-437A**. None is redistributed. Texas publishes no voter file, which is why
+it appears in the money and contestation rows below and nowhere else.
+
 **The four states are not four symmetric assessments, and the design should say so first
 rather than let a reader discover it.** Texas participates fully in the money and
 contestation evidence and has no voter file, so no person-level donor analysis exists for it.
