@@ -16,8 +16,13 @@ skipping, every occurrence of a figure is checked, and `--coverage` lists what n
 touched. Keeping a private copy of the loop had made the original the one verifier with no
 coverage report.
 
-SCOPE. Findings 4, 5 and 6 — the money/donor findings that restate verified cuts. Findings
-1-3 are prospectus items whose realized analyses are covered by their own papers' verifiers.
+SCOPE, widened twice in two days. It began at Findings 4-6 — the money/donor results that
+restate verified cuts — on the reasoning that Findings 1-3 were prospectus items covered by
+their own papers' verifiers. That reasoning was wrong in the way this whole file exists to
+catch: a restatement is exactly where a figure drifts, whoever owns the original. Finding 2
+came in on 2026-08-15 when it stopped leading with unpinned forecast reads, and Domain 1
+(participation) came in on 2026-08-16 with the synthesis conversion — which immediately found
+two rates quoted a decimal place finer than the owning paper prints them.
 
 Finding 6 is checked in two halves, and the split is deliberate. Its **panel-inventory
 facts** (the scorable-race count, WA-03's IE dollars, and the size of the direction-coded
@@ -56,6 +61,7 @@ PAPER = vp.DOCS / "electoral-health-whitepaper.md"
 MONEY_PAPER = vp.DOCS / "does-money-move-votes.md"
 DONOR_PAPER = vp.DOCS / "donor-class-and-the-electorate.md"
 SAFE_SEAT_PAPER = vp.DOCS / "safe-seat-washington.md"
+WA_PAPER = vp.DOCS / "who-decides-washington.md"
 GENS = ["Silent", "Boomer", "Gen X", "Millennial", "Gen Z"]
 
 # Bootstrap settings, copied from diag_donor_concentration_bootstrap.py. The seed is fixed
@@ -376,6 +382,7 @@ def _companions(d):
     """
     dn = re.sub(r"\s+", " ", DONOR_PAPER.read_text(encoding="utf-8"))
     mp = re.sub(r"\s+", " ", MONEY_PAPER.read_text(encoding="utf-8"))
+    wa = re.sub(r"\s+", " ", WA_PAPER.read_text(encoding="utf-8"))
     ss = re.sub(r"\s+", " ", SAFE_SEAT_PAPER.read_text(encoding="utf-8"))
 
     def grab(text, rx, keys, cast=float, where=""):
@@ -421,6 +428,22 @@ def _companions(d):
          ("dn_xo_ny_d", "dn_xo_ny_r", "dn_xo_id_d", "dn_xo_id_r"),
          where="the donor paper's unresolved-pool bound")
 
+    # Domain 1 — participation. Newly scraped 2026-08-16: this domain sat OUTSIDE the audited
+    # slice for as long as the document was a prospectus, so none of its figures was ever
+    # gated, and two of them were quoted a decimal place finer than the owning paper prints.
+    grab(wa, r"([\d.]+)M (?:individual )?(?:VRDB )?vote records",
+         ("wa_vote_records_m",), where="the WA paper's data description")
+    grab(wa, r"65 and older were ([\d.]+)%, ([\d.]+)%, and ([\d.]+)% of the 2021, 2023, and "
+             r"2025 odd-year electorates, against ([\d.]+)% in 2024; voters 18–29 fell from "
+             r"([\d.]+)% in 2024 to about ([\d.]+)% off-cycle",
+         ("wa_p65_21", "wa_p65_23", "wa_p65_25", "wa_p65_24", "wa_p1829_24", "wa_p1829_off"),
+         where="the WA paper's composition sentence")
+    grab(wa, r"18–29 year old participation falls from \*\*([\d.]+)%\*\* \(2024\) to about "
+             r"\*\*([\d.]+)%\*\* off-year, while 65\+ slips only from \*\*([\d.]+)%\*\* to "
+             r"\*\*~([\d.]+)%\*\*",
+         ("wa_r1829_24", "wa_r1829_off", "wa_r65_24", "wa_r65_off"),
+         where="the WA paper's within-cohort rate sentence")
+
     # Finding 6 — the leverage sweep. The money paper derives, publishes and leads its own
     # abstract with this; the synthesis had headlined +0.515 without it, which is the single
     # clearest instance of the propagation problem this block exists to stop.
@@ -449,6 +472,11 @@ def _companions(d):
     # The RETIRED Finding 6 pair. Held as explicit constants rather than scraped, because
     # they no longer exist in the owning paper — that is what "retired" means — and the note
     # that retires them has to keep quoting them accurately.
+    # The two Domain 1 rates this document used to print more precisely than its own
+    # source. Constants, because they exist nowhere else now.
+    d["wp_retired_p65_lo"], d["wp_retired_p65_hi"] = 37.0, 40.0
+    d["wp_retired_r1829_off"] = 15.8
+    d["wp_retired_r65_off"] = 61.3
     d["money_r_fundraising_retired"] = 0.58
     d["money_holdout_alloc_retired"] = 0.02
     # Idaho's unaffiliated recipient-resolution rate, which decides whether that row can
@@ -1016,7 +1044,7 @@ PROBES = [
      r"widens the interval to \*\*−([\d.]+) to \+([\d.]+)\*\*",
      ("mp_clust_lo", "mp_clust_hi"), 0.005),
     # ---- Finding 2, gated 2026-08-15 with the switch from forecast to observed.
-    ("Finding 2 — the four-state OBSERVED not-close shares",
+    ("Domain 2 — the four-state OBSERVED not-close shares",
      r"\*\*WA ([\d.]+)% · NY ([\d.]+)% · TX ([\d.]+)% · ID ([\d.]+)%\*\*",
      ("ss_wa", "ss_ny", "ss_tx", "ss_id"), 0.05),
     ("Finding 2 — WA's five-cycle not-close range, why 'worsening' is withdrawn",
@@ -1031,6 +1059,30 @@ PROBES = [
     ("Finding 6 — the headline slope restated in the withdrawal note",
      r"It also headlined \+([\d.]+) without the leverage", "ie_slope", 0.005),
 
+
+    # ---- Domain 1, gated for the first time on 2026-08-16 with the synthesis conversion.
+    ("Domain 1 — the vote-record base",
+     r"From \*\*([\d.]+)M\*\* VRDB vote records", "wa_vote_records_m", 0.05),
+    ("Domain 1 — senior and youth shares of the electorate, all six cells",
+     r"65 and older were\s*\*\*([\d.]+)%, ([\d.]+)% and ([\d.]+)%\*\* of the 2021, 2023 and "
+     r"2025 odd-year electorates against\s*\*\*([\d.]+)%\*\* in 2024, while voters 18–29 fell "
+     r"from \*\*([\d.]+)%\*\* in 2024 to about \*\*([\d.]+)%\*\*",
+     ("wa_p65_21", "wa_p65_23", "wa_p65_25", "wa_p65_24", "wa_p1829_24", "wa_p1829_off"), 0.05),
+    ("Domain 1 — the within-cohort rates, at the owning paper's precision",
+     r"falls from \*\*([\d.]+)%\*\* \(2024\) to about \*\*([\d.]+)%\*\*\s*off-year, while "
+     r"65\+ slips only from \*\*([\d.]+)%\*\* to \*\*~([\d.]+)%\*\*",
+     ("wa_r1829_24", "wa_r1829_off", "wa_r65_24", "wa_r65_off"), 0.05),
+    ("Domain 1 — the two retired over-precise rates, quoted in the note that retires them",
+     r"\*\*([\d.]+)%\*\* and\s*\*\*([\d.]+)%\*\* — to a decimal place",
+     ("wp_retired_r1829_off", "wp_retired_r65_off"), 0.05),
+
+    ("Domain 1 — the retired rounded band, quoted in the note that retires it",
+     r"rounded band \(\"~([\d.]+)–([\d.]+)%\"\)",
+     ("wp_retired_p65_lo", "wp_retired_p65_hi"), 0.05),
+    ("Domain 1 — the owning paper's own precision, quoted back at it",
+     r"reports them as \"about ([\d.]+)%\" and \"~([\d.]+)%\"",
+     ("wa_r1829_off", "wa_r65_off"), 0.05),
+
 ]
 
 
@@ -1040,16 +1092,22 @@ PROBES = [
 # unmapped. Finding 6's end anchor is the horizontal rule that closes the scraped block;
 # it occurs exactly once in that block, and vp.slice_with_offset raises if it moves.
 AUDIT_BOUNDS = {
-    "finding2": ("### 2. Safe-seat democracy", "### 3. Whale-dominated money"),
-    "finding3": ("### 3. Whale-dominated money", "### 4. Money and votes"),
-    "finding4": ("### 4. Money and votes", "### 5. The donor class"),
-    # Finding 6's heading changed on 2026-08-15 — "Money marks strength; it does not appear
-    # to move margin" asserted a non-effect the bullet beneath it already conceded it could
-    # not establish. Anchors are section IDENTITY, and a missing one RAISES rather than
-    # skipping, which is what forced this edit instead of two sections silently dropping out
-    # of the coverage gate.
-    "finding5": ("### 5. The donor class", "### 6. Money is strongly associated"),
-    "finding6": ("### 6. Money is strongly associated", " --- "),
+    # RE-ANCHORED 2026-08-16, when the document became a synthesis paper: the six scored
+    # "findings" regrouped into four evidence domains, with the three money results as
+    # 3a/3b/3c under Domain 3. Anchors are section IDENTITY and a missing one RAISES rather
+    # than skipping, which is what forces this edit rather than letting sections silently drop
+    # out of the coverage gate. Domain 1 is now inside the audited slice too — it sat outside
+    # it for as long as this was a prospectus, so its participation figures were never gated.
+    #
+    # domain3_intro exists because spans MUST NOT OVERLAP and must not leave gaps: the prose
+    # between Domain 3's heading and 3a would otherwise be audited by nothing.
+    "domain1": ("### Domain 1 — Participation", "### Domain 2 — Contestation"),
+    "domain2": ("### Domain 2 — Contestation", "### Domain 3 — Political voice"),
+    "domain3_intro": ("### Domain 3 — Political voice", "#### 3a. Small transactions"),
+    "money3a": ("#### 3a. Small transactions", "#### 3b. Donors are also"),
+    "money3b": ("#### 3b. Donors are also", "#### 3c. The donor class"),
+    "money3c": ("#### 3c. The donor class", "### Domain 4 — Campaign effects"),
+    "domain4": ("### Domain 4 — Campaign effects", " --- "),
 }
 
 COVERAGE_EXEMPT = [
@@ -1073,6 +1131,17 @@ COVERAGE_EXEMPT = [
 # Every literal here names WHERE the figure is checked, or the open question that closes it.
 # "Not a result" with no reason is how a real figure hides — see verify_who_decides_wa.
 COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
+    "58.4": "Lucero et al. 2025's off-cycle over-45 share. NB it collides numerically with "
+            "Washington's own 18-29 presidential participation rate, which is probed as "
+            "wa_r1829_24 earlier in the same section — two different quantities that happen "
+            "to share a value, which is why this exemption names both",
+    # --- Domain 1's literature figures, exposed when the slice widened on 2026-08-16.
+    "49.7": "Lucero et al. 2025's presidential-year over-45 share, an external literature "
+            "figure quoted as context; not measured here",
+    "415": "California SB 415, a statute number in the Ornstein (2024) citation",
+    "236": "local governments in Ornstein (2024)'s sample, an external literature figure",
+    "28": "the '28%' this bullet's own correction note identifies as a figure an earlier "
+          "draft mis-attributed to the literature; quoted only to record the error",
     # --- Finding 2, added 2026-08-15 when the coverage gate first reached this section.
     "38": "Ballotpedia Competitiveness Index share of uncontested state-leg seats in 2024, an external literature figure, not a result of this programme",
     "0.5": "the primary-to-general turnout ratio in safe seats, approximate and owned by "
@@ -1242,9 +1311,10 @@ def main():
     # drifting forecast-snapshot band counts, so there was nothing worth gating; it now
     # leads with the safe-seat paper's OBSERVED shares, which are scraped and must not
     # drift underneath it.
-    m = re.search(r"### 2\. Safe-seat democracy.*?(?=\n## )", text, re.S)
+    m = re.search(r"### Domain 1 — Participation.*?(?=\n## What the evidence does not)",
+                  text, re.S)
     if not m:
-        print("FATAL: could not locate Findings 2-6 in the white paper")
+        print("FATAL: could not locate the four evidence domains in the paper")
         return 1
     norm = vp.normalise(m.group(0))
     audit_sections, offsets, spans = {}, {}, {}

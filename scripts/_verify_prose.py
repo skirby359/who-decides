@@ -376,9 +376,12 @@ SATELLITES = {
                                  "cross-state-money-submission-notes.md"),
     "who-decides-cross-state.md": ("who-returns-ballot-submission-metadata.md",
                                    "who-returns-ballot-submission-notes.md"),
-    # The white paper is a prospectus and deliberately has no submission metadata
-    # (author's call, 2026-08-06). Present with an empty tuple rather than absent,
-    # so "no satellites" is a recorded decision and not a missing registration.
+    # The synthesis paper has no submission metadata YET. It was a prospectus, and the
+    # empty tuple recorded that as a decision rather than an omission (author's call,
+    # 2026-08-06). It became a synthesis paper on 2026-08-16, so the empty tuple is now a
+    # PENDING state, not a settled one: when it acquires submission metadata and notes like
+    # the other eight papers, register them here or the satellite-count gate will not read
+    # them. Left empty deliberately rather than pointed at files that do not exist.
     "electoral-health-whitepaper.md": (),
 }
 

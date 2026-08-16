@@ -7088,3 +7088,81 @@ way — the retired estimands and the stale scrapes — is fixed above.
 widened, because Finding 2 now carries scraped observed figures worth gating and previously
 carried unpinned forecast reads that were not). Mutation sweep **124 caught / 0 uncaught**.
 `check_cross_doc_consistency.py` 0 findings. Infra suite 517.
+
+---
+
+## 2026-08-16 — the white paper becomes a synthesis paper
+
+**Author decision, taken after the 2026-08-15 referee round returned four structural items:
+the document is a synthesis, not a prospectus.** That resolves referee items 1, 2, 13 and 15
+together, because they were one item wearing four hats.
+
+### What changed, and why each change follows from the decision
+
+- **Item 1 — identity.** The document had been trying to be a prospectus, a running audit log
+  and a synthesis at once, and the referee was right that those functions now conflict: every
+  improvement in a companion created a propagation problem here. The 2026-06-27 gauntlet, the
+  ten questions, the eleven scoring dimensions and the diagnostic ledger are now **Appendix A
+  — Methodological history**, which is what they are.
+- **Item 2 — the 22/100 leaves the argument.** It is an elicited-judgement index, not a
+  measurement: the mean of ten model-authored severity scores weighted by twenty more
+  model-authored scores, only ten of which were ever published, so it cannot be recomputed
+  from its own table (which gives an unweighted 18.3); its distribution is partly prescribed
+  by the prompt; and it was computed against a data description that has since moved and never
+  re-run. The referee's verdict — "a pseudo-quantitative statistic that adds false precision
+  to what is properly a qualitative synthesis", not curable by a further disclaimer — is
+  right, and the same reasoning retires the impairment/trajectory/entrenchment/counter-thesis/
+  convergence columns as evidence. All of it is preserved in Appendix A with that explanation
+  attached.
+- **Item 13 — four evidence domains replace the ten-question scorecard.** Participation →
+  Contestation → Political voice → Campaign effects, with the six former findings regrouped
+  (the three money results become 3a/3b/3c under Domain 3). **The domain table states which
+  results share data**: Domains 1 and 3 share the voter files, 2 and 4 share election outcomes
+  and the forecast residual, and 3a/3b/3c are three transformations of one data-generating
+  process. That mattered because "convergence" was itself a scored dimension, so counting ten
+  questions as ten corroborating studies inflated an implicit evidence count.
+- **Item 15 — retitled, with a coverage matrix.** *Electoral Health in Four States: Evidence
+  on Participation, Contestation and Political Voice.* A per-state × per-domain
+  measured/partial/unavailable table now sits before the evidence, so the asymmetry is a
+  declared feature of the design rather than something a referee discovers halfway through:
+  the money and contestation evidence is four states, the person-level evidence is three
+  (Texas has no voter file), and the campaign-effects evidence is one.
+- Also applied: **"pre-registered null" → "pre-specified working null"**, since there was no
+  frozen, time-stamped registration of hypotheses, estimands and decision criteria; and
+  Finding 3's rename to **"Small transactions coexist with high dollar concentration"**,
+  explicitly an *itemized-contribution* finding, since a low median and a high Gini coexist
+  naturally in any heavy-tailed distribution and neither conceals the other.
+
+### What the conversion found, which is the part worth keeping
+
+**Widening the audited slice to Domain 1 gated the participation figures for the first time,
+and immediately caught the synthesis quoting its own source too precisely.** Domain 1 sat
+outside the probe slice for as long as this was a prospectus — the original scope note said
+Findings 1–3 were "prospectus items whose realized analyses are covered by their own papers'
+verifiers", which is the reasoning this entire file exists to refute. Two within-cohort rates
+were printed here as **15.8%** and **61.3%**, where
+[`who-decides-washington.md`](who-decides-washington.md) publishes "about 16%" and "~61%".
+Neither extra digit had any basis; a synthesis stating a companion's figure more precisely
+than the companion does is drift waiting to happen. Both are now scraped, and the retired
+over-precise pair is probed inside the note that retires it.
+
+The scope note in `verify_whitepaper.py` now records that its scope has widened twice in two
+days, and why: **a restatement is exactly where a figure drifts, whoever owns the original.**
+
+### State
+
+`verify_whitepaper.py` exit 0; coverage fully mapped across all seven spans of the new
+structure (domain1, domain2, domain3_intro, money3a, money3b, money3c, domain4). Mutation
+sweep **139 caught / 0 uncaught**, all 15 new Domain-1 keys caught.
+`check_cross_doc_consistency.py` 0 findings. `verify_who_decides_id.py`,
+`verify_who_returns_ballot.py`, `verify_cross_state_money.py` exit 0. Infra suite 517.
+
+### Consequence the author now owns
+
+`publication-readiness-2026-08-15.md` listed this paper as blocking nothing, *because* it was
+a prospectus. It is now a submission target like the other eight, so it acquires the same
+obligations: the human-verification pass, submission metadata and notes, and a venue. The
+dossier row is updated to say so. `_verify_prose.SATELLITES` still registers an **empty**
+tuple for it — that was a recorded decision when no metadata was intended, and is now a
+**pending** state; when the metadata and notes exist they must be registered there or the
+satellite-count gate will not read them.

@@ -1,9 +1,35 @@
-# The State of Electoral Health: WA / NY / TX / ID
-### A research prospectus built from precinct results, campaign finance, and the individual voter record
+# Electoral Health in Four States
+### Evidence on participation, contestation and political voice, from precinct results, campaign finance and the individual voter record — Washington, New York, Texas and Idaho
 
-*Draft outline — 2026-06-27. Derived from the democracy-insight gauntlet
-(`idea-gauntlet/RESULTS-democracy-insight-2026-06-27.md`): 10 research questions
-scored on 11 dimensions, V-Dem-anchored, against a pre-registered null.*
+*Synthesis of the electoral-health series. **DRAFT — pending human/editorial sign-off.**
+`scripts/verify_whitepaper.py` scrapes this document and asserts its figures, including
+against the companion papers that own them; that gate is automated and is not the sign-off.*
+
+*This document was a **research prospectus** until 2026-08-16 — an outline of analyses to
+run, derived from a 2026-06-27 idea-scoring exercise, carrying a scalar "accuracy-weighted
+failure signal" of 22/100 and a ten-question scorecard. The analyses have since been run and
+written up as eight companion papers, and an external referee's judgement was that the
+document could no longer credibly be both a prospectus and a synthesis: every improvement in
+a companion created a propagation problem here, and the scorecard's model-authored scores
+were doing work as evidence that elicited judgement cannot do. It is now a synthesis. The
+gauntlet, the ten questions, the eleven scoring dimensions and the 22/100 are preserved in
+**Appendix A** as the programme's methodological history — which is what they are — and no
+longer appear in the argument.*
+
+---
+
+## What this paper claims, and what it does not
+
+This is a synthesis of eight companion papers. It does not re-derive their results: where a
+figure belongs to a companion it is **scraped from that companion**, so that improving the
+companion moves this document or fails its gate loudly. That mechanism exists because the
+opposite happened — until 2026-08-15 this document carried a pooled donor panel, a retired
+match key and a headline slope that its companions had all superseded.
+
+**The claim.** The four-state evidence documents persistent inequalities in who participates,
+who finances campaigns, and how often general elections are genuinely close. It does **not**
+support a scalar diagnosis of democratic failure, and it does **not** identify the causal
+electoral effect of campaign spending.
 
 ---
 
@@ -16,9 +42,13 @@ claim about them.
 
 Three commitments govern every section below:
 
-1. **Pre-registered null.** The working hypothesis is that *"Washington's (and the
-   comparison states') electoral democracy is functioning."* A finding moves
-   against that null only when the evidence earns it.
+1. **Pre-specified working null.** The working hypothesis is that *"Washington's (and the
+   comparison states') electoral democracy is functioning."* A finding moves against that
+   null only when the evidence earns it. *This was called a "pre-registered null" until
+   2026-08-16. It is not one: there was no frozen, time-stamped registration of hypotheses,
+   estimands, analysis rules and decision criteria before the analyses ran. A general prior
+   position is a working null, and calling it pre-registration claims a discipline this
+   programme did not exercise.*
 2. **Accuracy gate.** Each finding contributes to any larger conclusion *only in
    proportion to its data sufficiency × inferential strength.* A striking number
    built on data the warehouse cannot actually carry is reported as a limit, not a
@@ -36,59 +66,47 @@ Three commitments govern every section below:
    while publishing a scalar failure score is the version that could not be defended; the
    bounded interpretive conclusion above is stated plainly instead.*
 
-**Bottom line of the scan that produced this prospectus:** of 10 questions, **nine
-scored "weak-against-null" and one "supports-null"; none reached "moderate" or
-"strong" against the null.** The accuracy-weighted failure signal was **22/100**.
+---
 
-<sub>**Three things about that number, all of which a reader should know before weighing it.**
-First, it is an **elicited-judgment index, not a measurement**: it is the mean of ten
-model-authored 0–100 severity scores, weighted by twenty more model-authored 0–10 scores, and
-Appendix A publishes only the first ten — so the figure **cannot be recomputed from this
-paper's own table**, which gives an unweighted mean of 18.3. Second, the distribution it
-summarises is partly prescribed by the prompt, which instructed the scorer to *"default to
-'data-insufficient' or 'weak-against-null' unless the evidence is genuinely strong"*; reading
-"nine weak-against-null" as a finding is therefore partly circular. Third, it was computed on
-**2026-06-27 against a data description that has since moved** — the scan was told 19
-elections, ~$1.3B in contributions and 9.2M voter-score rows, against 22, ~$1.04B and 16.1M
-today — and it has not been re-run, although Finding 6's sign has since reversed and Finding
-2's Washington figure has moved. Treat it as a snapshot of how a triage step scored a research
-agenda, not as a result of the research.</sub>
-The honest reading of the present evidence is **measurable electoral stress that is
-real, largely known to the literature, reformable, and admits strong benign
-readings — not, on this data, systemic failure.** Critically, the findings that
-could most strengthen a failure case are precisely the ones the data is currently
-blind to (see *Boundary of Inference*).
+## Data, and what each state can actually support
 
-> **Status update — 2026-06-28 (first analyses now executed).** This began as a
-> prospectus of analyses *to run*. Several have since been run on data already on
-> disk, and the realized write-ups exist:
-> - **Finding 1 → [`who-decides-washington.md`](who-decides-washington.md)** (gray
->   off-year electorate, from 27.1M VRDB vote records).
-> - **Finding 2 → [`safe-seat-washington.md`](safe-seat-washington.md)** — now on
->   **observed** margins, extended to a **complete four-state lower-chamber map**
->   (WA **87.8** / NY 88.0 / TX 94.0 / ID 92.9% not close). The observed counts and the
->   model projection below are in **loose aggregate agreement, which is not a validation** —
->   they are different units (seats against districts), different years, and different
->   denominators, and Texas differs by 13 points (94.0% observed against 81% projected). A
->   validation would predict historical elections without using their outcomes and report
->   calibration and false-safe rates on one unit; that has not been run. *(WA read 88.8% until the
->   seat universe was rebuilt from certified statewide summaries; the old figure came
->   from a results-table universe that silently dropped 24 King County House seats per
->   cycle in 2016 and 2018.)*
-> - **Findings 4 & 5 → [`cross-state-fec-money.md`](cross-state-fec-money.md) §F**
->   — and the matcher-bias objection to Finding 5 has been **tested and rejected**
->   (see that finding below); the donor match is **314,974** on the full-name-key
->   specification adopted 2026-07-27 (it was 382K all-tier, and 320K before tier 0).
-> - **The "non-constituent money" boundary item is no longer blocked** — NY/TX
->   contributions were loaded and the recipient-anchored inflow built, so the
->   cross-state nationalization test *did* run (`cross-state-fec-money.md` §E–I).
->
-> None of this changes the **"stress, not failure"** verdict, but it moves the lead
-> findings from *literature-borrowed* to *established in-data*, and resolves one of
-> the three boundary blockers. The two that remain — individual party-of-record and
-> party-resolved turnout/crossover — **are now answered for New York and Idaho**, whose
-> voter files are loaded and whose companions report them; they remain open **for
-> Washington**, whose party-of-record window has closed.
+**Data provenance.** Every count below is a **live read that drifts** as the 2026 cycle
+accrues, and each is scoped to the state or states named — the previous version of this
+paragraph was not, and an external referee read its contribution figures as program-wide
+when they were Washington's alone.
+
+- **Washington:** ~5.1M precinct-result rows across 22 elections; **8.6M individual
+  contributions, $1.04B** (FEC `$646.2M` + state PDC `$394.6M`, 2018–2026) with
+  employer/occupation/ZIP; ~16.1M voter-score rows (one per voter per district scope,
+  ~5.5M distinct voters); ~27.1M individual VRDB vote records.
+- **All four states, federal layer only:** **28.9M contribution rows / $4.73B** of
+  resident-donor outflow (WA 5.58M/$646.2M · NY 9.98M/$2,066.6M · TX 12.56M/$1,942.1M ·
+  ID 0.77M/$76.2M). Adding each state's own finance system takes it to **36.1M rows /
+  $6.06B**.
+- **The rare asset:** voters matched to their own donations at the person level. Quote
+  these **per panel**, never pooled — WA federal 147,745 / state 217,114; NY federal
+  269,218 / state 378,383; ID federal 23,303 / state 23,613. The pooled 314,974 WA figure
+  this document used to headline is a **retired estimand**; see the panel note in Finding 5.
+
+
+**The four states are not four symmetric assessments, and the design should say so first
+rather than let a reader discover it.** Texas participates fully in the money and
+contestation evidence and has no voter file, so no person-level donor analysis exists for it.
+New York and Idaho publish individual party of record; Washington does not. Idaho's roll is a
+current extract with a survivorship problem unlike Washington's.
+
+| domain | Washington | New York | Texas | Idaho |
+|---|:--|:--|:--|:--|
+| Participation — age composition of the electorate | **measured** (27.1M vote records, birthdate) | **measured** (13.5M roll, year of birth) | **unavailable** (no voter file) | **measured**, with a roll-survivorship caveat |
+| Participation — *party-resolved* | **unavailable** (no party of record) | **measured** | **unavailable** | **measured** |
+| Contestation — observed margins and ballot choice | **measured** | **measured** | **measured** | **measured** |
+| Political voice — aggregate money | **measured** (federal + state) | **measured** (federal + state) | **measured** (federal + state) | **measured** (federal + state) |
+| Political voice — *person-level* voter↔donor linkage | **measured** | **measured** | **unavailable** (no voter file) | **measured** |
+| Campaign effects — directional IE against margin | **measured** (34 federal + 129 state cells) | **unavailable** | **unavailable** | **unavailable** |
+
+*Read every cross-state statement against this table. "Four states" is true of the money and
+contestation evidence; the person-level evidence is three states, and the campaign-effects
+evidence is one.*
 
 ---
 
@@ -119,42 +137,46 @@ these 0–10 scores, and the scores were produced by a language-model workflow. 
 is a labelling convention borrowed from V-Dem's conceptual scheme, and nothing about the
 scores inherits V-Dem's authority.*
 
-**Data provenance.** Every count below is a **live read that drifts** as the 2026 cycle
-accrues, and each is scoped to the state or states named — the previous version of this
-paragraph was not, and an external referee read its contribution figures as program-wide
-when they were Washington's alone.
+### The four evidence domains, and which of them share data
 
-- **Washington:** ~5.1M precinct-result rows across 22 elections; **8.6M individual
-  contributions, $1.04B** (FEC `$646.2M` + state PDC `$394.6M`, 2018–2026) with
-  employer/occupation/ZIP; ~16.1M voter-score rows (one per voter per district scope,
-  ~5.5M distinct voters); ~27.1M individual VRDB vote records.
-- **All four states, federal layer only:** **28.9M contribution rows / $4.73B** of
-  resident-donor outflow (WA 5.58M/$646.2M · NY 9.98M/$2,066.6M · TX 12.56M/$1,942.1M ·
-  ID 0.77M/$76.2M). Adding each state's own finance system takes it to **36.1M rows /
-  $6.06B**.
-- **The rare asset:** voters matched to their own donations at the person level. Quote
-  these **per panel**, never pooled — WA federal 147,745 / state 217,114; NY federal
-  269,218 / state 378,383; ID federal 23,303 / state 23,613. The pooled 314,974 WA figure
-  this document used to headline is a **retired estimand**; see the panel note in Finding 5.
+The evidence below is grouped into four domains rather than the ten scored questions of the
+original gauntlet (Appendix A). The regrouping is not cosmetic. **The ten questions were not
+ten independent studies**, and counting them as though they were inflated an implicit
+evidence count — "convergence" was itself one of the scored dimensions.
+
+| domain | what it measures | companion papers | shares data with |
+|---|---|---|---|
+| **1. Participation** | who actually votes, by age and party | who-decides-{washington,new-york,idaho}, who-returns-ballot | shares the voter files with Domain 3's linkage |
+| **2. Contestation** | whether general elections are close, and whether they offer a major-party choice | safe-seat-washington | shares election outcomes with Domain 4 |
+| **3. Political voice** | who funds campaigns, person by person | donor-class-and-the-electorate, cross-state-fec-money | 3a/3b/3c all draw on the same contribution systems; 3b/3c share one voter↔donor linkage |
+| **4. Campaign effects** | whether money moves margin | does-money-move-votes | shares election outcomes and the forecast residual with Domain 2 |
+
+So Domains 1 and 3 are not independent of each other, and 2 and 4 are not independent of each
+other; within Domain 3, the three results are three transformations of one data-generating
+process. Triangulating several estimands from the same data is legitimate and is what this
+programme does. Treating the count of results as a count of corroborating studies is not.
 
 ---
 
-## Findings — the publishable core (write these up first)
+## The evidence, in four domains
 
-Ordered by insight composite. Each carries its single most defensible claim, the
-strongest objection to it, the V-Dem function and diagnostic read, and the first
-concrete analysis to run.
-
-### 1. Who actually decides? The gray off-year electorate
-*Insight 62 · failure-contribution 22 · null: weak-against · V-Dem: participatory, egalitarian, electoral · trajectory: stable*
+### Domain 1 — Participation: who actually votes
 
 - **Defensible claim.** The electorate that decides odd-year general elections in
   WA is roughly half the size of the presidential electorate and dramatically
-  older. From 27.1M VRDB vote records (~100% birthdate coverage): voters 65+ were
-  **~37–40%** of off-year ballots (2021/2023/2025) vs **28.5%** in 2024, while
-  18–29 were **7–8%** off-year vs **14.2%** presidential — a **~5:1** senior-to-youth
-  ratio off-year vs ~2:1 presidential. Individually, 18–29 turnout collapses
-  **58.4% → 15.8%** (presidential → off-year) while 65+ falls only 88.3% → 61.3%.
+  older. From **27.1M** VRDB vote records (~100% birthdate coverage): voters 65 and older were
+  **36.7%, 40.2% and 40.3%** of the 2021, 2023 and 2025 odd-year electorates against
+  **28.5%** in 2024, while voters 18–29 fell from **14.2%** in 2024 to about **7.6%**
+  off-cycle. Individually, 18–29 participation falls from **58.4%** (2024) to about **16%**
+  off-year, while 65+ slips only from **88.3%** to **~61%**.
+
+  <sub>*Re-quoted at the owning paper's own precision on 2026-08-16.* This bullet gave the
+  off-year senior share as a rounded band ("~37–40%"), and gave two within-cohort rates —
+  **15.8%** and **61.3%** — to a decimal place that
+  [`who-decides-washington.md`](who-decides-washington.md) does not publish, because that
+  paper reports them as "about 16%" and "~61%". A synthesis stating a companion's figure more
+  precisely than the companion does is drift waiting to happen, and there is no basis on
+  which the extra digit is more correct. All of these are now scraped from the companion.</sub>
 - **Strongest objection.** This is *voluntary* differential participation, not
   disenfranchisement. WA has all-mail, postage-paid, automatic/same-day
   registration — the gray electorate reflects who *chose* to vote, and the gap is
@@ -179,8 +201,7 @@ concrete analysis to run.
   effect on representation, candidacy, incumbency, housing policy or public-employee
   salaries — the disconfirming half of the same literature.
 
-### 2. Safe-seat democracy: most general elections are not close
-*Insight 52 · failure-contribution 34 (highest) · null: weak-against · V-Dem: electoral, participatory, deliberative · trajectory: persistent*
+### Domain 2 — Contestation: whether general elections are close
 
 - **Defensible claim, on OBSERVED margins.** The large majority of seats are not close.
   On the most recent general for partisan legislative and congressional offices, the
@@ -225,8 +246,19 @@ concrete analysis to run.
   Ballotpedia Competitiveness Index (38% of state-leg seats uncontested in 2024);
   Unite America (*The Primary Problem*).
 
-### 3. Whale-dominated money behind a small-dollar facade
-*Insight 48 · failure-contribution 22 · null: weak-against · V-Dem: egalitarian, participatory · trajectory: indeterminate*
+### Domain 3 — Political voice: who funds campaigns
+
+The three results below share their contribution systems, and the second and third share a
+single voter↔donor linkage. They are one body of evidence seen three ways.
+
+#### 3a. Small transactions coexist with high dollar concentration
+
+*Titled "Whale-dominated money behind a small-dollar facade" until 2026-08-16. A low median
+gift and a high Gini coexist naturally in any heavy-tailed distribution; neither is a facade
+concealing the other, and "facade" asserted a concealment the measurement does not show.
+This is also, and only, an **itemized-contribution** finding: a small transaction in an FEC
+itemized file is not an observation of the universe of small donors, whom the disclosure
+floors keep out of the record entirely.*
 
 - **Defensible claim.** WA money is broad by headcount but concentrated by dollar. The
   **median itemized gift is $25** in both money systems, while per-recipient-cycle
@@ -269,8 +301,7 @@ concrete analysis to run.
   Cagé (*Small Campaign Donors*); Brennan Center (small-dollar grew, megadonors grew
   faster — "thin layer over a concentrated core").
 
-### 4. Money and votes stack on the same people
-*Insight 47 · failure-contribution 22 · null: weak-against · V-Dem: participatory, egalitarian · trajectory: indeterminate · (most novel: 6)*
+#### 3b. Donors are also high-frequency voters
 
 - **Defensible claim (cross-sectional only).** Donors are a participation elite. On the
   measure the owning paper now treats as clean — registrants who existed before the first
@@ -309,8 +340,7 @@ concrete analysis to run.
   Chorus*) — money is the most income-skewed form of participation; the donor pool
   is a structural elite (the *constant* against which any worsening must be measured).
 
-### 5. The donor class is not the electorate
-*Insight 42 · failure-contribution 22 · null: weak-against · V-Dem: egalitarian, participatory · trajectory: indeterminate*
+#### 3c. The donor class is not the electorate
 
 > **⚠ Panel note (2026-07-26).** The WA figures in this finding were computed on a
 > **pooled** voter↔donor match, before it was discovered that WA's
@@ -411,8 +441,7 @@ concrete analysis to run.
   people who dominated before the reform.** (An earlier version attributed this to Grumbach,
   Sahn & Staszak, who wrote a different paper on a different question.)
 
-### 6. Money is strongly associated with candidate performance; these designs do not identify whether it moves votes
-*Insight 42 · failure-contribution 14 · null: weak-against · V-Dem: egalitarian, electoral, deliberative · trajectory: indeterminate*
+### Domain 4 — Campaign effects: money and margin
 
 - **Defensible claim.** Fundraising is the single strongest correlate of
   overperformance in the panel — raw log2(D/R) receipts correlate **+0.60** — while
@@ -485,7 +514,7 @@ concrete analysis to run.
 
 ---
 
-## Boundary of inference — what this data cannot (yet) support
+## What the evidence does not support
 
 These questions are *significant* but the warehouse cannot currently carry them.
 They are reported as limits — and they map the data we would need to say more.
@@ -545,26 +574,41 @@ companions — what remains gated is the *Washington* version.
 
 ---
 
-## The verdict-in-waiting, and what gates it
+## Conclusion
 
-On present evidence: **electoral stress, not failure.** Turnout is steeply
-age-skewed; the donor class is narrow, old, and top-heavy; general elections are
-mostly not close, and a smaller share offer no major-party choice at all; money is
-strongly associated with candidate performance. Each is real and quantifiable here.
+**The four-state evidence documents persistent inequalities in who participates, who
+finances campaigns, and how often general elections are genuinely close. It does not support
+a scalar diagnosis of democratic failure, and it does not identify the causal electoral
+effect of campaign spending.**
 
-*This sentence said "most seats are uncontested in the general" until 2026-08-15. That is
-false under the series' own current definitions, which an external referee checked against
-the safe-seat companion: in Washington 2024, **83.5%** of seats were not close and only
+Concretely, and in the order of the domains above: turnout is steeply age-skewed, and
+sharply more so as salience falls; the donor class is narrow, old and top-heavy, and
+over-represents the same party at both partisan poles; general elections are mostly not
+close, while a smaller share offer no major-party choice at all; and money is strongly
+associated with candidate performance by a design that cannot say which way the association
+runs. Each is real and quantifiable here.
+
+Each also has a benign reading that survives the evidence assembled. Differential
+participation is voluntary in states with all-mail, postage-paid, same-day registration. A
+lopsided seat may be lopsided because voters genuinely lean that way. A heavy-tailed
+contribution distribution is what any voluntary funding system produces. And a correlation
+between money and performance is exactly what a world in which money follows expected winners
+would look like. **The evidence here does not adjudicate between the concerning and the
+benign reading of any of the four**, which is why the conclusion is bounded rather than
+scored.
+
+*Two things left this section on 2026-08-15 and 2026-08-16. It opened "On present evidence:
+electoral stress, not failure" and closed by saying "the accuracy gate holds the whole back
+from a stronger verdict" — both of which read the gauntlet's scores as evidence about
+electoral health, which is a use elicited judgement cannot support; those scores are now
+Appendix A. And it said "most seats are uncontested in the general", which is false under
+the series' own definitions: in Washington 2024, **83.5%** of seats were not close and
 **34.6%** offered no D-v-R option. "Not close" is not "uncontested", and the safe-seat paper
-split those two dimensions precisely because merging them was the original conflation. The
-synthesis had reintroduced it in its own closing verdict — outside every coverage span,
-while the finding that corrects it was gated.* But each also has a strong benign reading that survives, the
-trajectories are mostly borrowed from the national literature rather than
-established in-data, and the accuracy gate holds the whole back from a stronger
-verdict.
+split the two precisely because merging them was the original conflation. The synthesis had
+reintroduced it in its own closing verdict — outside every coverage span, while the finding
+that corrects it was gated.*
 
-To move past "weak-against-null," the program needed to close two gaps. **Both are now
-closed:**
+**On the data itself, two acquisition gaps that once bounded this programme are closed:**
 
 1. ~~**Party-of-record** (statewide)~~ — **DONE.** The NY (NYSVOTER FOIL, 13.54M) and
    ID (SoS statewide file, 1.03M) voter files were received and loaded, each with
@@ -592,7 +636,45 @@ companion is already on SSRN (7149263) and owes a revision, not a first upload
 
 ---
 
-## Appendix A — Diagnostic ledger (all 10 questions)
+## Appendix A — Methodological history: the 2026-06-27 idea gauntlet
+
+**None of what follows is evidence about electoral health, and it is preserved because it is
+the honest record of how this programme chose what to study.**
+
+The programme began with a scoring exercise. Ten candidate research questions were each
+scored 0–10 on eleven dimensions by a **language model**
+(`idea-gauntlet/democracy_insight.workflow.js`) prompted to act as a quantitative
+methodologist and democratic-theory reviewer, to search the web, and to be adversarial toward
+its own conclusions:
+
+- **Insight layer (research quality):** data sufficiency, inferential strength, novelty,
+  systemic significance, usefulness, robustness.
+- **Diagnostic layer (anatomy of a failure claim):** function impairment, trajectory,
+  entrenchment, counter-thesis strength (*reverse-scored*), convergence.
+
+Of the ten, nine scored "weak-against-null" and one "supports-null"; none reached "moderate"
+or "strong" against the null. The exercise reported an **accuracy-weighted failure signal of
+22/100**.
+
+**Why that number is not in the paper.** It is an **elicited-judgement index, not a
+measurement**: the mean of ten model-authored 0–100 severity scores, weighted by twenty more
+model-authored 0–10 scores, of which only the first ten were ever published — so it **cannot
+be recomputed from the table below**, which gives an unweighted mean of 18.3. The
+distribution it summarises is partly prescribed by the prompt, which instructed the scorer to
+*"default to 'data-insufficient' or 'weak-against-null' unless the evidence is genuinely
+strong"*, so reading "nine weak-against-null" as a finding is partly circular. And it was
+computed on 2026-06-27 against a data description that has since moved — 19 elections,
+~$1.3B in contributions and 9.2M voter-score rows, against 22, $1.04B (Washington) and 16.1M
+today — and never re-run, although Domain 4's sign has since reversed and Domain 2's
+Washington figure has moved.
+
+An external referee's verdict was that this is "a pseudo-quantitative statistic that adds
+false precision to what is properly a qualitative synthesis", and that no additional
+disclaimer cures it. That is right, and the same applies to the impairment, trajectory,
+entrenchment, counter-thesis and convergence columns below: they are a useful internal
+research-prioritisation rubric and they are not evidence about a state's electoral health.
+
+**The ledger, as scored on 2026-06-27:**
 
 | Question | Insight | Failure | Null | Impair | Traj | Entrench | Counter↓ | Converge |
 |---|---|---|---|---|---|---|---|---|
@@ -610,7 +692,9 @@ companion is already on SSRN (7149263) and owes a revision, not a first upload
 *Counter↓ = counter-thesis strength (reverse): high values discount the failure
 signal. Accuracy-weighted failure signal across all findings = **22/100**.*
 
-## Appendix B — Suggested publication sequence (status as of 2026-06-28)
+---
+
+## Appendix B — The companion papers, and their status
 
 1. **Lead paper:** "Who Decides Washington State?" (Finding 1) — **DRAFTED**
    ([`who-decides-washington.md`](who-decides-washington.md)).
