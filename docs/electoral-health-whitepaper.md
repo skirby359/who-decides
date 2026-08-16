@@ -23,10 +23,18 @@ Three commitments govern every section below:
    proportion to its data sufficiency × inferential strength.* A striking number
    built on data the warehouse cannot actually carry is reported as a limit, not a
    result.
-3. **No verdict.** This document assembles the *components* of a democratic-health
-   assessment. It deliberately does **not** declare a "failure of democracy." The
-   point is to be the instrument capable of detecting one honestly — not to reach
-   for the headline.
+3. **A bounded conclusion, not a scalar verdict.** This document assembles the
+   *components* of a democratic-health assessment. Its conclusion is that **the analyses
+   document several measurable disparities and constraints in electoral participation,
+   contestation and political voice, and do not establish system-level democratic
+   failure.** What it does not do is reduce that to a number.
+
+   *This commitment read "**No verdict** … deliberately does not declare a failure of
+   democracy" until 2026-08-15, while the closing section was titled "The verdict-in-waiting"
+   and opened "electoral stress, not failure", and the paragraph below assigned a 22/100
+   failure signal. An external referee named the contradiction. Claiming to reach no verdict
+   while publishing a scalar failure score is the version that could not be defended; the
+   bounded interpretive conclusion above is stated plainly instead.*
 
 **Bottom line of the scan that produced this prospectus:** of 10 questions, **nine
 scored "weak-against-null" and one "supports-null"; none reached "moderate" or
@@ -100,17 +108,34 @@ its own conclusions:
   actually healthy" reading — *reverse-scored*), convergence (does it triangulate
   with the other findings?).
 
-Function impairment is anchored to the **V-Dem component indices** (electoral,
-liberal, participatory, deliberative, egalitarian) so severity is legible and
-comparable across states and time.
+Function impairment is **conceptually mapped** to the V-Dem component indices (electoral,
+liberal, participatory, deliberative, egalitarian) so severity is legible in a familiar
+vocabulary.
 
-**Data provenance:** ~5.1M precinct-result rows across 22 elections (WA) plus
-NY/TX/ID; ~8.6M individual contributions (FEC + state PDC, **~$1.04B**, 2018–2026) with
-employer/occupation/ZIP; ~16.1M voter-score rows (one per voter per district scope,
-~5.5M distinct voters); ~27.1M individual VRDB vote
-records; and the rare asset — **314,974 voters matched to their donations** at the
-person level, on the full-name-key specification adopted 2026-07-27; see §F of the
-cross-state money paper).
+*This paragraph said "anchored to" until 2026-08-15. An external referee objected that
+"anchored" claims a calibration that does not exist, and he is right: these are not V-Dem
+component-index observations, no reproducible transformation maps V-Dem indicators onto
+these 0–10 scores, and the scores were produced by a language-model workflow. The mapping
+is a labelling convention borrowed from V-Dem's conceptual scheme, and nothing about the
+scores inherits V-Dem's authority.*
+
+**Data provenance.** Every count below is a **live read that drifts** as the 2026 cycle
+accrues, and each is scoped to the state or states named — the previous version of this
+paragraph was not, and an external referee read its contribution figures as program-wide
+when they were Washington's alone.
+
+- **Washington:** ~5.1M precinct-result rows across 22 elections; **8.6M individual
+  contributions, $1.04B** (FEC `$646.2M` + state PDC `$394.6M`, 2018–2026) with
+  employer/occupation/ZIP; ~16.1M voter-score rows (one per voter per district scope,
+  ~5.5M distinct voters); ~27.1M individual VRDB vote records.
+- **All four states, federal layer only:** **28.9M contribution rows / $4.73B** of
+  resident-donor outflow (WA 5.58M/$646.2M · NY 9.98M/$2,066.6M · TX 12.56M/$1,942.1M ·
+  ID 0.77M/$76.2M). Adding each state's own finance system takes it to **36.1M rows /
+  $6.06B**.
+- **The rare asset:** voters matched to their own donations at the person level. Quote
+  these **per panel**, never pooled — WA federal 147,745 / state 217,114; NY federal
+  269,218 / state 378,383; ID federal 23,303 / state 23,613. The pooled 314,974 WA figure
+  this document used to headline is a **retired estimand**; see the panel note in Finding 5.
 
 ---
 
@@ -154,24 +179,28 @@ concrete analysis to run.
   effect on representation, candidacy, incumbency, housing policy or public-employee
   salaries — the disconfirming half of the same literature.
 
-### 2. Safe-seat democracy: the collapse of general-election contestation
-*Insight 52 · failure-contribution 34 (highest) · null: weak-against · V-Dem: electoral, participatory, deliberative · trajectory: worsening*
+### 2. Safe-seat democracy: most general elections are not close
+*Insight 52 · failure-contribution 34 (highest) · null: weak-against · V-Dem: electoral, participatory, deliberative · trajectory: persistent*
 
-- **Defensible claim.** The large majority of seats are non-competitive. On the
-  model's own symmetric Cook-style bands, seats at ≥10-pt margin run **WA 90%
-  (53/59), NY 86% (206/240), TX 81% (167/205), ID 92% (34/37)**, with genuine
-  Tossups a small minority. When the general is foregone, the operative decision
-  moves to lower-turnout primaries. This is a structural counting result that does
-  **not** depend on any blocked/weak signal.
-  <sub>**Basis (added 2026-08-10).** The four band cells above are the **latest snapshot per
-  state** in `forecast_predictions` — WA 2026-06-17, NY 2026-06-11, TX 2026-06-12,
-  ID 2026-06-26 — one row per district, banded on `|predicted_margin| ≥ 10`. That qualifier is
-  load-bearing rather than pedantic: the table holds several snapshots per district, and Texas
-  has **220** districts on 2026-06-08 against **205** on 2026-06-12, so pooling the two gives
-  181/220 = 82% instead of 167/205 = 81%. All four reproduce exactly on the stated basis. They
-  are **not pinned and not probed**, and a final pre-November re-lock of all three forecast
-  states is planned, at which point every cell here — and the 13-point Texas gap computed from
-  one of them — moves without anything in this paper changing.</sub>
+- **Defensible claim, on OBSERVED margins.** The large majority of seats are not close.
+  On the most recent general for partisan legislative and congressional offices, the
+  not-close share runs **WA 87.8% · NY 88.0% · TX 94.0% · ID 92.9%** of lower-chamber
+  seats. This is a structural counting result on certified returns that does **not**
+  depend on any blocked/weak signal or on any model.
+
+  <sub>**Two changes here on 2026-08-15, both at an external referee's insistence, and both
+  make the finding harder to attack.** *First, the live forecast table is gone.* This bullet
+  led with model-projected 2026 margins from the latest `forecast_predictions` snapshot per
+  state — figures that were unpinned, unprobed, drifting, due to move wholesale at the
+  pre-November re-lock, and disagreeing with the observed count by thirteen points in Texas.
+  They are not reproduced here, because enumerating four unpinned live reads is the thing
+  the note objects to. The observed result is both stronger and stable. *Second, "trajectory: worsening" is withdrawn.* Washington's
+  observed not-close share runs **78.9–88.1%** across 2016–2024 with a dip in the 2018 wave;
+  that is persistence, not a monotonic trend, and five cycles cannot carry one.
+  *And the sentence "when the general is foregone, the operative decision moves to
+  lower-turnout primaries" is removed as an inference the safe-seat companion has expressly
+  withdrawn* — an ex-post margin cannot date the binding decision.</sub>
+  *(A basis note here described how the four retired band cells were computed from `forecast_predictions` — including that the Texas district count differed between two snapshots four days apart, which is why they were never trustworthy as published figures. It went with the cells.)*
 - **Strongest objection.** Those are *model-projected* 2026 margins, sensitive to
   the 10-pt threshold; and "non-competitive" conflates a closed-shop seat with one
   that is lopsided because voters *genuinely* lean that way (self-sorting). A
@@ -243,10 +272,26 @@ concrete analysis to run.
 ### 4. Money and votes stack on the same people
 *Insight 47 · failure-contribution 22 · null: weak-against · V-Dem: participatory, egalitarian · trajectory: indeterminate · (most novel: 6)*
 
-- **Defensible claim (cross-sectional only).** Among the 314,974 matched voters,
-  donors are a participation elite: **87.6% are super-voters vs 50.9%** of non-donors
-  (average turnout propensity **0.967 vs 0.749**; donor-class verifier F4). Financial voice
-  and electoral voice concentrate on the same individuals rather than offsetting.
+- **Defensible claim (cross-sectional only).** Donors are a participation elite. On the
+  measure the owning paper now treats as clean — registrants who existed before the first
+  election in the window, so every retained person could have voted in all of them, then
+  age-standardized — the donor/non-donor turnout gap runs **+22.9 to +26.3 points** across
+  the four panels (NY federal +25.1, NY state +26.3, WA federal +26.0, WA state +22.9).
+  Financial voice and electoral voice concentrate on the same individuals rather than
+  offsetting.
+
+  <sub>**Retired 2026-08-15: "87.6% are super-voters vs 50.9%" of non-donors, at an average
+  turnout propensity **0.967 vs 0.749** and a ratio of **1.72×**.** Those figures came from
+  the **pooled** 314,974-voter match, an estimand the
+  donor paper has since replaced with per-source panels. Worse, the measure itself is
+  defective for this comparison: `voter_scores.is_super_voter` is defined as *last voted on
+  or after 1 Jan 2022 **and** registered at least eight years*, so registration tenure sits
+  inside the outcome definition — every registrant of under eight years' standing is false by
+  construction, the variable cannot carry a tenure adjustment, and it is not
+  measure-comparable with New York's plain count of generals voted. The owning paper says all
+  of this and publishes the eligible-for-all figures above instead. An external referee
+  caught the synthesis still headlining the dramatic superseded metric, which is precisely
+  what a synthesis must not do.</sub>
 - **Strongest objection.** The *causal/longitudinal* version ("giving *makes* people
   vote more; inequality *deepens*") is unsupportable here: donors are pre-selected
   for engagement (reverse causation is equally plausible), the match is biased
@@ -255,11 +300,11 @@ concrete analysis to run.
   first-gift-then-vote sequencing can't be reconstructed on a shallow 2021–2026
   history. The benign reading — donating as a *gateway* that broadens participation
   — is live.
-- **First analysis — DONE** ([`cross-state-fec-money.md`](cross-state-fec-money.md) §F3):
-  the cross-sectional benchmark — matched donors are **87.6% super-voters vs 50.9%** of
-  non-donors (**1.72×**), mean turnout propensity **0.967 vs 0.749** — framed strictly as
-  association, with the match-bias diagnostic from §F2 (the giving↔voting overlap is real;
-  the *causal/longitudinal* version remains out of reach).
+- **First analysis — DONE**, and superseded by
+  [`donor-class-and-the-electorate.md`](donor-class-and-the-electorate.md), which is the
+  citable owner of this result. Framed strictly as association: the giving↔voting overlap is
+  real, the *causal/longitudinal* version remains out of reach, and the eligible-for-all
+  age-standardized gaps above are the figures to quote.
 - **Key literature.** Verba/Schlozman/Brady (*Voice and Equality*; *Unheavenly
   Chorus*) — money is the most income-skewed form of participation; the donor pool
   is a structural elite (the *constant* against which any worsening must be measured).
@@ -298,23 +343,34 @@ concrete analysis to run.
   panel-scoped. On the federal basis both blocs are a LARGER share, so the point sharpens.)*
   The voter↔donor join makes this *person-level*, not ecological —
   the genuine value-add over the standard FEC-aggregate literature.
-- **Strongest objection — now tested and rejected.** The objection was that the skew
-  is a **matcher artifact**: the (last name, first initial, ZIP) unique-key over-selects
-  the older, rarer-named, stable-address residents it then "finds" over-represented.
-  **Tested directly** (cross-state §F2): the probability a voter is uniquely matchable
-  on that key is **nearly flat across generations (69.1%–73.3%, a ~4-pt spread)**, so
-  inverse-propensity re-weighting **barely moves** the over-representation ratios
-  (Silent 1.96→1.91×, Gen Z 0.09→0.09× on the 314,974-voter match). The age skew is a
-  real property of *who gives*, not of who the matcher can find. (One residual bias it
-  can't observe — donors who moved between giving and now — runs the *same* direction,
-  so the raw skew is an upper bound; the named name-commonness mechanism explains almost
-  none of it.) The voter file still has **no income and no race**, so the literature's
-  richer/whiter claims remain proxied, not tested.
+- **Strongest objection — one mechanism tested and excluded, the objection not closed.**
+  The objection is that the skew is a **matcher artifact**: the unique-key over-selects the
+  older, rarer-named, stable-address residents it then "finds" over-represented. What has
+  been tested is the **roll-side** half of that. On the current full-name key the probability
+  a voter is uniquely matchable is nearly flat across age — **NY 94.5–95.4%** (0.9-pt
+  spread), **WA 96.3–97.6%** (1.4-pt spread) — so inverse-propensity re-weighting does not
+  move the distribution: NY's 65+ donor share goes 47.9% → **47.9%**, and every Washington
+  generation multiplier is unchanged to two decimal places in both panels.
+
+  The defensible conclusion is therefore **"measured roll-side strict-key matchability does
+  not explain the age skew"** — not "matcher bias has been rejected". The test says nothing
+  about donor-side selection: how a contributor writes their own name on a filing,
+  residential mobility between the filing and the extract, work or second addresses,
+  stale addresses, or namesakes. The owning paper enumerates those and leaves them open.
+  The voter file still has **no income and no race**, so the literature's richer/whiter
+  claims remain proxied, not tested.
+
+  <sub>**Corrected 2026-08-15.** This bullet said the objection was "tested and rejected" and
+  that the skew "is a real property of *who gives*, not of who the matcher can find" — a
+  categorical claim the owning paper explicitly declines to make. It also quoted
+  **69.1%–73.3%** matchability, which is the *retired* (last name, first initial, ZIP) key;
+  the current full-name key runs 94.5–97.6%. An external referee caught both.</sub>
 - **First analysis — DONE** ([`cross-state-fec-money.md`](cross-state-fec-money.md) §F2):
   the matcher-bias inverse-propensity re-weighting above; skews reported raw *and*
-  re-weighted; income/race labeled untestable. Concentration on the pooled 314,974 match:
-  top-1% **46.6%**, top-10% **79.3%**, Gini 0.857; 61.4% of dollars from two Seattle ZIP3s.
-  Superseded per the panel note above — federal panel top-1% **41.2%** [38.6–43.4],
+  re-weighted; income/race labeled untestable. *(Retired estimand, kept only as the thing
+  the per-panel figures replaced: on the pooled 314,974 match, top-1% **46.6%**, top-10%
+  **79.3%**, Gini 0.857, and **61.4%** of dollars from two Seattle ZIP3s.)*
+  Per panel — federal panel top-1% **41.2%** [38.6–43.4],
   Gini **0.815** [0.806–0.822], two-ZIP3 share **63.5%**; state panel top-1% **43.5%**
   [38.7–48.9], Gini **0.821** [0.806–0.838]. *(This line previously read 42.4% [40.2–44.9]
   for the federal panel — the all-tier value, contradicting the 41.2% in the panel note
@@ -329,11 +385,21 @@ concrete analysis to run.
   pts federal, +9.6 state)** *and* **deep-red Idaho (+8.6 federal, +9.8 state)**,
   under-represents the unaffiliated in both, and
   the age skew replicates (65+: NY federal **49.9%**, ID federal **66.8%**, ID state
-  **51.3%**). Crossover: Democrats are
-  near-monolithic donors (**95%** NY / **94.6%** ID → own party) and unaffiliated donors lean
-  Democratic (~2:1 NY, nearly **4:1** ID). So the Democratic tilt is a property of who donates,
-  not of a state's majority party. (The ID crossover and 51.3% figures are the state-money
-  layer; see that paper's caveats.) **These are the primary (full-name-key) specification.**
+  **51.3%**). **Crossover, on the federal panels only:** currently enrolled Democrats are
+  near-monolithic donors (**95%** NY federal), and unaffiliated donors' resolved giving
+  leans Democratic — and both survive assigning the *entire* unresolved pool to the rival
+  side (NY unaffiliated **52.1%** against 45.1%; ID unaffiliated **65.0%** against
+  34.1%, as shares of matched donors). So the Democratic tilt is a property of who donates,
+  not of a state's majority party.
+
+  <sub>**Panel corrected 2026-08-15.** This sentence quoted the **state** panels — ID 94.6%
+  and "nearly 4:1" — where recipient party is reconstructed rather than published and
+  resolution is only 51.1% for Idaho and 37.7% for New York (39.0% for Idaho's unaffiliated row). The owning paper's
+  bound analysis says in terms that the two patterns **do not survive** the extreme
+  unresolved-pool assignment on the state panels, and **do** survive it on the federal panels,
+  where resolution is 87.6–88.8%. The synthesis was resting a headline on the panel that
+  fails the test while the panel that passes it sat unused. State-panel crossover is
+  suggestive and is reported as such in the companion.</sub> **These are the primary (full-name-key) specification.**
   It discards 11–19% of matched donors who are younger and less Democratic than those
   retained, so part of the sharpened skew is selection rather than precision — the
   all-tier figures, which are the more conservative ones, are reported alongside in the
@@ -345,21 +411,34 @@ concrete analysis to run.
   people who dominated before the reform.** (An earlier version attributed this to Grumbach,
   Sahn & Staszak, who wrote a different paper on a different question.)
 
-### 6. Money marks strength; it does not appear to move margin
+### 6. Money is strongly associated with candidate performance; these designs do not identify whether it moves votes
 *Insight 42 · failure-contribution 14 · null: weak-against · V-Dem: egalitarian, electoral, deliberative · trajectory: indeterminate*
 
-- **Defensible claim.** Finance behaves as a marker of pre-existing candidate
-  strength, not an independent vote-mover: raw fundraising log2(D/R) correlates
-  **+0.58** with overperformance, but spend *allocation* has cross-cycle holdout
-  R² of **0.02**, and the forecast model zeroes the fundraising term post-redistricting
-  because the baseline already absorbs it. The honest reading — "money follows the
-  scoreboard" — is, on the *vote-buying* axis, consistent with the healthy null,
-  while leaving the **access/agenda-setting** channel untested.
-- **Strongest objection.** The whole thing is a correlation with no exogenous
-  variation — +0.58 is exactly what a true causal effect *would also* produce. The
-  allocation-R²-zero null is underpowered and tests spend *mix*, not *level*. So the
-  data can neither confirm nor refute vote-buying; it can only show money is
-  endogenous to candidate quality.
+- **Defensible claim.** Fundraising is the single strongest correlate of
+  overperformance in the panel — raw log2(D/R) receipts correlate **+0.60** — while
+  spend *allocation* carries a cross-cycle holdout R² of **0.028**, and the forecast
+  model zeroes the fundraising term post-redistricting because the baseline already
+  absorbs it. **What none of that establishes is direction.** The association is
+  equally consistent with money buying votes and with money chasing candidates who
+  were already going to win, and no design available here separates them. The
+  citable result is a **non-identification**: the public record can measure the
+  association precisely and cannot sign the causal effect.
+
+  <sub>**This finding was titled "Money marks strength; it does not appear to move margin"
+  until 2026-08-15, and an external referee was right that the title contradicted the bullet
+  beneath it** — which already conceded that the correlation "is exactly what a true causal
+  effect *would also* produce". A heading cannot assert non-effect while the text concedes
+  non-identification. Two figures were stale at the same time: the correlation read **+0.58**
+  and the holdout R² **0.02**, against the owning paper's current **+0.60** and **0.028** —
+  and the retired R² also rounded to a different first decimal than the current one, so the
+  old cell carried a stale rounding on top of a stale figure. Both are scraped from
+  [`does-money-move-votes.md`](does-money-move-votes.md) rather than restated; the scrapes
+  had silently broken when that paper's tables were rebuilt, which is how the figures
+  drifted unnoticed.</sub>
+- **Strongest objection — and it is sustained.** The whole thing is a correlation with no
+  exogenous variation. The allocation-R² null is underpowered and tests spend *mix*, not
+  *level*. So the data can neither confirm nor refute vote-buying; it can only show money
+  is endogenous to candidate quality.
 - **First analysis — DONE** (`scripts/diag_ie_vs_margin.py`). For FEC-attributed
   races (Schedule E carries support/oppose + district), it regresses the
   *fundamentals-net residual* (actual − model-predicted Dem %, **not** the raw
@@ -368,17 +447,30 @@ concrete analysis to run.
   direction-coded PDC state-legislative IE** (form C-6 section C6.3, ingested 2026-08-09)
   adds **129 scorable district-cycles** on the same design — see
   `scripts/diag_pdc_ie_vs_margin.py`. That extension does not settle the question: every
-  interval still spans zero and the **sign becomes specification-dependent** (−3.816 to
-  +4.890 across four specifications), which is evidence the constraint is structural
+  interval still spans zero and the **sign becomes specification-dependent** (−3.836 to
+  +4.871 across four specifications), which is evidence the constraint is structural
   rather than a shortage of cells. The regression **now runs**: the slope is **+0.515 pp per
   $1M net pro-Dem IE (Pearson r +0.186, n=34)**, with a bootstrap interval of
-  −0.600 to +2.821 that spans zero. The interval is the result — it admits both no
-  effect and effects large enough to decide a close race. The most heavily funded
+  −0.600 to +2.821 that spans zero.
+
+  **That positive sign rests on one observation, and the owning paper says so.** Its
+  leave-one-out sweep over the same 34 races runs from **−0.035** (dropping WA-08 2018) to
+  **+0.832** (dropping WA-03 2024): deleting a single race erases the positive slope
+  entirely. WA-08 2018 pairs the panel's largest net pro-Democratic IE (**+$8.26M**) with a
+  **+8.78**-point residual and carries a Cook's distance of **0.69**; dropping every WA-08
+  observation gives **−0.065**. A district-clustered bootstrap, which respects the fact that
+  the panel measures ten districts repeatedly, widens the interval to **−1.595 to +1.268**.
+
+  <sub>**What this bullet claimed until 2026-08-15, and why it is withdrawn.** It said "the
+  public record can *bound* the persuasion effect but not sign it". A bootstrap interval
+  around an observational coefficient under endogenous treatment bounds the *association*,
+  not the persuasion effect; calling it the latter smuggles back the identification the same
+  sentence denies. It also headlined +0.515 without the leverage result — which the owning
+  paper had already derived, published and led its own abstract with. That is the
+  propagation failure this document was carrying in miniature: the companion did the
+  careful work and the synthesis kept the dramatic version.</sub> The most heavily funded
   race in the panel, **WA-03 2024 ($18.61M total IE, +$6.09M net pro-Dem), finished
-  +0.06 pp off its fundamentals: dead-on.** The citable Finding-6 result for WA is
-  therefore that the public record can *bound* the persuasion effect but not sign it,
-  and that endogeneity — spending aimed at expected closeness — makes even a narrower
-  interval an association rather than an effect.
+  +0.06 pp off its fundamentals: dead-on.**
   **Two corrections against the earlier version of this bullet, both material.** It
   reported a single cycle and 7 races; three further cycles were simply not loaded,
   and the backfill took about five minutes. And it reported a *negative* slope
@@ -456,9 +548,17 @@ companions — what remains gated is the *Washington* version.
 ## The verdict-in-waiting, and what gates it
 
 On present evidence: **electoral stress, not failure.** Turnout is steeply
-age-skewed; the donor class is narrow, old, and top-heavy; most seats are
-uncontested in the general; money tracks candidate strength. Each is real and
-quantifiable here. But each also has a strong benign reading that survives, the
+age-skewed; the donor class is narrow, old, and top-heavy; general elections are
+mostly not close, and a smaller share offer no major-party choice at all; money is
+strongly associated with candidate performance. Each is real and quantifiable here.
+
+*This sentence said "most seats are uncontested in the general" until 2026-08-15. That is
+false under the series' own current definitions, which an external referee checked against
+the safe-seat companion: in Washington 2024, **83.5%** of seats were not close and only
+**34.6%** offered no D-v-R option. "Not close" is not "uncontested", and the safe-seat paper
+split those two dimensions precisely because merging them was the original conflation. The
+synthesis had reintroduced it in its own closing verdict — outside every coverage span,
+while the finding that corrects it was gated.* But each also has a strong benign reading that survives, the
 trajectories are mostly borrowed from the national literature rather than
 established in-data, and the accuracy gate holds the whole back from a stronger
 verdict.
@@ -478,10 +578,16 @@ closed:**
    FEC ingest direction corrected with a recipient-anchored inflow build, and the
    nationalization test run (`cross-state-fec-money.md` §E–I).
 
-With both data gaps closed, the remaining work is human-owned: independent verification
-of the headline numbers, and posting the papers that are not yet posted — the Washington
-companion is already on SSRN (7149263) and owes a revision, not a first upload — to
-SSRN/SocArXiv
+**The major acquisition gaps for the present analyses are largely closed.** What remains is
+not only human sign-off, and this paragraph said it was until 2026-08-15. Still open and not
+delegable to a signature: Washington still lacks individual party of record (see *Boundary of
+inference*); the four states do not have equivalent coverage, so the cross-state claims are
+not symmetric (Texas has no voter file and therefore no person-level donor analysis; NY and
+ID publish party registration and WA does not; Idaho's roll carries a survivorship problem
+unlike Washington's); and the model-generated diagnostic scores in Appendix A are stale
+against the data as it now stands. The genuinely human-owned items are independent
+verification of the headline numbers and posting the papers not yet posted — the Washington
+companion is already on SSRN (7149263) and owes a revision, not a first upload
 ([`electoral-health-audit-log.md`](electoral-health-audit-log.md)).
 
 ---
@@ -493,7 +599,7 @@ SSRN/SocArXiv
 | Who decides (turnout skew) | 62 | 22 | weak | 5 | 4 | 7 | 8 | 6 |
 | Safe-seat democracy | 52 | 34 | weak | 6 | 5 | 8 | 8 | 7 |
 | Whale vs small-dollar | 48 | 22 | weak | 4 | 4 | 6 | 8 | 6 |
-| Giving reinforces voting | 47 | 22 | weak | 5 | 3 | 7 | 7 | 7 |
+| Donors are also high-frequency voters | 47 | 22 | weak | 5 | 3 | 7 | 7 | 7 |
 | Donor class ≠ electorate | 42 | 22 | weak | 5 | 4 | 7 | 7 | 6 |
 | Money moves margin? | 42 | 14 | weak | 3 | 4 | 5 | 8 | 6 |
 | Outcomes pre-determined? | 38 | 14 | weak | 3 | 5 | 6 | 9 | 5 |
@@ -519,16 +625,23 @@ signal. Accuracy-weighted failure signal across all findings = **22/100**.*
    [`donor-class-and-the-electorate.md`](donor-class-and-the-electorate.md) (WA + NY + ID,
    party-resolved donor class, whale concentration, crossover), building on
    [`cross-state-fec-money.md`](cross-state-fec-money.md) (§F donor-class + matcher-bias
-   correction; §A/E whale-vs-small-dollar + concentration). Conduit/earmark attribution
-   verified (§E).
+   correction; §A/E whale-vs-small-dollar + concentration). *(This line read "Conduit/earmark
+   attribution verified (§E)" until 2026-08-15, which contradicted Finding 3's own objection
+   bullet — that a true per-race figure "needs an earmark-attribution layer that does not yet
+   exist". What §E verified is that FEC records earmarked gifts under the candidate committee
+   as transaction type 15E, so the conduit-side 24T rows are correctly excluded and nothing is
+   double-counted. That is an ingest correctness check, not the ultimate-recipient attribution
+   Finding 3 says it lacks. An external referee found the two sentences arguing with each
+   other.)*
 4. **Methods/curiosity piece:** Finding 6 — **DRAFTED** as
    [`does-money-move-votes.md`](does-money-move-votes.md) (2026-07-26). The story is the
-   honest near-null: money is the strongest single correlate of overperformance (+0.58) yet
-   leaves no causal fingerprint — allocation holdout R² 0.02, the forecast model discards
-   the term against a known baseline, and the directional test, run across 34 federal
-   district-cycles and a further 129 state-legislative ones, returns intervals that span
-   zero on every specification. The verdict stays "cannot confirm or refute," and the
-   citable result is that the limit is the **design** — outside money concentrates in a few
-   races and is targeted at expected closeness — not the disclosure record.
+   honest non-identification: money is the strongest single correlate of overperformance
+   (+0.60) yet leaves no causal fingerprint that this design can read — allocation holdout R²
+   0.028, the forecast model discards the term against a known baseline, and the directional
+   test, run across 34 federal district-cycles and a further 129 state-legislative ones,
+   returns intervals that span zero on every specification and a headline slope that one
+   deleted race reverses. The verdict stays "cannot confirm or refute," and the citable
+   result is that the limit is the **design** — outside money concentrates in a few races and
+   is targeted at expected closeness — not the disclosure record.
 5. **Party-of-record boundary questions — DONE** (NY + ID voter files loaded); the
    longitudinal/causal version of Finding 4 remains for a future extension.

@@ -7004,3 +7004,87 @@ exist. Neither the whitepaper, the money paper nor their verifiers were modified
 revision, `081f452` — the synthesis was not swept after the source paper's derivations changed.
 **Diagnosing it needs the money paper as source of truth and is its own round.** Not guessed at
 here.
+
+---
+
+## 2026-08-15 (second referee) — the white paper: eleven items applied, four returned to the author
+
+**The referee's diagnosis was structural and correct: "the underlying research program is
+stronger than the present synthesis."** Every empirical claim he made was reproduced before it
+was accepted, and all of them reproduced. Two were worse than he stated.
+
+### The single mechanism behind almost every item
+
+The synthesis had become the place where **retired estimands survived**. Finding 4 headlined a
+pooled super-voter gap the donor paper had replaced; Finding 5 quoted the *retired* match key's
+roll-side uniqueness (69–73%) rather than the current key's (94–98%), and rested its crossover
+claim on the state panels — which the owning paper says explicitly do **not** survive the
+unresolved-pool bound — while the federal panels, which do, sat unused. Finding 6 headlined a
+slope whose sign one deleted race reverses, a leverage result the owning paper had already
+derived, published and led its own abstract with.
+
+**None of it was a computation error, so nothing caught it.** `verify_whitepaper.py` was
+faithfully asserting the synthesis against derivations that still computed the retired
+quantity. That is the generalisable finding of this round, and it is now written into the
+verifier: **a verifier can establish that prose agrees with code; it cannot establish that the
+code still computes the statistic the research programme has decided is the right one.**
+
+The remedy is structural, not numeric: a new `_companions()` block scrapes the figures this
+document QUOTES from the papers that OWN them — donor-class, safe-seat, money-votes — and a
+broken anchor is a FATAL, not a fallback. Improving a companion now moves the synthesis or
+fails loudly.
+
+### Two things worse than the referee said
+
+1. **The gate was already red for a reason he did not raise, and the cause was the same.** The
+   money paper's tables were rebuilt on 2026-08-15 (`081f452`); two whitepaper scrape anchors
+   silently stopped matching, and two figures had drifted underneath the prose — the
+   fundraising correlation **+0.58 → +0.60** and the allocation holdout R² **0.02 → 0.028**.
+   0.022 rounds to 0.02 and 0.028 rounds to 0.03, so the cell carried a stale rounding on top
+   of a stale figure.
+2. **The leverage result is sharper than "essentially a one-observation result".** Reproduced
+   from the pinned panel: of all 34 single-cell deletions, **exactly one flips the sign** —
+   WA-08 2018, the panel's largest |net IE| cell, +$8.26M against a +8.78-point residual,
+   Cook's distance 0.69. Full panel +0.515; without that cell −0.035. The referee's −0.036 was
+   a reconstruction from rounded cells; the pin gives −0.035.
+
+### Applied (11 of 15)
+
+Items 3 (V-Dem "anchored" → "conceptually mapped"), 4 (the "no verdict" claim that sat beside a
+22/100 score and a section titled "The verdict-in-waiting" — replaced by a bounded interpretive
+conclusion), 5 (the provenance block's 8.6M/$1.04B is **Washington alone**; program-wide is
+28.9M/$4.73B federal and 36.1M/$6.06B with the state layers, and the block is now scoped per
+state), 6 (Finding 2 rebuilt on OBSERVED shares, the live forecast table deleted,
+"trajectory: worsening" withdrawn against a 78.9–88.1% five-cycle range, and the closing
+verdict's "most seats are uncontested" corrected — 83.5% not close is not 34.6% offering no
+D-v-R), 7, 8 (the eligible-for-all age-standardized gaps +22.9 to +26.3 replace the pooled
+87.6/50.9, and `is_super_voter`'s eight-year registration requirement is stated), 9 ("tested
+and rejected" → roll-side matchability does not explain the skew, with the donor-side
+mechanisms the owning paper leaves open), 10 (crossover moved to the federal panels, which
+survive the hostile bound), 11 (Finding 3's Appendix B "conduit/earmark attribution verified"
+reconciled with Finding 3's own "does not yet exist" — what §E verified is 15E/24T
+de-duplication, an ingest check, not ultimate-recipient attribution), 12, 14 ("remaining work
+is human-owned" was premature and now enumerates what is not).
+
+Appendix A's "Giving reinforces voting" is renamed "Donors are also high-frequency voters" —
+the old label is causal and the paper says reverse causation is live.
+
+### Returned to the author, deliberately not actioned (4 of 15)
+
+Items **1** (prospectus vs synthesis), **2** (delete the 22/100 signal and Appendix A's
+diagnostic scores from the main manuscript), **13** (replace the ten-question scorecard with
+four evidence domains, marking which results share data), **15** (retitle, and add a
+per-state × per-domain measured/partial/unavailable matrix).
+
+These change what the document IS, and the author has already recorded a decision on that:
+`publication-readiness-2026-08-15.md` lists the whitepaper as "a prospectus, not a submission
+target", blocking nothing. The referee's framing assumes a manuscript headed for review. **Both
+positions are defensible and the choice is not the assistant's.** What is not defensible either
+way — the retired estimands and the stale scrapes — is fixed above.
+
+### State
+
+`verify_whitepaper.py` exit 0, coverage fully mapped across Findings **2**–6 (the slice was
+widened, because Finding 2 now carries scraped observed figures worth gating and previously
+carried unpinned forecast reads that were not). Mutation sweep **124 caught / 0 uncaught**.
+`check_cross_doc_consistency.py` 0 findings. Infra suite 517.

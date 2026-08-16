@@ -54,6 +54,8 @@ ROOT = vp.ROOT
 DATA = vp.DATA
 PAPER = vp.DOCS / "electoral-health-whitepaper.md"
 MONEY_PAPER = vp.DOCS / "does-money-move-votes.md"
+DONOR_PAPER = vp.DOCS / "donor-class-and-the-electorate.md"
+SAFE_SEAT_PAPER = vp.DOCS / "safe-seat-washington.md"
 GENS = ["Silent", "Boomer", "Gen X", "Millennial", "Gen Z"]
 
 # Bootstrap settings, copied from diag_donor_concentration_bootstrap.py. The seed is fixed
@@ -287,6 +289,7 @@ def _finding6(d):
     # notice rows (they restate the periodic Schedule E and double the totals)
     # AND any row loaded before that distinction was recorded. Without this stop
     # a stale table asserts $0.0M rather than failing.
+    # (public adaptation: assert_ie_classified is defined at module level above)
     assert_ie_classified(c)
     # WA-03 2024: the most IE-saturated US House race in the country that cycle.
     tot, net = c.execute("""
@@ -349,6 +352,133 @@ def _scale(con, d):
         d[f"wa_{key}"] = float(v)
 
 
+def _companions(d):
+    """Figures this synthesis QUOTES rather than owns, scraped from the owning papers.
+
+    ADDED 2026-08-15, and it is the structural answer to the referee round of that date.
+    His diagnosis was that the synthesis had become a place where retired estimands went to
+    survive: Finding 4 still headlined a pooled super-voter gap the donor paper had replaced
+    with an eligible-for-all age-standardized one; Finding 5 quoted the *retired* match key's
+    roll-side uniqueness (69-73%) instead of the current key's (94-98%), and rested its
+    crossover claim on the state panels, which the owning paper says do NOT survive the
+    unresolved-pool bound, while the federal panels, which do, sat unused.
+
+    None of that was a computation error, so nothing caught it. `verify_whitepaper.py` was
+    faithfully asserting the synthesis against derivations that still computed the retired
+    quantity. **A verifier can establish that prose agrees with code; it cannot establish
+    that the code still computes the statistic the research programme has decided is the
+    right one.** The remedy is to stop re-deriving these here and read them from the paper
+    that owns them, so that improving a companion moves the synthesis or fails loudly.
+
+    An anchor that stops matching FAILS. That is the point: it is how the Finding 6 scrapes
+    announced, on this same date, that the money paper's tables had been rebuilt underneath
+    them and two figures had drifted unnoticed.
+    """
+    dn = re.sub(r"\s+", " ", DONOR_PAPER.read_text(encoding="utf-8"))
+    mp = re.sub(r"\s+", " ", MONEY_PAPER.read_text(encoding="utf-8"))
+    ss = re.sub(r"\s+", " ", SAFE_SEAT_PAPER.read_text(encoding="utf-8"))
+
+    def grab(text, rx, keys, cast=float, where=""):
+        m = re.search(rx, text)
+        if not m:
+            raise SystemExit(
+                f"FATAL: the white paper quotes {keys} from {where}, and the anchor no "
+                f"longer matches. The companion was reworded or the figure moved — "
+                f"re-point this scrape and re-read the sentence that depends on it. "
+                f"Refusing to fall back to a local derivation, which is how the retired "
+                f"pooled donor estimands survived here for weeks.")
+        for k, g in zip(keys, m.groups()):
+            d[k] = cast(g)
+
+    # Finding 4 — the eligible-for-all, age-standardized donor/non-donor turnout gaps.
+    # Four rows, and the SPAN across them is what the synthesis prints.
+    rows = re.findall(r"\| (NY federal|NY state|WA federal|WA state) \| \+[\d.]+ \| "
+                      r"\*\*\+([\d.]+)\*\* \|", dn)
+    if len(rows) != 4:
+        raise SystemExit(
+            f"FATAL: the eligible-for-all turnout table in the donor paper yielded "
+            f"{len(rows)} of 4 panel rows. Finding 4's '+22.9 to +26.3 points across the "
+            f"four panels' is a span over exactly those rows.")
+    for lbl, v in rows:
+        d["dn_gap_" + lbl.lower().replace(" ", "_")] = float(v)
+    vals = [float(v) for _, v in rows]
+    d["dn_gap_lo"], d["dn_gap_hi"] = min(vals), max(vals)
+
+    # Finding 5 — roll-side unique-key matchability on the CURRENT key, both states.
+    grab(dn, r"NY \*\*([\d.]+)–([\d.]+)%\*\* across the four bands \(([\d.]+)-pt spread",
+         ("dn_pmatch_ny_lo", "dn_pmatch_ny_hi", "dn_pmatch_ny_spread"),
+         where="the donor paper's match-bias section")
+    grab(dn, r"WA \*\*([\d.]+)–([\d.]+)%\*\* across generations \(([\d.]+)-pt spread",
+         ("dn_pmatch_wa_lo", "dn_pmatch_wa_hi", "dn_pmatch_wa_spread"),
+         where="the donor paper's match-bias section")
+    grab(dn, r"65\+ donor share goes ([\d.]+)% → \*\*([\d.]+)%\*\*",
+         ("dn_ipw_ny_raw", "dn_ipw_ny_wtd"),
+         where="the donor paper's inverse-propensity re-weighting")
+
+    # Finding 5 — the crossover bound, FEDERAL panels, which is what now carries the claim.
+    grab(dn, r"NY unaffiliated ([\d.]+)% against ([\d.]+)%; ID unaffiliated ([\d.]+)% "
+             r"against ([\d.]+)%",
+         ("dn_xo_ny_d", "dn_xo_ny_r", "dn_xo_id_d", "dn_xo_id_r"),
+         where="the donor paper's unresolved-pool bound")
+
+    # Finding 6 — the leverage sweep. The money paper derives, publishes and leads its own
+    # abstract with this; the synthesis had headlined +0.515 without it, which is the single
+    # clearest instance of the propagation problem this block exists to stop.
+    grab(mp, r"runs from \*\*−([\d.]+)\*\* \(dropping WA-08 2018\) to \*\*\+([\d.]+)\*\* "
+             r"\(dropping WA-03 2024\)",
+         ("mp_loo_lo", "mp_loo_hi"), where="the money paper's leave-one-out sweep")
+    grab(mp, r"\(\+\$([\d.]+)M\) with a \+([\d.]+)-point residual and carries a Cook's "
+             r"distance of \*\*([\d.]+)\*\*",
+         ("mp_cd08_net", "mp_cd08_resid", "mp_cd08_cook"),
+         where="the money paper's WA-08 2018 leverage cell")
+    grab(mp, r"dropping every WA-08 observation gives \*\*−([\d.]+)\*\*",
+         ("mp_drop_all_cd08",), where="the money paper's drop-all-WA-08 figure")
+    grab(mp, r"reported beside it: \*\*−([\d.]+) to \+([\d.]+)\*\*",
+         ("mp_clust_lo", "mp_clust_hi"),
+         where="the money paper's district-clustered bootstrap")
+
+    # Finding 5 — the recipient-party resolution rates that decide which panel carries the
+    # crossover claim. The synthesis states them to explain why it uses the federal panels.
+    grab(dn, r"resolving ([\d.]+)% of ID and ([\d.]+)% of NY state matched donors",
+         ("dn_res_id_state", "dn_res_ny_state"),
+         where="the donor paper's unresolved-pool objection")
+    grab(dn, r"where resolution is ([\d.]+)–([\d.]+)%",
+         ("dn_res_fed_lo", "dn_res_fed_hi"),
+         where="the donor paper's federal-panel resolution range")
+
+    # The RETIRED Finding 6 pair. Held as explicit constants rather than scraped, because
+    # they no longer exist in the owning paper — that is what "retired" means — and the note
+    # that retires them has to keep quoting them accurately.
+    d["money_r_fundraising_retired"] = 0.58
+    d["money_holdout_alloc_retired"] = 0.02
+    # Idaho's unaffiliated recipient-resolution rate, which decides whether that row can
+    # carry a direction. Owned and asserted by verify_who_decides_id.py (xo_UNAFF_resolved_pct);
+    # restated here because Finding 5 gives it as the reason the state panel is not used.
+    d["id_state_xo_unaff_res"] = 39.0
+
+    # Finding 2 — the OBSERVED four-state not-close shares, and WA's five-cycle range.
+    for lbl, key in (("WA House 2024", "ss_wa"), ("NY Assembly 2022", "ss_ny"),
+                     ("TX House 2024", "ss_tx"), ("ID House 2024", "ss_id")):
+        grab(ss, r"\| " + lbl + r" \| [^|]*\| \*\*([\d.]+)%\*\*", (key,),
+             where="the safe-seat paper's four-state lower-chamber table")
+    # The two dimensions the safe-seat paper insists must not be merged, and which the
+    # synthesis's own closing verdict had merged again until 2026-08-15.
+    grab(ss, r"\(([\d.]+)%\) were not close .{0,60}?and \d+ \(([\d.]+)%\)",
+         ("ss_wa24_notclose", "ss_wa24_no_dvr"),
+         where="the safe-seat paper's WA 2024 headline")
+    # WA's five-cycle range, which is why "trajectory: worsening" is withdrawn. Taken from
+    # the per-cycle table rather than the rounded prose ("79-88%"), because the synthesis
+    # prints one decimal and rounding a rounded range is how this project has been bitten.
+    cyc = [float(x) for x in re.findall(
+        r"\| 20(?:1[68]|2[024]) \| \d+ \| \d+ \| \d+ \| \d+ \| \d+ \| \d+ \| "
+        r"\*\*([\d.]+)%\*\* \|", ss)]
+    if len(cyc) != 5:
+        raise SystemExit(
+            f"FATAL: the safe-seat WA per-cycle table yielded {len(cyc)} of 5 cycles; "
+            f"Finding 2's not-close range is a span over exactly those rows.")
+    d["ss_wa_cycle_lo"], d["ss_wa_cycle_hi"] = min(cyc), max(cyc)
+
+
 def _money_paper(d):
     """Cross-document: white-paper figures OWNED BY does-money-move-votes.md.
 
@@ -392,7 +522,14 @@ def _money_paper(d):
     m = re.search(r"\| \*\*express advocacy, race-matched\*\* \| \d+ \| \d+ \| \*\*\+([\d.]+)\*\* \|", t)
     if m:
         d["leg_slope_hi"] = float(m.group(1))
-    m = re.search(r"\| \*\*fundraising, log2\(D receipts / R receipts\)\*\* \| \*\*\+([\d.]+)\*\* \|", t)
+    # RE-ANCHORED 2026-08-15. The money paper's competing-correlations table gained a second
+    # column (full sample n=163 against the finance-complete common sample n=128), so the old
+    # single-capture pattern stopped matching and the derivation went UNAVAILABLE — which the
+    # gate reported as a failure, correctly. The value moved with it: +0.58 -> +0.60. Both
+    # columns now read +0.60, and the FULL-SAMPLE column is the one taken, because that is the
+    # sample the white paper's sentence describes.
+    m = re.search(r"\| \*\*fundraising, log2\(D receipts / R receipts\)\*\* \| "
+                  r"\*\*\+([\d.]+)\*\*", t)
     if m:
         d["money_r_fundraising"] = float(m.group(1))
     m = re.search(r"\| \*\*cd03 / 24\*\* \| \*\*\+\$[\d.]+M\*\* \| \*\*\$[\d.]+M\*\* \| "
@@ -403,7 +540,11 @@ def _money_paper(d):
     # stopped saying "~0.00" — the owning paper's cell is 0.022, which rounds to 0.02, so
     # the tilde was rounding a number DOWN to a different claim. Scraped rather than
     # constant so that a re-pin of the money paper's holdout block moves both documents.
-    m = re.search(r"\| allocation shares alone \| ([\d.]+) \*\(r = ", t)
+    # RE-ANCHORED 2026-08-15, same cause: the holdout block was rebuilt and the cell no longer
+    # carries the "*(r = ...)" suffix the old anchor keyed on. The value moved 0.022 -> 0.028,
+    # which matters for the prose: 0.022 rounds to 0.02 and 0.028 rounds to 0.03, so the white
+    # paper's "R^2 of 0.02" was a stale figure AND a stale rounding.
+    m = re.search(r"\| allocation shares alone \| ([\d.]+) \|", t)
     if m:
         d["money_holdout_alloc"] = float(m.group(1))
 
@@ -486,6 +627,17 @@ def derive():
     d = {}
     wa = duckdb.connect(str(DATA / "wa_statewide.duckdb"), read_only=True)
     wa.execute(f"ATTACH '{DATA / 'wa_vrdb.duckdb'}' AS vrdb (READ_ONLY)")
+    # The pooled panel is LIVE — `main.py analyze` rebuilds it and new contribution loads
+    # grow it — while every Finding 5 figure below was derived on the published 314,974-voter
+    # panel. Guard it up front with the mechanism named (P5, closed 2026-08-15; same
+    # discipline as F5_PINNED_PANEL_N in verify_cross_state_money.py): a drifted panel must
+    # read as "the panel moved — re-derive and re-pin deliberately", never as a paper defect.
+    n_pooled, = wa.execute("SELECT COUNT(*) FROM voter_donor_affiliation").fetchone()
+    if n_pooled != 314_974:
+        raise AssertionError(
+            f"WA pooled panel holds {n_pooled:,} voters against the published 314,974 — "
+            "voter_donor_affiliation has been rebuilt since Finding 5's figures were derived. "
+            "Re-derive the whitepaper's Finding 5 block and update this guard deliberately.")
     for tag, tbl in (("pooled", "voter_donor_affiliation"),
                      ("fed", "voter_donor_affiliation_fec"),
                      ("state", "voter_donor_affiliation_state")):
@@ -583,6 +735,7 @@ def derive():
     # the repair command rather than as a traceback.
     try:
         _finding6(d)
+        _companions(d)
     except StaleIEData as exc:
         print("\nIE DERIVATION BLOCKED — Finding 6's IE figures are not verifiable.\n")
         print(exc)
@@ -600,17 +753,29 @@ def derive():
 # ------------------------------------------------------------------------------ the probes
 # (label, regex over the normalised Findings 4-5 text, derived key(s), tolerance)
 PROBES = [
-    ("pooled matched voters", r"Among the ([\d,]+) matched voters", "wa_pooled_n", 0),
-    ("pooled matched voters (F2 restatement)",
-     r"pooled ([\d,]+) match", "wa_pooled_n", 0),
-    ("IPW match size", r"on the ([\d,]+)-voter match", "wa_pooled_n", 0),
-    ("super-voter donor / non-donor %",
-     r"\*\*([\d.]+)% are super-voters vs ([\d.]+)%\*\*", ("wa_super_d", "wa_super_n"), 0.05),
-    ("super-voter %, F3 restatement",
-     r"\*\*([\d.]+)% super-voters vs ([\d.]+)%\*\*", ("wa_super_d", "wa_super_n"), 0.05),
-    ("turnout propensity donor / non-donor",
+    # RE-POINTED 2026-08-15. These five probes used to sit on live claims; the claims are
+    # retired and the figures now appear only inside the notes that retire them. Keeping the
+    # probes there is deliberate: a retired figure quoted wrongly is still a defect, and the
+    # note's whole job is to say what the number WAS.
+    ("pooled matched voters (retirement note)",
+     r"the \*\*pooled\*\* ([\d,]+)-voter match", "wa_pooled_n", 0),
+    ("pooled matched voters (F2 retirement note)",
+     r"on the pooled ([\d,]+) match, top-1%", "wa_pooled_n", 0),
+    # NB there is a third restatement of this figure, in the Data-provenance block, which
+    # these probes cannot reach: they run over the Findings 3-6 slice only. It is covered by
+    # the whole-document restatement guard instead, not left unchecked.
+    ("super-voter donor / non-donor % (retirement note)",
+     r"\"([\d.]+)% are super-voters vs ([\d.]+)%\"", ("wa_super_d", "wa_super_n"), 0.05),
+    ("Finding 4 — the eligible-for-all age-standardized gap that REPLACED the super-voter cut",
+     r"turnout gap runs \*\*\+([\d.]+) to \+([\d.]+) points\*\*",
+     ("dn_gap_lo", "dn_gap_hi"), 0.05),
+    ("Finding 4 — the four panel rows behind that span",
+     r"NY federal \+([\d.]+), NY state \+([\d.]+), WA federal \+([\d.]+), WA state \+([\d.]+)",
+     ("dn_gap_ny_federal", "dn_gap_ny_state", "dn_gap_wa_federal", "dn_gap_wa_state"), 0.05),
+    ("turnout propensity donor / non-donor (retirement note)",
      r"propensity \*\*([\d.]+) vs ([\d.]+)\*\*", ("wa_prop_d", "wa_prop_n"), 0.0005),
-    ("super-voter ratio", r"non-donors \(\*\*([\d.]+)×\*\*\)", "wa_ratio", 0.005),
+    ("super-voter ratio (retirement note)",
+     r"a ratio of \*\*([\d.]+)×\*\*", "wa_ratio", 0.005),
     ("federal panel donors / top-1% / Gini",
      r"\*\*federal\*\* ([\d,]+) donors / top-1% \*\*([\d.]+)%\*\* / Gini \*\*([\d.]+)\*\*",
      ("wa_fed_n", "wa_fed_top1", "wa_fed_gini"), 0.05),
@@ -627,8 +792,8 @@ PROBES = [
      ("wa_fed_mult_Silent", "wa_fed_mult_Boomer", "wa_fed_mult_Gen Z",
       "wa_fed_mult_Millennial"), 0.005),
     ("two-ZIP3 share, pooled", r"\*\*([\d.]+)% of WA donor dollars", "wa_pooled_zip3", 0.05),
-    ("two-ZIP3 share, pooled (F2 restatement)",
-     r"([\d.]+)% of dollars from two Seattle ZIP3s", "wa_pooled_zip3", 0.05),
+    ("two-ZIP3 share, pooled (F2 retirement note)",
+     r"and \*\*([\d.]+)%\*\* of dollars from two Seattle ZIP3s", "wa_pooled_zip3", 0.05),
     ("two-ZIP3 share, federal", r"([\d.]+)% federal-only", "wa_fed_zip3", 0.05),
     ("two-ZIP3 share, federal (F2 restatement)",
      r"two-ZIP3 share \*\*([\d.]+)%\*\*", "wa_fed_zip3", 0.05),
@@ -637,8 +802,8 @@ PROBES = [
      ("wa_pooled_top1", "wa_fed_top1"), 0.05),
     ("top-10% pooled / federal",
      r"top 10% \*\*([\d.]+)%\*\* / \*\*([\d.]+)%\*\*", ("wa_pooled_top10", "wa_fed_top10"), 0.05),
-    ("pooled top-1% / top-10% (F2 restatement)",
-     r"top-1% \*\*([\d.]+)%\*\*, top-10% \*\*([\d.]+)%\*\*, Gini ([\d.]+)",
+    ("pooled top-1% / top-10% / Gini (F2 retirement note)",
+     r"top-1% \*\*([\d.]+)%\*\*, top-10%\s*\*\*([\d.]+)%\*\*, Gini ([\d.]+)",
      ("wa_pooled_top1", "wa_pooled_top10", "wa_pooled_gini"), 0.05),
     ("federal top-1% (F2 restatement)",
      r"federal panel top-1% \*\*([\d.]+)%\*\*", "wa_fed_top1", 0.05),
@@ -650,18 +815,27 @@ PROBES = [
      "wa_state_gini", 0.0005),
     ("state top-1% (F2 restatement)",
      r"state panel top-1% \*\*([\d.]+)%\*\*", "wa_state_top1", 0.05),
-    ("P(matchable) spread across generations",
-     r"generations \(([\d.]+)%–([\d.]+)%", ("wa_pmatch_lo", "wa_pmatch_hi"), 0.05),
-    ("IPW shift, Silent and Gen Z — BOTH sides of the arrow",
-     r"\(Silent ([\d.]+)→([\d.]+)×, Gen Z ([\d.]+)→([\d.]+)×",
-     ("wa_raw_Silent", "wa_ipw_Silent", "wa_raw_Gen Z", "wa_ipw_Gen Z"), 0.005),
+    ("Finding 5 — roll-side matchability on the CURRENT key, both states",
+     r"\*\*NY ([\d.]+)–([\d.]+)%\*\* \(([\d.]+)-pt spread\), \*\*WA ([\d.]+)–([\d.]+)%\*\* "
+     r"\(([\d.]+)-pt spread\)",
+     ("dn_pmatch_ny_lo", "dn_pmatch_ny_hi", "dn_pmatch_ny_spread",
+      "dn_pmatch_wa_lo", "dn_pmatch_wa_hi", "dn_pmatch_wa_spread"), 0.05),
+    ("Finding 5 — the retired key's matchability, quoted in the correction note",
+     r"quoted\s*\*\*([\d.]+)%–([\d.]+)%\*\* matchability, which is the \*retired\*",
+     ("wa_pmatch_lo", "wa_pmatch_hi"), 0.05),
+    ("Finding 5 — the re-weighting moves nothing, NY 65+ donor share",
+     r"65\+ donor share goes ([\d.]+)% → \*\*([\d.]+)%\*\*",
+     ("dn_ipw_ny_raw", "dn_ipw_ny_wtd"), 0.05),
     ("federal multipliers restated in the panel note",
      r"on the federal panel \(Silent \*\*([\d.]+)×\*\*,\s*Gen Z \*\*([\d.]+)×\*\*\)",
      ("wa_fed_mult_Silent", "wa_fed_mult_Gen Z"), 0.005),
     ("federal top-1% restated in the withdrawal note",
      r"contradicting the ([\d.]+)% in the panel note", "wa_fed_top1", 0.05),
-    ("ID state 65+ share restated in the layer caveat",
-     r"The ID crossover and ([\d.]+)% figures", "id_state_65", 0.05),
+    # RE-POINTED 2026-08-15: the "ID crossover and 51.3% figures are the state-money layer"
+    # caveat went with the crossover rewrite, which moved that claim to the federal panels.
+    # The 51.3% itself is still printed in the age-skew list, so the check moves there.
+    ("ID state 65+ share, in the age-skew list",
+     r"ID state\s*\*\*([\d.]+)%\*\*", "id_state_65", 0.05),
     ("withdrawn all-tier federal top-1%",
      r"previously read ([\d.]+)% \[[\d.–-]+\] for the federal panel",
      "wa_fed_alltier_top1", 0.05),
@@ -681,14 +855,17 @@ PROBES = [
     ("65+ donor shares, NY fed / ID fed / ID state",
      r"NY federal \*\*([\d.]+)%\*\*, ID federal \*\*([\d.]+)%\*\*, ID state\s*\*\*([\d.]+)%\*\*",
      ("ny_fed_65", "id_fed_65", "id_state_65"), 0.05),
-    ("ID Democratic own-party crossover", r"([\d.]+)%\*\* ID → own party", "id_state_dem_donly", 0.05),
+    ("Finding 5 — the crossover bound on the FEDERAL panels, all four cells",
+     r"NY unaffiliated \*\*([\d.]+)%\*\* against ([\d.]+)%; ID unaffiliated \*\*([\d.]+)%\*\* "
+     r"against\s*([\d.]+)%",
+     ("dn_xo_ny_d", "dn_xo_ny_r", "dn_xo_id_d", "dn_xo_id_r"), 0.05),
     # The NY half of the same sentence. `ny_state_dem_donly` was DERIVED all
     # along and never probed: it is written as a bare "94%" against Idaho's
     # bolded "94.6%", so the small-integer exemption swallowed it while its twin
     # was checked. A pair of figures where only one is asserted is the shape that
     # lets the unchecked one drift into contradicting its neighbour.
     ("NY Democratic own-party crossover — the FEDERAL panel, as the note says",
-     r"near-monolithic donors \(\*\*(\d+)%\*\* NY", "ny_fed_dem_donly", 0.5),
+     r"near-monolithic donors \(\*\*(\d+)%\*\* NY federal\)", "ny_fed_dem_donly", 0.5),
     ("recall cost of the primary specification",
      r"discards ([\d]+)–([\d]+)% of matched donors", ("discard_lo", "discard_hi"), 0.5),
     # Replaces the "3.5" literal exemption. The range and its three members are probed
@@ -742,11 +919,18 @@ PROBES = [
     ("Finding 6 — bootstrap interval (vs does-money-move-votes.md)",
      r"bootstrap interval of\s+−([\d.]+) to \+([\d.]+) that spans zero",
      ("_ie_ci_lo_abs", "ie_ci_hi"), 0.005),
+    # RE-POINTED 2026-08-15 with the heading rewrite. The claim sentence was recast from
+    # "money marks strength" to a non-identification, and the objection no longer needs to
+    # restate the figure to make its point. The current-value probe and the retired-value
+    # probe are kept as a PAIR, deliberately: the note that retires +0.58 has to keep saying
+    # +0.58, and the claim has to keep saying the owning paper's current number, so a future
+    # drift cannot quietly make the two agree by moving the wrong one.
     ("Finding 6 — fundraising correlation (vs does-money-move-votes.md)",
-     r"log2\(D/R\) correlates \*\*\+([\d.]+)\*\* with overperformance",
+     r"log2\(D/R\) receipts correlate \*\*\+([\d.]+)\*\*",
      "money_r_fundraising", 0.005),
-    ("Finding 6 — the same correlation restated in the objection",
-     r"\+([\d.]+) is exactly what a true causal effect", "money_r_fundraising", 0.005),
+    ("Finding 6 — the current pair restated in the retirement note",
+     r"current \*\*\+([\d.]+)\*\* and \*\*([\d.]+)\*\*",
+     ("money_r_fundraising", "money_holdout_alloc"), 0.005),
     ("Finding 6 — WA-03 residual (vs does-money-move-votes.md)",
      r"finished \+([\d.]+) pp off its fundamentals", "money_wa03_resid", 0.005),
     # Replaces the "0.00" literal exemption (author answered 2026-08-06: drop the tilde and
@@ -800,6 +984,53 @@ PROBES = [
     ("Finding 3 — the 0.578 named in the basis note as the register's claimed guard",
      r"including the ([\d.]+) that the series' withdrawn-claim register",
      "whale_gini_federal", 0.0005),
+
+    # ---- Findings 5 & 6, the 2026-08-15 referee round. Every figure the rewrite introduced
+    # is probed in the round that writes it, and every figure it RETIRES is probed inside the
+    # note that retires it — a retired number quoted wrongly is still a defect.
+    ("Finding 5 — the current key's matchability restated in the correction note",
+     r"full-name key runs ([\d.]+)–([\d.]+)%",
+     ("dn_pmatch_ny_lo", "dn_pmatch_wa_hi"), 0.05),
+    ("Finding 5 — the retired ID state crossover figure, in the panel note",
+     r"the \*\*state\*\* panels — ID ([\d.]+)%", "id_state_dem_donly", 0.05),
+    ("Finding 5 — state-panel resolution, overall and for Idaho's unaffiliated row",
+     r"resolution is only ([\d.]+)% for Idaho and ([\d.]+)% for New York "
+     r"\(([\d.]+)% for Idaho's unaffiliated",
+     ("dn_res_id_state", "dn_res_ny_state", "id_state_xo_unaff_res"), 0.05),
+    ("Finding 5 — federal-panel resolution, the reason those panels carry the claim",
+     r"where resolution is ([\d.]+)–([\d.]+)%",
+     ("dn_res_fed_lo", "dn_res_fed_hi"), 0.05),
+    ("Finding 6 — the retired correlation and holdout pair, in the note that retires them",
+     r"correlation read \*\*\+([\d.]+)\*\* and the holdout R² \*\*([\d.]+)\*\*",
+     ("money_r_fundraising_retired", "money_holdout_alloc_retired"), 0.005),
+    ("Finding 6 — the leave-one-out sweep, both ends",
+     r"runs from \*\*−([\d.]+)\*\* \(dropping WA-08 2018\) to\s*\*\*\+([\d.]+)\*\*",
+     ("mp_loo_lo", "mp_loo_hi"), 0.005),
+    ("Finding 6 — the WA-08 2018 leverage cell",
+     r"\(\*\*\+\$([\d.]+)M\*\*\) with a\s*\*\*\+([\d.]+)\*\*-point residual and carries a "
+     r"Cook's distance of \*\*([\d.]+)\*\*",
+     ("mp_cd08_net", "mp_cd08_resid", "mp_cd08_cook"), 0.005),
+    ("Finding 6 — dropping every WA-08 observation",
+     r"observation gives \*\*−([\d.]+)\*\*", "mp_drop_all_cd08", 0.005),
+    ("Finding 6 — the district-clustered interval",
+     r"widens the interval to \*\*−([\d.]+) to \+([\d.]+)\*\*",
+     ("mp_clust_lo", "mp_clust_hi"), 0.005),
+    # ---- Finding 2, gated 2026-08-15 with the switch from forecast to observed.
+    ("Finding 2 — the four-state OBSERVED not-close shares",
+     r"\*\*WA ([\d.]+)% · NY ([\d.]+)% · TX ([\d.]+)% · ID ([\d.]+)%\*\*",
+     ("ss_wa", "ss_ny", "ss_tx", "ss_id"), 0.05),
+    ("Finding 2 — WA's five-cycle not-close range, why 'worsening' is withdrawn",
+     r"runs \*\*([\d.]+)–([\d.]+)%\*\* across 2016–2024",
+     ("ss_wa_cycle_lo", "ss_wa_cycle_hi"), 0.05),
+    ("Finding 2 — the same five-cycle range, restated in the first-analysis bullet",
+     r"not-close share runs\s*\*\*([\d.]+)–([\d.]+)%\*\* across the five cycles",
+     ("ss_wa_cycle_lo", "ss_wa_cycle_hi"), 0.05),
+    ("Finding 2 — the two dimensions that must not be merged, WA 2024",
+     r"([\d.]+)% of seats\s*were not close and ([\d.]+)% offered no D-v-R option",
+     ("ss_wa24_notclose", "ss_wa24_no_dvr"), 0.05),
+    ("Finding 6 — the headline slope restated in the withdrawal note",
+     r"It also headlined \+([\d.]+) without the leverage", "ie_slope", 0.005),
+
 ]
 
 
@@ -809,10 +1040,16 @@ PROBES = [
 # unmapped. Finding 6's end anchor is the horizontal rule that closes the scraped block;
 # it occurs exactly once in that block, and vp.slice_with_offset raises if it moves.
 AUDIT_BOUNDS = {
+    "finding2": ("### 2. Safe-seat democracy", "### 3. Whale-dominated money"),
     "finding3": ("### 3. Whale-dominated money", "### 4. Money and votes"),
     "finding4": ("### 4. Money and votes", "### 5. The donor class"),
-    "finding5": ("### 5. The donor class", "### 6. Money marks strength"),
-    "finding6": ("### 6. Money marks strength", " --- "),
+    # Finding 6's heading changed on 2026-08-15 — "Money marks strength; it does not appear
+    # to move margin" asserted a non-effect the bullet beneath it already conceded it could
+    # not establish. Anchors are section IDENTITY, and a missing one RAISES rather than
+    # skipping, which is what forced this edit instead of two sections silently dropping out
+    # of the coverage gate.
+    "finding5": ("### 5. The donor class", "### 6. Money is strongly associated"),
+    "finding6": ("### 6. Money is strongly associated", " --- "),
 }
 
 COVERAGE_EXEMPT = [
@@ -836,6 +1073,13 @@ COVERAGE_EXEMPT = [
 # Every literal here names WHERE the figure is checked, or the open question that closes it.
 # "Not a result" with no reason is how a real figure hides — see verify_who_decides_wa.
 COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
+    # --- Finding 2, added 2026-08-15 when the coverage gate first reached this section.
+    "38": "Ballotpedia Competitiveness Index share of uncontested state-leg seats in 2024, an external literature figure, not a result of this programme",
+    "0.5": "the primary-to-general turnout ratio in safe seats, approximate and owned by "
+           "safe-seat-washington.md; quoted here as context for what this data adds, not "
+           "measured here",
+    "164": "Cook PVI swing-district count in 1997, an external literature figure "
+           "(Cook Political Report), not a result of this programme",
     # --- Finding 3, with that section's gate (2026-08-10).
     "100": "the >=100-distinct-donor THRESHOLD selecting the recipient-cycle population, "
            "not a measurement of it. The counts it selects are probed, both systems",
@@ -994,9 +1238,13 @@ def main():
     # figures — including the 0.578 that the withdrawn-claim register already recorded as
     # "guarded by verify_whitepaper.py asserting 0.578" — were outside every slice and
     # outside the scraped text the probes even see.
-    m = re.search(r"### 3\. Whale-dominated money.*?(?=\n## )", text, re.S)
+    # WIDENED to Finding 2 on 2026-08-15. Finding 2 used to lead with unpinned, unprobed,
+    # drifting forecast-snapshot band counts, so there was nothing worth gating; it now
+    # leads with the safe-seat paper's OBSERVED shares, which are scraped and must not
+    # drift underneath it.
+    m = re.search(r"### 2\. Safe-seat democracy.*?(?=\n## )", text, re.S)
     if not m:
-        print("FATAL: could not locate Findings 3-6 in the white paper")
+        print("FATAL: could not locate Findings 2-6 in the white paper")
         return 1
     norm = vp.normalise(m.group(0))
     audit_sections, offsets, spans = {}, {}, {}
