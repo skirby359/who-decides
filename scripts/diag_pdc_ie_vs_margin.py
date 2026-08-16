@@ -284,10 +284,15 @@ def build_panel(conn, express_only: bool) -> dict:
         aggregate.append({**row, "pro_dem": pro_d_a, "pro_rep": pro_r_a,
                           "net_m": (pro_d_a - pro_r_a) / 1e6,
                           "total_m": (pro_d_a + pro_r_a) / 1e6})
-        if n_matched:
-            matched.append({**row, "pro_dem": pro_d_m, "pro_rep": pro_r_m,
-                            "net_m": (pro_d_m - pro_r_m) / 1e6,
-                            "total_m": (pro_d_m + pro_r_m) / 1e6})
+        # ZERO TREATMENT IS DATA, NOT MISSING DATA (external referee 2026-08-15, item 10).
+        # This used to append only `if n_matched`, silently dropping every scorable race
+        # with no race-matched IE — which is why the race-matched specifications ran n=127
+        # against the district-aggregate 129. A race nobody spent on carries net IE = 0 and
+        # belongs in the regression; the panel now starts from the full scorable universe
+        # with zeros retained, mirroring the federal panel's construction.
+        matched.append({**row, "pro_dem": pro_d_m, "pro_rep": pro_r_m,
+                        "net_m": (pro_d_m - pro_r_m) / 1e6,
+                        "total_m": (pro_d_m + pro_r_m) / 1e6})
 
     return {"matched": matched, "aggregate": aggregate, "skipped": skipped,
             "unresolved_party": unresolved_party, "total_seen": total_seen,
@@ -357,9 +362,26 @@ def estimate(rows, label):
           f"{'(crosses 0 - cannot reject no effect)' if crosses else '(excludes 0)'}")
     print(f"  Pearson r= {rho:+.3f}")
 
+    # Clustered sensitivity + per-SD slope (external referee 2026-08-15, items 5 and 11).
+    # The case-resampling interval treats race-cycles as iid while the panel repeatedly
+    # measures the same legislative districts; and a $1M x-unit is an enormous intervention
+    # at this level, so cross-panel CI-width comparisons need the per-SD scale.
+    from diag_ie_vs_margin import cluster_bootstrap_slope_ci, sd_of
+    districts = [r["district_id"] for r in rows]
+    clo, chi, n_cl, _ = cluster_bootstrap_slope_ci(xs, ys, districts)
+    era_cl = [f"{d}-{'pre' if int(str(r['cycle'])) < 2022 else 'post'}"
+              for d, r in zip(districts, rows)]
+    elo, ehi, n_ecl, _ = cluster_bootstrap_slope_ci(xs, ys, era_cl)
+    sdx = sd_of(xs)
+    print(f"  district-cluster boot ({n_cl} clusters): [{clo:+.3f}, {chi:+.3f}]; "
+          f"era x district ({n_ecl}): [{elo:+.3f}, {ehi:+.3f}]")
+    print(f"  per-SD slope: {slope * sdx:+.3f} pp per 1 SD of net IE (SD = ${sdx:.3f}M)")
+
     out = {"n": n, "n_material": len(material), "inference": "reported",
            "slope": slope, "ci": [lo, hi], "pearson_r": rho,
-           "crosses_zero": crosses}
+           "crosses_zero": crosses,
+           "cluster_ci": [clo, chi], "era_cluster_ci": [elo, ehi],
+           "sd_x": sdx, "per_sd_slope": slope * sdx}
 
     # Re-estimate on the cells that actually carry money. If the two disagree,
     # the full-panel slope is being set by the zero mass rather than by any

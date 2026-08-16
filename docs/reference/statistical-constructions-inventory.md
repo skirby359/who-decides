@@ -57,8 +57,8 @@ inventory caught.
    case-resampling (pairs) percentile bootstrap with **5,000** replicates and a fixed seed.
    The replicate count is read out of the four IE scripts' own source by
    `derive_estimator_facts` in `verify_money_votes.py` (they must all agree), and the paper's
-   sentence is probed against it — gate now 135 figures, the new key shown caught in the
-   2026-08-15 mutation sweep. (The earlier draft of this finding guessed the companion
+   sentence is probed against it — gate at 193 figures after the same-day full referee revision, every new key shown
+   caught in the dated mutation sweeps. (The earlier draft of this finding guessed the companion
    paper's B = 1000 might be the shared value; measured, the IE scripts use 5,000.)
 2. ✅ **APPLIED.** **The bootstrap-CI license differed across the three papers that resample a
    census.** The donor paper stated it exactly; `cross-state-fec-money.md` §F4 said the
@@ -362,11 +362,11 @@ derived bound, ratio or reconstructed denominator.*
 | 44 | Limits | Denominator rule for margins with >2 candidates (comparison states) | Third-party votes count when a minor candidate is top-two; excluded otherwise | comparison states | Full population | "can only arise in the comparison states" | none numeric |
 | 45 | Four-state (NY bullet) | Ballot-line aggregation choice in the AD-23 supplement | Candidate totals across all ballot lines | 1 race | Full population (certified) | "not the same as the Democratic and Republican lines alone" | 16,185/16,170; 0.046 |
 
-## 6. does-money-move-votes.md (44 constructions)
+## 6. does-money-move-votes.md (50 constructions)
 
 | # | section/heading | construction | formula or method as the paper states it | n / sample sizes | sampling design | license (quote or 'not stated') | printed values tied to it |
 |---|---|---|---|---|---|---|---|
-| 1 | Abstract / Finding 1 | Pearson correlation, fundraising ratio vs overperformance | r between log2(D/R receipts) and (actual − baseline dem pct) | 129 of 163 baseline-scorable cells | Full population of WA race-cycles 2018–2024, filtered to both-side finance — not random | "correlates with candidate overperformance at **+0.58**, the strongest of any measured factor" | +0.58 |
+| 1 | Abstract / Finding 1 | Pearson correlation, fundraising ratio vs overperformance | r between log2(D/R receipts) and (actual − baseline dem pct); linkage district-scoped since 2026-08-15 | 128 of 163 baseline-scorable cells | Full population of WA race-cycles 2018–2024, filtered to both-side finance — not random | "correlates with candidate overperformance at **+0.60**, the strongest of any measured factor" — ranking now also shown on the common finance-complete sample (referee item 2) | +0.60; common-sample competitors +0.41/+0.36/+0.30/+0.13 |
 | 2 | Finding 1 | Pearson correlations for four comparison factors | r per factor | 163 cells (finance on 129) | Full population, filtered | "more strongly than with anything else measured" | +0.43/+0.34/+0.31/≈0 |
 | 3 | Finding 1 | Overperformance construct (model-baseline-differenced) | actual − baseline (neutral PVI + drag), not full prediction | 163 | Full population minus default-PVI cells | "the same 163 used by the published backtest" | universe 163 |
 | 4 | Finding 1 | Three-bin conditional means by funding direction | Average overperformance within D-out-raised / even / R-out-raised | 129 (bin ns not stated) | Full population, filtered | "The relationship is monotonic, not driven by a tail." | +4.22 / +2.32 / −1.77 |
@@ -380,7 +380,7 @@ derived bound, ratio or reconstructed denominator.*
 | 12 | 2a | Cross-cycle persistence correlations of allocation shares | r of a candidate's share cycle-on-cycle | not stated | Full population | "allocation *is* a real and stable candidate trait" | 0.83; 0.998 |
 | 13 | 2a | Field share vs raw overperformance (directional hint) | r against overperf | not stated | as row 6 | "the one directional hint runs against the folk theory" | −0.24 |
 | 14 | 2b | Model-term zeroing as implicit specification comparison | Zero the fundraising term post-2022; compare forecast quality | post-2022 districts | Full population | "leaving it in produced worse forecasts" | D+28 vs D+5–8 |
-| 15 | 2c | Federal IE regression: residual on net pro-D IE | Net IE = supD+oppR−supR−oppD; bivariate OLS (named in Appendix C since 2026-08-15) | n = 34 of 50 race-cycles | Full population minus uncontested and no-national-data — non-random dropout | "The IE script refuses to report a slope as inferential below 10 scorable races … now cleared" | +0.515 per $1M |
+| 15 | 2c | Federal IE regression: residual on net pro-D IE | Net IE = supD+oppR−supR−oppD; bivariate OLS (named in Appendix C since 2026-08-15) | n = 34 of 50 race-cycles | Full population minus uncontested and no-national-data — non-random dropout | since 2026-08-15 the paper reads the interval as "an interval for the observational OLS slope, not for the causal effect" (referee item 1) | +0.515 per $1M; per-SD +0.93 (SD $1.80M) |
 | 16 | 2c | 95% bootstrap CI on the federal slope | Pairs percentile bootstrap, B=5,000, fixed seed (Appendix C, 2026-08-15) | 34 | as row 15 | "The interval crosses zero … wide enough to admit effects that would decide a close race" | −0.600 to +2.821 |
 | 17 | 2c | Pearson r for the federal cross-section | as stated | 34 | as row 15 | not stated | +0.186 |
 | 18 | 2c | Earlier single-cycle version (sign-stability comparison) | Same design, 2024 only | 7 | Full population of 2024 races | "at these sample sizes the sign is a coin flip and the interval is the only honest summary" | −0.39 |
@@ -411,10 +411,20 @@ derived bound, ratio or reconstructed denominator.*
 | 43 | Appendix E | Extreme-case comparison: three largest IE totals vs fundamentals | Residuals of the three largest-IE races | 3 | Full population of the panel | "a reader who suspects the null is an artifact of small money should know what the largest observation looks like" | +8.78 / +0.38 / +0.06 |
 | 44 | Appendix A #5 | Baseline-validation cross-check (against circularity) | Safe-seat paper's projection vs observed | not stated | Full population | "validated independently" | "within a few points" |
 
-*Extraction note: at extraction time no estimator was named anywhere and no bootstrap scheme
-or replicate count was specified — finding 1, applied 2026-08-15: Appendix C now states
-bivariate OLS, Pearson's r, and a pairs percentile bootstrap (B=5,000, fixed seed), probed
-against the scripts' own source.*
+| 45 | Finding 1 (2026-08-15) | Common-sample factor correlations | Every competing correlation recomputed on the finance-complete cells | 128 | Full population, common subsample | "so the ranking is not an artifact of the factors seeing different races" | +0.60/+0.41/+0.36/+0.30/+0.13 |
+| 46 | Finding 1 pin note / Appendix C (2026-08-15) | Finance-linkage collision audit + district-scoped rebuild | (cycle, last, initial) key scoped to the cell's office/district; audit diffs the two pins | 326 lookups (2 × 163) | Full candidate_finance universe | "far weaker entity resolution than the companion donor papers allow themselves" (pre-fix) | 2 of 326 changed; $190K namesake; re-pin +0.58 → +0.60 |
+| 47 | 2c (2026-08-15) | Leave-one-out / Cook's-distance influence analysis on the headline regression | LOO slope sweep + Cook's D, mirroring the paper's existing LOO on secondary specs | 34 | Full population | "The slope is a single-district leverage result, and that is reported rather than smoothed over." | LOO −0.035 to +0.832; Cook's 0.69; drop-all-WA-08 −0.065 |
+| 48 | 2c + Finding 3 (2026-08-15) | District-clustered and era × district-clustered bootstrap intervals | Percentile bootstrap resampling clusters, B=5,000, fixed seed | fed 10 / 20 clusters; leg 37 / 72 | Panel repeatedly measures the same districts — iid resampling was in tension with the paper's own placebo discussion | "the case-resampling interval also treats race-cycles as iid while the panel measures the same ten districts repeatedly" | fed [−1.595, +1.268], era [−1.016, +1.390]; leg cluster CIs per spec |
+| 49 | 2c + Finding 3 (2026-08-15) | Per-SD standardized slopes (treatment-scale harmonization) | slope × SD(net IE) per panel | fed SD $1.80M; leg SD $0.067M | Full population per panel | "raw cell count is not the binding quantity; usable variation in treatment is" | fed +0.93/SD; leg +0.33/SD |
+| 50 | 2a (2026-08-15) | Predictive R² (1 − SSE/SST) beside the renamed squared holdout correlation | Standard out-of-sample R², negative when predictions underperform the holdout mean; leakage disclosed | holdout n 18–30 | Non-random attrition via purpose-code coverage | "negative for every specification — the models predict worse than the holdout mean" | −1.09/−2.75/−3.00/−0.18 |
+*Extraction notes. (a) At extraction time no estimator was named anywhere and no bootstrap
+scheme or replicate count was specified — inventory finding 1, applied 2026-08-15: Appendix C
+states bivariate OLS, Pearson's r, and a pairs percentile bootstrap (B=5,000, fixed seed),
+probed against the scripts' own source. (b) The same day's full referee revision reframed the
+paper (identification failure, not effect bounds), corrected the finance linkage
+(district-scoped; +0.58 → +0.60 on 128 cells), retained zero-IE cells (n=127 → 129), renamed
+the holdout metric and added predictive R², and added rows 45–50 below; the gate stands at
+193 figures.*
 
 ## 7. cross-state-fec-money.md (60 constructions)
 

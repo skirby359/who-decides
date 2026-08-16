@@ -1,13 +1,16 @@
 # Does Money Move Votes in Washington?
 
-### A negative result, and the width of the interval that keeps it from being a stronger one
+### An identification failure, measured: an exceptionally strong money–performance association that no available observational decomposition can separate from selection
 
 **Stephen Kirby** · Tikor Consulting · July 2026
 
-*AI-assisted drafting and analysis review. All figures are reproducible from
-public-record data and from the open-source scripts cited below. The paper source, code,
-and data-acquisition recipe are public at <https://github.com/skirby359/who-decides>.
-Contact: kirby@tikorconsulting.com.*
+*AI-assisted drafting and analysis review. All reported statistical summaries can be
+recomputed from public code and the pinned derived panels cited below. The model-derived
+residuals themselves cannot presently be independently regenerated, because the forecast
+implementation is not public; the pinned panels carry the residuals so that every slope,
+interval and correlation — the contestable part — is recomputable without it. The paper
+source, code, and data-acquisition recipe are public at
+<https://github.com/skirby359/who-decides>. Contact: kirby@tikorconsulting.com.*
 
 ***DRAFT — pending human/editorial sign-off.** `scripts/verify_money_votes.py` scrapes this paper
 and asserts its figures against the data, with the exceptions the script names in its own
@@ -26,31 +29,38 @@ The sign-off is a person reading the paper end to end, recorded in
 The three preceding papers in this series establish who votes, whether their vote decides
 anything, and who funds the candidates. This paper asks the question those invite — does
 the money change the result? — and reports that the available public record cannot answer
-it, while characterizing precisely how far short it falls. Across 163 Washington
-legislative and congressional races from 2018 to 2024, the ratio of Democratic to
-Republican fundraising correlates with candidate overperformance at **+0.58**, the
+it, while characterizing precisely *why* it cannot: treatment is endogenous, sparse,
+strategically assigned, and observed through several non-equivalent channels. Across 163
+Washington legislative and congressional races from 2018 to 2024, the ratio of Democratic
+to Republican fundraising correlates with candidate overperformance at **+0.60**, the
 strongest of any measured factor, ahead of incumbency (+0.43) and candidate quality
-(+0.34). Three independent attempts to convert that correlation into a causal reading
-fail. Spending *allocation* — the field, media, and professional shares of itemized
-expenditure — has cross-cycle holdout R² of essentially **zero**, despite being a stable
-candidate trait. The forecast model that underpins this series zeroes its fundraising term
-in post-redistricting districts because the single-cycle baseline already absorbs it. And
-the one design capable of a directional test — regressing fundamentals-net residual on net
-independent-expenditure advantage — is estimable across five cycles and thirty-four
-scorable Washington races, and returns **+0.5 points of residual per $1M of net
-pro-Democratic IE with a bootstrap interval spanning −0.6 to +2.8**. The interval contains
-zero and contains effects large enough to matter, which is the finding: the data bound the
-effect loosely and cannot sign it. Extending the same design to Washington's state
-legislative races — **$51.7M of PDC independent expenditure across 129 scorable
-district-cycles, direction-coded on 100% of rows** — nearly quadruples the sample and
-changes nothing: every interval still spans zero, and the sign of the point estimate is
-**specification-dependent**, running from −3.8 to +4.9 depending on whether electioneering
-communication is counted as advocacy and whether money is matched to the contest it named.
-The most heavily funded race in the federal panel, Washington's 3rd in 2024, finished 0.06
-points from its fundamentals. The honest verdict is that money in Washington behaves as a
-marker of candidate strength rather than a demonstrable mover of votes, and that the
-binding constraint is not the disclosure record but the design: outside money concentrates
-in a handful of races and is targeted at expected closeness.
+(+0.34) — an ordering that holds when every factor is recomputed on the common
+finance-complete sample. The paper then examines **three different observable
+manifestations of political money** — candidate receipts, the Democratic campaign's
+spending *allocation*, and outside groups' independent expenditure — and none supplies
+identification of the causal effect the title asks about; they are different treatments,
+not three replications of one null. The allocation cut is exploratory: it measures the mix
+of one side's spending, not its level, and its squared holdout correlation of essentially
+**zero** cannot rule out an effect of having more money. The directional test — the
+observational OLS of fundamentals-net residual on net independent-expenditure advantage —
+is estimable across five cycles and thirty-four scorable Washington congressional races,
+and returns **+0.5 points of residual per $1M of net pro-Democratic IE with a
+case-resampling bootstrap interval spanning −0.6 to +2.8**. That interval is an interval
+for the observational slope, not for a causal effect, which confounding can place outside
+it; and the slope itself is a single-district leverage result — deleting one race
+(WA-08 2018, Cook's distance 0.69) moves it to **−0.04**, and a district-clustered
+bootstrap widens the interval to **−1.6 to +1.3**. Extending the same estimator to
+Washington's state legislative races — **$51.7M of PDC independent expenditure across 129
+scorable district-cycles, direction-coded on 100% of rows** — multiplies the cells but not
+the usable treatment variation: every interval still spans zero, and the sign of the point
+estimate is **specification-dependent**, running from −3.8 to +4.9 depending on whether
+electioneering communication is counted as advocacy and whether money is matched to the
+contest it named. The most heavily funded race in the federal panel, Washington's 3rd in
+2024, finished 0.06 points from its fundamentals. The honest verdict: money in Washington
+is clearly a **marker** of candidate strength; whether it is *also* a mover of votes is
+not established either way, because every available observational decomposition fails to
+separate selection into spending from an effect of spending. The failure is one of
+identification, not merely of data quantity.
 
 **Keywords:** campaign spending; independent expenditures; electoral effects; endogeneity;
 null results; data availability; state legislative elections; Washington.
@@ -61,8 +71,10 @@ null results; data availability; state legislative elections; Washington.
 
 The preceding papers in this series each end at the same edge. The turnout paper shows an
 older, smaller electorate decides off-cycle races. The safe-seat paper shows most general
-elections are settled before November. The donor paper shows the people funding those
-races are not the people voting in them. Each invites the obvious next question: **so does
+elections are settled before November. The donor paper shows the population funding those
+races is not representative of the electorate voting in them — donors skew sharply older,
+more geographically concentrated and, where party is observable, more Democratic, while
+being *more* likely to vote, not less. Each invites the obvious next question: **so does
 the money actually change who wins?**
 
 It is the hardest question in the series, and the reason is structural rather than
@@ -76,12 +88,15 @@ support: instrumental variables (Gerber 1998), repeat-challenger panels (Levitt 
 randomized field experiments (Kalla & Broockman 2018).
 
 This paper does not solve it. What it does is report what Washington's public record shows,
-run the tests that record permits, and state precisely what those tests can and cannot
-bound. **The negative result, and the width of the interval around it, are the
-contribution.** A reader looking for a verdict on whether money buys elections will not
-find one here, and should be suspicious of anyone offering one from this evidence base —
-including from an earlier draft of this paper, whose directional estimate carried the
-opposite sign on a seventh of the data.
+run the tests that record permits, and state precisely what those tests do and do not
+estimate. **The contribution is the identification failure itself, characterized:** the
+observational association is exceptionally strong, its estimate is imprecise and
+leverage-dependent, and even a perfectly estimated association would not identify the
+causal effect, because nothing in this record separates selection into spending from an
+effect of spending. A reader looking for a verdict on whether money buys elections will
+not find one here, and should be suspicious of anyone offering one from this evidence
+base — including from an earlier draft of this paper, whose directional estimate carried
+the opposite sign on a seventh of the data.
 
 ---
 
@@ -91,67 +106,100 @@ The starting observation is not subtle. Across the 163 baseline-scorable Washing
 legislative and congressional races from 2018 to 2024
 (`scripts/diag_overperformance_patterns.py`), *overperformance* — the actual Democratic
 two-party share minus the district's fundamentals-based baseline — correlates with the
-fundraising ratio more strongly than with anything else measured:
+fundraising ratio more strongly than with anything else measured. Because finance is
+present for only **128** of the 163 cells, the competing correlations are reported twice:
+on each factor's full available sample, and on the common finance-complete sample, so the
+ranking is not an artifact of the factors seeing different races:
 
-| factor | Pearson r with overperformance |
-|---|--:|
-| **fundraising, log2(D receipts / R receipts)** | **+0.58** |
-| incumbency | +0.43 |
-| candidate quality index | +0.34 |
-| local trend | +0.31 |
-| midterm year | ≈0 |
+| factor | full sample (n=163) | common sample (n=128) |
+|---|--:|--:|
+| **fundraising, log2(D receipts / R receipts)** | **+0.60** *(n=128)* | **+0.60** |
+| incumbency | +0.43 | +0.41 |
+| candidate quality index | +0.34 | +0.36 |
+| local trend | +0.31 | +0.30 |
+| midterm year | ≈0 | +0.13 |
 
-The relationship is monotonic, not driven by a tail. Sorting races by who out-raised whom:
-where the Democrat out-raised the Republican, the Democrat beat the district baseline by an
-average of **+4.22** points; where funding was even, **+2.32**; where the Republican
-out-raised, **−1.77**.
+Fundraising leads on either basis. The relationship is monotonic, not driven by a tail.
+Sorting races by who out-raised whom: where the Democrat out-raised the Republican, the
+Democrat beat the district baseline by an average of **+4.22** points; where funding was
+even, **+2.11**; where the Republican out-raised, **−1.77**.
 
-> **The cell frame is pinned, and these five figures moved when it was (2026-08-01).** The
-> fundraising feature is matched against `candidate_finance`, which is a live table: as local
-> and legislative filings are loaded, more cells acquire both-side finance and enter the
-> correlation. The frame behind an earlier draft of this section held **109** such cells and
-> gave +0.55, +4.20, +2.37 and −1.93; it now holds **129** and gives the figures above. The
-> universe is unchanged at 163 baseline-scorable cells, and so is every conclusion — the
-> correlation is slightly *stronger* and fundraising remains the largest measured factor,
-> ahead of incumbency at +0.43. The frame is now frozen at
-> `docs/reference/overperformance_cells_2026-08-01.csv`, which is what
-> `scripts/verify_money_votes.py` asserts against, so a reader re-running the derivation gets
-> the figures this paper prints rather than whatever the table holds that week.
+> **The cell frame is pinned, and it has moved twice — each time deliberately, and each
+> time recorded here.** The fundraising feature is matched against `candidate_finance`,
+> a live table: the frame behind the first draft held **109** both-side cells and gave
+> +0.55, +4.20, +2.37 and −1.93; loading more filings took it to 129 and +0.58. An
+> external referee then caught the linkage itself resolving candidates by
+> `(cycle, last name, first initial)` alone, pooled across all four office codes — and
+> the collision audit (`scripts/diag_finance_linkage_audit.py`) found 2 of 326 lookups
+> attaching the wrong records, one of them crediting a **different candidate of the same
+> name** in another chamber with $190K his namesake never raised. The linkage is now
+> scoped to the cell's own office and district, which removes that cell's finance pair
+> entirely (**128** both-side cells) and moves the correlation to **+0.60**. The
+> universe is unchanged at 163 baseline-scorable cells, and so is every conclusion —
+> fundraising remains the largest measured factor on either sample. The frame is frozen
+> at `docs/reference/overperformance_cells_2026-08-15.csv` (its predecessor is retained
+> for audit), which is what `scripts/verify_money_votes.py` asserts against, so a reader
+> re-running the derivation gets the figures this paper prints rather than whatever the
+> table holds that week.
 
 Taken alone this looks like a straightforward answer, and it is the number a campaign
 consultant would quote. The rest of this paper is about why it is not one.
 
 ---
 
-## Finding 2 — Three tests for a causal signature, three nulls
+## Finding 2 — Three manifestations of money, and what each can and cannot test
 
-If money moves votes, the effect should leave traces beyond a raw correlation. Three
-independent tests look for those traces. None finds one.
+Candidate receipts, a campaign's own spending allocation, and outside groups' independent
+expenditure are **three different treatments**, not three measurements of one. A causal
+effect of candidate spending can coexist with a null for independent expenditure, and vice
+versa. This section examines each manifestation on its own terms and states what its test
+does and does not estimate; none of the three supplies identification of the causal effect
+the title asks about, and they are not presented as three replications of one null.
 
-### 2a. How money is spent predicts nothing
+### 2a. Spending composition carries no incremental predictive information — an exploratory cut, not a causal test
 
-If spending buys votes, *how* it is spent should matter — a campaign that puts its money
-into field organizing should perform differently from one that puts it into television.
+If spending buys votes, *how* it is spent might matter — a campaign that puts its money
+into field organizing might perform differently from one that puts it into television.
 Washington's Public Disclosure Commission publishes itemized expenditures with a purpose
 code per transaction (Socrata `tijg-9zyp`; 272,320 candidate rows 2018–2024, $286M, ~62% of
 dollars carrying a code). From these, `scripts/diag_expenditures_vs_residual.py` derives
 each candidate's field, media, and professional *shares* of coded operational spend, and
 tests them against the residual.
 
+Two design limits are stated before any number, because they are what demote this cut to
+exploratory. **It measures only the Democratic campaign's allocation** — if Republican
+field spending moves Democratic vote share, this test cannot see it; a race-level causal
+design would need both campaigns, or their difference. And **allocation mix and spending
+level are different treatments**: a world where money has a substantial causal effect but
+campaigns optimally converge on similar mixes produces exactly the zero correlations below.
+What this cut can test is narrow — whether spending *composition* carries predictive
+information the core features lack — and that is all it is offered as.
+
 The shares correlate with the residual at essentially zero — field **+0.02**, media
 **+0.04**, professional **−0.05**. Total spend correlates at +0.23, but that is the
-fundraising scale signal from Finding 1 arriving again, not allocation. The decisive test
-is cross-cycle holdout: fit on 2022, predict 2024.
+fundraising scale signal from Finding 1 arriving again, not allocation. The sharper cut is
+cross-cycle holdout: fit on 2022, predict 2024. The first metric below is the **squared
+holdout correlation** — the square of the Pearson correlation between predictions and
+holdout outcomes. An earlier draft called this "holdout R²", which it is not: squaring
+discards sign, and three of the four holdout correlations are wrong-signed (r = +0.02,
+−0.12, −0.18, −0.17), so the squares flatter the models. The standard **predictive R²**
+(1 − SSE/SST) is therefore reported beside it, and it is negative for every
+specification — the models predict *worse than the holdout mean*.
 
-| model | holdout R² |
-|---|--:|
-| core candidate-quality features | 0.000 |
-| core + field share | 0.013 |
-| core + all allocation shares | 0.026 |
-| allocation shares alone | 0.022 *(r = −0.15, wrong-signed)* |
+| model | squared holdout correlation | predictive R² |
+|---|--:|--:|
+| core candidate-quality features | 0.000 | −1.09 |
+| core + field share | 0.015 | −2.75 |
+| core + all allocation shares | 0.031 | −3.00 |
+| allocation shares alone | 0.028 | −0.18 |
 
-In-sample R² rises from 0.039 to 0.105 as shares are added while holdout R² stays at the
-floor — the signature of overfitting, not signal.
+In-sample squared correlation rises from 0.037 to 0.101 as shares are added while the
+holdout numbers worsen — the signature of overfitting, not signal. One leakage
+caveat is owed on the word "holdout": the target residual comes from the forecast model,
+whose coefficients were tuned on the full residual matrix, so 2024 outcomes participated
+in constructing the variable 2024 is here held out on. Allocation itself never enters that
+first stage, but a fully clean version would fit the residualization on 2022 alone — one
+more reason this cut is exploratory rather than a causal null.
 
 > **This block is pinned too, and eight of its figures moved when it was (2026-08-01).** The
 > allocation frame is derived against the forecast model's *residual*, so it shifts whenever
@@ -160,23 +208,27 @@ floor — the signature of overfitting, not signal.
 > against `overperf` rather than `residual` are unchanged (field-vs-overperformance −0.24,
 > and both persistence coefficients) and every figure computed against the residual moved:
 > media +0.05 → +0.04, professional −0.03 → −0.05, total spend +0.26 → +0.23, and the four
-> holdout cells with the in-sample pair. **Nothing in the finding changes** — every holdout
-> R² is still at the floor, the allocation-alone model is still wrong-signed, and the shares
-> still carry no out-of-sample information; the allocation-alone cell in fact fell from 0.041
-> to 0.022. The frame is frozen at
-> `docs/reference/expenditures_vs_residual_2026-08-01.csv`, which is what
-> `scripts/verify_money_votes.py` asserts the correlations against. Notably, allocation *is* a real and
+> holdout cells with the in-sample pair. The 2026-08-15 linkage correction re-pinned the
+> residuals a second time, moving the holdout cells again by similar amounts (the
+> allocation-alone cell has run 0.041 → 0.022 → 0.028 across the three bases) while every
+> correlation held at its printed precision. **Nothing in the finding changes on any
+> basis** — the holdout numbers stay at the floor, most holdout correlations are
+> wrong-signed, and the shares carry no out-of-sample information. The frame is frozen at
+> `docs/reference/expenditures_vs_residual_2026-08-15.csv`, which
+> is what `scripts/verify_money_votes.py` asserts the correlations against. Notably, allocation *is* a real and
 stable candidate trait: field-share persistence across cycles runs r = 0.83 and media-share
 r = 0.998. It is a stable feature that carries no information about the outcome. And the
 one directional hint runs against the folk theory: field share correlates **−0.24** with
 raw overperformance, so more ground spending is associated with slightly worse results, not
 better.
 
-### 2b. The forecast model discards the money term when it can check it
+### 2b. The forecast model discards the money term — a forecasting result, not a causal falsification
 
-A second test comes from an unusual direction: the forecasting model this series relies on
-was tuned without reference to this question, and it independently concluded that
-fundraising carries no information once the baseline is known.
+A second observation comes from an unusual direction: the forecasting model this series
+relies on was tuned without reference to this question, and it independently concluded
+that fundraising adds no *predictive* information once the baseline is known. What that
+does and does not show is stated at the end of this subsection, because an earlier framing
+over-claimed it.
 
 In Washington's post-2022 districts, where the redistricting boundary filter collapses
 history to a single post-redistricting cycle, the model **zeroes its fundraising-advantage
@@ -186,10 +238,15 @@ adding the term on top double-counts. Before this correction the model predicted
 result in a district whose incumbent's actual history ran D+5 to D+8. The term was not
 dropped for ideological reasons but because leaving it in produced worse forecasts.
 
-This is weaker evidence than a designed test — it is a modelling decision, not an
-experiment — but it points the same way. When a predictive system is allowed to check
-whether fundraising adds information beyond the district's own recent result, it finds that
-it does not.
+What this establishes is a **forecasting result**: fundraising adds no incremental
+predictive information conditional on the district's own recent result. What it cannot
+establish is anything causal, because conditioning on a prior outcome absorbs both signal
+and treatment. Two worlds are observationally identical here: one where fundraising is
+merely a marker whose information was already present in past results, and one where
+fundraising **caused** part of the previous result, so its causal effect is now embedded
+in the lagged outcome the model conditions on. An earlier draft counted this as one of
+three causal nulls; it is not one, and it is not offered as evidence against a money
+effect.
 
 ### 2c. The directional test runs, and cannot sign the effect
 
@@ -201,9 +258,30 @@ this a test of money's marginal effect rather than a restatement of district par
 
 Across the 34 scorable district-cycles the slope is **+0.515 points of residual per $1M net
 pro-Democratic IE, with a 95% bootstrap interval of −0.600 to +2.821 and Pearson r = +0.186**.
-The interval crosses zero, so no effect can be rejected — but it is also wide enough to
-admit effects that would decide a close race, so nothing has been ruled out either. The
-point estimate is not a finding; the width of the interval is.
+Read that interval for what it is: **an interval for the observational OLS slope, not for
+the causal effect of $1M of IE.** Under uncontrolled confounding the causal effect can lie
+outside it, and even an infinitely narrow interval around zero would not identify a zero
+causal effect — a narrower interval around a better-estimated association is still an
+association. Within its own terms the interval crosses zero, so no association can be
+asserted; it is also wide enough to be compatible with associations that would decide a
+close race. The point estimate is not a finding, and neither, on its own, is the width:
+the design is what prevents a stronger statement.
+
+**The slope is a single-district leverage result, and that is reported rather than
+smoothed over.** The leave-one-out sweep this paper already applies to its placebo and
+legislative specifications, applied to this headline regression, runs from **−0.035**
+(dropping WA-08 2018) to **+0.832** (dropping WA-03 2024): deleting one race erases the
+positive slope entirely. WA-08 2018 pairs the panel's largest net pro-Democratic IE
+(+$8.26M) with a +8.78-point residual and carries a Cook's distance of **0.69** in a
+34-observation regression; dropping every WA-08 observation gives **−0.065**. The
+case-resampling interval also treats race-cycles as iid while the panel measures the same
+ten districts repeatedly — in tension with this paper's own placebo discussion of
+persistent district traits — so a **district-clustered bootstrap** (10 clusters) is
+reported beside it: **−1.595 to +1.268**; clustering on era × district across the 2022
+redistricting boundary (20 clusters) gives −1.016 to +1.390. Every version spans zero, and
+the clustered intervals are materially wider. On a standardized treatment scale the slope
+is **+0.93 points per one standard deviation of net IE** (SD = $1.80M in this panel) —
+the scale that makes the legislative comparison below meaningful.
 
 The sign of the point estimate should be treated with particular caution, because it is not
 stable. An earlier version of this analysis, run on 2024 alone, reported a *negative* slope
@@ -270,19 +348,33 @@ named candidate, a filer id and a jurisdiction on 100% of them**. Matched to the
 fundamentals-net residual, that yields **129 scorable district-cycles** — close to four
 times the 34-race federal panel — and the estimate remains uninformative:
 
-| specification | n | cells with ≥$25K | slope | 95% bootstrap | Pearson r |
-|---|---:|---:|---:|---|---:|
-| **express advocacy, race-matched** | 127 | 17 | **+4.890** | −30.914 to +22.409 | +0.085 |
-| express advocacy, district-aggregate | 129 | 53 | −2.043 | −11.170 to +3.203 | −0.053 |
-| all directional, race-matched | 127 | 28 | −3.816 | −15.117 to +3.824 | −0.083 |
-| all directional, district-aggregate | 129 | 60 | +0.107 | −5.090 to +4.790 | +0.004 |
+| specification | n | cells with ≥$25K | slope | 95% bootstrap | district-cluster 95% | Pearson r |
+|---|---:|---:|---:|---|---|---:|
+| **express advocacy, race-matched** | 129 | 17 | **+4.871** | −29.126 to +24.941 | −38.251 to +14.109 | +0.085 |
+| express advocacy, district-aggregate | 129 | 53 | −2.043 | −11.170 to +3.203 | −11.278 to +2.816 | −0.053 |
+| all directional, race-matched | 129 | 28 | −3.836 | −15.619 to +3.664 | −18.890 to +3.225 | −0.083 |
+| all directional, district-aggregate | 129 | 60 | +0.107 | −5.090 to +4.790 | −6.523 to +5.770 | +0.004 |
+
+*Every specification now runs on the full 129-cell scorable universe: a scorable race that
+attracted no race-matched IE enters with net IE = 0 rather than dropping out. An earlier
+version dropped those cells from the race-matched rows (n = 127), treating zero treatment
+as missing data; the correction, prompted by an external referee, moved the primary slope
+from +4.890 to +4.871 and no conclusion. The district-cluster column resamples the 37
+legislative districts rather than individual race-cycles, for the same reason as the
+federal panel's clustered interval.*
 
 **Every interval spans zero and the sign is specification-dependent.** Two of the four
-reverse sign on the deletion of a single race. Quadrupling the sample did not narrow the
-answer, because the sample was never the binding constraint: only 13–47% of cells attract
-any material independent expenditure, so the slope is identified by a few dozen contests
-whichever specification is chosen, and those are exactly the contests money selected for
-being close.
+reverse sign on the deletion of a single race. Multiplying the cells by nearly four did
+not narrow the answer, and the reason is worth stating exactly, because "the sample was
+too small" is not it: **raw cell count is not the binding quantity; usable variation in
+treatment is.** Only 13–47% of cells attract any material independent expenditure, so the
+slope is identified by a few dozen contests whichever specification is chosen — and those
+are exactly the contests money selected for being close. The panels are also not
+comparable on raw interval width: a $1M x-unit is an ordinary congressional IE campaign
+and an enormous intervention in a legislative contest. On the standardized scale, one
+standard deviation of net IE moves the point estimate **+0.93** points in the federal
+panel (SD $1.80M) against **+0.33** points in the primary legislative specification
+(SD $0.067M) — with every interval, standardized or not, spanning zero.
 
 Two properties of the PDC record decide the specification and are not incidental. **Three
 quarters of the directional dollars are electioneering communication, not express
@@ -373,10 +465,15 @@ is not — which is the endogeneity mechanism visible directly, without a regres
 
 **What more cycles would and would not fix — now partly answered by the legislative panel.**
 The natural objection to a null on 34 races is that 34 is too few. The state-legislative
-extension is the closest thing to a test of that objection this record affords: it holds the
-design fixed and multiplies the cells by nearly four, to 129. The interval did not narrow
-and the sign did not settle; it became *specification*-dependent instead. That is evidence
-that the constraint is structural rather than arithmetic. More cycles would still narrow the
+extension is the closest thing to a test of that objection this record affords — with its
+scope stated exactly: it holds the **estimator** fixed and multiplies the cells by nearly
+four, to 129, but under a **related, non-equivalent measurement system** (PDC C-6 rather
+than FEC Schedule E; three-quarters of the directional dollars electioneering rather than
+express advocacy; chamber-level House reporting; one scored contest per district-cycle),
+so it is an external extension, not a pure sample-size experiment. Within that scope the
+answer is informative: the interval did not narrow and the sign did not settle; it became
+*specification*-dependent instead, and the standardized comparison above shows why —
+usable treatment variation, not cell count, is the binding quantity. More cycles would still narrow the
 interval in 2c, which spans −0.600 to +2.821, and would give the placebo enough same-era
 pairs to be worth running. They are not freely available. FEC's Schedule-E record extends back well past this panel, but the binding
 constraint is the *dependent variable*: the residual requires a fundamentals baseline, the
@@ -397,12 +494,15 @@ of FEC backfill produces one.
 
 ## What it means
 
-Money in Washington elections behaves like a **marker of candidate strength rather than a
-demonstrable mover of votes**. It correlates with winning more strongly than any other
-measured factor, and every attempt here to find the fingerprint a causal effect should
-leave comes up empty: allocation predicts nothing out of sample, the forecast model
-discards the term when the baseline is available, and the directional cross-section points
-the wrong way.
+Money in Washington elections is **clearly a marker of candidate strength; whether it is
+*also* a mover of votes, this design does not establish either way.** Those are not
+mutually exclusive: a strong candidate can attract money and then gain a further point
+*because* of the spending, and nothing in an observational record decomposes the two. The
+three manifestations examined here each fall short of identification in its own way:
+allocation is an exploratory composition cut that predicts nothing out of sample, the
+forecast model's discarded term is a forecasting result that cannot separate marker from
+embedded effect, and the directional cross-section's positive slope is a single-district
+leverage result whose every interval — case-resampled or clustered — spans zero.
 
 Two things follow, and they pull in opposite directions.
 
@@ -427,15 +527,19 @@ leave with the question open and a clear sense of what it would take to close it
 ## What this paper does not claim, and limits
 
 - **This is not a causal estimate, and no causal claim is made in either direction.** Every
-  cut is observational with no exogenous variation and no instrument. The +0.58 correlation
+  cut is observational with no exogenous variation and no instrument. The +0.60 correlation
   is exactly what a real causal effect would also produce; the nulls are consistent with a
-  true zero *and* with an effect the data is too thin to detect.
+  true zero *and* with an effect the data is too thin to detect — and no bootstrap interval
+  in this paper bounds a causal effect, only an observational slope.
 - **The allocation null is underpowered and tests the wrong thing twice over.** Coverage is
   40 of 129 legislative baseline cells, holdout n runs 15–22, and it tests spend *mix*, not
   spend *level*. It cannot rule out an effect of simply having more money.
-- **The IE panel is n = 34, and its sign is not stable.** The point estimate moved from
-  −0.39 to +0.515 when the panel went from one cycle to four. Read the interval, not the
-  coefficient; a paper quoting either sign as a result would be over-reading its own data.
+- **The IE panel is n = 34, its sign is not stable, and its point estimate is a leverage
+  result.** The estimate moved from −0.39 to +0.515 when the panel went from one cycle to
+  four, and deleting the single highest-leverage race (WA-08 2018, Cook's distance 0.69)
+  moves it to −0.035. Read the intervals — including the wider district-clustered one —
+  not the coefficient; a paper quoting either sign as a result would be over-reading its
+  own data.
 - **State-legislative IE now enters the analysis, and its specification is the live
   limitation.** An earlier version of this bullet said it was excluded entirely for want of a
   directional flag. That was wrong about the record rather than about the analysis: the PDC
@@ -457,13 +561,17 @@ leave with the question open and a clear sense of what it would take to close it
 
 ## Appendix A — The objections, in full
 
-**1. "You found +0.58 and then explained it away."** The correlation is real and the paper
+**1. "You found +0.60 and then explained it away."** The correlation is real and the paper
 leads with it. The objection has force: the burden of proof for dismissing the largest
-correlation in the dataset should be high. What justifies not treating it as causal is not
-the correlation's size but the *pattern of everything around it* — allocation carrying no
-out-of-sample signal, the forecast model finding the term redundant against the baseline,
-and outside money associating with running behind. Any one of those alone would be weak.
-Together they describe money tracking a strength that already exists.
+correlation in the dataset should be high. But nothing here dismisses it, and nothing here
+is entitled to: what the paper declines to do is *sign* it causally, because the
+observational record cannot separate selection into money from an effect of money.
+Allocation carrying no out-of-sample signal and the forecast model finding the term
+redundant against the baseline are consistent with money tracking a strength that already
+exists — and equally consistent with a real effect whose information is already embedded
+in the baselines those tests condition on. The directional cross-section decides nothing
+in either direction: its positive point estimate rests on one district and every interval
+around it spans zero.
 
 **2. "Absence of evidence is not evidence of absence."** Correct, and the paper's title
 question is answered "cannot tell," not "no." The allocation test is underpowered, the IE
@@ -519,18 +627,24 @@ uses the neutral PVI baseline, and discount Findings 2b and 2c accordingly.
   congressional and 49 legislative districts across 2018–2024, restricted to the **163
   baseline-scorable cells** — cells whose PVI fell back to a default for want of district
   presidential data are excluded, the same 163 used by the published backtest.
-- **Two different 129s appear in this paper, and they are not the same population.** Of the 163
+- **A 129 and a 128 appear in this paper, and they are not the same population.** Of the 163
   baseline-scorable cells, **129 are legislative** and 34 congressional; that legislative 129 is
   the denominator in the allocation-coverage limit ("40 of 129") and is the frame Finding 3's
-  state-legislative panel is matched to. Separately, **129 of the 163 carry both-side finance**
-  and are Finding 1's correlation frame — only 98 of those are legislative. The two counts are
-  equal by coincidence on the pinned frame
-  (`docs/reference/overperformance_cells_2026-08-01.csv`) and describe different sets. They must
-  not be quoted under one name; the same collision is recorded as a withdrawn claim in
-  `who-decides-washington.md`.
-- **Fundraising feature.** Raw `log2(D receipts / R receipts)` matched by name tokens
-  against `candidate_finance` for offices H/S/SR/SS, computed independently of the model's
-  own capped fundraising term.
+  state-legislative panel is matched to. Separately, **128 of the 163 carry both-side finance**
+  and are Finding 1's correlation frame — the two counts were equal by coincidence (both 129)
+  until the 2026-08-15 linkage correction removed one wrongly-attached finance pair, and the
+  earlier collision of names is recorded as a withdrawn claim in `who-decides-washington.md`.
+- **Fundraising feature.** Raw `log2(D receipts / R receipts)` matched against
+  `candidate_finance`, **scoped to the cell's own office and district** since 2026-08-15:
+  the key is (cycle, last name, first initial) *within* office `H` and the padded district
+  for congressional cells, or offices `SR`/`SS` and the bare district for legislative
+  ones — the same dual-form office/district rule the codebase's finance queries use. The
+  earlier key omitted office and district and took the maximum receipts across all four
+  office codes, which is far weaker entity resolution than the companion donor papers
+  allow themselves; the collision audit (`scripts/diag_finance_linkage_audit.py`) measured
+  the damage at 2 of 326 lookups — one same-key maximum taken from the wrong district, and
+  one candidate credited with a **same-name namesake's** $190K from another chamber. The
+  feature is computed independently of the model's own capped fundraising term.
 - **Allocation shares.** Field, media and professional shares of *coded operational* spend
   per candidate, so the measure is composition rather than level. Cross-cycle holdout fits
   2022 and predicts 2024, the same bar used to reject the candidate-quality index earlier
