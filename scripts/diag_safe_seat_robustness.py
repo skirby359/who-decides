@@ -60,7 +60,7 @@ LOWER = [
      "r.office IN ('State Representative Pos. 1','State Representative Pos. 2')"),
     ("NY", "data/ny_statewide.duckdb", "2022-11-08", "r.office ILIKE '%ASSEMBLY DISTRICT%'"),
     ("TX", "data/tx_statewide.duckdb", "2024-11-05", "r.office ILIKE '%HOUSE DISTRICT%'"),
-    ("ID", "data/id_statewide.duckdb", "2024-11-05", "r.office ILIKE 'REPRESENTATIVE DISTRICT%'"),
+    ("ID", "data/id_statewide.duckdb", "2024-11-05", "(REGEXP_MATCHES(r.office, '^REPRESENTATIVE DISTRICT [0-9]+ SEAT [AB]$') OR REGEXP_MATCHES(r.office, '^LEGISLATIVE DISTRICT [0-9]+ ST REP [AB]$'))"),
 ]
 
 

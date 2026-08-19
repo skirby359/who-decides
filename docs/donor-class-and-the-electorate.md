@@ -99,8 +99,8 @@ unaffiliated registrants under-represented relative to registration in both deep
 and deep-red Idaho. Both persist after adjustment for the roll's joint age and county
 distribution, and are not explained by roll-side strict-key matchability (about one
 point across parties). **New York's party result survives both validation bounds. Idaho's
-survives a per-stratum bound — an independent 204-record rating detected no false match;
-the design-respecting 95% upper bound is 18.4% per party stratum — but not the panel-wide
+survives the design-respecting cell bound — an independent 204-record rating detected no false
+match, 95% upper bound 18.4% per party × dollar-band cell — but not the panel-wide
 construction.**
 Matched donors vote more often than non-donors — in New York and Washington, by 23 to 26
 points among registrants eligible for every election in the window, age-standardized; Idaho
@@ -1380,16 +1380,21 @@ is fully live, and is treated as objection 3 in Appendix A. Age and tenure are t
 composition variables adjusted for; current-roll survivorship, income and education are
 not, and the standardization does not address them.
 
-**A nominating-stage corollary, in both party-of-record states.** NY's **closed**
+**A nominating-stage corollary, in both party-of-record states.** Both states gate their
+nominating electorates by party of record, and this paper measures **the composition of those
+gated electorates** — not the share of seats that are settled in them. NY's **closed**
 primaries restrict each party's primary to enrollees, so the **25.3% enrolled "blank" are
 excluded by law** (≈0.1–0.6% primary participation), and in blue NY the Democratic primary
-is frequently the decisive contest (2021 odd-year DEM 16.9% vs REP 5.0%).
+draws the higher participation rate of the two (2021 odd-year DEM 16.9% vs REP 5.0%).
 
-Idaho is the mirror image. Republicans hold a 62.9% registration plurality, and its
-**closed Republican primary is where the field is effectively settled in most seats** — a
-descriptive statement about Republican dominance and the weight of that primary, not a tested
-claim that it is decisive in some specified share of them. Idaho's mechanism differs from New
-York's, and is reported here as composition rather than as a participation rate:
+Idaho is the mirror image. Republicans hold a 62.9% registration plurality, so its **closed
+Republican primary is much the larger of the state's two nominating electorates** — a
+statement about where participation concentrates, quantified in the table below, not about
+where seats are decided. Neither companion supports the stronger reading: the New York paper expressly
+declines to determine the stage at which any individual seat became effectively decided, and
+the Idaho paper withdrew the equivalent inference on its own November results. Nothing below
+depends on it. Idaho's mechanism differs from New York's, and is reported here as composition
+rather than as a participation rate:
 
 | population | people | REP | DEM | UNAFF |
 |---|--:|--:|--:|--:|
@@ -1903,6 +1908,17 @@ behavioral one.
   Washington's PDC layer opens a year earlier than its FEC layer, so a small part of any WA
   panel difference is that extra 2016 cycle rather than a difference between the money systems.
   Only New York is exactly aligned as built.
+
+  **The trailing edge of each window is not a closed book.** The 2026 cycle was **roughly half
+  collected** in the Washington PDC layer when these panels were pinned, and it continues to
+  accrue as filings arrive. Idaho's state layer closes in 2025 and is not exposed to this;
+  New York's runs to 2026 as Washington's does, and its trailing-edge completeness is not
+  separately measured here. Every figure reported in this paper is computed against a **pinned
+  frame** rather than a live read, so the numbers here are stable and reproducible as printed.
+  The consequence is for replication rather than for the findings: a run against a later PDC
+  download will find the Washington state layer larger at its trailing edge than the frame used
+  here, concentrated in the final cycle. The pin is deliberate — the alternative is a paper whose
+  figures move without anyone editing anything.
 
   Idaho's Sunshine layer holds three years against the federal layer's ten (the earliest
   Sunshine contribution date is 2023-01-01). Both Idaho panels
@@ -3049,9 +3065,10 @@ equal cell bounds equals the cell bound, **18.4%**; a conservative simultaneous 
 bands by design, so a within-band bound is a construction the design supports. It is reported
 for completeness: no finding in this paper rests on a dollar-band error rate.)
 
-**The party-stratum bound is the one the Idaho finding needs**, because the vulnerability is
-specifically whether match error inflates the *Democratic* share rather than the panel as a
-whole. Applied directly, and as a worst case that deletes that share of the panel's registered
+**A party-specific bound is the one the Idaho finding needs** — and on this design that means
+the party × dollar-band cell bound in the row above, not the retired pooled party stratum —
+because the vulnerability is specifically whether match error inflates the *Democratic* share
+rather than the panel as a whole. Applied directly, and as a worst case that deletes that share of the panel's registered
 Democrats outright, a clean Democratic stratum would take Idaho's federal panel from 20.4% to
 **16.7%** and its state panel from 21.6% to **17.6%** at the 18.4% bound — and to **15.8%** and
 **16.7%** at the simultaneous 22.8% — all still well above the 11.8%

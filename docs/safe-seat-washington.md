@@ -315,8 +315,11 @@ Republican-flavoured races and no Democratic ones.
 ## The four-state comparison
 
 The same count against each state's **lower chamber** — the one body fully up every cycle
-everywhere, so the comparison is like-for-like. Completeness is reported explicitly
-rather than assumed.
+everywhere. The comparison is **unit- and definition-aligned but not fully time-aligned**:
+chamber, unit, margin definition and threshold are identical, while New York's most recent
+loaded Assembly general is **2022** against 2024 for the other three. Completeness is reported
+explicitly rather than assumed. *(This paragraph said "like-for-like" until 2026-08-16, which
+overstated an alignment the next bullet already qualified.)*
 
 | state (chamber) | loaded / expected | not close | no D-v-R |
 |---|---|--:|--:|
@@ -352,8 +355,8 @@ rather than assumed.
   margin, which would inflate their figures if such a seat were ever competitive.
   Re-scoring every no-major-choice seat in the three states on its top-two margin finds
   **none under ten points** — 0 of 48 in New York, 0 of 61 in Texas, 0 of 20 in Idaho — so
-  the three percentages are identical under either rule and the comparison is like-for-like
-  in fact and not merely in intent. This is a measured result, not a property of the
+  the three percentages are identical under either rule, so the coding choice is aligned in
+  fact and not merely in intent. This is a measured result, not a property of the
   definitions, and `diag_safe_seat_robustness.py` re-measures it on every run.
 - Most recent loaded general: WA/TX/ID 2024, NY 2022.
 
@@ -591,10 +594,18 @@ why, rather than quietly restating.
   doi:10.1017/S1537592717002158 — addresses candidate *moderation* under top-two, with
   mixed and jurisdiction-dependent findings; it is cited here for institutional context and
   does not speak directly to whether top-two restores general-election competition.
-- **Safe-seat prevalence, advocacy literature.** FairVote's *Monopoly Politics* series
-  reports projected House competitiveness. *A specific edition, year, report title and
-  archived location must be supplied before publication; the series is cited here as
-  background only.*
+- **Safe-seat prevalence, advocacy literature.** FairVote's *Monopoly Politics* series reports
+  projected U.S. House competitiveness and is the best-known non-academic statement of the
+  prevalence claim this paper measures at state-chamber level. **It is deliberately not cited
+  to a specific edition, and nothing here rests on it.** *(Resolved 2026-08-16 by removing the
+  dependency rather than by supplying a pin.)* The series is issued in successive editions with
+  differing projection methods and district universes, so citing one edition as "the" figure
+  would import a number this paper cannot reproduce and does not need — every prevalence figure
+  in this paper is derived from certified results, and the FairVote comparison would be to a
+  *projection* of federal districts rather than an observed count of state ones. The
+  placeholder that stood here, promising an edition and archive location before publication,
+  was itself the defect: a citation owed is a citation that should either be paid or dropped,
+  and this one is not load-bearing enough to pay.
 
 ## Appendix E — Robustness, and exploratory cuts
 

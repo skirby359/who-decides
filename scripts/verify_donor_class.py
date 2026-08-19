@@ -135,7 +135,8 @@ METADATA = ROOT / "docs" / "donor-class-submission-metadata.md"
 #
 # The one hazard is temp-table collision — derivations that used to be alone on a connection
 # now share a namespace. Every temp table here is created with CREATE OR REPLACE and the names
-# are distinct across derivations (checked); `test_derivation_temp_tables_are_unique` keeps
+# are distinct across derivations (checked);
+# `test_donor_verifier_invariants.TestPooledConnectionsStaySafe.test_temp_table_names_are_unique` keeps
 # them that way, because a silent collision would be exactly this project's recurring defect
 # class: a derivation reading values it did not compute.
 _CONNS: dict[str, "duckdb.DuckDBPyConnection"] = {}
@@ -4179,9 +4180,13 @@ PROBES = [
      r"([\d.]+)% of New York's federal donors and ([\d.]+)% of\s+Idaho's are 65 or older, "
      r"against ([\d.]+)% and ([\d.]+)% of registrants",
      ("ny_fed_b65", "id_fed_b65", "ny_active_b65", "id_roll_b65"), 0.05),
-    ("abstract, the Idaho per-stratum bound", "abstract",
-     r"an independent (\d+)-record rating detected no false match;\s+"
-     r"the design-respecting 95% upper bound is ([\d.]+)% per party stratum",
+    # The anchor names the CELL, not the "party stratum". Until 2026-08-17 the abstract said
+    # "18.4% per party stratum" and this probe's anchor embedded that phrase — so the gate
+    # asserted the right number under the label §F7 retires (the pooled n=34 party stratum is
+    # 10.2%). A regex that quotes a mislabel cannot catch it; the anchor is the claim.
+    ("abstract, the Idaho design-respecting cell bound", "abstract",
+     r"an independent (\d+)-record rating detected no false\s+match,\s*"
+     r"95% upper bound ([\d.]+)% per party × dollar-band cell",
      ("idaho_n_total", "idaho_bound_party_cell"), 0.05),
     # Integer restatement of F4's unrounded 22.89-26.28 span, so tol 0.5.
     ("abstract, eligible-for-all turnout gap span", "abstract",

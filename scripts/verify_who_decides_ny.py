@@ -118,8 +118,21 @@ PIN = "ny_paper_roll"
 BANDS = ["18-29", "30-44", "45-64", "65+"]
 PARTY = ("CASE WHEN party='DEM' THEN 'DEM' WHEN party='REP' THEN 'REP' "
          "WHEN party='BLK' THEN 'NOPARTY' ELSE 'OTHER' END")
+# EXTENDED 2026-08-17 to every general in the file. §I's level claim rested on two odd years
+# until then, and a self-flagged review item said so -- while ALSO asserting, wrongly, that the
+# file held only two. It holds five (2017/2019/2021/2023/2025). Measuring all of them turned an
+# n=2 caveat into an 8-for-8 result, so the extension strengthens the section rather than
+# qualifying it. 2016/2020 are added on the presidential side for the same reason.
 GENERALS = [("2024-11-05", 2024, "g24"), ("2022-11-08", 2022, "g22"),
-            ("2025-11-04", 2025, "g25"), ("2023-11-07", 2023, "g23")]
+            ("2025-11-04", 2025, "g25"), ("2023-11-07", 2023, "g23"),
+            ("2021-11-02", 2021, "g21"), ("2019-11-05", 2019, "g19"),
+            ("2017-11-07", 2017, "g17"),
+            ("2020-11-03", 2020, "g20"), ("2016-11-08", 2016, "g16")]
+
+#: The odd-year and presidential tags, so the relation guards can iterate them rather than
+#: naming cells one at a time -- the shape that let an n=2 claim stand unchallenged.
+ODD_TAGS = ("g17", "g19", "g21", "g23", "g25")
+PRES_TAGS = ("g16", "g20", "g24")
 
 # Contemporaneous-eligibility cutoffs, added 2026-08-11. A participation RATE is
 # voters / people who could have voted, so every denominator below is restricted to
@@ -201,6 +214,29 @@ def derive() -> dict:
             FROM e GROUP BY 1""").fetchall()
         for p, p65, med in rows:
             d[f"{tag}_{p}_65"], d[f"{tag}_{p}_median"] = float(p65), float(med)
+
+    # §I's two LEVEL claims, counted across every general the file holds rather than asserted
+    # from the two odd years the table used to print. Both are 8-for-8; the counts are what the
+    # paper now states, so a future load that broke either would move a printed figure.
+    _all = ODD_TAGS + PRES_TAGS
+    d["lvl_n_generals"] = len(_all)
+    d["lvl_n_odd"] = len(ODD_TAGS)
+    d["lvl_rep_older"] = sum(1 for t in _all
+                             if d.get(f"{t}_REP_65", 0) > d.get(f"{t}_DEM_65", 0))
+    d["lvl_noparty_youngest"] = sum(
+        1 for t in _all
+        if d.get(f"{t}_NOPARTY_65", 99) < min(d.get(f"{t}_DEM_65", 0),
+                                              d.get(f"{t}_REP_65", 0)))
+    # The R-D gap by cycle type. The point is that off-cycle does NOT widen it -- 2025 is the
+    # exception, which is a fifth independent line of evidence for the 'ages hardest' withdrawal.
+    _oddgaps = [d[f"{t}_REP_65"] - d[f"{t}_DEM_65"] for t in ODD_TAGS]
+    _presgaps = [d[f"{t}_REP_65"] - d[f"{t}_DEM_65"] for t in PRES_TAGS]
+    d["lvl_gap_2025"] = d["g25_REP_65"] - d["g25_DEM_65"]
+    _odd_ex25 = [g for t, g in zip(ODD_TAGS, _oddgaps) if t != "g25"]
+    d["lvl_oddgap_ex25_lo"], d["lvl_oddgap_ex25_hi"] = min(_odd_ex25), max(_odd_ex25)
+    d["lvl_presgap_lo"], d["lvl_presgap_hi"] = min(_presgaps), max(_presgaps)
+    for t in _all:
+        d[f"_gap{t[1:]}"] = d[f"{t}_REP_65"] - d[f"{t}_DEM_65"]
 
     # Section II — the blank bloc, over the PINNED active roll, with 2024 turnout attached.
     # Age is 2024 minus birth year, which is what date_diff('year', ...) returned on the live
@@ -285,6 +321,15 @@ def derive() -> dict:
             WHERE v.birthdate IS NOT NULL AND {_age(date)} BETWEEN 18 AND 105""").fetchone()
     _uv = [d[f"unaff_{tg}"] for _, _, tg in GENERALS]
     d["unaff_voter_lo"], d["unaff_voter_hi"] = min(_uv), max(_uv)
+    # SCOPED 2026-08-17. §II compares the 2026 ROLL's blank share against the blank share of
+    # actual voters. Extending GENERALS back to 2016 widened the voter range downward (14.6%),
+    # but the blank bloc has GROWN over that decade, so pairing a 2026 roll with a 2016
+    # electorate overstates the drop-out it is meant to demonstrate. The claim is therefore
+    # made on the three most recent generals; the full range is retained as context and the
+    # paper prints both.
+    _recent = ("g23", "g24", "g25")
+    _uvr = [d[f"unaff_{tg}"] for tg in _recent]
+    d["unaff_voter_recent_lo"], d["unaff_voter_recent_hi"] = min(_uvr), max(_uvr)
 
     # Section I — 2025 general under-30 turnout by party. This is the only roll-denominated
     # RATE in an otherwise electorate-denominated section, which is how it survived the
@@ -702,27 +747,106 @@ def _companion_docs(d: dict) -> None:
                 if f"g24_{p}_65" in d]
         if len(gaps) == 3:
             d["dg_base_gap"] = sum(gaps) / 3.0
+    # §I's WITHDRAWAL arithmetic (2026-08-16). "The Republican electorate ages hardest" was
+    # this section's stated contribution; it holds against 2025 (+10.4 vs +3.4) and REVERSES
+    # against 2023 (+12.9 Democratic vs +11.1 Republican). The withdrawal rests on those four
+    # differences, so they are derived from the unrounded shares rather than differenced off
+    # the printed table — a reconstruction from rounded cells is how this project has twice
+    # landed on the wrong side of a rounding boundary, and it would be a poor way to retire
+    # a headline.
+    for yr in ("25", "23"):
+        for party in ("REP", "DEM"):
+            base_k, odd_k = f"g24_{party}_65", f"g{yr}_{party}_65"
+            if base_k in d and odd_k in d:
+                d[f"d_{party.lower()}_rise_{yr}"] = d[odd_k] - d[base_k]
     # The Idaho contrast is a TABLE in the companion (§II), so it is scraped as the adjacent
     # Republican/Democratic pair rather than from prose. Anchoring on the pair matters: the
     # Idaho paper carries several party-labelled tables and a single-row pattern would bind
     # to whichever came first, which is how a probe passes on the wrong number.
+    # Extended 2026-08-17 to the 18-29 column and the unaffiliated row. This paper used to
+    # assert Idaho's senior parity and then add, unprobed, that Idaho's departing youth sat
+    # "in the unaffiliated and minor-party blocs, not in one major party" — which the same
+    # table refutes (DEM 19.4 against UNA 19.6). The senior pair was gated; the sentence built
+    # on top of it was not, so the gate passed while the claim was false.
     idp = vp.normalise((vp.DOCS / "who-decides-idaho.md").read_text(encoding="utf-8"))
-    m = re.search(r"\| Republican \| ([\d.]+)% \| [\d.]+% \| \d+ \| "
-                  r"\| Democratic \| ([\d.]+)% \| [\d.]+% \| \d+ \|", idp)
+    m = re.search(r"\| Republican \| ([\d.]+)% \| ([\d.]+)% \| \d+ \| "
+                  r"\| Democratic \| ([\d.]+)% \| ([\d.]+)% \| \d+ \| "
+                  r"\| \*\*Unaffiliated\*\* \| \*\*[\d.]+%\*\* \| \*\*([\d.]+)%\*\* \| ", idp)
     if m:
-        d["id_rep_65"], d["id_dem_65"] = float(m.group(1)), float(m.group(2))
+        (d["id_rep_65"], d["id_rep_1829"], d["id_dem_65"],
+         d["id_dem_1829"], d["id_una_1829"]) = (float(g) for g in m.groups())
 
 
 PROBES = [
     # Surfaced by strict_units 2026-08-10. Every endpoint below is a bare one- or
     # two-digit integer, so COVERAGE_EXEMPT's small-integer rule auto-exempted it
     # and both audited sections reported "fully mapped" without looking.
-    ("§party — the GOP 65+ share across classes",
-     r"GOP's 65\+ share jumps from (\d+)%\s*\(presidential\) to (\d+)% \(odd-year\)",
-     ("g24_REP_65", "g25_REP_65"), 0.5),
+    # Re-pointed 2026-08-16. The section's claim is now about LEVELS in every row rather
+    # than about which party's share rises most between rows, so the probe follows the
+    # sentence that carries it: all six party-by-year cells, in one anchor.
+    ("§party — the level claim, counted over every general in the file",
+     r"Across all \*\*(\d+)\*\* general elections in the vote history — \*\*(\d+)\*\* of them "
+     r"odd-year",
+     ("lvl_n_generals", "lvl_n_odd"), 0),
+    ("§party — how many times each level ordering holds",
+     r"\*\*(\d+) times\s*out of 8\*\*, and the no-party bloc is younger than both, also "
+     r"\*\*(\d+) out of 8\*\*",
+     ("lvl_rep_older", "lvl_noparty_youngest"), 0),
+    ("§party — the gap does not widen off-cycle: odd range against presidential range",
+     r"gap in odd years runs \*\*\+([\d.]+) to \+([\d.]+)\*\*; in presidential\s*years it "
+     r"runs \*\*\+([\d.]+) to \+([\d.]+)\*\*",
+     ("lvl_oddgap_ex25_lo", "lvl_oddgap_ex25_hi", "lvl_presgap_lo", "lvl_presgap_hi"), 0.05),
+    ("§party — 2025 as the outlier gap",
+     r"\*\*2025 \(\+([\d.]+)\) is more than double", "lvl_gap_2025", 0.05),
+    # The eight-row table itself.
+    ("§party table — 2016", r"\| Nov 2016 \(pres\) \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| "
+     r"([\d.]+)% \| \+([\d.]+) \|",
+     ("g16_DEM_65", "g16_REP_65", "g16_NOPARTY_65", "g16_OTHER_65", "_gap16"), 0.05),
+    ("§party table — 2017", r"\| Nov 2017 \(odd\) \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| "
+     r"([\d.]+)% \| \+([\d.]+) \|",
+     ("g17_DEM_65", "g17_REP_65", "g17_NOPARTY_65", "g17_OTHER_65", "_gap17"), 0.05),
+    ("§party table — 2019", r"\| Nov 2019 \(odd\) \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| "
+     r"([\d.]+)% \| \+([\d.]+) \|",
+     ("g19_DEM_65", "g19_REP_65", "g19_NOPARTY_65", "g19_OTHER_65", "_gap19"), 0.05),
+    ("§party table — 2020", r"\| Nov 2020 \(pres\) \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| "
+     r"([\d.]+)% \| \+([\d.]+) \|",
+     ("g20_DEM_65", "g20_REP_65", "g20_NOPARTY_65", "g20_OTHER_65", "_gap20"), 0.05),
+    ("§party table — 2021", r"\| Nov 2021 \(odd\) \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| "
+     r"([\d.]+)% \| \+([\d.]+) \|",
+     ("g21_DEM_65", "g21_REP_65", "g21_NOPARTY_65", "g21_OTHER_65", "_gap21"), 0.05),
+    ("§party table — 2023", r"\| Nov 2023 \(odd\) \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| "
+     r"([\d.]+)% \| \+([\d.]+) \|",
+     ("g23_DEM_65", "g23_REP_65", "g23_NOPARTY_65", "g23_OTHER_65", "_gap23"), 0.05),
+    ("§party table — 2024", r"\| Nov 2024 \(pres\) \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| "
+     r"([\d.]+)% \| \+([\d.]+) \|",
+     ("g24_DEM_65", "g24_REP_65", "g24_NOPARTY_65", "g24_OTHER_65", "_gap24"), 0.05),
+    ("§party table — 2025", r"\| Nov 2025 \(odd\) \| ([\d.]+)% \| \*\*([\d.]+)%\*\* \| "
+     r"([\d.]+)% \| ([\d.]+)% \| \*\*\+([\d.]+)\*\* \|",
+     ("g25_DEM_65", "g25_REP_65", "g25_NOPARTY_65", "g25_OTHER_65", "_gap25"), 0.05),
+    # The withdrawal note's arithmetic. These are DIFFERENCES the paper prints to show the
+    # ordering reverses between the two odd years, which is the whole reason "ages hardest"
+    # came out. Derived rather than left as bare tokens: a withdrawal argued from figures
+    # needs its figures checked as much as a finding does.
+    # The replacement dynamic reading: the Republican odd-year level is stable across both
+    # odd years and it is the DEMOCRATIC share that swings. Same four cells as the level
+    # probe above, restated in the other direction, and probed for the same reason.
+    ("§party — the Republican odd-year level is stable across both odd years",
+     r"high 65\+ share in \*\*both\*\* odd years \(([\d.]+)% and ([\d.]+)%\)",
+     ("g23_REP_65", "g25_REP_65"), 0.05),
+    ("§party — and it is the Democratic share that swings between them",
+     r"share that swings, from ([\d.]+)% in 2023 to ([\d.]+)% in 2025",
+     ("g23_DEM_65", "g25_DEM_65"), 0.05),
+    ("§party — the two odd-year rises that point opposite ways",
+     r"rises \*\*\+([\d.]+)\*\* points into 2025 against the\s+Democratic \*\*\+([\d.]+)\*\*",
+     ("d_rep_rise_25", "d_dem_rise_25"), 0.05),
+    ("§party — the same comparison for 2023, where the ordering reverses",
+     r"the\s+Democratic share rises \*\*\+([\d.]+)\*\* against the Republican \*\*\+([\d.]+)\*\*",
+     ("d_dem_rise_23", "d_rep_rise_23"), 0.05),
     ("§party — the unaffiliated drop-off band",
-     r"\(([\d.]+)% of the roll, but only (\d+)–(\d+)% of\s*voters\)",
-     ("bloc_NOPARTY_roll", "unaff_voter_lo", "unaff_voter_hi"), 0.5),
+     r"\(([\d.]+)% of the roll, but only (\d+)–(\d+)% of\s*voters — over the",
+     ("bloc_NOPARTY_roll", "unaff_voter_recent_lo", "unaff_voter_recent_hi"), 0.5),
+    ("§party — the full-window voter range, given as context for the scoping",
+     r"the voter range runs from \*\*([\d.]+)%\*\*", "unaff_voter_lo", 0.05),
     ("appendix A — the composition gradient in prose",
      r"under-30 share\s*collapses \((\d+)% → (\d+)% by 2023\) and the 65\+ share swells "
      r"\((\d+)% → (\d+)%\)",
@@ -878,8 +1002,8 @@ PROBES = [
      ("dup_ids", "dup_both_active", "dup36_party", "dup36_cd", "dup36_dob",
       "dup53_party", "dup53_cd", "dup53_dob"), 0),
     ("§V — the three 2008-to-2024 cohort movements",
-     r"Democratic share has fallen \*\*([\d.]+)\*\* points and the\s+no-party share has risen "
-     r"\*\*([\d.]+)\*\*, while the Republican share has risen \*\*([\d.]+)\*\*",
+     r"Democratic share is \*\*([\d.]+)\*\* points lower and the\s+no-party share "
+     r"\*\*([\d.]+)\*\* points higher, while the Republican share is \*\*([\d.]+)\*\* higher",
      ("new_DEM_fall", "new_NOPARTY_rise", "new_REP_rise"), 0.05),
 
     # ---- added 2026-08-06 by the coverage gate ------------------------------------------
@@ -897,6 +1021,10 @@ PROBES = [
      ("dg_base_DEM", "dg_base_REP", "dg_base_NOPARTY"), 0.05),
     ("§I — the Idaho contrast (vs who-decides-idaho.md §II)",
      r"65\+ share ([\d.]+)% vs ([\d.]+)% in 2024", ("id_dem_65", "id_rep_65"), 0.05),
+    ("§I — the Idaho contrast at the YOUNG end (vs who-decides-idaho.md §II)",
+     r"18–29 share ([\d.]+)% vs ([\d.]+)%\)\s*and its Republican electorate sits well below "
+     r"both \(([\d.]+)%\)",
+     ("id_dem_1829", "id_una_1829", "id_rep_1829"), 0.05),
     ("§I — DEM−REP electorate gap, 2023 then 2025",
      r"swings from \+([\d.]+) \(2023\) to \+([\d.]+) \(2025\)",
      ("g23_gap_dr", "g25_gap_dr"), 0.05),
@@ -931,7 +1059,7 @@ PROBES = [
      r"([\d]+)/26 and ([\d]+)/150 lean Democratic",
      ("cd_lean_dem_total", "ad_lean_dem_total"), 0),
     ("§I — NOPARTY roll share against its share of voters",
-     r"\(([\d.]+)% of the roll, but only 16–22% of voters\)", "mixF_NOPARTY", 0.05),
+     r"\(([\d.]+)% of the roll, but only 16–22% of voters — over", "mixF_NOPARTY", 0.05),
     ("Methods — the pin against the file's ROW count",
      r"holds ([\d,]+) registrants against the file's ([\d,]+) rows",
      ("roll_all", "file_rows"), 0),
@@ -1033,12 +1161,15 @@ PROBES = [
     # The front matter is NOT inside AUDIT_BOUNDS, so the coverage gate cannot reach these two
     # restatements and they would be unchecked by default — which is the precise shape of the
     # defect this round corrected in the §III note. Probed explicitly instead.
+    ("Boundary — Appendix C's ceiling, restated where the bullet used to deny it existed",
+     r"ceiling of \*\*([\d.]+) points\*\* on this and the survivorship bound",
+     "nysboe_worst", 0.005),
     ("front matter — Appendix C's ceiling, restated in caveat (2)",
      r"external\s+ceiling of \*\*([\d.]+) points\*\*", "nysboe_worst", 0.005),
 
     # ---- §V's re-registration caveat, 2026-08-11.
     ("§V — re-registration lower bound, both measurable cohorts",
-     r"at least \*\*([\d.]+)%\*\* of the 2020 cohort and\s+\*\*([\d.]+)%\*\* of the 2024 cohort",
+     r"at least \*\*([\d.]+)%\*\* of the 2020 row and \*\*([\d.]+)%\*\* of the 2024 row",
      ("rereg2020_share", "rereg2024_share"), 0.005),
     ("§V — the 2024 split that gives the bias its direction",
      r"\*\*([\d.]+)%\*\* Democratic and \*\*([\d.]+)%\*\* no-party against \*\*([\d.]+)%\*\* "
@@ -1076,12 +1207,13 @@ AUDIT_BOUNDS = {
     # later: an abstract drifting from the tables it summarises is the same defect as a prose
     # restatement, in the one place a referee always reads.
     "abstract":   ("## Abstract", "## The question"),
-    "party":      ("## I. The graying is not partisan-neutral",
+    "party":      ("## I. The graying is party-structured",
                    "## II. The unaffiliated quarter"),
     "blank_bloc": ("## II. The unaffiliated quarter", "## III. The nominating electorate"),
     "nominating": ("## III. The nominating electorate", "## IV. The registration map"),
-    "safe_seat":  ("## IV. The registration map", "## V. A leading indicator"),
-    "registrants": ("## V. A leading indicator", "## Boundary of inference"),
+    "safe_seat":  ("## IV. The registration map",
+                   "## V. Recently dated registration records"),
+    "registrants": ("## V. Recently dated registration records", "## Boundary of inference"),
     "boundary":   ("## Boundary of inference", "## What it means"),
     # The replication, now an appendix. Audited exactly as it was when it led the paper —
     # moving a section must not be a way to stop checking it.

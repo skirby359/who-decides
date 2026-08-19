@@ -97,11 +97,16 @@ registration record carries that year:
 | 2020 | 903,928 | 40.9% | 21.3% | 33.7% | 30 |
 | 2024 | 893,119 | **39.7%** | 22.1% | **35.6%** | 29 |
 
-The Democratic share of each cohort has fallen **~18 points** (57.8% in 2008
-→ 39.7% in 2024) while the no-party share rose **~15 points** (20.7% → 35.6%);
-Republican share is roughly flat. Cohorts register at a stable ~29–30. The
-unaffiliated bloc (§1) is not a legacy artifact — it is **growing through new
-registration**, a leading indicator that the snapshot electorate understates.
+Records dated 2024 carry a Democratic share **~18 points** lower than those dated 2008
+(57.8% → 39.7%) and a no-party share **~15 points** higher (20.7% → 35.6%); the
+Republican share is **~6 points** higher, monotonically. Median age at the recorded date is a
+stable ~29–30. **Read this as a description of the current roll by most-recent
+registration-event date.** *(Rewritten 2026-08-16, matching the correction made in
+`who-decides-new-york.md` §V and in the Idaho paper before it.)* The previous wording — that
+the unaffiliated bloc is "growing through new registration, a leading indicator that the
+snapshot electorate understates" — treated these rows as successive intakes of first-time
+registrants, which the caveat directly below has said they are not since 2026-08-11. The
+cross-sectional fact stands; the leading-indicator inference does not follow from it.
 (Caveat: survivorship — only registrants still on the current roll appear, so
 older cohorts are thinned by moves/purges; read the *trend in party mix*, which
 is composition-based, as the robust cut.)

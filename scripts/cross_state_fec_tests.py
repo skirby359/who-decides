@@ -30,6 +30,11 @@ TMP = "C:/Users/kirby/AppData/Local/Temp/fec_bulk"
 os.makedirs(TMP, exist_ok=True)
 CYCLES = [2018, 2020, 2022, 2024, 2026]
 COMMITTEES_CSV = f"{TMP}/committees_master.csv"
+#: The office-state-resolved master, built by diag_cross_state_money_matrix.py and shared with
+#: §G. Test B reads the SAME file as §G so the two sections cannot fork their definition of
+#: "recipient state" — which is precisely what happened between 2026-06 and 2026-08-16, when
+#: §G moved to office state and §B was left on committee registration state.
+COMMITTEES_NAMED_CSV = f"{TMP}/committees_named.csv"
 STATES = region_states()
 
 
@@ -68,6 +73,13 @@ def build_committee_master() -> int:
 def run():
     n = build_committee_master()
     print(f"committee master: {n:,} committees\n")
+    if not os.path.exists(COMMITTEES_NAMED_CSV):
+        raise SystemExit(
+            f"FATAL: {COMMITTEES_NAMED_CSV} is absent. Test B resolves recipient state from "
+            "the candidate's OFFICE state and needs the resolved master that "
+            "diag_cross_state_money_matrix.py builds (build_committee_master_named). Run that "
+            "first. Falling back to the committee's registration state is the construction "
+            "this paper's abstract calls invalid, so there is no fallback.")
 
     trend = {}
     dest = {}
@@ -90,15 +102,37 @@ def run():
         trend[st] = [(int(ec), round(float(t1), 4), round(float(t10), 4)) for ec, t1, t10 in rows]
 
         # --- Test B: recipient destination ---
+        # REBUILT 2026-08-16 on the OFFICE-STATE construction. See build_committee_master_named.
+        #
+        # Two changes, and both were submission blockers rather than refinements.
+        #
+        # (1) The recipient state is the connected candidate's OFFICE state, resolved
+        #     committee -> candidate -> cn.txt CAND_OFFICE_ST, restricted to AUTHORIZED
+        #     committees (dsgn 'P'/'A'). It used to be `m.cmte_st`, the committee's own
+        #     registration address, which is frequently a DC/VA compliance vendor — the exact
+        #     construction this paper's abstract calls invalid, still running underneath §B.
+        #     Office is likewise read from cn.txt rather than inferred from the candidate-id
+        #     prefix. Leadership PACs and JFCs are excluded from the candidate buckets by the
+        #     dsgn restriction: they carry one connected candidate but raise nationally, so
+        #     they would otherwise attribute national money to that candidate's state.
+        #
+        # (2) There is now an UNMATCHED bucket. The old CASE ended in
+        #     `ELSE 'PAC/party/other'`, so a committee missing from the master fell silently
+        #     into the largest cell — which made the retired claim that "100% of recipient
+        #     dollars matched" true of any input whatsoever and informative about none of it.
+        #     A residual that cannot be non-empty is not a check. Now it is measured.
         drows = c.execute(
             f"SELECT CASE "
-            f"  WHEN m.office='P' THEN 'Presidential' "
-            f"  WHEN m.office IN ('H','S') AND m.cmte_st='{st}' THEN 'In-state Congress' "
-            f"  WHEN m.office IN ('H','S') THEN 'Out-of-state Congress' "
+            f"  WHEN m.cmte_id IS NULL THEN 'Unmatched committee' "
+            f"  WHEN m.dsgn IN ('P','A') AND m.office='P' THEN 'Presidential' "
+            f"  WHEN m.dsgn IN ('P','A') AND m.office IN ('H','S') AND m.office_st='{st}' "
+            f"       THEN 'In-state Congress' "
+            f"  WHEN m.dsgn IN ('P','A') AND m.office IN ('H','S') "
+            f"       THEN 'Out-of-state Congress' "
             f"  ELSE 'PAC/party/other' END bucket, "
             f"SUM(ic.contribution_amount) amt "
             f"FROM individual_contributions ic "
-            f"LEFT JOIN read_csv('{COMMITTEES_CSV}', header=true, auto_detect=true) m "
+            f"LEFT JOIN read_csv('{COMMITTEES_NAMED_CSV}', header=true, auto_detect=true) m "
             f"  ON ic.fec_candidate_id = m.cmte_id "
             f"WHERE {where} GROUP BY 1"
         ).fetchall()

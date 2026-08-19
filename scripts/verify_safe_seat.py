@@ -401,7 +401,7 @@ CMP_PARTY = ("CASE WHEN party_normalized ILIKE '%democrat%' THEN 'D' "
 CMP_SPECS = [
     ("ny", "ny_statewide", 2022, "r.office ILIKE '%ASSEMBLY DISTRICT%'", None),
     ("tx", "tx_statewide", 2024, "r.office ILIKE '%HOUSE DISTRICT%'", 150),
-    ("id", "id_statewide", 2024, "r.office ILIKE 'REPRESENTATIVE DISTRICT%'", None),
+    ("id", "id_statewide", 2024, "(REGEXP_MATCHES(r.office, '^REPRESENTATIVE DISTRICT [0-9]+ SEAT [AB]$') OR REGEXP_MATCHES(r.office, '^LEGISLATIVE DISTRICT [0-9]+ ST REP [AB]$'))", None),
 ]
 
 

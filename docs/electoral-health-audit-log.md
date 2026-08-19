@@ -7166,3 +7166,364 @@ dossier row is updated to say so. `_verify_prose.SATELLITES` still registers an 
 tuple for it — that was a recorded decision when no metadata was intended, and is now a
 **pending** state; when the metadata and notes exist they must be registered there or the
 satellite-count gate will not read them.
+
+---
+
+## 2026-08-16 — the coupled-series referee round: six papers read as one series
+
+An external referee reviewed six papers **as a coupled series rather than six independent
+files**, and said the framing changed the result. It did. Every substantive item was **live in
+the repo — none was stale** — and the remaining defects were disproportionately what the
+referee named them: **cross-paper propagation failures, where one paper had learned a
+methodological lesson another still violated.**
+
+Commits: `8723c5c` (cycle competitiveness derivation) · `d877ec0` (Idaho taxonomy) · `48947c1`
+(money structural) · `6c44890` (item 10 rerun) · `91503d0` (money language) · `8ca6609` (New
+York).
+
+### The finding the series should have caught itself
+
+NY §I's heading and stated contribution was *"the Republican electorate ages hardest."*
+`who-decides-cross-state.md:216` had **already withdrawn that exact claim** — "does not hold
+across New York's own odd-years" — and the NY paper never received the correction. The referee
+rederived it from the table (2025: R +10.4 vs D +3.4; **2023: D +12.9 vs R +11.1**, the
+ordering reversing). The series had the answer written down in a companion. It had also reached
+the abstract, Related Work, the conclusion, both NY satellites, both who-returns-ballot
+satellites, the cross-state design note, and Idaho's own comparison sentence.
+
+**Replacement, which survives every row:** the off-year age skew is *party-structured* —
+Republican off-year electorates are consistently the oldest, the no-party bloc consistently the
+youngest.
+
+### Idaho: the table computed a different variable from the one its definition named
+
+§IV printed the four-way decomposition (52/38/9/6) under "the last stage at which more than one
+candidate was still in contention", while deriving it from `(R primary shape) × (general winner
+party)` — never looking at who else was on the November ballot. Measured: **of the 38 seats
+assigned to candidate filing, 35 faced a November opponent**, 32 a major-party one, and **3
+were decided by under ten points**. "Decided once the filing period closed" is withdrawn.
+
+Both variables are now derived and printed: nomination stage **52/38/9/6**, last-contested
+stage **80/16/9**, disagreeing on **71 of 105 seats** — which is now the section's sharper
+result. **The referee's mirror-image objection did not survive measurement**: all six
+no-Republican seats drew a *sole* Democratic filer and were unopposed in November, so that row
+stands. Four relation guards added, each shown firing.
+
+### Item 10: the basis fix moved findings in three different directions
+
+D/E/H/J banded 2018–2026 money by the **2026** forecast — answering "did districts forecast
+competitive in 2026 receive more money?" rather than "did money chase competitive races?".
+Rebuilt on `district_cycle_competitiveness()`, unit the district-cycle:
+
+| section | before | after |
+|---|---|---|
+| E premium | ~2× | **2.6×** — the 2026 labels were *attenuating* it |
+| D premium | 2.1× | **3.2×** |
+| H sector tilt | finance 21.6 / tech 11.7 vs 18.4 baseline | **largely a NULL** — 28.2 / 27.0 vs 28.7 |
+| J | staircase | staircase survives; **the favored side had been taken from the 2026 forecast too, so 2024 dollars could be scored against the wrong party — mis-signed, not merely mis-banded** |
+
+Two things measurement forced: a **same-party general computes to a two-party margin of exactly
+±100** and is not Solid (WA's top-two produces them routinely), and the unbandable residual is
+**reported** — $18.4M (3.8%) in E, $10.4M (3.5%) in D — rather than absorbed.
+
+### Structural: F out, K out, Test B rebuilt
+
+**§F removed** to `donor-class-and-the-electorate.md` — the only section here resting on the
+pooled match, and it contradicted itself about its own specification (preamble: recomputed on
+the full-name key; F4: F1–F3 are all-tier at 93.0%). The referee's separate **sign
+contradiction (9a) needed no fix** — the offending sentence lived in §F and left with it.
+**§K moved** to `cross-state-state-money-note.md`. **Test B rebuilt** on office state, sharing
+§G's resolved master; unmatched residual now **measured at $0.13M of $4.73B** where the old
+`CASE` made "100% matched" true of any input; and **one finding reversed** — on office state
+Texas's in/out ratio is **1.18**, so Texans give *more* to their own delegation.
+
+### Traps, for the next round
+
+- A **cycle-keyed** competitiveness map breaks a denominator a district-keyed one could not: the
+  "% of district-cycles" column silently spanned 2012–2026 against money from 2022+.
+- **Renaming a heading breaks two audit spans** — it is one section's `end` anchor and the
+  next's `start`.
+- **Reflowing a paragraph broke a withdrawn-claim pattern** (`primary resolves the\ngreat
+  majority`). The register is whitespace-sensitive across line breaks.
+- **A `csv.DictWriter` raising mid-`writerows()` leaves the file truncated** — one stray key
+  destroyed 36 of 54 rows in `withdrawn_claim_quotations.csv`; restored from git.
+- **The orphan-figure check passed by coincidence for weeks**: the metadata's WA population
+  `7.8M` was grounded by an unrelated `7.8%` in Test B's Idaho Presidential cell.
+
+### Left open, deliberately
+
+- Idaho's congressional pin ships with **six unresolved cells** (2018/2020/2022 × 2 districts),
+  surfaced as `pin_unresolved` and carried in the reported residual — 0.4% of House inflow.
+  Their SoS canvass URLs are recorded; an absent pin *file* raises.
+- **K2's cycle-band rebuild is not done.** It travelled with §K into the ungated note, which
+  says so. Feasibility measured: only **ID 2022** is missing.
+
+---
+
+## 2026-08-17 — the round's second day: three passes, and the error was in the fix each time
+
+Continuation of the coupled-series round. Six commits (`246f4ae` `32d9113` `6f5a414` `d4162c8`
+`9c05d99` `07e0a2d` `2795074`). **The pattern §0 names ran three more times, and every instance
+was prose written to close a review item — not a derivation.** That is the finding worth keeping
+from this day.
+
+### What was done
+
+**K2 rebuilt on cycle bands and its headline overturned.** "Does state money chase
+competitiveness? Only in the red states" rested on WA nearly flat at 1.12× and **NY inverted at
+0.85×**. On each cycle's own observed margin all four states show a premium. The red/blue
+contrast was an artifact of applying 2026 labels to 2022 and 2024 money.
+
+**Two Idaho pin files built, then retracted.** They were created on the belief that Idaho's
+pre-2024 generals were not loaded. **They were** — Idaho renamed its offices at 2024 and the
+consumer predicates matched only the later form, while a prefix match was importing Idaho's
+U.S. House seats as state-house districts 1 and 2. The transcriptions are kept as external
+validation fixtures: the congressional one reproduces the loaded data **to the vote on 6/6
+cells**, the legislative one on **34/35** — the 35th a missing party letter in the canvass, not
+a load error.
+
+**The naming collision is now linted**, with the enforcing half running the real predicates in
+DuckDB against every form Idaho has used. It found **six live sites**, all latent, one a real
+defect (the roster classifier, measured inert).
+
+**Five self-flagged adversarial items closed, four by measurement.** §H's travel result *tested*
+rather than asserted (basis change moved out-of-state shares ≤0.7pp against up to 15.2pp for
+competitive shares); Texas's K2 premium parenthesised because only **63.2%** of its dollars carry
+a margin and the missing ones are the uncontested seats; §E's premium given per cycle (2.66× /
+3.28× / 1.46×, and **2.94×** on observed cycles) with an explicit non-independence note; Idaho's
+contestation cut crossed against margin (**105 seats / 80 with a choice / 8 with a close one**);
+New York's n stated.
+
+**Then a further pass on that work found the sharpest defect of the day in it.**
+
+### The three errors, all in corrections
+
+1. **A false fact inside a caveat.** Closing the NY n=2 item: "New York has held exactly two
+   odd-year general elections inside this file's vote history." **It holds five.** Measuring all
+   five converted the caveat into a result — the level ordering holds **8 of 8** generals, and
+   the R−D gap does **not** widen off-cycle (odd years ex-2025 +1.0 to +3.7 against presidential
+   +2.7 to +4.1), making 2025's +10.7 a contest effect and a fifth independent line against
+   "ages hardest".
+2. **Four percentages typed before being computed**, in the Texas coverage caveat: 94/87/62/92
+   against a true 78.9/90.2/63.2/92.3 — Washington wrong by fifteen points, and the same check
+   revealed WA bands only 78.9%, softer than the other two printed figures.
+3. **Reconstruct-from-rounded, third instance:** printed 14.6% from a two-decimal intermediate of
+   14.545, which rounds to 14.5.
+
+### Knock-ons worth expecting
+
+Extending §I's generals **moved a range in §II** (scoped, because the blank bloc grew over the
+added decade) and **broke two cross-paper scrapes in the synthesis** — one because rows stopped
+being adjacent, one because the edit deleted a clause the scrape bound. The synthesis gate firing
+is the only reason either was caught.
+
+### Where this leaves the series
+
+Ten artifacts, ten verifiers, one artifact (`cross-state-state-money-note.md`) with none. Full
+suite **2,317 passing**. Figure counts now: donor 1,465 · ID 460 · NY 305 · safe-seat 285 · WRB
+204 · money-votes 193 · money 184 · synthesis 175 · WA 893 + 3 known-RED.
+
+**The recommendation on record:** review `cross-state-state-money-note`, `cross-state-fec-money`,
+`who-decides-new-york` and `donor-class-and-the-electorate`; freeze `who-decides-washington`,
+`safe-seat-washington`, `does-money-move-votes` and the synthesis. And note the reason to stop
+after those four: the remaining failure mode is a confidently-written wrong sentence, which the
+human end-to-end read catches and no gate can.
+
+---
+
+## 2026-08-17 (third pass) — the freeze round: propagation cleanup, and one corruption the last commit shipped
+
+External referee, reading the mature set as a set. **His finding about the findings is the part
+worth keeping: the character of the defects has changed.** No estimand, denominator, join or
+causal reading was wrong in Washington, New York, the cross-state age paper, the federal money
+paper or the donor paper. What remained was **propagation** — a corrected methodological
+position that had not been carried into every sentence depending on it. His disposition: freeze
+all five after narrow wording fixes, keep developing the state-money note separately, and
+replace further adversarial rounds with the mechanical gates.
+
+### What was applied
+
+**1. Cross-state age paper — "universal" and "decisive" retired.** Two overclaims, neither
+load-bearing. The paper is a deliberate three-state purposive comparison, so Finding 1 now
+reads "recurs across all three cases" and the boundary section says the *recurrence* claim
+rests on three states. More consequentially, the harmonization protocol called Idaho's closed
+Republican primary the state's "decisive" low-salience contest and said it "for much of the
+state *is* the election" — **a seat-decision claim the Idaho companion has already withdrawn on
+its own November results.** The class is now the "lowest-salience measured contest" / dominant-
+party nominating electorate throughout, with the withdrawal recorded at the definition. Nothing
+in Findings 1 or 3 moved: the contest enters as the lowest-salience electorate each file
+records, and would enter identically if it decided nothing. The causal formulation
+"party-registration rules shape *whether* the age skew becomes a partisan skew" is replaced by
+the non-causal statement that the partisan structure differs across these settings and this
+design does not isolate the rules as the cause — three purposive cases differing on several
+dimensions at once cannot.
+
+**2. Donor paper — one methods-label error, in the abstract.** It called 18.4% the upper bound
+"per party stratum". Appendix F establishes that the pooled party stratum (n=34) is the
+**retired** construction at 10.2%; the operative bound is per **party × dollar-band cell**
+(n=17). The introduction already said so. **The verifier asserted the right number under the
+wrong label** — its anchor regex quoted the mislabelled phrase verbatim, so the gate could
+never have caught it. Both were corrected together, and §F7's topic sentence, where the loose
+usage originated, now names the cell bound explicitly.
+
+**3. Donor paper — the imported "decisive primary" language removed.** The nominating-stage
+corollary said New York's Democratic primary is "frequently the decisive contest" and Idaho's
+is "where the field is effectively settled in **most seats**" while disclaiming any tested
+share — but "most seats" *is* a specified majority claim. It now says what the paper actually
+measures: both states gate their nominating electorates by party of record, and the paper
+measures the **composition** of those electorates, not the share of seats settled in them. That
+aligns it with New York's corrected position, which expressly declines to determine the stage
+at which any individual seat became effectively decided.
+
+**4. Federal money paper — three stale remnants of the retired analysis.** The §E rebuild
+worked; its caveat had not been updated and still said "House competitiveness = 2026 forecast
+bands on current districts", describing the table the rebuild retired. The Limits section still
+called K this paper's state layer after K had moved out. And the status section still repeated
+K's now-false conclusion that the competitiveness premium appears only in TX/ID with WA flat
+and NY inverted. All three corrected, the third labelled superseded rather than deleted.
+
+**5. New York — one sentence following its own Idaho correction.** It said Idaho's departing
+youth "sits in the unaffiliated and minor-party blocs, not in one major party." **The
+companion's own table refutes it** — Idaho's Democratic (19.4%) and unaffiliated (19.6%)
+electorates are level at the under-30 end — and the companion withdrew the same sentence on
+2026-08-15. The senior-share parity the paragraph needs is unaffected. The corrected claim is
+now **gated**: the companion scrape was extended from the 65+ pair to the 18–29 column and the
+unaffiliated row, and all three new keys are proven catchable
+(`mutation_probe_verifiers.py --verifier verify_who_decides_ny.py`: 247 caught, 0 uncaught).
+The old sentence was unprobed prose sitting on top of a probed pair — the gate passed while the
+claim was false.
+
+**6. State-money note — K2's headline outran its own missing-data analysis.** The heading said
+"Yes, in all four states" and the narrowed claim said all four agree in direction, while the
+same section said Texas's 3.02x is not computable on the available coverage, is an upper bound
+of unknown tightness, and should not be quoted. **Those cannot both hold: an upper bound of
+3.02 does not bound the ratio away from 1 from below.** Now: NY and ID show positive premiums,
+WA also does but on materially softer coverage, and Texas's statewide direction is unresolved
+because its missingness is concentrated in uncontested seats. The note stays ungated and
+outside the submission freeze.
+
+### The defect this round found on its own
+
+**The previous commit (`2795074`) shipped a systematic +20-year corruption in
+`who-returns-ballot-submission-metadata.md`.** Every year in the file moved: the citation line
+read "Kirby, Stephen. **2046**", the abstract cited the "**2044** presidential general" and the
+"**2045** odd-year electorate", the ACS vintage became "**2040**-2044", and the pinned CVAP
+filename became `cvap_age_acs2044.csv`, which does not exist. Seven lines, one file, confined to
+that commit — consistent with a find-and-replace run over it. No figure gate can see this:
+**the paper's verifier checks the satellite's figure COUNT, not its years**, and `204` — the
+true figure count — survived intact while every date around it was wrong. A human reading the
+citation line would have caught it in a second, which is the argument for the end-to-end read
+the referee is recommending. Repaired.
+
+### Build-metadata staleness swept
+
+`check_cross_doc_consistency.py` was reporting five findings, all pre-existing: the donor
+methods supplement, submission memo and release checklist quoted figure/body/section counts
+from earlier rounds. The public-repository figure was **measured rather than inferred** — the
+three operational documents were moved aside and the verifier re-run, giving **1,444** against
+the full **1,465**, so the stated gap is **21 figures across six probes**, not the 19 the
+supplement recorded. Historical rows (the 2026-08-08 signed run at 1,324 figures over 48
+sections) are left exactly as they stand; only present-tense claims about the current build
+were updated.
+
+### Where this leaves the series
+
+The referee's transition is adopted: **version freeze -> automated gates -> human end-to-end
+read -> release/tag/archive -> submission.** Two notes on his closing points. The editorial
+concern — a ~40,000-word manuscript — is already solved by the three-artifact split:
+`build_elj_submission.py` produces a **14,229-word** journal manuscript against a
+**23,325-word** supplement, with the body at 11,998 words inside ELJ's 20,000 cap. And A10 (the
+author's numeric sign-off) is reopened again by this round's abstract change, so the cold
+`--refresh` re-sign must precede A13.
+
+### The gate that was named but never written
+
+`test_cited_files_are_synced.py:111` skips a cited path that does not exist on disk with the
+comment *"which `test_no_broken_internal_links` owns"*. **Nothing owned it.** That is the third
+instance in this project of a check that could not fire — after `e3938bd` (180 derived keys no
+probe consumed) and `1eeb978` (a coverage conjunct always satisfied) — and it is the one that
+would have caught the `cvap_age_acs2044.csv` corruption above.
+
+`tests/test_infrastructure/test_no_broken_internal_links.py` now exists: every markdown link
+and every `scripts/` · `docs/reference/` · `config/` · `tests/` path named across
+**101 documents** (206 distinct paths) must resolve. Four things worth keeping about how it
+was built.
+
+1. **It is pinned to the real defect.** `TestTheChecker::test_the_2026_08_17_corruption` feeds
+   the verbatim string from `2795074` and requires the report; a companion asserts the repaired
+   text is clean.
+2. **Half the file is vacuity guards, and they are not decorative.** The first hand-written
+   version of this scan put a backtick in its lookbehind — and every repo path in this corpus
+   is written inside backticks — so it reported **0 broken** against the very file it was
+   written to check. `TestExtractorIsNotVacuous` writes each citation form as an existing path,
+   asserts silence, then mutates one character and requires the report.
+3. **A second bug, same session, same shape.** `_TRAILING` contains `.` and the normaliser used
+   two-sided `strip()`, which ate the leading `..` of every `[text](../scripts/<name>.py)` link
+   and reported **six real files** as missing. Both bugs were in the *checker*, not the corpus.
+4. **Six mutations, six caught**, run before commit: the backtick lookbehind, the two-sided
+   strip, the template guard removed, the file-level exclusion widened, and each of the two
+   extraction arms disabled.
+
+**Then it caught this very entry**, on the first full-suite run: the paragraphs above quote
+`config/districts.py` — the stale reference this round repaired — in order to record it. That
+is the same problem `memory/` has, one document down, and it settles the scope question by
+measurement rather than taste.
+
+**Scope, decided deliberately, in three layers.** `memory/` is not scanned, for the reason
+CLAUDE.md gives for keeping it outside `test_withdrawn_claims`' glob: recording what was
+*retired* is its job. **This log** is the one file-level exclusion inside `docs/`, for the same
+reason and no other — and `test_the_file_level_exclusion_stays_narrow` pins the set to exactly
+one name **and** asserts that the submission satellites are still scanned, because a rule that
+swept up every "operational document" (the classification the sibling test uses) would have
+been blind to the metadata corruption this test exists to catch. Everything else is a
+path-level exemption with a written reason: `scripts/donor_matcher.py` (public repo only, by
+design) and `tests/test_etl/test_pdc_ie_extractor.py` (named in the record of its own
+deletion). One real stale reference was fixed rather than exempted — `config/districts.py` in
+the remediation plan, which has been the package `config/districts/` for some time.
+
+### The other half: the years themselves
+
+The link lint catches this corruption only because it happened to touch a *filename*. Had it
+touched only years, nothing would have fired. `tests/test_infrastructure/test_no_implausible_years.py`
+closes that: no document may state a year later than **2030**.
+
+**The threshold is measured, not chosen.** Legitimate future years across the scanned corpus top
+out at **2029** — records-retention schedules in the ethics assessment and release checklist, the
+2028 presidential primary at which Washington's party-of-record window reopens, two 2027 planning
+references. The band 2030–2099 held exactly the four corrupted tokens before the repair and is
+empty after it. A wider band was tried and rejected on measurement: `2[1-9]\d{2}` produces **16
+false positives** on this corpus — Okanogan precinct codes (`2101`, `2108`), record counts,
+notarisation hashes — and a lint with a false-positive rate gets an allowlist, and an allowlist
+gets waved through.
+
+**The vacuity guard found a hole the corpus check could not.** The first trailing guard was
+`(?![\d.,%])`, which rejects any year followed by a full stop — that is the **citation line**,
+`Kirby, Stephen. 2046. "Who Returns the Ballot?"`, the single most visible instance of this
+corruption and the one a human notices first. The corpus test was green either way, because the
+corpus is clean; only `TestScannerIsNotVacuous`, which writes a year in each form the corpus uses
+and requires the report, caught it. The guard is now `(?!\.\d)` — reject a decimal, never a
+sentence.
+
+**Eleven mutations across the two lints, eleven caught.** One was not, on the first sweep, and
+the fix generalises: `test_the_corpus_is_clean` passed with its own loop emptied, because the
+sibling vacuity test still called `_documents()` and stayed green. **A gate must notice when it
+inspected nothing, without relying on another test to notice for it.** Both lints now count what
+they scanned and assert on it.
+
+**What neither lint does.** They cannot tell 2024 from 2025. A single-year slip inside the
+plausible band — the likeliest typo of all — is invisible to both, and belongs to the human
+end-to-end read along with the three defect classes that have actually bitten: a confidently-
+written wrong sentence, a superlative with no numeric token to catch, and a right number under a
+wrong label.
+
+### The readiness dossier refreshed
+
+`docs/publication-readiness-2026-08-15.md` carried five stale figure counts and a paper that had
+changed shape, against its own closing instruction to re-run the boundary before trusting it.
+Refreshed from today's run: NY 248 → **308**, WA 875 → **893 + 3 RED**, ID **460**, money-votes
+**193**, who-returns-ballot **204**, and a tenth row for `cross-state-state-money-note` — no
+verifier, in development, deliberately outside the freeze. It also now carries a **suggested
+reading order** for the human pass (companion before the document that cites it, because
+propagation is this series' actual defect class), a note on **what to look for given what the
+gates already cover**, and a **map of where the steps live** — this dossier for the series, §E/§F
+of the donor checklist for the ELJ sequence, §0 here for the freeze rule.

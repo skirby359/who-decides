@@ -18,13 +18,16 @@ pole: a state where the **Republican nomination process — candidate filing and
 closed May primary — produces the eventual winner of 90 of 105 legislative seats**, so the
 question "who decides" has a sharper, more literal answer than in any two-party state. But
 the answer is not "the primary electorate": that electorate chose among more than one
-candidate in **52 of the 105 seats**, and §IV decomposes the rest.
-*(Two earlier framings sit behind that sentence and both are withdrawn in place. This line
+candidate in **52 of the 105 seats**, and §IV decomposes the rest on two separate variables.
+*(Three earlier framings sit behind that sentence and all are withdrawn in place. This line
 called the November general "a formality" until 2026-08-11 — it is not; Democrats won 15 of
-105 seats, see §V. And it said the closed primary "resolves the great majority of seats"
+105 seats, see §V. It said the closed primary "resolves the great majority of seats"
 until 2026-08-15, which the paper's own seat counts contradict: 52 of 105 is 49.5%. What
 resolves the great majority is the nomination process, of which the primary is one of two
-stages.)* **DRAFT — pending human/editorial sign-off.
+stages. And until 2026-08-16 §IV reported that nomination cut under a definition about
+contestation, which is a different variable: 80 of the 105 seats still offered a choice on
+the November ballot. Producing the winner's nomination and settling the seat are not the same
+event, and the paper now measures both.)* **DRAFT — pending human/editorial sign-off.
 `scripts/verify_who_decides_id.py` scrapes this paper and asserts its figures against the voter
 file, with the exceptions the script names in its own output; see
 [`electoral-health-audit-log.md`](electoral-health-audit-log.md). That gate is automated and is
@@ -68,20 +71,28 @@ In a dominant-party state the general election is rarely where governing choices
 Republican and **12%** Democratic by registration. Using the statewide voter file for
 **1,029,938** registrants, with party of record and the party ballot each voter actually pulled,
 this paper locates the decision seat by seat and measures who is present at it. The central
-result is a decomposition of all **105** legislative seats in 2024 by the venue that produced
-the eventual winner: a **contested** Republican primary for **52** of them (**49.5%**); a
-Republican primary with a single filed candidate for **38** more (**36.2%**), where the binding
-choice was candidate filing; the November general for **9** (**8.6%**), where a single-filer
-Republican lost to a Democrat; and filing again for the remaining **6** (**5.7%**), where no
-Republican filed at all and a Democrat won. The Republican nomination process therefore produced
-the winner in **90 of 105** seats, **85.7%** — but the primary *electorate* chose among more
-than one candidate in fewer than half.
+result is a decomposition of all **105** legislative seats in 2024 on **two** variables that
+the phrase "where a seat is decided" ordinarily conflates. By the stage that produced the
+winner's *nomination*: a **contested** Republican primary for **52** (**49.5%**); an
+uncontested Republican nomination for **38** more (**36.2%**); the November general for **9**
+(**8.6%**), where a single-filer Republican lost to a Democrat; and no Republican filing at all
+for the remaining **6** (**5.7%**). The eventual winner in **90 of 105** seats (**85.7%**) was
+therefore a Republican whose nomination was settled before November — but the primary
+*electorate* chose among more than one candidate in fewer than half. By the stage at which the
+seat stopped being *contested*, the same seats fall very differently: **80** (**76.2%**) still
+offered two or more candidates on the general-election ballot, **16** (**15.2%**) were
+contested only in the primary, and just **9** (**8.6%**) were unopposed at every stage. The two
+cuts disagree about **71** seats, and that gap is the paper's sharpest single result: Idaho's
+dominant party settles who will hold most seats long before November without leaving the
+November ballot empty. A seat can be uncompetitive without being uncontested — and crossing
+the contestation cut against the observed margin gives the three-layer summary the two tables
+cannot: **105** seats, **80** offering a choice on the ballot, **8** offering a close one.
 
 Two further findings are specific to Idaho rather than replications of the off-cycle turnout
 literature. First, **senior representation is nearly identical across the two parties**:
 Republicans and Democrats among 2024 general voters are within a fraction of a point on the
-65-and-over share, **31.7%** against **31.5%**, inverting the national
-older-is-more-Republican pattern and reversing what the New York companion finds. What
+65-and-over share, **31.7%** against **31.5%** — *senior-share parity*, which contrasts with
+the national older-is-more-Republican pattern and with what the New York companion finds. What
 distinguishes Idaho's unaffiliated quarter is the senior end specifically — **21.3%** aged 65 or
 over against roughly 31.6% in both parties — and not the young end, where unaffiliated and
 Democratic voters are level at **19.6%** and **19.4%** under 30. Second, the file records the
@@ -131,8 +142,9 @@ requirement, not a locked door, and one that almost all of them decline to pay.
 Two further findings are specific to Idaho, not a replication of the off-cycle
 turnout literature. First, **senior representation is nearly identical in the two
 parties**: Idaho's Republicans and Democrats are within a fraction of a point on the
-65-and-over share, inverting the national "older-is-more-Republican" pattern and
-reversing what the New York companion found. The unaffiliated bloc is the young one,
+65-and-over share — *senior-share parity*, which contrasts with the national
+"older-is-more-Republican" pattern and with what the New York companion found. The
+unaffiliated bloc is the young one,
 but the gap that makes it so is at the senior end — it carries ten fewer points of
 over-65s than either party, while being level with Democrats among the under-30s.
 Second, the file records the party ballot each voter actually pulled, so participation
@@ -192,8 +204,8 @@ sit off the federal calendar; it is simply not what this table measures.*
 
 ## II. Senior representation is the same in both parties — and that is the whole of the finding
 
-This is where Idaho diverges sharply from New York. In New York the Republican
-electorate ages hardest; in Idaho the two major parties carry the same senior share.
+This is where Idaho diverges sharply from New York. New York's Republican electorate is
+consistently the older of the two; in Idaho the two major parties carry the same senior share.
 Share of each party's 2024 general-election voters by age, plus median age:
 
 | Party | share 65+ | share 18–29 | median age |
@@ -294,39 +306,84 @@ now the one that is harder to attack.*
 ## IV. Where seats are actually settled — and how gray the primary electorate is
 
 The Republican nomination process produces the winner in the great majority of Idaho's
-legislative seats. The primary electorate does not. Those are different claims, and the
-seat-level decomposition below separates them; the rest of this section describes who is
-present at the stage that does the most work.
+legislative seats. The primary electorate does not. Neither statement is the same as saying
+the seat was over before November. Those are three different claims and this section
+separates them, because conflating them is the error the section has now made twice in
+opposite directions; the rest of it describes who is present at the stage that does the most
+work.
 
-**The decision venue, all 105 legislative seats, 2024.** Each seat is assigned to the
-last stage at which more than one candidate was still in contention for the outcome that
-actually occurred:
+**Two variables, not one.** "Where a seat is decided" hides a distinction that Idaho's own
+records can settle. *When was the winner's nomination determined?* and *when did the seat
+stop being contested?* are different questions with different answers, and the tables below
+report them separately rather than blending them into a single word.
 
-| Where the winner was effectively produced | seats | share |
+**Variable 1 — the stage that produced the winner's nomination. All 105 legislative seats,
+2024.** Each seat is assigned by the shape of the eventual winner's own party primary:
+
+| Stage that produced the winner's nomination | seats | share |
 |---|--:|--:|
 | **Contested Republican primary** — ≥2 Republicans filed; a Republican won in November | **52** | **49.5%** |
-| **Candidate filing** — one Republican filed; that Republican won in November | **38** | **36.2%** |
+| **Uncontested Republican nomination** — one Republican filed; that Republican won | **38** | **36.2%** |
 | **The November general** — one Republican filed; a **Democrat** won | **9** | **8.6%** |
-| **Candidate filing** — *no* Republican filed; a Democrat won | **6** | **5.7%** |
+| **No Republican filed at all** — a Democrat won | **6** | **5.7%** |
 
-Read across: the Republican nomination process — filing plus primary — produced the
-eventual winner of **90 of 105 seats (85.7%)**, and that is what "the great majority" can
-honestly describe. But the **contested primary settles 52 seats, 49.5%** — the largest
-single venue, and less than half of them. Filing settles fewer, though not many fewer:
-**44 seats** (38 Republican-held plus 6 Democratic-held) were decided once the filing
-period closed and no second candidate of the eventual winner's party had come forward.
-Nine turned on November. So Idaho's decisive stage is not one venue but two of comparable
-size, and the earlier of them — filing — has no electorate at all.
+Read across: the eventual winner in **90 of 105 seats (85.7%)** was a Republican whose
+nomination was determined before the general election — **52** through a contested Republican
+primary and **38** through an uncontested one. That is the sense in which "the great majority"
+is defensible, and it is a claim about the *nomination*, not about the election. Democrats
+ultimately won **15**, of which **9** came against a sole Republican filer. Their own
+nominations were almost all uncontested in turn: **13** of the 15 drew a single Democratic
+filer and only **2** faced a contested Democratic primary.
 
-*This decomposition replaced the section's headline claim on 2026-08-15, at an external
-referee's insistence, and he was right on the paper's own numbers: 52 of 105 is 49.5%, so
+**Variable 2 — the stage at which the seat stopped being contested.** The same 105 seats,
+assigned to the last stage at which more than one candidate was still on a ballot:
+
+| Last contested stage | seats | share |
+|---|--:|--:|
+| **The November general** — two or more candidates on the general-election ballot | **80** | **76.2%** |
+| **The primary** — a contested primary, then an unopposed general | **16** | **15.2%** |
+| **Candidate filing** — unopposed at every stage | **9** | **8.6%** |
+
+**The two cuts disagree about 71 of the 105 seats, and the disagreement is the finding.**
+Idaho's dominant party settles who will hold most seats months before November — but that is
+not the same as November being empty. Most Idaho voters did face a choice on the general
+ballot; in most cases it was a choice whose outcome was never in doubt. A seat can be
+uncompetitive without being uncontested, and the distinction matters precisely because the
+reform arguments in this literature attach to different stages.
+
+**How little of that contestation was competitive — because the second table counts ballot
+presence, not viability.** Of the **80** seats offering two or more candidates in November,
+only **8** were decided by fewer than ten points and **6** more by ten to twenty; **18** ran
+to twenty-to-forty, **43** to forty or more, and a further **5** offered no two-party choice
+at all despite carrying multiple candidates. So the honest summary has three layers rather
+than two: **105** seats, **80** with a choice on the ballot, **8** with a close one. That is a
+sharper statement of this paper's thesis than either table alone, and it is the reason the 80
+must not be read as a competitiveness figure — it measures *ballot access*, and only the
+margin column turns it into a statement about contests.
+
+*Both tables are new on 2026-08-16 and they replace a single table that carried the first
+one's numbers under the second one's definition.* That table was headed "the decision venue"
+and defined as "the last stage at which more than one candidate was still in contention",
+but it was computed from the Republican primary's shape and the general's winner and never
+looked at who else was on the November ballot. A second external referee caught the mismatch,
+and the data is emphatic: of the **38** seats the old table assigned to candidate filing,
+**35 faced an opponent in November**, **32** of them a major-party opponent, and **3** were
+decided by a margin under ten points. Calling those "decided once the filing period closed"
+was wrong, and it is withdrawn rather than softened. *(The same referee suspected the
+six no-Republican seats had the mirror-image problem — that a contested Democratic
+nomination might sit behind them. Measured, they do not: all six drew a **sole** Democratic
+filer and all six were unopposed in November, so filing genuinely did settle them. That row
+survives the objection.)*
+
+*The first table's counts are unchanged, and its own history is worth keeping.* It replaced
+the section's headline claim on 2026-08-15 at an earlier referee's insistence, and he was
+right on the paper's own numbers: 52 of 105 is 49.5%, so
 "the closed primary resolves the great majority of seats" was contradicted by the counts
-printed three paragraphs below it. The referee's own decomposition put all fifteen
-Democratic seats in the November column; six of them had no Republican filing at all, so
-they were settled at filing too, and the count that genuinely turned on the general is
-nine. The four-way cut is both more accurate than the referee's and sharper than what it
-replaces, and it is now the paper's principal finding rather than a qualification buried
-in the middle of a section.*
+printed three paragraphs below it.
+His decomposition put all fifteen Democratic seats in the November column; six had no
+Republican filing at all, so the count that genuinely turned on the general is nine. What
+neither he nor this paper noticed until the following day was that the corrected table was
+still answering a question the surrounding prose was not asking.
 
 Three facts describe the primary electorate itself.
 
@@ -842,8 +899,9 @@ changed the second of those was put to the voters and defeated.*
 ## Related work
 
 This paper documents, with unusually rich individual-level data, mechanisms that
-are largely established; its contribution is the measurement and the party-neutral
-age result, not the discovery of the mechanisms. It sits in these literatures:
+are largely established; its contribution is the measurement, the senior-share parity
+between the two parties, and the separation of nomination stage from contestation stage —
+not the discovery of the mechanisms. It sits in these literatures:
 
 - **The one-party primary as the real election.** V.O. Key, *Southern Politics in
   State and Nation* (1949) — in a one-party polity the dominant party's primary is

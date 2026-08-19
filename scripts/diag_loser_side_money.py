@@ -26,16 +26,14 @@ party backfill), so like diag_ie_vs_margin it is not standalone from a raw publi
 """
 import duckdb
 
-from cross_state_common import region_states
+from cross_state_common import district_cycle_competitiveness, region_states
 
 STATES = region_states()
 
 
-def band(m):
-    if m < 5: return "Tossup"
-    if m < 10: return "Lean"
-    if m < 20: return "Likely"
-    return "Solid"
+# The private band() this file used to carry is gone (2026-08-16). It existed only because
+# the shared helper returned abs(), and §J needs the SIGN to tell favored from longshot;
+# district_cycle_competitiveness keeps the sign, so there is nothing left to fork.
 
 
 def load_house_inflow():
@@ -44,24 +42,23 @@ def load_house_inflow():
     rows = ic.execute("""
         SELECT recipient_state st,
                'cd' || LPAD(CAST(TRY_CAST(recipient_district AS INTEGER) AS VARCHAR), 2, '0') cd,
+               election_cycle cyc,
                cmte_id,
                SUM(contribution_amount) amt
         FROM inflow_contributions
         WHERE recipient_office='H' AND election_cycle>=2022 AND contribution_amount>0
           AND TRY_CAST(recipient_district AS INTEGER) IS NOT NULL
-        GROUP BY 1, 2, 3
+        GROUP BY 1, 2, 3, 4
     """).fetchall()
     ic.close()
     return rows
 
 
-def district_favored(con):
-    """{cd##: signed Democratic margin} — latest forecast row per district."""
-    return {cd: float(m) for cd, m in con.execute(
-        "WITH r AS (SELECT district_id, predicted_margin, ROW_NUMBER() OVER "
-        "(PARTITION BY district_id ORDER BY as_of_date DESC) rn FROM forecast_predictions "
-        "WHERE party='Democratic' AND district_id LIKE 'cd%') "
-        "SELECT district_id, predicted_margin FROM r WHERE rn=1").fetchall()}
+# district_favored() is REMOVED (2026-08-16). It read the 2026 forecast and applied it to
+# 2022-2026 money, so a district that was close in 2024 and safe now was scored safe for its
+# 2024 dollars -- and, worse here than elsewhere, its FAVORED SIDE was taken from the 2026
+# forecast too, so "longshot money" could be measured against the wrong party. The
+# cycle-specific map supplies both the band and the signed margin.
 
 
 def committee_party(con):
@@ -81,22 +78,24 @@ def committee_party(con):
 
 def main():
     inflow = load_house_inflow()
+    allcomp = district_cycle_competitiveness()
     for ST, f in STATES:
         con = duckdb.connect(f, read_only=True)
-        comp = district_favored(con)
+        comp = {(cyc, cd): v for (st, cyc, cd), v in allcomp.items()
+                if st == ST and v.margin is not None}
         cmap, conflicts = committee_party(con)
         con.close()
 
         rows = [r for r in inflow if r[0] == ST]
-        tot_all = sum(float(r[3]) for r in rows)
+        tot_all = sum(float(r[4]) for r in rows)
         print(f"\n{'='*72}\n{ST} — U.S. House inflow, 2022-2026")
         if not cmap:
             print(f"  total House inflow ${tot_all/1e6:.1f}M — SKIPPED: no committee->party "
                   f"map in candidate_finance (needs a {ST} cm/cn backfill).")
             continue
 
-        matched = sum(float(r[3]) for r in rows if r[2] in cmap)
-        in_comp = sum(float(r[3]) for r in rows if r[1] in comp)
+        matched = sum(float(r[4]) for r in rows if r[3] in cmap)
+        in_comp = sum(float(r[4]) for r in rows if (int(r[2]), r[1]) in comp)
         print(f"  total House inflow ${tot_all/1e6:8.1f}M")
         print(f"  in a forecast district: ${in_comp/1e6:8.1f}M ({in_comp/tot_all*100:.1f}%)")
         print(f"  cmte->party resolvable: ${matched/1e6:8.1f}M ({matched/tot_all*100:.1f}%)  "
@@ -105,11 +104,12 @@ def main():
         favored = lambda m: "Democratic" if m > 0 else "Republican"
         bands = {b: {"fav": 0.0, "long": 0.0, "unres": 0.0, "dists": set()}
                  for b in ["Tossup", "Lean", "Likely", "Solid"]}
-        for _st, cd, cmte, amt in rows:
-            if cd not in comp:
+        for _st, cd, cyc, cmte, amt in rows:
+            cell = comp.get((int(cyc), cd))
+            if cell is None:
                 continue
-            m = comp[cd]; b = band(abs(m)); amt = float(amt)
-            bands[b]["dists"].add(cd)
+            m = cell.margin; b = cell.band; amt = float(amt)
+            bands[b]["dists"].add((int(cyc), cd))
             rp = cmap.get(cmte)
             if rp is None:
                 bands[b]["unres"] += amt

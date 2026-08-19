@@ -39,7 +39,8 @@ top-heavy: its top one percent of donors supply **47.5%** of its federal dollars
 **0.848** down to **0.775**. Idaho, the smallest and reddest of the four, is the most retail on
 almost every measure, including a **29.0%** share of dollars from gifts under $200 against New
 York's **13.8%** — the exception is the ≥$5,000 share, where Washington is marginally lower
-(**20.0%** against Idaho's **20.1%**) — so retail-versus-whale structure is not a partisan property. Washington has the
+(**20.0%** against Idaho's **20.1%**) — so across these four cases donor concentration does
+not align with state partisanship. Washington has the
 broadest donor participation relative to population. Nearly a third of Idaho's donor dollars,
 **31.7%**, come from donors reporting their occupation as retired, against **11.8%** in New
 York, and each state carries a distinct sector signature. Two methodological points are
@@ -128,9 +129,16 @@ Big Tech (WA), Wall Street (NY), Energy/Industrial (TX), MLM/timber (ID).**
   and WA. New York's federal money is concentrated at the top; **Idaho's is the most
   broad-based of the four** on the small-gift and concentration measures, though Washington
   edges it on the ≥$5,000 share (20.0% against 20.1%), and it does so
-  despite being deep-red — retail-vs-whale structure is not a partisan property. The two
+  despite being deep-red — so in these four cases retail-vs-whale structure does not align
+  monotonically with partisanship. The two
   big-dollar states (NY, TX) are the most top-heavy; the two small-population states (WA
-  relative to its dollars, ID absolutely) are the most retail.
+  relative to its dollars, ID absolutely) are the most retail. **This is four purposively
+  chosen states, not a sample.** It is enough to defeat the intuitive prediction that redder
+  means more retail *as a general rule*, because a single deep-red state at the retail pole
+  does that. It is not enough to establish that partisanship has no relationship to donor
+  concentration across states, and the paper does not claim it. The competing explanation
+  the four cases actually suggest — that concentration tracks the structure of a state's
+  economy — is a hypothesis for a fifty-state test, not a result of this one.
 - **Strongest objection.** The Gini of any voluntary-giving distribution is mechanically
   high everywhere (all four exceed 0.77), so the *level* is not itself pathological — only
   the *gap* between states is informative. Idaho's low concentration is partly a size effect:
@@ -148,15 +156,22 @@ Big Tech (WA), Wall Street (NY), Energy/Industrial (TX), MLM/timber (ID).**
   objection cannot reach, which is the reason to report both kinds of cut rather than only the
   concentration statistics.
 
-### 2. Participation is broadest, per capita, in Washington
+### 2. Distinct donor keys per resident are highest in Washington
 - **Defensible claim.** New York and Texas raise ~3× Washington's federal dollars in
-  absolute terms, but Washington has the widest donor *participation* relative to its size:
-  **361,818** donors in a state of **7.82M** (**4.6%**) versus NY **671,488**/**19.85M**
-  (**3.4%**), TX **836,784**/**30.19M** (**2.8%**), and ID **54,155**/**1.93M** (**2.8%**).
+  absolute terms, but Washington carries the most **distinct donor keys per resident over the
+  2018–2026 window**: **361,818** keys in a state of **7.82M** residents (**4.6%**) versus NY
+  **671,488**/**19.85M** (**3.4%**), TX **836,784**/**30.19M** (**2.8%**), and ID
+  **54,155**/**1.93M** (**2.8%**).
   Fewer dollars, more givers. Texas and Idaho land level with each other — small-population
   is not the same as disproportionately participatory — while WA remains the standout, **two-thirds again**
   more participatory than either (4.6% against 2.8%; the "a third again" an earlier version
   gave is the WA-to-NY comparison, not the WA-to-TX/ID one this sentence makes).
+- **Read that as a ratio, not a participation rate.** *(Relabelled 2026-08-16.)* The numerator
+  is donor **keys** accumulated over five cycles, not people in one; the denominator is total
+  residents including children and non-citizens. So **4.6% is not "4.6% of eligible adults
+  donated"** — it is higher than the per-cycle share of people and lower than the share of
+  eligible adults, and the two errors do not cancel. The cross-state *ordering* is what this
+  finding rests on, and it is robust because the same construction is applied to all four.
 - **The denominators, stated rather than assumed.** Total resident population, ACS 2020–2024
   5-year (table B01003), pinned to `docs/reference/state_population_acs2024.csv` by
   `scripts/acs_state_population.py` — the same ACS release the series' CVAP benchmark uses.
@@ -217,26 +232,27 @@ Big Tech (WA), Wall Street (NY), Energy/Industrial (TX), MLM/timber (ID).**
 
 *Computed in `scripts/cross_state_fec_tests.py`. Committee master: 44,746 committees.*
 
-> **Two method caveats on this block, both corrected 2026-08-09 after an adversarial pass.**
+> **Two method defects were disclosed here on 2026-08-09 and both are now REPAIRED
+> (2026-08-16) rather than merely disclosed.** The record is kept because the paper shipped
+> for a week knowing §B ran on a construction its own abstract calls invalid.
 >
-> **The destination split in Test B resolves recipient state by the committee's REGISTRATION
-> state (`cmte_st`), not by the candidate's office state.** That is the resolution the
-> abstract above calls invalid, and for the reason it gives — a Washington Senate candidate
-> whose committee registers in Virginia is scored out-of-state. The office-state resolution
-> the abstract describes is what §G's matrix uses (`diag_cross_state_money_matrix.py`, with a
-> `dsgn IN ('P','A')` restriction to authorized committees); Test B predates it and was never
-> re-run through it. Bounding the divergence against §G's office-state outflow: in-state
-> congressional dollars come out WA $86.6M against $87.0M (−0.5%), ID $3.66M against $3.66M
-> (0%), NY $208.7M against $228.1M (−8.5%), TX $310.7M against $284.8M (+9.1%) — single-digit
-> in aggregate, but undisclosed until now, and every §B conclusion rides on it.
+> **Recipient state now comes from the candidate's OFFICE state.** Test B resolved it from
+> the committee's registration address (`cmte_st`) — a Washington Senate candidate whose
+> committee registers in Virginia was scored out-of-state. §G had moved to the office-state
+> resolution (`diag_cross_state_money_matrix.py`, `dsgn IN ('P','A')`) and §B was left
+> behind; the divergence was bounded at the time (in-state congressional dollars WA $86.6M
+> against $87.0M, ID $3.66M against $3.66M, NY $208.7M against $228.1M, TX $310.7M against
+> $284.8M) and disclosed as single-digit, which was true and was not a reason to publish it.
+> Both sections now read the **same** resolved committee master, so the two cannot fork
+> again. §B's table and one of its conclusions changed; see the note there.
 >
-> **This block used to claim "100% of recipient dollars matched in all four states."** It is
-> withdrawn because it could not have been otherwise: the destination `CASE` has no branch
-> for an unmatched committee, so a `LEFT JOIN` miss falls through to `PAC/party/other`. There
-> is no residual bucket that could ever be non-empty, which makes the statement true of any
-> input and informative about none of it. Whatever share of committees fails to match is
-> currently inside the 51–62% `PAC/party/other` cell, which is the cell §B's central
-> conclusion rests on.
+> **The unmatched residual is now measured instead of hidden.** The block claimed "100% of
+> recipient dollars matched in all four states", which could not have been otherwise: the
+> destination `CASE` ended in `ELSE 'PAC/party/other'`, so a `LEFT JOIN` miss fell through to
+> the largest cell and no residual could ever be non-empty. There is now an explicit
+> `Unmatched committee` bucket, and it holds **$0.13M of $4.73B (0.003%)**. The old claim was
+> approximately correct; the point is that nothing about the old construction could have told
+> anyone that.
 
 > **Idaho scope (2026-07-19, completed).** All tests A–I and the flow matrix G are now
 > four-state. The analysis scripts were made **state-agnostic**: the region is discovered by
@@ -279,38 +295,64 @@ Top-1% donor dollar share, by cycle:
 
 ### B. Where does each state's money go?
 
-Destination of residents' federal dollars (recipient committee → state/office via the FEC
-committee master):
+Destination of residents' federal dollars. Recipient state is the connected candidate's
+**office state**, resolved committee → candidate → `cn.txt CAND_OFFICE_ST` and restricted to
+**authorized** committees (`dsgn IN ('P','A')`) — the same construction §G uses:
 
 | Destination | WA | NY | TX | ID |
 |---|---:|---:|---:|---:|
-| **In-state Congress** | 13.4% | 10.1% | 16.0% | *4.8%* |
-| Out-of-state Congress | 24.1% | 29.5% | 19.4% | 25.5% |
-| Presidential | 11.0% | 7.0% | 6.5% | 7.8% |
-| PAC / party / other | 51.5% | 53.4% | 58.1% | **61.9%** |
+| **In-state Congress** | 13.5% | 11.0% | 14.7% | *4.8%* |
+| Out-of-state Congress | 17.3% | 21.5% | 12.4% | 17.6% |
+| Presidential (authorized committee) | 2.5% | 1.9% | 2.0% | 1.2% |
+| PAC / party / JFC / other | 66.7% | 65.5% | 70.9% | **76.5%** |
+| *Unmatched committee* | *0.01%* | *0.00%* | *0.00%* | *0.00%* |
+
+> **REBUILT 2026-08-16, and the previous version of this table should not be cited.** It
+> resolved recipient state from the committee's own **registration address** (`cmte_st`) —
+> the construction this paper's abstract calls invalid, and for the reason it gives: a
+> Washington Senate candidate whose committee registers in Virginia was scored out-of-state.
+> §G moved to the office-state resolution and §B was simply left behind. It also inferred
+> office from the candidate-id prefix rather than from `cn.txt`, and applied no `dsgn`
+> restriction, so leadership PACs and joint-fundraising committees — one connected candidate,
+> raising nationally — were attributed to that candidate's state.
+>
+> **The retired "100% of recipient dollars matched" claim is replaced by a measurement.** The
+> old `CASE` ended in `ELSE 'PAC/party/other'`, so an unmatched committee fell silently into
+> the largest cell; the statement was therefore true of any input and informative about none.
+> Measured now: **$0.13M of $4.73B, 0.003%**, across ten committee ids in three states. The
+> old claim was approximately right and entirely unfalsifiable, which are different things.
+>
+> **Two rows moved a lot, and the reason is the `dsgn` restriction, not the state fix.**
+> Presidential falls from 6.5–11.0% to 1.2–2.5% and PAC/party/JFC rises correspondingly,
+> because "Presidential" now means the authorized presidential campaign committee only.
+> Presidential JFC money — which funds the nominee *and* the party, and which the caveat below
+> always flagged as blurred — now sits in the residual bucket where its ambiguity is visible
+> rather than resolved by assumption.
 
 - **Defensible claim.** Residents fund **their own congressional delegation least of all** —
-  just 10–16% of their federal dollars in WA/NY/TX, and a startling **4.8% in Idaho**. They
-  give **1.2× to 5.3× as much to *out-of-state* congressional races** as to their own
-  delegation (WA 1.8×, NY 2.9×, TX 1.2×, ID 5.3×) — an earlier "2×–5×" excluded Texas and
-  Washington, both of which fall below its floor — and
-  the majority (51–62%) flows to **national party committees and joint-fundraising vehicles.**
-  Washington's single largest federal destination is the Democratic presidential JFC (~$61M),
-  about **70%** of *all* in-state congressional giving combined (~$87M); other top destinations are
-  the DNC, DCCC, DSCC, RNC, and the Trump JFCs. **Idaho is the extreme of nationalization:**
-  its in/out-of-state Congress ratio is **0.19** (it sends >5× more to other states'
-  congressional races than to its own delegation) and 62% goes to national vehicles — a safe,
-  small state with few competitive home races gives almost entirely to the national contest.
-  Texans are the most "local" (ratio 0.82); New Yorkers 0.34; Idaho the least local of all.
-  This is the **donor-side counterpart to the nationalization-of-money literature**: even
-  constituents' own money is overwhelmingly aimed at national / out-of-state politics rather
-  than their representatives — and the smaller and safer the state, the more so.
+  11–15% of their federal dollars in WA/NY/TX, and a startling **4.8% in Idaho** — while
+  roughly two-thirds to three-quarters (**65.5–76.5%**) flows to **national party committees
+  and joint-fundraising vehicles.** Washington's single largest federal destination is the
+  Democratic presidential JFC (~$61M), about **70%** of *all* in-state congressional giving
+  combined (~$87M); other top destinations are the DNC, DCCC, DSCC, RNC, and the Trump JFCs.
+  **Idaho is the extreme of nationalization:** its in/out-of-state Congress ratio is **0.27**
+  — it sends **3.7×** more to other states' congressional races than to its own delegation —
+  and 76.5% goes to national vehicles: a safe, small state with few competitive home races
+  gives almost entirely to the national contest. This is the **donor-side counterpart to the
+  nationalization-of-money literature**: even constituents' own money is overwhelmingly aimed
+  at national politics rather than at their own representatives.
+- **One finding reversed on the corrected construction, and it is the interesting one.**
+  Under the old committee-registration resolution every state sent more to out-of-state
+  congressional races than to its own delegation. On office state, **Texas does not**: its
+  in/out ratio is **1.18**, so Texans give *more* to their own delegation than to everyone
+  else's. Washington sits at **0.78**, New York **0.51**, Idaho **0.27**. The ordering — TX
+  most local, then WA, NY, ID least — is unchanged; the *sign* for Texas is not. Any earlier
+  statement that residents everywhere give more out-of-state than in-state is withdrawn.
 - **Strongest objection / caveat.** This remains **outflow** (where residents *send* money),
-  not money flowing *into* each state's races. The majority "PAC/party/other" bucket is
-  genuine national party + JFC money, but **JFCs blur the boundaries** — a presidential JFC
-  funds the nominee *and* the party — so the "Presidential" row understates true
-  presidential+national giving, and the splits among national vehicles are soft. The in- vs.
-  out-of-state *Congress* split is the robust part (direct candidate-committee gifts).
+  not money flowing *into* each state's races. The dominant PAC/party/JFC bucket is genuine
+  national money, but its internal splits are soft, and JFCs in particular fund a nominee and
+  a party at once. The in- vs. out-of-state *Congress* split is the robust part — direct
+  gifts to authorized candidate committees, resolved by office state.
 
 ### C. Top donors, top recipients, and the cross-state magnets
 
@@ -351,32 +393,43 @@ cleanly both ways (Idaho State Democratic Party $4.3M *and* RNC $3.6M / Trump JF
 ### D. Does money chase competitive races? (money × competitiveness)
 
 *Computed in `scripts/diag_money_vs_competitiveness.py`, joining residents' U.S. House
-contributions to each district's competitiveness band (this project's own forecast margin:
-Tossup <5 / Lean 5–10 / Likely 10–20 / Solid ≥20). **Full four-state run:** WA/NY/TX/ID donors
-→ WA/NY/TX/ID House districts, 2022–2026 (post-redistricting), 76 districts / $298M. (An earlier
-version was a partial WA+TX run; the state-agnostic refactor now covers all four.)*
+contributions to the competitiveness band of **the cycle each contribution was made in**
+(Tossup <5 / Lean 5–10 / Likely 10–20 / Solid ≥20, on the observed two-party margin for 2022
+and 2024 and the locked forecast for 2026). **Full four-state run:** WA/NY/TX/ID donors
+→ WA/NY/TX/ID House districts, 2022–2026 (post-redistricting), **210 district-cycles /
+$288.2M**.*
 
-| Band | # districts | % of districts | $ to band | $ / district | % of $ | cross-state $ |
+| Band | # district-cycles | % of d-c | $ to band | $ / district-cycle | % of $ | cross-state $ |
 |---|--:|--:|--:|--:|--:|--:|
-| Tossup (<5) | 4 | 5.3% | $27.6M | **$6.90M** | 9.3% | $2.4M |
-| Lean (5–10) | 4 | 5.3% | $27.9M | **$6.97M** | 9.4% | $1.3M |
-| Likely (10–20) | 32 | 42.1% | $123.6M | $3.86M | 41.5% | $9.6M |
-| Solid (≥20) | 36 | 47.4% | $118.9M | **$3.30M** | 39.9% | $8.4M |
+| Tossup (<5) | 15 | 7.1% | $52.2M | **$3.48M** | 18.1% | $3.6M |
+| Lean (5–10) | 13 | 6.2% | $35.5M | **$2.73M** | 12.3% | $2.2M |
+| Likely (10–20) | 47 | 22.3% | $55.8M | $1.19M | 19.4% | $4.5M |
+| Solid (≥20) | 136 | 64.5% | $144.7M | **$1.06M** | 50.2% | $10.4M |
 
-- **Defensible claim.** With all four states in, donor money chases competitiveness **more
-  clearly than the earlier partial run suggested but still modestly**: Tossup/Lean districts
-  pull ~$6.9M each vs $3.3M in Solid — a **~2.1× premium** (up from the WA+TX-only ~1.4×, once
-  New York's large donor base is included). Yet **81% of all dollars still flow to safe
-  (Likely + Solid) districts**, because ~90% of districts are safe. In-state House money is
-  dominated by support for (mostly safe-seat) candidates, not strategic targeting of the
-  marginal race — the donor-side echo of "money follows the scoreboard." **Cross-state House
-  giving is small (~$21.7M of $298M, ~7%)**: residents overwhelmingly fund their *own* state's
-  House candidates. Idaho contributes only to the safe bands (cd02 R+16 → Likely, cd01 R+35 →
-  Solid; no ID tossup), reinforcing that safe-state in-district money is a safe-seat phenomenon.
-- **Caveats.** Donor-side *outflow*, not inflow (Section E is the inflow counterpart). The
-  competitiveness bands are this project's 2026 forecast on current districts. Strategic
-  targeting shows up more in PAC/JFC and out-of-state money (Test B's large national-vehicle
-  bucket + the inflow side) than in this in-state-resident slice.
+<sub>A further **$9.8M (3.3%)** falls outside these bands — district-cycles with no
+major-party choice or no published canvass — and is reported rather than absorbed into Solid.
+Same treatment as §E.</sub>
+
+- **Defensible claim.** Donor money chases competitiveness, and on the cycle-specific basis it
+  does so **more sharply than the retired 2026-label run suggested**: Tossup district-cycles
+  pull **$3.48M** each and Lean **$2.73M**, against **$1.06M** in Solid — a **3.3×**
+  Tossup-vs-Solid premium, and **2.9×** comparing competitive to safe as blocks, where the
+  retired basis reported ~2.1×. Yet **69.6% of all dollars still flow to safe (Likely + Solid)
+  district-cycles**, because **86.7%** of district-cycles are safe. In-state House money is
+  still dominated by support for (mostly safe-seat) candidates rather than strategic targeting
+  of the marginal race — the donor-side echo of "money follows the scoreboard."
+  **Cross-state House giving is small ($20.8M of $288.2M, 7.2%)**: residents overwhelmingly
+  fund their *own* state's House candidates. Idaho contributes only to the safe bands,
+  reinforcing that safe-state in-district money is a safe-seat phenomenon.
+- **Caveats.** Donor-side *outflow*, not inflow (Section E is the inflow counterpart).
+  Strategic targeting shows up more in PAC/JFC and out-of-state money (Test B's large
+  national-vehicle bucket + the inflow side) than in this in-state-resident slice.
+- **Basis note, 2026-08-16.** This table previously banded all 2022–2026 money by the project's
+  **2026** forecast, which answers "did districts forecast competitive in 2026 receive more
+  money?" rather than the question in the heading. It also keyed on the district rather than
+  the district-cycle, pooling three cycles of money into one row. Both are corrected; the
+  premium rose rather than fell, because the 2026 labels were miscounting districts that were
+  genuinely competitive in 2022 or 2024 as safe.
 
 ### E. Inflow side — does money chase competitive races? (WA+NY+TX+ID House & Senate)
 
@@ -385,27 +438,70 @@ $1.21B**, all-state donors → WA/NY/TX/ID federal candidates — ID added 2026-
 `scripts/load_fec_inflow_bulk.py` in minutes; the API path would have taken days), joined to
 competitiveness. `scripts/diag_inflow_vs_competitiveness.py`, now four-state.*
 
-**U.S. House, 2022–2026 — $488M across 76 districts:**
+**U.S. House, 2022–2026 — $470.7M across 210 district-cycles.** Each contribution is banded
+by **its own cycle's** competitiveness: the observed two-party margin for 2022 and 2024, the
+locked pre-election forecast for 2026. The unit is the district-*cycle*, so a district
+appearing in all three windows contributes three observations:
 
-| Band | # dists | % dists | $ in | $ / district | % of $ | out-of-state share |
+| Band | # district-cycles | % of d-c | $ in | $ / district-cycle | % of $ | out-of-state share |
 |---|--:|--:|--:|--:|--:|--:|
-| Tossup (<5) | 4 | 5.3% | $47.2M | **$11.81M** | 9.7% | 45.0% |
-| Lean (5–10) | 4 | 5.3% | $42.3M | **$10.59M** | 8.7% | 36.1% |
-| Likely (10–20) | 32 | 42.1% | $192.3M | $6.01M | 39.4% | 40.0% |
-| Solid (≥20) | 36 | 47.4% | $206.1M | $5.73M | 42.2% | 44.2% |
+| Tossup (<5) | 15 | 7.1% | $83.3M | **$5.55M** | 17.7% | 40.8% |
+| Lean (5–10) | 13 | 6.2% | $51.7M | **$3.97M** | 11.0% | 34.6% |
+| Likely (10–20) | 47 | 22.3% | $89.4M | $1.90M | 19.0% | 41.2% |
+| Solid (≥20) | 135 | 64.5% | $246.4M | $1.83M | 52.3% | 43.6% |
+
+<sub>A further **$17.3M (3.6%)** of House inflow falls outside these bands and is excluded
+from the table rather than absorbed into it: district-cycles whose general offered no
+major-party choice (a same-party general has no two-party margin — Washington's top-two
+produces them routinely), and those with no published canvass (Texas publishes no precinct
+returns for uncontested races). Reported because a silent residual reads as coverage it does
+not have. *(It was $18.4M / 3.8% until 2026-08-16, when Idaho's two 2022 district-cycles moved
+out of it — their margins are now resolved from the Secretary of State's canvass rather than
+left blank in the pin. Both are Solid.)*</sub>
+
+> **REBUILT 2026-08-16, and the headline moved. Do not cite the previous table.** Every cycle's
+> money used to be banded by the project's **2026** forecast. That answers "did districts
+> *forecast* competitive in 2026 receive more money across 2022–2026?" — a different question
+> from the one this section asks, and a worse one, because a district can be safe in 2022,
+> close in 2024 and safe again in 2026. The retired table also treated the district as the
+> unit, which pools three cycles of money into one row and makes "$ per district" a quantity
+> no race ever experienced.
+>
+> The correction **strengthens** the finding rather than dissolving it, which is worth saying
+> because the round that made it expected the opposite: the competitiveness premium rises from
+> the retired **~2×** to **2.6×**. The 2026 labels were attenuating it — districts that were
+> genuinely competitive in 2022 or 2024 and are safe now were being counted as safe.
 
 - **Defensible claims:**
-  1. **The competitiveness premium is real and ~2×.** Tossup ($11.8M/district) and Lean
-     ($10.6M) districts pull roughly double the per-district inflow of safe seats (~$6M) —
-     money *does* chase the marginal race, far more clearly than the donor-side ~2.1× (Section D).
-  2. **But safe seats still capture ~82% of the money** (Likely+Solid), because they're ~89% of
-     districts. Likely and Solid draw about the *same* per district (~$6M): once a seat is safe,
-     *how* safe barely changes the money — the jump is **between** competitive and safe, not
-     within safe.
-  3. **~36–45% of all inflow is out-of-state, roughly uniform across every band.**
+  1. **The competitiveness premium is real and ~2.6×.** Tossup ($5.55M per district-cycle) and
+     Lean ($3.97M) pull about two and a half times the inflow of a safe district-cycle
+     (~$1.83–1.90M) — money *does* chase the marginal race, and more sharply than the
+     donor-side figure in Section D.
+
+     **It is not driven by one cycle, and the cycles are not equal.** Computed within each
+     cycle separately: **2.66×** in 2022, **3.28×** in 2024, **1.46×** in 2026. The direction
+     holds in all three, which is the robustness point. But 2026 is much the weakest, and 2026
+     is the one cycle banded on a **forecast** rather than an outcome, and the only one whose
+     money is still accruing. On the two **observed** cycles alone the premium is **2.94×**.
+     The pooled 2.6× is therefore a conservative figure, and the honest reading is that a
+     forecast band is a weaker instrument than a result — which is the same lesson the rebuild
+     of this section taught in the first place.
+
+     ⚠ **Read the premium as a description, not an estimate.** The unit is the district-cycle,
+     so a district appearing in all three windows contributes three observations that are
+     plainly not independent of one another — the same seat, largely the same donors, often the
+     same incumbent. That is fine for the ratio of totals reported here, which is an accounting
+     statement about where money went. It does **not** support a standard error, a significance
+     claim, or any language about the premium being "estimated"; none is offered.
+  2. **But safe seats still capture 71.3% of the money** (Likely+Solid), because they are
+     **86.7%** of district-cycles. Likely and Solid draw almost exactly the same per
+     district-cycle (**$1.90M** against **$1.83M**): once a seat is safe, *how* safe barely
+     changes the money — the jump is **between** competitive and safe, not within safe. This
+     is the claim the rebuild left most intact.
+  3. **34.6–43.6% of all inflow is out-of-state, and the range is narrow across every band.**
      Nationalization is **pervasive, not battleground-specific** — roughly two-fifths of the
      money funding these House races comes from people who cannot vote in them, in safe and
-     tossup seats alike.
+     tossup seats alike. Notably the *safest* band is at the top of that range, not the bottom.
 
 **U.S. Senate, 2018–2026** (the model does not forecast US Senate; competitiveness via actual results):
 
@@ -416,9 +512,15 @@ competitiveness. `scripts/diag_inflow_vs_competitiveness.py`, now four-state.*
 | WA | $45.0M | 41.1% | safe-D — Murray / Cantwell |
 | **ID** | $6.6M | **85.8%** | safe-R — Crapo / Risch |
 
-- **Senate echoes the House, louder.** Competitive **TX** Senate races drew **$253M — ~5× safe
-  NY ($55M) or WA ($45M)**: at the statewide level, competition is the single biggest money
-  magnet. Yet out-of-state share is high *everywhere* (41–53% across WA, TX and NY; Idaho,
+- **Senate echoes the House, louder — descriptively.** Competitive **TX** Senate races drew
+  **$253M — ~5× safe NY ($55M) or WA ($45M)**. *(Wording narrowed 2026-08-16: this bullet used
+  to conclude "competition is the single biggest money magnet", which the comparison cannot
+  support. Texas differs from New York and Washington in population, incumbency, candidate
+  profile, national salience and the number of contested Senate cycles in the window, all at
+  once. What the four states show is that the competitive Senate contests here drew
+  dramatically more than the safe ones — a large descriptive gap with several candidate
+  explanations, not an isolated effect of competition.)* Yet out-of-state share is high
+  *everywhere* (41–53% across WA, TX and NY; Idaho,
   below, is higher still) and among those three is actually **highest in safe NY (53.5%)** —
   national donors fund high-profile safe senators (Schumer/Gillibrand) as
   readily as battlegrounds. Same lesson as the House: competition lifts the total, but the
@@ -428,9 +530,13 @@ competitiveness. `scripts/diag_inflow_vs_competitiveness.py`, now four-state.*
   Senate $6.6M) — ~1/20th of Texas — yet its **Senate money is 85.8% out-of-state, the highest
   of the four** (WA 41%, TX 45%, NY 53%), and its House inflow lands only in Likely/Solid (no ID
   tossup exists). A small, safe, deep-red state's candidate money is *overwhelmingly*
-  non-constituent: the "profile/incumbency pulls national money" mechanism operates at $6.6M
-  even harder than at $250M — Crapo and Risch are safe, so almost none of their money needs to
-  come from Idahoans. Nationalization is most extreme, not least, at the safe bottom.
+  non-constituent. The natural reading is that profile and incumbency pull national money
+  regardless of competition — Crapo and Risch are safe, so almost none of their money needs to
+  come from Idahoans — but that is an **interpretation of one state's share, not an identified
+  mechanism**: Idaho's small donor base alone would push its out-of-state share up even if
+  national donors behaved identically everywhere. What the number establishes is the
+  descriptive fact, which is striking on its own: nationalization is most extreme, not least,
+  at the safe bottom of the size distribution.
 
 - **Earmarks ARE attributed (verified — correcting an earlier caveat).** Conduit-routed
   (ActBlue/WinRed) money is **not** lost from these totals: FEC records each earmarked
@@ -439,233 +545,37 @@ competitiveness. `scripts/diag_inflow_vs_competitiveness.py`, now four-state.*
   captures it. The conduit-side `24T` records ($150M) are the *same money* seen from the conduit
   and are correctly excluded to avoid double-counting (`scripts/diag_earmark_inspect.py`).
 
-- **Caveats.** House competitiveness = 2026 forecast bands on current districts; Senate banded by
-  actual two-party result. WA contributes no congressional Tossups in the 2026 map (its
-  competitive seats land in Lean/Likely). State-legislative money still excluded (federal only).
+- **Caveats.** House competitiveness is banded **per cycle on its own basis** — observed
+  two-party results for 2022 and 2024, the locked 2026 forecast for 2026 — with the
+  district-cycle as the unit; Senate is banded by actual two-party result throughout. The 2026
+  cycle is therefore the only one resting on a forecast, and its premium is the weakest of the
+  three, as the bullet above states. WA contributes no congressional Tossups in the 2026 map
+  (its competitive seats land in Lean/Likely). State-legislative money is excluded here — it
+  moved to `cross-state-state-money-note.md` on 2026-08-16 — so this paper is federal only.
+  *(This caveat read "House competitiveness = 2026 forecast bands on current districts" until
+  2026-08-17, describing the table the 2026-08-16 rebuild retired.)*
 
-### F. The individual layer — who votes, who gives, and whether the donor skew is real (WA/NY/ID: donor skew F5 + giving→turnout F6)
+### F. The individual layer — moved to the donor-class companion
 
-*Computed in `scripts/diag_wa_individual_findings.py` against `data/wa_statewide.duckdb`
-(`voter_scores`, `voter_donor_affiliation`) with `data/wa_vrdb.duckdb` ATTACHed
-(`voters`, 5.51M; `voting_history`, 27.1M). WA is the one state here that needs **no
-external voter file** — it already has the registered roll, the vote history, and the
-person-level voter↔donor match. These refresh the democracy-insight gauntlet's figures on
-the current match (**314,974 voters**, 312,245 of them carrying a turnout score).*
+*Person-level representativeness, the donor-vs-electorate age and party skew, and the
+giving→turnout relation are analysed in
+[`donor-class-and-the-electorate.md`](donor-class-and-the-electorate.md), which maintains
+**separate federal and state panels** and is the paper those claims belong to.*
 
-*⚠ **Panel and specification note (revised 2026-07-27).** Two corrections apply to the
-F2–F4 figures below, and both are folded in.*
+*This section is REMOVED as of 2026-08-16 rather than revised, and the reason is a design
+contradiction it could not resolve in place.* This paper's substantive basis is federal
+individual contributions, but §F began from the **pooled** WA voter↔donor match — FEC money
+and PDC money in one donor total — which inflates measured concentration, as the section
+itself said before presenting pooled figures anyway. It then carried a second contradiction:
+its preamble stated that every figure below had been recomputed on the full-first-name
+specification, while §F4 stated that the pooled F1–F3 figures were the all-tier match at
+93.0% precision. Both cannot be true. Maintaining a person-level layer on a third panel
+specification, inside a paper whose other nineteen sections are federal aggregate money, is
+a standing source of drift for no analytic gain the companion does not already deliver.
 
-*First, these are computed on a **pooled** voter↔donor match — WA's
-`individual_contributions` holds federal FEC money ($646.2M) *and* state PDC filings
-($394.6M), so one person's federal and state giving stacks into a single donor total.
-Pooling inflates measured concentration. `docs/donor-class-and-the-electorate.md` reports
-WA as two separate panels — **federal** 147,745 donors / $346.3M / top-1% **41.2%** / Gini
-**0.815**; **state (PDC)** 217,114 / $122.5M / **43.5%** / **0.821** — and those supersede
-the pooled numbers here for any donor-level claim.*
-
-*Second, the match specification changed on 2026-07-27 to the **full-first-name key alone**,
-after a stratified blinded rating of 480 records found precision is a property of the match
-key: 100% on that key (120/120, Wilson [96.9–100]) against 47.9–71.7% on the three
-initial-based keys, which carried every household false merge. **Every figure below has been
-recomputed on the new specification.** WA pooled moved 382,408 → **314,974** voters
-($574.21M → **$468.85M**). The direction of every F2–F4 finding is unchanged and most
-strengthen. Rebuild with `scripts/match_wa_voters_to_donors.py --source {fec,state,all}
---tiers full`.*
-
-**F1 — The off-year electorate is old, and the young drop out, not down.**
-- **Defensible claim.** Within-cohort turnout and electorate composition both swing hard by
-  cycle type. Turnout of 18–29s **collapses 58.4% → 15.8%** (2024 presidential → off-year
-  generals), while 65+ falls only **88.3% → 61.3%**. As composition: 65+ are **28.5%** of the
-  2024 presidential electorate but **~39%** of the off-year electorate, while 18–29 fall from
-  **14.2% → 7.6%** — a senior-to-youth ratio that widens from ~2:1 to ~5:1 off-cycle. The
-  decision in odd-year local elections is made by a substantially older electorate than the
-  one that shows up for president.
-- **Strongest objection.** This is *voluntary* differential participation under WA's
-  all-mail, postage-paid, automatic-registration system — not disenfranchisement — and the
-  fix (move local races on-cycle) is institutional, which is itself evidence of a *responsive*
-  system, not a failing one. The within-cohort *rate* also uses a current-roll denominator
-  (survivorship-biased), so read the composition **shares** as the robust cut.
-- **Caveat.** VRDB vote history begins in 2021, so the presidential figure rests on 2024 alone
-  and the midterm on 2022 alone; only the off-year row averages three cycles (2021/2023/2025).
-
-**F2 — The donor age skew is genuine, *not* a matcher artifact (the white paper's open question, answered).**
-- **Defensible claim.** Matched donors over-represent the old and under-represent the young —
-  raw donor-share ÷ roll-share is **Silent 1.96×, Boomer 1.71×, Gen X 1.22×, Millennial
-  0.54×, Gen Z 0.09×**. *(Millennial and Gen Z read 0.59× and 0.17× here until 2026-07-27 —
-  stale, and self-contradictory with the "Gen Z 0.09→0.09×" later in this same bullet.)*
-  The white paper's strongest objection was that this is a *matcher*
-  artifact (the (last, first-initial, zip5) uniqueness guard over-selects older, rarer-named,
-  stable-address voters). Tested directly, **it is not**: the probability a voter is uniquely
-  matchable on that key is nearly flat across generations — **69.1% (Gen Z) to 73.3%
-  (Silent), a ~4-point spread** — so inverse-propensity re-weighting barely moves the ratios
-  (Silent 1.96→**1.91×**, Gen Z 0.09→**0.09×**). The age skew survives the correction; it is a
-  real property of who gives, not of who the matcher can find. (Person-level concentration on
-  this match: top-1% of matched donors = **46.6%** of matched dollars, top-10% = **79.3%**,
-  Gini **0.857**; geographically, **61.4%** of matched-donor dollars come from just two
-  Seattle-metro ZIP3s — 981xx 36.2% + 980xx 25.1%. All pooled-panel figures — see the note
-  above; on the federal panel the multipliers run Silent **2.67×** to Gen Z **0.04×**,
-  concentration top-1% **41.2%** / Gini **0.815**, and the two-ZIP3 share **63.5%**.)
-- **Strongest objection / residual bias.** The IPW corrects the *name-commonness* channel — the
-  matcher's actual uniqueness guard — but cannot correct the one channel it can't observe: a
-  donor whose address changed between giving and today fails the zip match, and mobility skews
-  young. That residual bias runs in the *same* direction as the raw skew (it deflates the young
-  donor share), so raw should be read as an **upper bound** on the true age skew — but the
-  mechanism the objection actually named (rare names → easier match for the old) explains
-  essentially none of it.
-
-**F3 — Money and votes stack on the same people (association only).**
-- **Defensible claim.** Among the 312,245 matched donors carrying a turnout score, **87.6% are
-  super-voters versus 50.9%** of non-donors (1.72×), and their mean turnout propensity is
-  **0.967 vs 0.749**. Financial voice and electoral voice concentrate on the same individuals
-  rather than offsetting. (Pooled panel; the split is essentially identical either way —
-  federal **88.0% vs 52.0%**, state **88.9% vs 51.5%**.)
-- **Strongest objection.** This is cross-sectional association, not a causal "giving makes you
-  vote" claim: donors are pre-selected for engagement (reverse causation is equally plausible),
-  and the matcher itself favors stable-address super-voters, so selection *and* reverse
-  causation both inflate the gap. The benign reading — donating as a participation *gateway* —
-  is fully live.
-
-**F4 — Robustness: concentration precision + match validation.**
-- **Bootstrap CIs on concentration** (`scripts/diag_donor_concentration_bootstrap.py`, B=1000).
-  The panels are full populations, not samples, so these are not sampling intervals: they
-  bound each estimate's **sensitivity to donor composition under resampling** — not linkage,
-  coverage or disclosure error — the same reading the donor paper gives its identical
-  construction. That sensitivity is small. Matched-donor **Gini 0.857**,
-  **top-1% 46.6%**, **top-10% 79.3%**; the inflow side (2024) is tighter
-  still (Gini 0.690 [0.688–0.692]). Re-bootstrapped per panel on the current specification: federal **Gini 0.815
-  [0.806–0.822]**, top-1% **41.2% [38.6–43.4]**; state **Gini 0.821 [0.806–0.838]**, top-1%
-  **43.5% [38.7–48.9]**. The concentration is a precise feature of the data, not an
-  artifact of which donors landed in the pool. (The proxy's over-merging biases concentration
-  *down*, so true figures are, if anything, slightly higher.)
-- **Match-precision validation** — superseded and now much stronger
-  (`scripts/diag_match_validation_stratified.py` + `scripts/score_match_validation.py`).
-  A **stratified blinded rating of 480 matched records** (20 per state × panel × tier, evidence
-  file carrying no stratum labels, scorer written before the verdicts) found that precision is
-  **a property of the match key**, not a single pooled number: the full-first-name key
-  `STRICT_ZIP5_FULL` measured **100.0%** (120/120, Wilson 95% CI 96.9–100) while the three
-  initial-based keys ran **47.9–71.7%**. Population-weighted across the panels, donor-weighted
-  precision is **93.0%**. Of 152 confirmed-false matches, **129 were household/relative merges
-  and every one of them sat on an initial-based key — none on the full-name key.** A blind re-rate of 150 of
-  the 480 by the same rater **reproduced all 75 full-name-key records** — test-retest, not
-  inter-rater reliability. This is why the papers' primary specification is the full-name key alone; the
-  pooled figures in F1–F3 above are the all-tier match and therefore carry the 93.0% weighted
-  precision, not 100%. *(An earlier version of this bullet reported an unadjudicated 150-match
-  sample — "87% full-first-name agreement, 13% namesake risk, CSV emitted for human review".
-  Those verdicts were never retained, so that pass cannot be re-derived; it is withdrawn in
-  favour of the above.)*
-
-**F5 — The donor age skew is cross-state and cross-partisan (NY + ID confirm WA), and the
-donor class is less unaffiliated than the electorate.**
-
-*Computed in `scripts/diag_cross_state_donor_representativeness.py` — the money-linked
-individual layer extended from WA to the two states that now have a voter file + a
-voter↔donor match (NY 558K, ID 41K; WA 315K). Generation is derived uniformly from birth year
-(WA/NY `birthdate`, ID `age` snapshot) so the states are comparable; `voter_scores` is unused
-(empty for NY/ID). Matched-donor share ÷ roll share per generation, RAW and inverse-propensity
-re-weighted by P(matchable | generation). TX excluded (no voter file). *(When first written,
-`voter_scores` was empty for NY/ID and the turnout-linked cuts were WA-only; that gap is now
-closed — see F6.)*
-
-| Generation | WA raw / rwt | NY raw / rwt | ID raw / rwt |
-|---|--:|--:|--:|
-| Silent | 1.96× / 1.91× | 1.50× / 1.45× | 2.08× / 2.03× |
-| Boomer | 1.71× / 1.70× | 1.65× / 1.63× | 1.71× / 1.68× |
-| Gen X | 1.22× / 1.24× | 1.21× / 1.23× | 0.96× / 1.00× |
-| Millennial | 0.54× / 0.54× | 0.58× / 0.59× | 0.46× / 0.47× |
-| Gen Z | 0.09× / 0.09× | 0.14× / 0.15× | 0.10× / 0.10× |
-
-> **Recomputed 2026-07-27.** This table and F6's had gone stale: the primary-specification
-> switch rebuilt all three pooled matches (NY 308,032 → 558,017, ID 47,762 → 41,136, WA
-> 382,408 → 314,974) and only the WA cells were refreshed. The figures above are what
-> `diag_cross_state_donor_representativeness.py` prints today. The correction *widens* the
-> cross-state spread, so the claim below is weaker than the one it replaces — see the
-> revised claim 1.
-
-- **Defensible claim 1 — the age skew is a property of who gives in every state, but its
-  steepness is not constant.** In all three states the oldest cohort (Silent) is
-  over-represented among matched donors (**1.50–2.08×**) and the youngest (Gen Z) is sharply
-  under-represented (**0.09–0.14×**). The *direction* is universal and the *magnitude* is not:
-  the old-to-young gradient is **21.6× in WA and 21.8× in ID but only 10.5× in NY**, so New York's
-  donor pool is materially less age-skewed than the other two. An earlier version of this
-  section claimed the gradient was "essentially identical" across the three states; **that is
-  withdrawn** — it was an artifact of the stale table, in which NY's Silent ratio read 1.87×
-  rather than 1.50×. The skew does **survive the matcher-bias correction everywhere** (the IPW
-  reweight moves every ratio by ≤0.05), which is the part that answers the WA white paper's
-  open question: the skew is genuine, not an artifact of the uniqueness guard over-selecting
-  older, rarer-named voters. Donor concentration is high in all three (Gini **WA 0.857 / NY
-  0.884 / ID 0.821**; ID lowest, matching its retail economy from Finding 1 — ID read 0.822
-  until 2026-07-27, a double-rounding of the diagnostic's 4-decimal 0.8215; the value is
-  0.821450). **ID here is the
-  POOLED voter↔donor match** (FEC + Sunshine, 41,136 donors) — an earlier version called it the
-  FEC match, which it is not; the FEC-only panel has 23,303. The *state*-Sunshine-only match in
-  the donor-class companion gives a slightly lower Gini, 0.798.
-- **Defensible claim 2 — the donor class is less unaffiliated and more Democratic-tilted than
-  the electorate** (the party-of-record cut WA cannot do). Matched-donor registered-party vs the
-  full roll:
-  - **NY:** electorate **D 48% / R 22% / unaffiliated-or-other 30%** → donors **D 59% / R 24% /
-    O 17%.** Donors are +11 pts more Democratic and little more than half as unaffiliated — the
-    "donor class older *and* more Dem" finding, confirmed at the person level.
-  - **ID:** electorate **D 12% / R 63% / O 25%** → donors **D 20% / R 67% / O 13%.** Even in a
-    deep-red state the donor pool is *more partisan than the electorate on both sides* (the
-    unaffiliated quarter collapses to an eighth), and the Democratic share rises proportionally
-    more (12→20%) than the Republican (63→67%).
-- **Strongest objection.** The registered-party comparison mixes states with different party
-  registration regimes (NY closed-primary registration vs ID's open system), so the *levels*
-  aren't directly comparable across states — only the within-state donor-vs-roll *gap* is. And
-  the match itself (Section F4) favors stable-address voters, who skew older and more partisan;
-  the age IPW corrects the name-uniqueness channel but not residential mobility, so the age skew
-  is an **upper bound** (as in WA). The direction and cross-state consistency are the robust part.
-
-**F6 — Giving→turnout replicates cross-state under identical definitions: donors are
-super-voters at ~1.6–1.8× the non-donor rate in all three voter-file states.**
-
-*Computed in `scripts/diag_cross_state_giving_turnout.py` on `voter_scores` populated for
-NY/ID (2026-07-19, `scripts/populate_ny_id_voter_scores.py`) with WA-identical definitions —
-`is_super_voter` = voted 2022+ AND registered ≥8 years; `turnout_propensity` = the WA
-step/history blend. This closes the F1/F3 gap flagged in F5: the earlier NY giving↔turnout cut
-used a different metric ("3 of last 4 generals"), so the ratios weren't comparable. Now they
-are.*
-
-| State | Donors super-voter % | Non-donors | Ratio | Avg propensity (donor / non) |
-|---|--:|--:|--:|--:|
-| WA | 87.6% (312.5K) | 50.9% (5.15M) | **1.72×** | 0.967 / 0.749 |
-| NY | 83.1% (558.0K) | 45.0% (12.98M) | **1.85×** | 0.892 / 0.653 |
-| ID | 50.0% (41.1K) | 30.1% (988.8K) | **1.66×** | 0.892 / 0.851 |
-
-> **Recomputed 2026-07-27**, same cause as F5: the NY and ID rows were still on the
-> pre-switch pooled matches (308.0K and 47.8K) while WA's had been refreshed.
->
-> **Washington's roll is now pinned, and the two counts in its row moved when it was
-> (2026-08-01).** `voter_scores` is a live table — `refresh-gotv` rebuilds it on every ballot
-> load, and each improvement to the VRDB precinct crosswalk pulls previously unscoped voters
-> into district scope. Between this section being written and the pin the WA roll grew from
-> 5,456,444 to **5,460,015**, which moved the scored-donor count 312.3K → **312.5K** and the
-> non-donor count 5.14M → **5.15M**. Both are denominator drift, not a change in the match:
-> `voter_donor_affiliation` is unchanged at 314,974, and **every percentage in the WA row is
-> identical** — 87.6 / 50.9 / 1.72× / 0.967 / 0.749 to four decimal places. The row now reads
-> against the dated snapshot `donor_paper_wa_roll` (2026-07-31, 5,460,015 rows) that the
-> donor-class paper pins for the same reason, so it cannot drift again; re-pinning is a
-> deliberate act behind `scripts/pin_wa_donor_roll.py --force`. NY and ID need no equivalent —
-> their rolls are static extracts.
-
-- **Defensible claim.** The engagement gap between the donor class and the rest of the roll is
-  a **feature of every state measured, not a state peculiarity**: with identical definitions the
-  donor/non-donor super-voter ratio runs **1.66–1.85×** across a blue
-  mega-state, a Pacific vote-by-mail state, and a deep-red closed-primary state. (An earlier
-  version called this a "tight 1.62–1.76× band"; on the corrected figures the band is wider and
-  NY sits at its top, so "tight" is withdrawn — the robust claim is that every state shows a
-  substantial gap in the same direction, not that they share a magnitude.) Within the
-  donor class the gradient is generational everywhere (donor super-voter rates: Silent/Boomer
-  ~0.55–0.93 vs Gen Z ~0.03–0.17) — the "money-linked electorate" is the same doubly-selected
-  (old + habitual) slice in all three states.
-- **Strongest objection.** Association only — donors are pre-selected for civic engagement, and
-  the matcher favors stable-address voters (who are also habitual voters), so the ratio blends
-  behavior with selection in every state (consistently, which is why the *cross-state
-  comparison* is informative even though the *level* is inflated). ID's absolute rates aren't
-  comparable to WA/NY: its roll is a survivorship-biased current extract (who-decides-idaho
-  §III) — the propensity floor is inflated (non-donor avg 0.851) and its 8-year-registration
-  super-voter clause bites harder on a churned roll, which is why ID's levels sit lower while
-  its *ratio* matches.
+*Nothing is lost.* The donor paper reports WA as two panels — federal **147,745** donors /
+**$346.3M** / top-1% **41.2%** / Gini **0.815**; state (PDC) **217,114** / **$122.5M** /
+**43.5%** / **0.821** — and those supersede any pooled figure for a donor-level claim.
 
 ### G. The cross-state money-flow matrix — the "Warnock" picture, made systematic
 
@@ -743,43 +653,63 @@ nationally — don't misattribute a recipient state. U.S. House+Senate; all cycl
 
 *Computed in `scripts/diag_sector_vs_competitiveness.py`, crossing the employer/sector
 signatures (Sections A/C) against the inflow competitiveness bands (Section E). Each inflow
-contribution to a WA/NY/TX/ID U.S. House district (2022–2026, $488M) is classified by a
-keyword-on-employer sector and joined to the district's forecast band (Tossup<5 / Lean5–10 /
-Likely10–20 / Solid≥20). "Competitive share" = (Tossup+Lean) ÷ sector total.*
+contribution to a WA/NY/TX/ID U.S. House district (2022–2026, $470.7M) is classified by a
+keyword-on-employer sector and joined to the band of **the cycle it was made in** (Tossup<5 /
+Lean5–10 / Likely10–20 / Solid≥20). "Competitive share" = (Tossup+Lean) ÷ sector total.*
 
 | Sector | $ (House, 4 states) | Competitive share | Out-of-state share |
 |---|--:|--:|--:|
-| Real estate | $8.0M | **21.9%** | 32.1% |
-| **Finance / Wall St** | $18.4M | **21.6%** | 44.4% |
-| Law | $17.7M | 20.0% | 33.3% |
-| Academia / public | $8.1M | 17.6% | 48.3% |
-| Healthcare | $8.4M | 16.0% | 35.6% |
-| **Energy** | $3.6M | **14.1%** | 26.6% |
-| **Tech** | $7.0M | **11.7%** | 52.2% |
-| *[all sectors baseline]* | $488M | *18.4%* | *~43%* |
+| Law | $17.3M | **31.2%** | 32.9% |
+| Real estate | $7.8M | 30.4% | 31.9% |
+| Academia / public | $7.9M | 30.3% | 47.8% |
+| Healthcare | $8.1M | 29.7% | 35.9% |
+| **Finance / Wall St** | $18.0M | 28.2% | 44.1% |
+| **Tech** | $6.8M | **26.9%** | 52.8% |
+| **Energy** | $3.3M | **18.4%** | 27.3% |
+| *[all sectors baseline]* | $470.7M | *28.7%* | *~43%* |
 
 <sub>Sector keyword map extended after a coverage audit (`scripts/diag_sector_coverage.py`)
 surfaced major law firms, hedge funds, and tech names as unclassified; the additions lifted
 classified dollars from ~14% to ~15% and left the pattern below intact.</sub>
 
-- **Defensible claim.** The hypothesis is **partially borne out, with a twist.** Finance money
-  does tilt toward competition (**21.6%** of its dollars to Tossup/Lean vs an 18.4% baseline),
-  and **tech is the least competition-seeking sector (11.7%)**, with energy next (14.1%) — they
-  do disproportionately fund safe seats. But the cleanest contrast is in *travel*, not band:
-  **energy money is strikingly local** (only **26.6%** out-of-state vs ~43% baseline) — it funds
-  its own state's (Texas) incumbents — while **tech money travels farthest (52.2% out-of-state)
-  yet lands in safe seats** (national safe-D House members). Finance both travels (44%) and
-  tilts competitive. So: Wall Street chases the marginal race somewhat; tech funds safe
-  co-partisans at a distance; energy funds the home-state incumbent.
-- **Strongest objection.** The effect is **modest and partly mechanical.** The competitive-share
-  spread is only ~10 points (real-estate 22% to tech 12%), and tech (WA) and energy (TX)
-  are concentrated in their home states, whose *own* House seats happen to be safe (Solid-D
-  Seattle, Solid-R Texas) — so "tech/energy fund safe seats" is in part just "their in-state
-  seats are safe," not a strategic preference for safety.
+- **Defensible claim, and it is now mostly a NULL.** On the cycle-specific basis the section's
+  own hypothesis is **not borne out.** Finance sits essentially *at* the baseline (**28.2%**
+  against **28.7%**) rather than tilting toward competition, and tech — previously the
+  headline "least competition-seeking sector" — is also near it at **26.9%**. Five of the seven
+  classified sectors fall within about two points of the baseline in either direction. Whatever
+  sorts these sectors, it is not a preference for marginal races.
+  - **The one survivor is energy, at 18.4%**, roughly ten points below the baseline and the
+    only sector clearly outside the pack. It is also the most *local* money in the set
+    (**27.3%** out-of-state against ~43% baseline): it funds its own state's incumbents.
+  - **The travel result survives, and unlike the competitive-share result it was TESTED rather
+    than asserted.** Tech money travels farthest (**52.8%** out-of-state) while landing in
+    ordinary bands, and energy travels least (**27.3%**). Sector differences in this data are
+    about *distance*, not about *competitiveness*.
+
+    The test is that the two columns respond very differently to the basis change. Moving from
+    the retired 2026-label bands to cycle-specific ones shifted every sector's **out-of-state**
+    share by **at most 0.7 points** (tech 52.2→52.8, energy 26.6→27.3, finance 44.4→44.1, law
+    33.3→32.9, real estate 32.1→31.9, academia 48.3→47.8, healthcare 35.6→35.9), while the
+    **competitive-share** column moved by as much as **15.2 points** (tech 11.7→26.9, law
+    20.0→31.2, finance 21.6→28.2). The travel figures are near-invariant to the banding because
+    they barely depend on it; the competitiveness figures were largely produced by it. That
+    asymmetry is the reason to keep one finding and withdraw the other, and it is measured,
+    not argued.
+- **Strongest objection — and it now cuts the other way.** The previous version of this bullet
+  argued the effect was "modest and partly mechanical", noting the competitive-share spread was
+  only ~10 points. On the corrected basis the spread is ~13 points but almost all of it is one
+  sector (energy), and the mechanical explanation is *stronger*: tech (WA) and energy (TX)
+  concentrate in home states whose own House seats are largely safe, so what remains of the
+  pattern is plausibly "their in-state seats are safe" rather than any strategic preference.
+- **Basis note, 2026-08-16.** The retired version banded 2022–2026 money by the **2026**
+  forecast, and its headline numbers should not be cited: finance 21.6%, tech 11.7%, energy
+  14.1% against an 18.4% baseline. Both the levels and the *ordering* changed. This is the
+  section the rebuild damaged most, and that is the honest outcome — a finding that dissolves
+  when each cycle is scored against its own competitiveness was an artifact of the labels.
 - **Caveat.** Even after extending the keyword map with the biggest missing law firms, hedge
   funds, and tech names (`scripts/diag_sector_coverage.py`), classified sectors are still a
-  **thin slice — only ~14% of inflow dollars**; "retired / not-employed / blank" is 46.8% and
-  "unclassified" 38.6%, and tech ($7.0M) and energy ($3.6M) volumes in these four states' House
+  **thin slice — only ~15% of inflow dollars**; "retired / not-employed / blank" is 46.7% and
+  "unclassified" 38.7%, and tech ($6.8M) and energy ($3.3M) volumes in these four states' House
   races are small enough to be noisy. Employer strings are self-reported free text; the keyword
   map is indicative, not audited. House-only (Senate competitiveness isn't model-forecast).
 
@@ -848,145 +778,48 @@ State-agnostic: it simply reflects whatever states are in `fec_inflow.duckdb` (I
 ### J. Which side of a safe seat gets the money? (longshot vs favored)
 
 *New cut in `scripts/diag_loser_side_money.py`; WA/NY/TX/ID U.S. House inflow 2022–2026,
-recipient party from the committee→party map (97.9–100% of dollars resolvable per state),
-favored party from the forecast margin. Four-state since 2026-07-19 — TX needed only its FEC
-committee master loaded (data parity, no code change); the script is state-agnostic via
-`cross_state_common.py`.*
+recipient party from the committee→party map (97.9–100% of dollars resolvable per state).
+**Band and favored side both come from the cycle each contribution was made in** (2026-08-16):
+the observed two-party margin for 2022 and 2024, the locked forecast for 2026. The script is
+state-agnostic via `cross_state_common.py`.*
 
 A safe seat for one party is a longshot for the other, so we can ask which side the money
 actually reaches. Almost all of it goes to the favored side, and the safer the seat, the
 more lopsided the split. In New York the longshot party's share of House inflow falls from
-74% in the lone tossup to 27% in Likely seats to just **5.5%** in Solid (≥20-point) seats;
-Texas runs the same staircase from the other side (57.3% Tossup → 24.2% Lean → 14.0% Likely
-→ **2.8%** Solid, on $159.9M), and Washington matches (24.6% Likely → **4.8%** Solid). Put
-plainly: in a truly safe district the disadvantaged party's candidate raises about a nickel
-on the dollar and the favored side takes the rest. (Caveats: this is money entering the
-race, House only; leadership PACs tied to safe incumbents can pad the favored side;
-"favored" is only meaningful once a seat is actually safe — in a real tossup the challenger
-can out-raise the nominal favorite, which is why the tossup rows look inverted; and Idaho's
-two districts carry too little money — $2.8M total — to read, its Solid row being a single
-small district where one funded longshot flips the percentage.)
+**40.3%** in Likely seats to just **5.6%** in Solid (≥20-point) seats; Texas runs the same
+staircase from the other side (**19.7%** Likely → **5.6%** Solid, on $159.9M), and Washington
+matches (**15.6%** Likely → **10.4%** Solid). Put plainly: in a truly safe district the
+disadvantaged party's candidate raises around a nickel to a dime on the dollar and the
+favored side takes the rest.
 
-### K. State-level money — the first cut over the state-disclosure layer
+*(Caveats: this is money entering the race, House only; leadership PACs tied to safe
+incumbents can pad the favored side; **"favored" is only meaningful once a seat is actually
+safe** — in a real tossup the challenger routinely out-raises the nominal favorite, which is
+why the Tossup and Lean rows sit near or above 50% and should not be read as a staircase
+step; and Idaho's districts carry too little money — $2.8M total — to read.)*
 
-*Computed in `scripts/cross_state_state_money.py` (state-agnostic via `cross_state_common.py`)
-on the STATE-disclosure rows now in each state's `candidate_finance`: WA PDC (`PDC:` prefix),
-NY BOE (`NY:`), TX TEC (`TX:`), ID Sunshine (`SUNSHINE:`). Every section above is federal;
-this is the first analysis of the state layer. The apples-to-apples core is **state-HOUSE
-candidate money** (every lower chamber is fully up each cycle; senates are staggered
-heterogeneously), pooled over the 2022+2024 cycles (post-redistricting maps; 2026 is
-in-cycle and excluded). Gap-filling mirrors the donor-side backfills: TX legislative party
-and ALL of ID's office/district/party are resolved by joining filer names to the SoS
-candidates roster (unique-party guard); ID resolves **55.7%** of person-filer dollars, TX
-**61.0%** of legislative dollars.*
+*Basis note, 2026-08-16.* This section previously took **both** the band and the favored side
+from the **2026** forecast and applied them to 2022–2026 money. That is a sharper error here
+than in §D or §E: a district whose 2026 forecast favours the opposite party from its 2024
+result would have had its 2024 dollars scored against the wrong side, so "longshot money" was
+not merely mis-banded but potentially mis-signed. The staircase survives on the corrected
+basis and the safe-seat conclusion is unchanged; the specific percentages moved, and the
+previously printed Tossup figures (NY 74%, TX 57.3%) should not be cited.
 
-**What each state's system captures** (not the same universe — read before comparing):
+### K. State-level money — moved to its own research note
 
-| | WA (PDC) | NY (BOE) | TX (TEC) | ID (Sunshine) |
-|---|---:|---:|---:|---:|
-| Rows / $ | 16,604 / $1.52B | 20,349 / $1.73B | 19,416 / $5.17B | 2,067 / $55M |
-| Cycles | 2014–2026 | 2014–2026 | 2014–2026 | 2020–2025 |
-| Universe | full filer universe | full filer universe | full filer universe | full filer universe |
-| Office labels | native (legislative rows) | native (partial) | native (partial) | none → roster join |
-| Party labels | native (legislative rows) | native | mostly Unknown → roster join | none → roster join |
+*The first cut over the state-disclosure layer — WA PDC, NY BOE, TX TEC, ID Sunshine —
+now lives in [`cross-state-state-money-note.md`](cross-state-state-money-note.md).*
 
-*(WA was originally legislative-candidates-only; the full filer universe — statewide execs,
-party/caucus committees, PACs, ballot committees — was bulk-loaded 2026-07-19 from the PDC
-Campaign Finance Summary via `load-pdc-filer-universe`: one CSV export request, 43K
-filer-years, ~13 seconds. The legislative rows keep their richer office/party/individual-PAC
-detail; K1–K4 are computed on those rows and are unchanged by the expansion.)*
-
-**K1 — The price of a house seat varies 26× across the four states.** Per-seat-per-cycle
-candidate receipts (2022+2024): **TX $978K ≫ WA $253K > NY $138K > ID $37K**. Median
-candidate raise: TX $85.5K ≈ WA $83.6K > NY $45.0K > ID $13.7K (TX's mean, $353K, is 4×
-its median — Texas sets **no dollar limit** on individual contributions to non-judicial
-state candidates, barring only corporate and labor-organization money (Tex. Elec. Code
-§ 253.094; the Judicial Campaign Fairness Act, §§ 253.151–253.176, is the one capped
-exception), and that produces a whale-candidate layer WA's capped system lacks —
-though note that caps do *not* flatten donor-level concentration, which is tested in
-[`donor-class-and-the-electorate.md`](donor-class-and-the-electorate.md) Appendix G).
-A competitive TX house seat costs more than most **congressional** seats' inflow;
-an ID house seat costs less than a WA school-board race.
-
-**K2 — Does state money chase competitiveness the way federal money does (~2×, Section D)?
-Only in the red states.** Per-district house-candidate $ by forecast band, with the
-(Tossup+Lean)/Solid premium:
-
-| Band ($/district) | WA | NY | TX | ID |
-|---|---:|---:|---:|---:|
-| Tossup | $0.99M | $0.30M | $3.52M | $0.37M |
-| Lean | $1.28M | $0.23M | $2.13M | $0.23M |
-| Likely | $1.16M | $0.18M | $1.65M | $0.17M |
-| Solid | $0.93M | $0.31M | $1.68M | $0.13M |
-| **Premium** | **1.12×** | **0.85×** | **1.72×** | **2.49×** |
-
-- **Defensible claim.** TX and ID look federal-like (competitive seats draw ~1.7–2.5× the
-  candidate money of safe ones), but **WA is nearly flat (1.12×) and NY inverts (0.85× —
-  safe Assembly seats out-raise the battlegrounds per district).** The mechanism is visible
-  in K5: in NY the battleground money runs through the **party campaign committees**
-  (DSCC $42.8M, NYSSRCC $33.2M and DACC $28.3M are 3 of NY's top-10 filers; the Republican
-  Assembly counterpart RACC is **not** — at $8.7M it is an order of magnitude smaller, so the
-  routing is chamber- and party-asymmetric rather than general) rather than through
-  candidate committees, and safe-seat incumbents (leadership, chairs) raise heavily anyway;
-  the candidate-committee lens undercounts exactly the competitive spending NY routes
-  around it. WA sits between the poles: its eight **caucus committees** (HDCC/HROC, the
-  Senate Truman/Kennedy funds, Leadership Council/WA WINS, WSDC/SRCC) raised **$36.2M in
-  2022+2024 — about half the $72.9M all legislative candidates raised combined** — a real
-  routing-around-candidates layer, milder than New York's, which (together with WA's
-  contribution caps compressing what any single hot race can absorb directly) is consistent
-  with its flat candidate-level premium. That is a claim about what a *candidate committee*
-  can take in, and it does not extend to the shape of the donor pool: caps demonstrably fail
-  to flatten donor-level concentration
-  ([`donor-class-and-the-electorate.md`](donor-class-and-the-electorate.md) Appendix G).
-- **Strongest objection.** The forecast bands are 2026 labels applied to 2022+2024 money
-  (bands are stable, but not identical, across cycles); WA's Lean band holds a single
-  district; and NY's office classification is partial — if BOE office-coding is biased
-  toward incumbents, safe-seat money is inflated. Read the WA/NY numbers as "no large
-  candidate-level premium," not as precise ratios.
-
-**K3 — State-legislative money mirrors chamber control, hard.** Democratic share of
-party-resolved legislative receipts (2022+2024): **NY 74.8% D, WA 60.9% D, TX 27.4% D,
-ID 23.5% D.** Unlike federal inflow (which both parties export to the same national
-battlegrounds), state money stays home and tracks who holds/contests the chamber.
-(TX carries $130M party-unresolved after the roster join; ID resolves 55.7% of person-$ —
-directional reads only for those two.)
-
-**K4 — State legislatures are PAC-funded; Congress is individual-funded.** Individual
-share of legislative candidate receipts (2022+2024): **WA 31.4% (PACs 62.4%), TX 35.8%
-(entities 64.2%), NY 38.2% (PACs 29.5% + party/other transfers 32.3%), ID 49.9%.** The
-federal benchmark from the same DBs: House candidate committees run **~65% individual /
-16–25% PAC** (WA H 64.6%/25.3% on $104M; NY H 67.2%/15.7% on $369M). The individual
-small-donor era documented in Sections A–I is a *federal* phenomenon — statehouse
-campaigns are still funded chiefly by organized money. (TEC's split is
-individual-vs-entity by construction; "PAC" there means all non-individual money.)
-
-**K5 — The panorama: what the full filer universe shows (all four states).**
-- **TX:** Texans for Greg Abbott has raised **$424.5M across 6 cycles** — 1.4× the entire
-  TX House candidate universe over 2022+2024 combined. ActBlue Texas ($168.6M) and Dan
-  Patrick ($106.9M) follow; Texans for Lawsuit Reform ($105.5M) is the biggest
-  non-candidate PAC. Org-name filers hold 2/3 of all TX state money ($2.9B vs $1.5B).
-- **NY:** Hochul $68.5M and Cuomo $48.7M top the list, but the signature is the
-  **committee layer**: the state Democratic Committee, both Senate campaign committees,
-  and three union PACs (NYSUT, SEIU, UNITE HERE) occupy most of the top 10.
-- **ID:** the top filer is a **ballot-measure committee** (Idahoans for Open Primaries,
-  $5.6M — more than any Idaho candidate; the sitting governor raised $1.2M over 3 cycles),
-  and orgs hold 2/3 of ID state money. Consistent with Section F5's picture of a small
-  retail donor base: even Idaho's biggest money fights are initiative fights, not
-  candidate fights.
-- **WA:** the top filer is a **union PAC** — SEIU's Political Education and Action Fund
-  ($39.2M across 12 years) — followed by New Direction PAC ($32.2M) and two
-  eight-figure ballot committees (No on 1631, the oil-industry carbon-fee opposition,
-  $31.6M in a single year; Yes! To Affordable Groceries, $22.4M). No candidate cracks the
-  top ten: WA's biggest single candidate haul ever is Bob Ferguson's ~$19M 2024
-  governor run, roughly half of SEIU's cumulative total. Committees hold **69% of the WA
-  state money that carries a person-or-org classification** ($1.01B of $1.46B, cycles
-  through 2025) — the same ~2/3 org share as TX and ID. *(Basis, because the two figures here
-  sat on different cycle windows: the person/org split is computed over `election_cycle <= 2025`,
-  while the $1.52B inventory total runs through 2026. An earlier version read "69% of all WA
-  state money ($1.05B of $1.52B)", pairing the classified-base rate with the through-2026
-  denominator; org money is $1.007B and is 66.4% of the full $1.52B.)* The caucus
-  committees sit just below the mega-PACs (HDCC $19.2M and the Truman Fund $18.7M across
-  12 years) — the "half the candidate layer" routing channel quantified in K2.
+*Moved 2026-08-16.* Every other section of this paper is federal FEC money on one
+disclosure regime with one set of rules. §K is state money across **four** regimes with
+four different contribution limits, filing thresholds, entity taxonomies and coverage
+windows, and it was the largest ungated section in the article. Those are not defects —
+they are what makes the state layer its own subject — but they mean a reader cannot
+compare a §K figure to an §A–J figure without a paragraph of caveat, and an article should
+not spend a paragraph explaining why one of its own sections should not be compared to the
+rest. The submission notes reached the same conclusion independently: *"the state-money
+layer is not this paper."*
 
 ---
 
@@ -1000,11 +833,14 @@ scripts behind each figure): [Data Sources & Reproducibility](data-sources-and-r
   recipient-anchored inflow load (Sections E–I) measures money *entering* WA/NY/TX/ID races. The
   cross-state matrix (G) reports both. They use different committee universes, so read shares
   within each rather than subtracting one from the other.
-- **Sections A–J are federal; K is the state layer.** State-legislative and local money is
-  loaded for all four states (WA PDC, NY BOE, ID Sunshine, TX TEC — item 7) and Section K is
-  the first cut over it. The two layers use different disclosure regimes and filer universes
-  (WA's is legislative-candidates-only) — compare *within* K, not K against A–J dollar
-  figures.
+- **This paper is federal only; the state layer is a separate note.** State-legislative and
+  local money is loaded for all four states (WA PDC, NY BOE, ID Sunshine, TX TEC — item 7),
+  but the first cut over it **moved out of this article on 2026-08-16** to
+  [`cross-state-state-money-note.md`](cross-state-state-money-note.md), which is still in
+  development and not yet gated. The two layers use different disclosure regimes and filer
+  universes (WA's is legislative-candidates-only), so a state-layer figure is not comparable
+  to an A–J dollar figure and none is cited here. *(This bullet said "K is the state layer"
+  until 2026-08-17, after §K had already moved.)*
 - **Conduit-*reliance* metric is unreadable (but the money is captured).** ActBlue/WinRed
   appear as recipients of <0.5% of dollars — because, as the 2024 earmark inspection confirmed
   (Section E), FEC records each earmarked gift under the *candidate* committee as type `15E`,
@@ -1056,27 +892,31 @@ Tests A–I are run. Status:
 2. **Conduit/earmark attribution — DONE/verified** (Section E): earmarked ActBlue/WinRed money
    is attributed to candidates via FEC `15E` and already counted ($194M in 2024); conduit-side
    `24T` duplicates correctly excluded. No fix needed.
-3. **Individual voter-file study — DONE, WA + cross-state donor layer** (Section F): WA has the
-   full stack (turnout-by-age F1, donor representativeness F2 with matcher-bias re-weighting,
-   giving↔turnout F3). **F5 (2026-07-19) extends the donor-representativeness cut to NY + ID**
-   (voter files + matches now loaded): the donor age skew runs in the same direction and survives
-   the IPW correction in all three — though its *steepness* does not replicate (old-to-young
+3. **Individual voter-file study — DONE, and MOVED 2026-08-16 to
+   [`donor-class-and-the-electorate.md`](donor-class-and-the-electorate.md)**, which keeps
+   federal and state panels separate and is where person-level claims belong. It was §F of this
+   paper until that date; the removal note under §F says why. The work itself is complete for
+   all three voter-file states and its two withdrawals are recorded here because they were
+   made here. The donor age skew runs in the same direction and survives the IPW correction in
+   WA, NY and ID — but its *steepness* does not replicate (old-to-young
    gradient 21.6× WA / 21.8× ID against 10.5× NY, so an "essentially identical" or
-   "near-identical" gradient is withdrawn; see §F5 claim 1) — and the party-of-record cut shows
-   donors less unaffiliated / more Dem-tilted in NY and ID. **F6 (2026-07-19) closes the turnout
-   half**: NY/ID `voter_scores`
-   populated with WA-identical definitions (`scripts/populate_ny_id_voter_scores.py` — NY 13.54M
+   "near-identical" gradient is withdrawn) — and the party-of-record cut shows
+   donors less unaffiliated / more Dem-tilted in NY and ID. On the turnout half, NY/ID
+   `voter_scores` were populated with WA-identical definitions
+   (`scripts/populate_ny_id_voter_scores.py` — NY 13.54M
    rows from the parsed history, ID 1.03M from the melted participation table), and the
    giving→turnout cut replicates at a substantial donor/non-donor super-voter ratio in every
-   state (WA **1.72×** / NY **1.85×** / ID **1.66×** — see F6; "near-constant" overstated it
-   and is withdrawn). The individual layer is now complete for all three
-   voter-file states.
+   state (WA **1.72×** / NY **1.85×** / ID **1.66×**; "near-constant" overstated it
+   and is withdrawn).
 4. **Cross-state flow matrix — DONE, now four-state** (Section G): inflow provenance + outflow
    destination + the systematic out-of-region magnet list (Georgia Senate ~$68M from
    WA/NY/TX/ID residents). ID is the biggest out-of-region exporter (68%) and the only net
    candidate-money importer.
-5. **Sector × competitiveness — DONE** (Section H): finance tilts mildly competitive; tech/energy
-   fund safe seats; energy money is distinctively local. Modest, on a thin classified slice.
+5. **Sector × competitiveness — DONE, and largely a NULL after the 2026-08-16 rebuild**
+   (Section H): on cycle-specific bands, finance and tech both sit at the baseline and only
+   energy is clearly below it. What survives is the *travel* result — tech money goes farthest,
+   energy stays home. The earlier "finance tilts competitive, tech/energy fund safe seats"
+   reading was an artifact of banding every cycle with the 2026 forecast.
 6. **Inflow concentration + retention — DONE** (Section I): candidate money is far less
    concentrated than total flow (Gini ~0.69 vs ~0.80); base is churning/one-time by headcount,
    concentrated-core by dollars; cycle-over-cycle retention flat ~21–25%.
@@ -1096,13 +936,19 @@ Tests A–I are run. Status:
    the region. **Adding a state N needs no script edits** — load `data/N_statewide.duckdb` (+
    VRDB) via the existing loaders, run `FEC_INFLOW_STATES=N python scripts/load_fec_inflow_bulk.py`,
    then re-run the 8 scripts.
-9. **State-level money analysis — DONE 2026-07-19** (Section K,
-   `scripts/cross_state_state_money.py`): first cut over the state-disclosure layer loaded in
-   item 7. Headlines: house seats cost 26× more in TX than ID; the federal ~2× competitiveness
-   premium holds only in TX/ID (WA flat, NY inverted — party committees route around candidate
-   committees); statehouse money is PAC-funded (~31–38% individual) vs Congress's ~65%
-   individual; TX/ID's biggest state-money filers are a governor's committee ($424.5M) and a
-   ballot-measure committee respectively. **Follow-on completed same day:** the full WA PDC
+9. **State-level money analysis — DONE 2026-07-19, and MOVED OUT of this paper 2026-08-16**
+   (`scripts/cross_state_state_money.py`): first cut over the state-disclosure layer loaded in
+   item 7, now in [`cross-state-state-money-note.md`](cross-state-state-money-note.md).
+   Headlines: house seats cost 26× more in TX than ID; statehouse money is PAC-funded
+   (~31–38% individual) vs Congress's ~65% individual; TX/ID's biggest state-money filers are
+   a governor's committee ($424.5M) and a ballot-measure committee respectively.
+   ⚠ *This item also read "the federal ~2× competitiveness premium holds only in TX/ID (WA
+   flat, NY inverted)" until 2026-08-17. **That conclusion is superseded and should not be
+   cited.** It was an artifact of banding 2022+2024 money with a 2026 forecast — the same
+   defect item 10 corrected in the federal sections. On cycle-specific bands the note reports
+   positive premiums in WA, NY and ID, and treats Texas as unresolved because its unbanded
+   residual is concentrated in uncontested seats. The note is not gated; read it there, not
+   here.* **Follow-on completed same day:** the full WA PDC
    filer universe (statewide execs, party/caucus cmtes, PACs, ballot cmtes) bulk-loaded via
    the new `load-pdc-filer-universe` CLI (one Socrata CSV export request — 43K filer-years,
    ~13s; WA 1,559→16,604 rows / $1.52B), giving WA its K5 panorama row (top filer = SEIU's

@@ -27,7 +27,7 @@ Outputs reports/cross_state_state_money.json + a printed comparison.
 """
 import duckdb
 
-from cross_state_common import band, region_states, write_json
+from cross_state_common import lower_chamber_cycle_competitiveness, band, region_states, write_json
 
 STATES = region_states()
 
@@ -64,8 +64,22 @@ def _id_backfill_sql() -> str:
     roster AS (
       SELECT UPPER(TRIM(REGEXP_EXTRACT(cd.candidate_name, '(\S+)$', 1))) lastn,
              UPPER(LEFT(TRIM(cd.candidate_name), 1)) fi,
-             CASE WHEN UPPER(r.office) LIKE 'REPRESENTATIVE DISTRICT%' THEN 'SR'
-                  WHEN UPPER(r.office) LIKE 'SENATOR DISTRICT%' THEN 'SS' END office,
+             -- ANCHORED 2026-08-17. This read LIKE 'REPRESENTATIVE DISTRICT%' -> 'SR', and
+             -- the roster spans every loaded election with no year filter, so Idaho's
+             -- pre-2024 U.S. HOUSE offices (the bare 'REPRESENTATIVE DISTRICT 1' / '2') were
+             -- classified as STATE REP in districts 1 and 2 -- 11 candidates. Measured inert:
+             -- none of their surname+initial keys collides with a real state-legislative
+             -- candidate, so no Sunshine filer was misassigned. It was one namesake away from
+             -- putting a congressional candidate's district on a state filer's money.
+             -- Both of Idaho's naming conventions are matched now, which also lets the roster
+             -- see pre-2024 legislative candidates it previously could not.
+             CASE WHEN REGEXP_MATCHES(UPPER(r.office),
+                                      '^REPRESENTATIVE DISTRICT [0-9]+ SEAT [AB]$')
+                    OR REGEXP_MATCHES(UPPER(r.office),
+                                      '^LEGISLATIVE DISTRICT [0-9]+ ST REP [AB]$') THEN 'SR'
+                  WHEN REGEXP_MATCHES(UPPER(r.office), '^SENATOR DISTRICT [0-9]+$')
+                    OR REGEXP_MATCHES(UPPER(r.office),
+                                      '^LEGISLATIVE DISTRICT [0-9]+ ST SEN$') THEN 'SS' END office,
              TRY_CAST(REGEXP_EXTRACT(r.office, '(\d+)', 1) AS INT) dist,
              cd.party_normalized p
       FROM candidates cd JOIN races r USING (race_id)
@@ -202,25 +216,58 @@ def analyze(st: str, path: str) -> dict:
     )
 
     # ---- J2 house money vs competitiveness -----------------------------
-    margins = _house_margins(path, spec["house_fc"])
+    # REBUILT 2026-08-16 onto CYCLE-SPECIFIC bands, the same correction item 10 applied to
+    # the federal sections D/E/H/J. This cut used to band 2022+2024 money with the 2026
+    # state-house FORECAST, which answers "did districts forecast competitive in 2026 raise
+    # more across 2022-2024?" rather than the question in its own heading. The unit is now
+    # the district-CYCLE and each cycle carries its own observed two-party margin.
+    #
+    # Idaho's pre-2024 legislative canvasses are not loaded, so its 2022 cells are ABSENT
+    # rather than banded. They are counted into `unbanded_m` and reported; a state-cycle with
+    # no competitiveness evidence must not be pooled into Solid by default.
+    lower = lower_chamber_cycle_competitiveness([(st, path)])
+    margins = {(cyc, d): v for (s_, cyc, d), v in lower.items() if s_ == st}
     dist_money = c.execute(
-        f"WITH {cte} SELECT dist, SUM(total_receipts) "
-        f"FROM fin WHERE office='SR' AND {WINDOW} AND dist IS NOT NULL GROUP BY 1"
+        f"WITH {cte} SELECT dist, (election_cycle + (election_cycle % 2)) AS cyc, "
+        f"SUM(total_receipts) "
+        f"FROM fin WHERE office='SR' AND {WINDOW} AND dist IS NOT NULL GROUP BY 1, 2"
     ).fetchall()
     bands: dict[str, dict] = {}
-    for d, tot in dist_money:
-        if d not in margins:
+    unbanded = banded_raw = 0.0
+    for d, cyc, tot in dist_money:
+        cell = margins.get((int(cyc), d))
+        if cell is None or cell.margin is None:
+            unbanded += float(tot)
             continue
-        b = band(margins[d])
-        e = bands.setdefault(b, {"districts": 0, "total": 0.0})
+        e = bands.setdefault(cell.band, {"districts": 0, "total": 0.0})
         e["districts"] += 1
         e["total"] += float(tot)
-    # districts with a forecast but NO money rows still belong in the denominator
-    moneyed = {d for d, _ in dist_money}
-    for d, m in margins.items():
-        if d not in moneyed:
-            e = bands.setdefault(band(m), {"districts": 0, "total": 0.0})
+        banded_raw += float(tot)
+    # A district-cycle with a margin but no money rows belongs in the DENOMINATOR — a seat
+    # that raised nothing is a real observation, and dropping it would inflate every
+    # per-district figure.
+    #
+    # But only for a cycle the money layer actually covers. Idaho is the case that forces the
+    # distinction: its Sunshine load carries no 2022 legislative candidate money at all (the
+    # series begins in 2023), so counting its 35 pinned 2022 district-cycles as "raised $0"
+    # would silently halve its per-district figures and drag its premium from 2.69x to 1.80x
+    # on nothing but missing data. "This seat raised nothing" and "this cycle is not in the
+    # file" are different facts and must not share a denominator.
+    moneyed = {(int(cyc), d) for d, cyc, _ in dist_money}
+    covered_cycles = {int(cyc) for _, cyc, tot in dist_money if float(tot or 0) > 0}
+    for key, cell in margins.items():
+        if (key not in moneyed and cell.margin is not None
+                and key[0] in (2022, 2024) and key[0] in covered_cycles):
+            e = bands.setdefault(cell.band, {"districts": 0, "total": 0.0})
             e["districts"] += 1
+    res["unbanded_m"] = round(unbanded / 1e6, 2)
+    res["money_cycles_covered"] = sorted(covered_cycles)
+    # What share of the window's district-keyed dollars actually carry an observed margin.
+    # Printed because the premium is only as trustworthy as this: Texas publishes no returns
+    # for uncontested legislative races, so its missing dollars are concentrated at the SAFE
+    # end and dropping them inflates a competitive/safe ratio by construction.
+    res["banded_share_pct"] = (round(100.0 * banded_raw / (banded_raw + unbanded), 1)
+                               if (banded_raw + unbanded) else None)
     for b, e in bands.items():
         e["per_district_m"] = round(e["total"] / max(e["districts"], 1) / 1e6, 2)
         e["total"] = round(e["total"] / 1e6, 2)

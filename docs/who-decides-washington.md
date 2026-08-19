@@ -494,7 +494,7 @@ and, measured longitudinally, its members are habitual voters.** Because we
 can follow individual voters, we can see surge-and-decline directly rather than infer it
 from aggregates. At most **87–96%** of each off-year electorate also cast a 2024
 presidential ballot (the survivorship-corrected bound derived below; the uncorrected,
-roll-visible figures read 92–97%), but only **42–48%** of 2024 presidential voters
+roll-visible figures read 92–97%), but only **43–48%** of 2024 presidential voters
 showed up in a given off-year. Overlap with 2024 is a single presidential comparison and
 does not by itself establish a habit; the vote history does. Off-year voters averaged
 **4.1–4.4** of the five 2021–2025 November generals, and **73.5–83.7%** cast a ballot in at

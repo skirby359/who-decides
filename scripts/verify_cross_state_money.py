@@ -627,10 +627,17 @@ ABSTRACT_PROBES = [
 
 
 PARTICIPATION_PROBES = [
+    # The relabelling bullet restates WA's rate twice, to say what it is NOT. Probed rather
+    # than exempted: it is the same derived quantity, and a restatement drifting from the cell
+    # above it is precisely the defect class that cost the donor paper four rounds.
+    ("§2 — the rate restated in the 'not a participation rate' caveat",
+     r"\*\*([\d.]+)% is not \"([\d.]+)% of eligible adults donated\"\*\*",
+     ("pc_WA_rate", "pc_WA_rate"), 0.05),
     ("§2 — donors, population and rate, all four states",
-     r"\*\*([\d,]+)\*\* donors in a state of \*\*([\d.]+)M\*\* \(\*\*([\d.]+)%\*\*\) versus "
-     r"NY \*\*([\d,]+)\*\*/\*\*([\d.]+)M\*\* \(\*\*([\d.]+)%\*\*\), TX "
-     r"\*\*([\d,]+)\*\*/\*\*([\d.]+)M\*\* \(\*\*([\d.]+)%\*\*\), and ID "
+     r"\*\*([\d,]+)\*\* keys in a state of \*\*([\d.]+)M\*\* residents "
+     r"\(\*\*([\d.]+)%\*\*\) versus NY\s+"
+     r"\*\*([\d,]+)\*\*/\*\*([\d.]+)M\*\* \(\*\*([\d.]+)%\*\*\), TX "
+     r"\*\*([\d,]+)\*\*/\*\*([\d.]+)M\*\* \(\*\*([\d.]+)%\*\*\), and ID\s+"
      r"\*\*([\d,]+)\*\*/\*\*([\d.]+)M\*\* \(\*\*([\d.]+)%\*\*\)",
      ("out_WA_donors", "pc_WA_pop_m", "pc_WA_rate",
       "out_NY_donors", "pc_NY_pop_m", "pc_NY_rate",
@@ -658,9 +665,15 @@ def _band_keys(b):
 E_PROBES = [
     ("§E — inflow file scale",
      r"\*\*([\d.]+)M contributions / \$([\d.]+)B\*\*", ("e_rows_m", "e_dollars_b"), 0.005),
-    ("§E — House window total and district count",
-     r"U\.S\. House, 2022–2026 — \$(\d+)M across (\d+) districts",
-     ("e_h_total_m", "e_h_ndist"), 0.5),
+    ("§E — House window total and district-cycle count",
+     r"U\.S\. House, 2022–2026 — \$([\d.]+)M across (\d+) district-cycles",
+     ("e_h_total_m", "e_h_ndist"), 0.05),
+    ("§E — the residual before the Idaho pin was resolved",
+     r"It was \$([\d.]+)M / ([\d.]+)% until 2026-08-16",
+     ("_retired_resid_m", "_retired_resid_pct"), 0.05),
+    ("§E — the unbanded residual, reported rather than absorbed",
+     r"further \*\*\$([\d.]+)M \(([\d.]+)%\)\*\* of House inflow falls outside these bands",
+     ("e_h_resid_m", "e_h_resid_pct"), 0.05),
     ("§E — House band row, Tossup",
      r"\| Tossup \(<5\)" + _BAND_ROW.format(e=r"\*\*"), _band_keys("Tossup"), 0.05),
     ("§E — House band row, Lean",
@@ -669,25 +682,37 @@ E_PROBES = [
      r"\| Likely \(10–20\)" + _BAND_ROW.format(e=""), _band_keys("Likely"), 0.05),
     ("§E — House band row, Solid",
      r"\| Solid \(≥20\)" + _BAND_ROW.format(e=""), _band_keys("Solid"), 0.05),
-    ("§E — the competitiveness premium, per district",
-     r"Tossup \(\$([\d.]+)M/district\) and Lean\s+\(\$([\d.]+)M\)",
+    ("§E — the competitiveness premium, per district-cycle",
+     r"Tossup \(\$([\d.]+)M per district-cycle\) and\s+Lean \(\$([\d.]+)M\)",
      ("e_h_Tossup_perdist", "e_h_Lean_perdist"), 0.05),
-    ("§E — safe-seat per-district inflow, first statement",
-     r"per-district inflow of safe seats \(~\$(\d+)M\)", "e_h_Likely_perdist", 0.5),
-    ("§E — safe-seat per-district inflow, restated for Likely vs Solid",
-     r"the \*same\* per district \(~\$(\d+)M\)", "e_h_Solid_perdist", 0.5),
+    ("§E — safe per-district-cycle inflow, the band it is stated as a range over",
+     r"safe district-cycle\s+\(~\$([\d.]+)–([\d.]+)M\)",
+     ("e_h_Solid_perdist", "e_h_Likely_perdist"), 0.05),
+    ("§E — Likely against Solid, restated to make the within-safe flatness explicit",
+     r"district-cycle \(\*\*\$([\d.]+)M\*\* against \*\*\$([\d.]+)M\*\*\)",
+     ("e_h_Likely_perdist", "e_h_Solid_perdist"), 0.05),
     # The two aggregate claims. Both are sums of asserted cells, and BOTH are computed from
     # unrounded shares: 42.105 + 47.368 = 89.47 rounds to the printed 89, while adding the
     # PRINTED 42.1 + 47.4 gives 89.5, which rounds to 90. The paper is right and an
     # arithmetic-on-printed-cells check would have called it wrong.
-    ("§E — the competitiveness premium as a multiple",
-     r"competitiveness premium is real and ~(\d+)×", "comp_premium", 0.5),
-    ("§E — safe seats' share of dollars and of districts",
-     r"capture ~([\d.]+)% of the money\*\* \(Likely\+Solid\), because they're "
-     r"~([\d.]+)% of districts", ("e_h_safe_pctdol", "e_h_safe_pctdist"), 0.5),
+    ("§E — the competitiveness premium as a multiple, both statements",
+     r"premium is real and ~([\d.]+)×", "comp_premium", 0.05),
+    ("§E — the premium computed within each cycle separately",
+     r"\*\*([\d.]+)×\*\* in 2022, \*\*([\d.]+)×\*\* in 2024, \*\*([\d.]+)×\*\* in 2026",
+     ("comp_premium_2022", "comp_premium_2024", "comp_premium_2026"), 0.005),
+    ("§E — the observed-cycles-only premium",
+     r"observed\*\* cycles alone the premium is \*\*([\d.]+)×\*\*",
+     "comp_premium_observed", 0.005),
+    ("§E — the premium restated against the retired 2026-label figure",
+     r"retired \*\*~([\d.]+)×\*\* to \*\*([\d.]+)×\*\*",
+     ("_retired_comp_premium", "comp_premium"), 0.05),
+    ("§E — safe seats' share of dollars and of district-cycles",
+     r"capture ([\d.]+)% of the money\*\* \(Likely\+Solid\), because they are\s+"
+     r"\*\*([\d.]+)%\*\* of district-cycles",
+     ("e_h_safe_pctdol", "e_h_safe_pctdist"), 0.05),
     ("§E — out-of-state share, range across House bands",
-     r"~([\d.]+)–([\d.]+)% of all inflow is out-of-state",
-     ("e_h_oos_lo", "e_h_oos_hi"), 0.5),
+     r"\*\*([\d.]+)–([\d.]+)% of all inflow is out-of-state",
+     ("e_h_oos_lo", "e_h_oos_hi"), 0.05),
     ("§E — Senate table, TX",
      r"\| \*\*TX\*\* \| \*\*\$([\d.]+)M\*\* \| ([\d.]+)% \|", ("e_s_TX_m", "e_s_TX_oos"), 0.05),
     ("§E — Senate table, NY",
@@ -710,8 +735,10 @@ E_PROBES = [
     ("§E — Idaho's Senate out-of-state share against the other three",
      r"Senate money is ([\d.]+)% out-of-state.*?\(WA (\d+)%, TX (\d+)%, NY (\d+)%\)",
      ("e_s_ID_oos", "e_s_WA_oos", "e_s_TX_oos", "e_s_NY_oos"), 0.5),
-    ("§E — the mechanism restated at Idaho's Senate scale",
-     r"operates at \$([\d.]+)M even harder", "e_s_ID_m", 0.05),
+    # Re-pointed 2026-08-16 when the bullet stopped asserting a mechanism. The FIGURE is
+    # unchanged and still asserted; only the sentence around it was demoted to interpretation.
+    ("§E — Idaho's Senate scale, in the demoted-mechanism bullet",
+     r"Senate \$([\d.]+)M\) — ~1/20th of Texas", "e_s_ID_m", 0.05),
 ]
 
 
@@ -819,14 +846,35 @@ def percycle_ordering_claims(d) -> list[str]:
 
 
 def verify_individual_layer():
-    """Derive the headline table plus F5/F6 and assert both against the paper's prose."""
+    """Derive the headline table and assert it against the paper's prose.
+
+    §F LEFT THE PAPER 2026-08-16 for donor-class-and-the-electorate.md, so `_collect()`,
+    `f5()`, `f6()` and `F_PROBES` are no longer invoked here. They are RETAINED in this file,
+    unwired, for two reasons: they are the only implementation of the F5 donor-skew and F6
+    giving-vs-turnout cuts outside the donor paper, and the retired §F figures must stay
+    reproducible for audit. Re-wiring them would re-import the pooled-panel basis this round
+    removed — if a future round wants a person-level layer here, it should read the donor
+    paper's federal panel, not resurrect the pooled one.
+
+    Dropping them also drops the expensive part of this verifier: `_collect()` opened the WA
+    VRDB and both other states' voter files on every run.
+    """
     d = {
         # Historical figures the recompute note quotes. They are what the RETIRED panels
         # gave, so they are literals by construction and must keep saying so.
         "_ny_prev": 308_032, "_id_prev": 47_762, "_wa_prev": 382_408,
+        # Same rule for §E's retired competitiveness premium. It was computed on the 2026
+        # forecast applied to every cycle, a basis the derivation no longer implements, so it
+        # cannot be re-derived and must be a declared literal rather than a bare token the
+        # coverage gate waives. The paper quotes it only to say what the rebuild replaced.
+        "_retired_comp_premium": 2.0,
+        # §E's residual as it stood between the item-10 rebuild and the Idaho pin being
+        # resolved, both on 2026-08-16. Idaho's two 2022 district-cycles sat in the residual
+        # while their margins were blank; they are Solid now. Literals for the same reason as
+        # the retired premium above — the basis that produced them is gone, so they cannot be
+        # re-derived, and the paper quotes them only to say what changed.
+        "_retired_resid_m": 18.4, "_retired_resid_pct": 3.8,
     }
-    if not _collect(d):
-        return ["F5/F6: a state's data was unavailable, so the block could not be asserted"]
     for st in HEADLINE_STATES:
         for k, v in outflow(st).items():
             # `out_` prefix, deliberately. outflow() and f5() both yield a `gini` and a `top1`
@@ -853,8 +901,8 @@ def verify_individual_layer():
     for name, (start, end) in AUDIT_BOUNDS.items():
         audit_sections[name], offsets[name] = vp.slice_with_offset(norm, start, end)
     stats: dict = {}
-    rc = vp.run("CROSS-STATE - headline table and the individual money-linked layer",
-                norm, HEADLINE_PROBES + F_PROBES + CYCLE_PROBES + E_PROBES
+    rc = vp.run("CROSS-STATE - headline table and the federal money layer",
+                norm, HEADLINE_PROBES + CYCLE_PROBES + E_PROBES
                 + PARTICIPATION_PROBES + ABSTRACT_PROBES, d, F_UNCHECKED,
                 vp.wants_coverage(), spans_out=spans, stats_out=stats)
     fails = vp.audit_coverage(audit_sections, spans, offsets, tuple(AUDIT_BOUNDS),
@@ -887,15 +935,22 @@ AUDIT_BOUNDS = {
     "abstract": ("## Abstract", "## Scope and method"),
     # Gated: derived by outflow() in this file.
     "headline": ("## The headline", "## Findings"),
-    "finding1": ("### 1. New York is the most top-heavy", "### 2. Participation is broadest"),
+    "finding1": ("### 1. New York is the most top-heavy",
+                 "### 2. Distinct donor keys per resident"),
     "finding3": ("### 3. The retired-donor economy", "### 4. Sector signatures"),
-    # Gated: derived by f5()/f6() in this file. The largest section in the paper.
-    "individual": ("### F. The individual layer", "### G. The cross-state money-flow matrix"),
+    # "individual" (§F) REMOVED 2026-08-16 — the section left the paper for
+    # donor-class-and-the-electorate.md, which keeps federal and state panels separate. §F was
+    # the only place in this article resting on the POOLED voter-donor match, and it carried a
+    # flat internal contradiction about its own specification (preamble: every figure
+    # recomputed on the full-first-name key; §F4: F1-F3 are the all-tier match at 93.0%).
+    # Removing it rather than reconciling it also removes a standing panel-drift surface from
+    # a paper whose other sections are federal aggregate money.
     # Gated 2026-08-06: §5 by per_cycle(), §E by inflow_e().
     "finding5": ("### 5. A uniform presidential rhythm", "## Follow-on tests"),
     "test_e": ("### E. Inflow side", "### F. The individual layer"),
     # Gated 2026-08-07: §2 by participation(), once its denominators were pinned.
-    "finding2": ("### 2. Participation is broadest", "### 3. The retired-donor economy"),
+    "finding2": ("### 2. Distinct donor keys per resident",
+                 "### 3. The retired-donor economy"),
     # Named, not gated -- see COVERAGE_EXEMPT_SECTIONS for each one's owner.
     "finding4": ("### 4. Sector signatures", "### 5. A uniform presidential rhythm"),
     "test_a": ("### A. Is the money concentrating over time?", "### B. Where does each state"),
@@ -906,6 +961,10 @@ AUDIT_BOUNDS = {
     "test_h": ("### H. Sector × competitiveness", "### I. Inflow concentration trend"),
     "test_i": ("### I. Inflow concentration trend", "### J. Which side of a safe seat"),
     "test_j": ("### J. Which side of a safe seat", "### K. State-level money"),
+    # "test_k" now spans only the POINTER left behind when the state-disclosure layer moved to
+    # cross-state-state-money-note.md (2026-08-16). It was the largest ungated section in the
+    # article at 151 tokens, and it compared four disclosure regimes against a paper that is
+    # otherwise one. The span is kept rather than deleted so the pointer itself stays gated.
     "test_k": ("### K. State-level money", "## Limits of inference"),
     "status": ("## What's done, and what's next", "## Related work"),
 }
@@ -979,11 +1038,11 @@ COVERAGE_EXEMPT_SECTIONS: dict[str, str] = {
     # it. BACKLOG: probe them as CROSS-DOCUMENT checks against
     # donor-class-and-the-electorate.md — the pattern verify_whitepaper.py uses for the money
     # paper's figures, which is what caught the stale +0.55 on 2026-08-06.
-    "individual": "§F restates the donor paper's validation, tier-switch and panel-split "
-                  "figures, all owned and asserted by verify_donor_class.py. The cuts that are "
-                  "THIS paper's own (F5 donor skew, F6 giving-vs-turnout) are asserted by "
-                  "F_PROBES. BACKLOG: convert the restatements to cross-document probes "
-                  "against donor-class-and-the-electorate.md rather than re-deriving them.",
+    # The "individual" entry is GONE, and so is the backlog above it: §F left the paper on
+    # 2026-08-16 for donor-class-and-the-electorate.md. The BACKLOG that stood here — convert
+    # §F's restatements into cross-document probes against the donor paper — is resolved by
+    # deletion rather than by conversion, which is the better outcome: the figures now have
+    # exactly one home and one specification instead of a copy needing a cross-check.
     # finding2 CLOSED 2026-08-07 — participation() + PARTICIPATION_PROBES, exactly as this
     # entry prescribed: pin the denominators the way acs_cvap_by_state.py pins CVAP. Closing it
     # turned up what the ungated state had been hiding — the old denominators named NO SOURCE
@@ -999,9 +1058,14 @@ COVERAGE_EXEMPT_SECTIONS: dict[str, str] = {
     # test_e CLOSED 2026-08-06 — inflow_e() + E_PROBES, importing the band logic from
     # cross_state_common so the definition cannot fork from the diagnostic's.
     "test_a": "concentration over time. Owned by scripts/cross_state_fec_money.py. BACKLOG.",
-    "test_b": "per-state destinations. Owned by scripts/diag_cross_state_money_matrix.py, "
-              "which is also where the recipient-state resolution (candidate office state, "
-              "NOT committee registration state) is implemented. BACKLOG.",
+    "test_b": "per-state destinations. Owned by scripts/cross_state_fec_tests.py, which since "
+              "2026-08-16 reads the SAME office-state-resolved committee master as "
+              "scripts/diag_cross_state_money_matrix.py (§G) rather than resolving recipient "
+              "state from the committee's registration address. That fork is what let §B run "
+              "for a week on the construction the abstract calls invalid, so the shared file "
+              "is the structural fix and the two sections can no longer disagree. BACKLOG: "
+              "gate the table, which now also carries a measurable Unmatched residual worth "
+              "asserting (0.003%).",
     "test_c": "top donors and recipients. Owned by scripts/diag_cross_state_donors.py. Note "
               "CORRECTED 2026-08-09: this reason used to read 'this section names "
               "ORGANISATIONS and committees only - no individual donor is named anywhere in "
@@ -1019,11 +1083,12 @@ COVERAGE_EXEMPT_SECTIONS: dict[str, str] = {
               "scripts/diag_cross_state_donors.py. BACKLOG.",
     "test_j": "longshot-vs-favored money. Owned by scripts/diag_loser_side_money.py, which is "
               "already declared in F_UNCHECKED for the §J share it also supplies.",
-    "test_k": "the STATE-disclosure layer (WA PDC / NY BOE / ID Sunshine / TX TEC). Owned by "
-              "scripts/cross_state_state_money.py. Different regimes and filer universes from "
-              "the federal sections, which is why the paper warns against comparing K to A-J - "
-              "and why gating it needs its own derivation rather than an extension of "
-              "outflow(). BACKLOG, and the largest single section at 151 tokens.",
+    "test_k": "the pointer left behind when the STATE-disclosure layer moved to "
+              "docs/cross-state-state-money-note.md on 2026-08-16. The figures went with it "
+              "and are owned by scripts/cross_state_state_money.py; the note is not yet gated "
+              "and says so in its own header. This span stays declared so the pointer text is "
+              "still covered — a section that shrinks to a cross-reference should not silently "
+              "drop out of the audit geometry.",
     "status": "the roadmap section. Its numbers are row counts and load sizes describing what "
               "has been INGESTED, not results - e.g. TX's 19,416 candidate-cycle rows. They "
               "belong with the loaders (scripts/cross_state_state_money.py, "
@@ -1248,16 +1313,29 @@ def inflow_e(d):
     the competitiveness definition cannot fork from the one the diagnostic publishes.
     """
     sys.path.insert(0, str(Path(__file__).resolve().parent))
-    from cross_state_common import competitiveness_bands  # noqa: PLC0415
+    from cross_state_common import (  # noqa: PLC2701, PLC0415
+        NO_MAJOR_CHOICE, UNAVAILABLE, district_cycle_competitiveness)
+    from cross_state_common import FORECAST_CYCLE as FORECAST_CYCLE_LOCAL  # noqa: PLC0415
 
     ic = duckdb.connect(str(DATA / "fec_inflow.duckdb"), read_only=True)
     nrows, dollars = ic.execute(
         "SELECT COUNT(*), SUM(contribution_amount) FROM inflow_contributions").fetchone()
     d["e_rows_m"], d["e_dollars_b"] = nrows / 1e6, float(dollars) / 1e9
 
-    comp = competitiveness_bands()
+    # REBUILT 2026-08-16 onto the CYCLE-SPECIFIC basis. This block used to band every cycle's
+    # money with `competitiveness_bands()`, the project's 2026 forecast, which answers "did
+    # districts FORECAST competitive in 2026 receive more money across 2022-2026?" and not
+    # "did money chase competitive races?". A district can be safe in 2022, close in 2024 and
+    # safe again in 2026; the ~2x premium below was computed against the third of those and
+    # reported as though it were the question. Each contribution now carries the band of ITS
+    # OWN cycle: the observed two-party margin for a past cycle, the locked forecast for 2026.
+    #
+    # The unit is the district-CYCLE, not the district. That is the substantive change and it
+    # is why the per-district dollar figures move: a district appearing in three cycles is
+    # three observations, which is what "money chased this race" requires.
+    comp = district_cycle_competitiveness()
     rows = ic.execute("""
-        SELECT recipient_state,
+        SELECT recipient_state, election_cycle,
                'cd' || LPAD(CAST(TRY_CAST(recipient_district AS INTEGER) AS VARCHAR), 2, '0'),
                SUM(contribution_amount),
                SUM(CASE WHEN contributor_state <> recipient_state
@@ -1265,22 +1343,39 @@ def inflow_e(d):
         FROM inflow_contributions
         WHERE recipient_office='H' AND election_cycle >= 2022 AND contribution_amount > 0
           AND TRY_CAST(recipient_district AS INTEGER) IS NOT NULL
-        GROUP BY 1, 2""").fetchall()
+        GROUP BY 1, 2, 3""").fetchall()
     BANDS = ("Tossup", "Lean", "Likely", "Solid")
     agg = {b: {"d": 0, "tot": 0.0, "oos": 0.0} for b in BANDS}
     ndist = {b: 0 for b in BANDS}
-    for (_st, _cd), (_m, b) in comp.items():
-        ndist[b] += 1
-    for st, cd, tot, oos in rows:
-        info = comp.get((st, cd))
-        if not info:
+    # The "% of district-cycles" denominator must cover the SAME window as the money, or the
+    # two columns of the table describe different universes. Under the old district-keyed map
+    # this could not go wrong; keyed by cycle it silently can, because the competitiveness map
+    # reaches back to 2012 for New York while §E's money starts at 2022.
+    E_WINDOW = (2022, 2024, 2026)
+    for (_st, _cyc, _cd), v in comp.items():
+        if _cyc in E_WINDOW and v.band in ndist:
+            ndist[v.band] += 1
+    # The residual, reported rather than dropped. A district-cycle with no two-party margin
+    # (a same-party general) or no published canvass is not "Solid"; it is unbanded, and the
+    # honest thing is to say how much money sits there.
+    resid = {NO_MAJOR_CHOICE: 0.0, UNAVAILABLE: 0.0, "unmapped": 0.0}
+    for st, cyc, cd, tot, oos in rows:
+        info = comp.get((st, int(cyc), cd))
+        if info is None:
+            resid["unmapped"] += float(tot)
             continue
-        a = agg[info[1]]
+        if info.band not in agg:
+            resid[info.band] += float(tot)
+            continue
+        a = agg[info.band]
         a["d"] += 1
         a["tot"] += float(tot)
         a["oos"] += float(oos)
     total = sum(a["tot"] for a in agg.values()) or 1.0
     alldist = sum(ndist.values()) or 1
+    _resid_tot = sum(resid.values())
+    d["e_h_resid_m"] = _resid_tot / 1e6
+    d["e_h_resid_pct"] = 100.0 * _resid_tot / (total + _resid_tot)
     for b in BANDS:
         a = agg[b]
         d[f"e_h_{b}_n"] = a["d"]
@@ -1311,6 +1406,32 @@ def inflow_e(d):
             "FATAL: §E's competitiveness premium needs donors on both sides of "
             "the band split; one side is empty, so the ~2x claim is unverifiable.")
     d["comp_premium"] = (_comp / _compd) / (_safe / _safed)
+    # PER-CYCLE, added 2026-08-17 after a reviewer's point that the pooled premium could be
+    # one cycle's artifact. It is not -- the direction holds in all three -- but 2026 is much
+    # the weakest, and 2026 is the only cycle banded on a FORECAST rather than an outcome and
+    # the only one still accruing money. The observed-cycles-only figure is the honest upper
+    # comparison and is stated beside the pooled one rather than instead of it.
+    _percyc: dict[int, dict[str, list]] = {}
+    for st, cyc, cd, tot, _oos in rows:
+        info = comp.get((st, int(cyc), cd))
+        if info is None or info.band not in BANDS:
+            continue
+        side = "comp" if info.band in ("Tossup", "Lean") else "safe"
+        cell = _percyc.setdefault(int(cyc), {"comp": [0, 0.0], "safe": [0, 0.0]})[side]
+        cell[0] += 1
+        cell[1] += float(tot)
+    for cyc, sides in _percyc.items():
+        cn, cm = sides["comp"]
+        sn, sm = sides["safe"]
+        if cn and sn:
+            d[f"comp_premium_{cyc}"] = (cm / cn) / (sm / sn)
+    _obs = [c for c in _percyc if c < FORECAST_CYCLE_LOCAL]
+    _ocn = sum(_percyc[c]["comp"][0] for c in _obs)
+    _ocm = sum(_percyc[c]["comp"][1] for c in _obs)
+    _osn = sum(_percyc[c]["safe"][0] for c in _obs)
+    _osm = sum(_percyc[c]["safe"][1] for c in _obs)
+    if _ocn and _osn:
+        d["comp_premium_observed"] = (_ocm / _ocn) / (_osm / _osn)
     _oos = [d[f"e_h_{b}_oos"] for b in BANDS]
     d["e_h_oos_lo"], d["e_h_oos_hi"] = min(_oos), max(_oos)
 
@@ -1394,12 +1515,12 @@ def main():
     fails = verify_individual_layer()
     print("\n" + "=" * 82)
     if fails:
-        print(f"§F5/§F6: {len(fails)} FAILURE(S)")
+        print(f"CROSS-STATE MONEY: {len(fails)} FAILURE(S)")
         print("=" * 82)
         for f in fails:
             print(f"  - {f}")
         return 1
-    print("§F5/§F6: all assertions pass")
+    print("CROSS-STATE MONEY: all assertions pass")
     print("=" * 82)
     return 0
 

@@ -388,10 +388,16 @@ def _f_even(con, d: dict) -> None:
     # changes what it is describing.
     _pm = groups["partisan"] + groups["measure"]
     d["f_ro_pm_lo"], d["f_ro_pm_hi"] = min(_pm), max(_pm)
-    # Appendix A also states the contested span as integers, "~16–17%". 16.568 half-up
-    # rounds to 17, so its low endpoint is a TRUNCATION — the same convention as the
-    # interpretation section's "42–48%" (ledger open item 1), and the second instance of
-    # it found in this paper. Declared here rather than tolerated by a wide tolerance.
+    # Appendix A states the contested span as integers, "~16–17%", and that stays
+    # a TRUNCATION of 16.5684-17.2224. Half-up does not work here: both
+    # endpoints round to 17, so half-up would print the degenerate "17-17%".
+    #
+    # ⚠ As of 2026-08-18 this is the ONLY truncated integer span left in the
+    # paper. The interpretation section's reverse-overlap span moved to half-up
+    # ("43-48%", presret_*_rd, correction C13) on the author's call, so the two
+    # spans now run on DIFFERENT declared conventions, each for a stated reason.
+    # Both rows are in docs/reference/derivation-bases.csv. Do not harmonise them
+    # without re-reading why: the constraint above is what blocks it.
     d["f_ro_npcon_lo_tr"] = float(int(d["f_ro_npcon_lo"]))
     d["f_ro_npcon_hi_tr"] = float(int(d["f_ro_npcon_hi"]))
 
@@ -929,17 +935,23 @@ def derive() -> dict:
                      WHERE state_voter_id IN (SELECT state_voter_id FROM off))
                    / COUNT(*) FROM pres""").fetchone()
         _presret.append(float(v))
-    # TRUNCATED, not rounded, and that is a declared convention rather than a
-    # tolerance. The measured span is 42.5455-48.2530 and the paper prints
-    # "42-48%", so its low endpoint is the floor of 42.55, not its half-up
-    # rounding (43). `check_rounding` is exactly right to object to that, and
-    # widening the tolerance to hide it is the move this project forbids — so the
-    # convention is encoded in the derivation instead, where a real drift still
-    # fails: if the low endpoint fell to 41.9 the floor would be 41 and the
-    # probe would break. Referred to the author: whether the posted paper's "42"
-    # should read "43" is an editorial call on a public document, not mine.
-    d["presret_lo_tr"] = float(int(min(_presret)))
-    d["presret_hi_tr"] = float(int(max(_presret)))
+    # HALF-UP ROUNDED, per the author's call 2026-08-18 (ledger open item 1,
+    # now resolved; correction C13). The measured span is 42.5455-48.2530 and
+    # the paper prints "43-48%", so both endpoints are half-up roundings of the
+    # unrounded values. `math.floor(x + 0.5)` rather than `round()` because
+    # round() is banker's rounding and would send an exact .5 to even.
+    #
+    # ⚠ This paper now carries TWO integer spans on TWO conventions, and the
+    # split is deliberate and declared in docs/reference/derivation-bases.csv.
+    # Appendix A's contested-race span stays TRUNCATED (f_ro_npcon_*_tr) because
+    # half-up does not work for it: its measured endpoints are 16.5684 and
+    # 17.2224, which both round to 17, so half-up would print the degenerate
+    # "17-17%". Do not "harmonise" the two without re-reading that constraint.
+    #
+    # A real drift still fails: if the low endpoint fell to 42.4 the half-up
+    # value would be 42 and the probe would break.
+    d["presret_lo_rd"] = float(math.floor(min(_presret) + 0.5))
+    d["presret_hi_rd"] = float(math.floor(max(_presret) + 0.5))
 
     # 2024 presidential voters split by whether they ALSO voted in the 2023
     # off-year — the paper's "habitual core" vs "presidential-only" contrast.
@@ -2222,13 +2234,13 @@ def build_probes(derived: dict):
          r"than the election they are\s+credited in.*?moves no participation rate in this "
          r"paper by\s+more than \*\*([\d.]+)\*\* points",
          ("regv_late_max", "regv_rate_maxdelta"), 0.05),
-        # The reverse overlap. Endpoints are the paper's TRUNCATION of
+        # The reverse overlap. Endpoints are the paper's HALF-UP ROUNDING of
         # 42.5455-48.2530; see the derivation for why that is encoded there
         # rather than absorbed into a tolerance.
         ("interpretation — the reverse overlap, presidential voters who returned",
          r"but only \*\*(\d+)–(\d+)%\*\* of 2024 presidential voters showed up in a given "
          r"off-year",
-         ("presret_lo_tr", "presret_hi_tr"), 0.05),
+         ("presret_lo_rd", "presret_hi_rd"), 0.05),
         ("interpretation — habitual core vs presidential-only, size and both bands",
          r"the \*\*habitual core\*\* \(voted both; ([\d.]+)M\) is \*\*([\d.]+)% 65\+ and "
          r"([\d.]+)% under 30\*\*, while the \*\*presidential-only group\*\* \(([\d.]+)M\) "

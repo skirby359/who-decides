@@ -75,7 +75,8 @@ STATES = [
     ("TX", "data/tx_statewide.duckdb", "2024-11-05",
      "r.office ILIKE '%HOUSE DISTRICT%'", "r.office ILIKE '%SENATE DISTRICT%'"),
     ("ID", "data/id_statewide.duckdb", "2024-11-05",
-     "r.office ILIKE 'REPRESENTATIVE DISTRICT%'", "r.office ILIKE 'SENATOR DISTRICT%'"),
+     "(REGEXP_MATCHES(r.office, '^REPRESENTATIVE DISTRICT [0-9]+ SEAT [AB]$') OR REGEXP_MATCHES(r.office, '^LEGISLATIVE DISTRICT [0-9]+ ST REP [AB]$'))",
+     "(REGEXP_MATCHES(r.office, '^SENATOR DISTRICT [0-9]+$') OR REGEXP_MATCHES(r.office, '^LEGISLATIVE DISTRICT [0-9]+ ST SEN$'))"),
 ]
 CHAMBER_NAME = {"WA": ("House", "Senate"), "NY": ("Assembly", "Senate"),
                 "TX": ("House", "Senate"), "ID": ("House", "Senate")}

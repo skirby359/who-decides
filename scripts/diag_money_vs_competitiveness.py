@@ -19,7 +19,8 @@ import zipfile
 
 import httpx
 
-from cross_state_common import region_states, competitiveness_bands, write_json
+from cross_state_common import (NO_MAJOR_CHOICE, UNAVAILABLE, district_cycle_competitiveness,
+                                region_states, write_json)
 
 TMP = "C:/Users/kirby/AppData/Local/Temp/fec_bulk"
 CYCLES = [2018, 2020, 2022, 2024, 2026]
@@ -75,8 +76,12 @@ def build_dest_map():
 
 def main():
     n = build_dest_map()
-    comp = competitiveness_bands()
-    print(f"House committee->district map: {n:,} committees | competitiveness districts: {len(comp)}\n")
+    # CYCLE-SPECIFIC as of 2026-08-16: each contribution is banded by ITS OWN cycle, not by
+    # the 2026 forecast applied retrospectively to 2022-2026 money. See
+    # cross_state_common.district_cycle_competitiveness. The unit is the district-CYCLE.
+    comp = district_cycle_competitiveness()
+    print(f"House committee->district map: {n:,} committees | "
+          f"competitiveness district-cycles: {len(comp)}\n")
 
     # $ to each destination House district, by donor-state (in-state vs cross-state).
     dest = {}  # (dest_state, dest_cd) -> {"in": $, "out": $}
@@ -89,39 +94,44 @@ def main():
             continue
         donor_states.append(st)
         rows = c.execute(
-            f"SELECT m.dest_state, m.dest_cd, SUM(ic.contribution_amount) amt "
+            f"SELECT m.dest_state, m.dest_cd, ic.election_cycle, SUM(ic.contribution_amount) amt "
             f"FROM individual_contributions ic "
             f"JOIN read_csv('{DEST_CSV}', header=true) m ON ic.fec_candidate_id = m.cmte_id "
             f"WHERE contributor_state='{st}' AND contribution_amount>0 AND election_cycle>=2022 "
-            f"GROUP BY 1,2"
+            f"GROUP BY 1,2,3"
         ).fetchall()
         c.close()
-        for ds, cd, amt in rows:
-            d = dest.setdefault((ds, cd), {"in": 0.0, "out": 0.0})
+        for ds, cd, cyc, amt in rows:
+            d = dest.setdefault((ds, int(cyc), cd), {"in": 0.0, "out": 0.0})
             d["in" if ds == st else "out"] += float(amt)
 
     # Roll up by competitiveness band.
     bands = {b: {"districts": 0, "dollars": 0.0, "in": 0.0, "out": 0.0} for b in ["Tossup", "Lean", "Likely", "Solid"]}
     district_count = {b: 0 for b in bands}
-    for key, (mabs, b) in comp.items():
-        district_count[b] += 1
-    counted = set()
-    for (ds, cd), d in dest.items():
-        cinfo = comp.get((ds, cd))
-        if not cinfo:
+    WINDOW = (2022, 2024, 2026)
+    for (_ds, cyc, _cd), v in comp.items():
+        if cyc in WINDOW and v.band in district_count:
+            district_count[v.band] += 1
+    counted, residual = set(), 0.0
+    for (ds, cyc, cd), d in dest.items():
+        cinfo = comp.get((ds, cyc, cd))
+        # A district-cycle with no two-party margin (same-party general) or no published
+        # canvass is NOT Solid; it is unbanded. Reported below rather than absorbed.
+        if cinfo is None or cinfo.band not in bands:
+            residual += d["in"] + d["out"]
             continue
-        b = cinfo[1]
+        b = cinfo.band
         bands[b]["dollars"] += d["in"] + d["out"]
         bands[b]["in"] += d["in"]
         bands[b]["out"] += d["out"]
-        counted.add((ds, cd))
-    for (ds, cd) in counted:
-        bands[comp[(ds, cd)][1]]["districts"] += 1
+        counted.add((ds, cyc, cd))
+    for key in counted:
+        bands[comp[key].band]["districts"] += 1
 
     total = sum(b["dollars"] for b in bands.values()) or 1.0
     ndist = sum(district_count.values()) or 1
 
-    print("Band     | #Districts | %ofDists | $M to band | $/district | %of$  | in-state$ | cross$")
+    print("Band     | #Dist-cyc  | %ofD-C   | $M to band | $/dist-cyc | %of$  | in-state$ | cross$")
     print("-" * 92)
     for b in ["Tossup", "Lean", "Likely", "Solid"]:
         x = bands[b]
@@ -129,14 +139,18 @@ def main():
         perdist = x["dollars"] / nd / 1e6 if nd else 0
         print(f"{b:8} | {nd:>10} | {nd/ndist*100:6.1f}% | {x['dollars']/1e6:9.1f} | "
               f"{perdist:9.2f}M | {x['dollars']/total*100:4.1f}% | {x['in']/1e6:8.1f} | {x['out']/1e6:6.1f}")
-    print(f"\nTotal House $ ({'+'.join(donor_states)} residents -> readable-state House, 2022-2026): ${total/1e6:,.0f}M across {len(counted)} districts")
+    print(f"\nTotal House $ ({'+'.join(donor_states)} residents -> readable-state House, "
+          f"2022-2026): ${total/1e6:,.1f}M across {len(counted)} district-cycles")
+    print(f"Unbanded residual (no major-party choice / no canvass / unresolved pin): "
+          f"${residual/1e6:,.1f}M, {100*residual/(total+residual):.1f}% of the window")
     if len(donor_states) < len(STATES):
         locked = [c for c, _ in STATES if c not in donor_states]
         print(f"PARTIAL RUN: donor states {donor_states} present; {locked} unavailable "
               f"(DB locked). Rerun when free for the full {len(STATES)}-state result.")
 
     out = write_json("money_competitiveness.json",
-                     {"bands": bands, "district_count": district_count, "total": total})
+                     {"bands": bands, "district_count": district_count, "total": total,
+                      "residual": residual})
     print(f"\nwrote {out}")
 
 

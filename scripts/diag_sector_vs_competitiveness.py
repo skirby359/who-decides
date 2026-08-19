@@ -17,7 +17,7 @@ Sector classification is keyword-on-employer (noisy, free-text); an
 """
 import duckdb
 
-from cross_state_common import competitiveness_bands, region_codes, write_json
+from cross_state_common import district_cycle_competitiveness, region_codes, write_json
 
 # Keyword -> sector. Order matters (first match wins via the CASE below).
 SECTORS = {
@@ -87,12 +87,14 @@ def sector_sql_column():
 
 
 def main():
-    comp = competitiveness_bands()  # {(state, cd): (margin_abs, band)}
+    # CYCLE-SPECIFIC as of 2026-08-16 — each contribution banded by its own cycle rather
+    # than by the 2026 forecast applied to 2022-2026 money.
+    comp = district_cycle_competitiveness()  # {(state, cycle, cd): CycleBand}
     sector_col = sector_sql_column()
     ic = duckdb.connect("data/fec_inflow.duckdb", read_only=True)
     rows = ic.execute(f"""
         WITH base AS (
-            SELECT recipient_state st,
+            SELECT recipient_state st, election_cycle cyc,
                    'cd' || LPAD(CAST(TRY_CAST(recipient_district AS INTEGER) AS VARCHAR), 2, '0') AS cd,
                    UPPER(TRIM(COALESCE(contributor_employer,''))) e,
                    contribution_amount amt,
@@ -101,20 +103,20 @@ def main():
             WHERE recipient_office='H' AND election_cycle >= 2022 AND contribution_amount > 0
               AND TRY_CAST(recipient_district AS INTEGER) IS NOT NULL
         )
-        SELECT st, cd, ({sector_col}) AS sector,
+        SELECT st, cyc, cd, ({sector_col}) AS sector,
                SUM(amt) tot, SUM(amt*oos) oos
-        FROM base GROUP BY 1,2,3
+        FROM base GROUP BY 1,2,3,4
     """).fetchall()
     ic.close()
 
     # sector -> band -> {tot, oos}
     sectors = {}
     grand = 0.0
-    for st, cd, sector, tot, oos in rows:
-        cinfo = comp.get((st, cd))
-        if not cinfo:
+    for st, cyc, cd, sector, tot, oos in rows:
+        cinfo = comp.get((st, int(cyc), cd))
+        if cinfo is None or cinfo.band not in ('Tossup', 'Lean', 'Likely', 'Solid'):
             continue
-        b = cinfo[1]
+        b = cinfo.band
         tot = float(tot); oos = float(oos)
         grand += tot
         s = sectors.setdefault(sector, {bn: {"tot": 0.0, "oos": 0.0} for bn in
