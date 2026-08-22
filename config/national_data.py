@@ -146,6 +146,32 @@ NATIONAL_CYCLES = [
     # softens than grows. national_house_margin kept equal to
     # generic_ballot_margin for the projected cycle, as before.
     #
+    # RE-REVIEWED August 21, 2026 — HELD AT D+5.5, AND THE VALUE IS NOT SET HERE.
+    # This is the monthly-cadence review (last was July 19). Direction is uniformly UP
+    # across every aggregator that could be read, so the July softening has partly
+    # reversed:
+    #   - FiftyPlusOne:                     D+6.0  (49.5/43.4, Aug 21; was 5.3 Jul 18)
+    #   - Silver Bulletin:                  D+6.7  raw / D+8.1 LV-adjusted (Aug 11;
+    #                                       was 6.1 Jul 17)
+    #   - Morning Consult tracking:         D+4.0  (RV, runs low; was 3.0)
+    #   - Decision Desk HQ:                 ~D+4 to D+6 (not in the prior basis)
+    #   - ActiVote:                         D+5.0  (Aug 9; not in the prior basis)
+    #   - RealClearPolling average:         UNAVAILABLE (HTTP 403)
+    #   - USPollingData:                    not retrieved
+    #
+    # TWO REASONS THE NUMBER IS NOT CHANGED HERE, both about the basis rather than the
+    # direction. (1) RCP was the LOW anchor in July at D+4.7, so a blend computed without
+    # it is biased upward; a trimmed blend of what is available lands near D+6.0, which is
+    # exactly the move that would be made and exactly why it should not be made on a
+    # partial basis. (2) The Silver Bulletin reading is ambiguous against the prior
+    # entries: those say "RV-adjusted", which does not map cleanly onto what the page now
+    # publishes, and 6.7 against 8.1 moves the blend by about half a point.
+    #
+    # So: readings recorded, `generic_ballot_margin` left at 5.5, and the value is the
+    # author's to set with full aggregator access. `load --national --force` was NOT run,
+    # so nothing downstream moved and no re-lock is implied — the final pre-November
+    # re-lock of all three states remains a separate, later act.
+    #
     # RE-TRIANGULATION CADENCE: this value is a projection AND the dominant
     # driver of swing-seat forecasts, but it is dollar-for-dollar sampling noise
     # this far out — a 5.5<->6.0 swing between June 6 and June 8 is well inside

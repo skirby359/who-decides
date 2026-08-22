@@ -183,7 +183,7 @@ Big Tech (WA), Wall Street (NY), Energy/Industrial (TX), MLM/timber (ID).**
   and non-citizens; and WA's lower dollar total partly just reflects fewer ultra-wealthy
   households, not broader civic habit.
 
-### 3. The retired-donor economy is largest in Idaho, then Washington
+### 3. The retired-donor economy is proportionally largest in Idaho, then Washington
 - **Defensible claim.** **31.7%** of Idaho's federal donor dollars come from donors who list
   their occupation as *retired* — the highest of the four — followed by **24.0%** in
   Washington, **19.5%** in Texas, and just **11.8%** in New York. Idaho's and Washington's

@@ -360,8 +360,8 @@ floors keep out of the record entirely.*
 > **2.67×**, Gen Z **0.04×**).
 
 - **Defensible claim.** At the person level, donors are a narrow slice that does not
-  mirror the electorate: **~4.0–5.7% of voters** — matched donors as a share of all
-  registrants on the pooled panels, ID **4.0%**, NY **4.1%**, WA **5.7%** — skewed old
+  mirror the electorate: **~4.0–5.7% of registrants** — matched donors as a share of
+  each state's full roll on the pooled panels, ID **4.0%**, NY **4.1%**, WA **5.7%** — skewed old
   (pooled WA: Silent **1.96×**,
   Boomer **1.71×** over-represented; Gen Z **0.09×**, Millennial **0.54×**
   under-represented — 2.67× / 2.04× / 0.04× / 0.35× on the federal panel),

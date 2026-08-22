@@ -478,7 +478,14 @@ def section_vii(con):
                /SUM(a.total_donated)
         FROM {STATE} a JOIN vrdb.voters v USING(state_voter_id)""").fetchone()
     rows += [("top-1% share of $", t1, 40, 0.5), ("top-10% share of $", t10, 71, 0.5),
-             ("Ada County share of $", ada, 50, 0.5)]
+             # 50.3 at one decimal, NOT the bare 50 with a half-point tolerance
+             # this row carried until 2026-08-19. The paper prints 50.3% and says
+             # so in terms -- "The bare 50% stood alone here until 2026-08-15" --
+             # so the gate was still asserting the value the paper had already
+             # replaced, and a drift to 50.4 would have left the paper wrong with
+             # the gate green. Tolerance follows the paper's printed precision,
+             # which is the only tolerance that can catch a last-digit error.
+             ("Ada County share of $", ada, 50.3, 0.05)]
 
     # District safety, on Section V's own registration bands so the cut is reproducible.
     bands = {r[0]: r[1:] for r in con.execute(f"""

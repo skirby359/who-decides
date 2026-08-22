@@ -7527,3 +7527,90 @@ reading order** for the human pass (companion before the document that cites it,
 propagation is this series' actual defect class), a note on **what to look for given what the
 gates already cover**, and a **map of where the steps live** — this dossier for the series, §E/§F
 of the donor checklist for the ELJ sequence, §0 here for the freeze rule.
+---
+
+## 2026-08-19 — two gates: one asserting a retired figure, one confound that reverses a sign
+
+**The Ada gate had not followed its own paper.** `verify_donor_class.py` checked Idaho's Ada
+County dollar share against a bare `50` at a half-point tolerance. The paper prints **50.3%** and
+records the change in terms — *"The bare 50% stood alone here until 2026-08-15"* — so the figure
+moved on the 15th and the row did not. The tolerance is what hid it: |50.3 − 50| = 0.3 sits inside
+0.5, so the gate reported `ok` while asserting a value the paper had already retired, **and a
+derivation drifting to 50.4 would have left the published 50.3 wrong with the gate green.** Now
+`50.3 ± 0.05`, following the paper's printed precision, and shown FAILING first (+0.2 injected →
+`FAIL … 50.5 (paper: 50.3)`, exit 1; the same drift passed under the old bound). Clean after: 1,465
+figures, all assertions pass. **A one-decimal cell needs a one-decimal bound or it cannot catch a
+last-digit error, which is the whole reason this verifier exists** — round 24 found two such errors
+only because the tolerance had been left at the printed precision.
+
+**The nine other derived-vs-paper gaps in that block are NOT defects**, and are recorded here so
+they are not re-flagged. Where the run prints `51.3 (paper: 51.0)` or `32.6 (paper: 33.0)`, the
+paper genuinely carries whole numbers — "51% of matched donors are 65+, versus 31% of the roll and
+33% of 2024 general voters" — so the constant mirrors the page and a half-point bound is the
+correct width. Same for the district-safety splits and recipient resolution.
+
+**One finding raised and withdrawn, recorded because withdrawing it was the work.** NY's F4 line
+prints 378,386 against a 378,383-donor panel, which cannot be a donor count. Measured: the NY roll
+carries 53 duplicate `state_voter_id`s, 5 of them in the state panel, so a roll join inflates to
+378,388. **The paper already discloses this in two places** — "the NY state panel reads 378,383
+rows standalone and 378,388 after a roll join — 5 extra rows, the 5 duplicated ids". The
+verifier's F4 number is an unlabelled row count in a display, not a published figure. Checking the
+paper before asserting is the only reason this did not become a wrong correction.
+
+**Separately: a confound in the new ballot-return diagnostic reverses its headline, and a fixed
+precinct panel cannot see it.** `scripts/diag_return_drift.py` weights each returned ballot by its
+precinct's composite lean. Statewide the early electorate reads 1.23 pts *less* Democratic than the
+final one — the familiar "late ballots break D". Excluding **King alone** it becomes **+0.83 the
+other way**. A new `vrdb_precinct_crosswalk` row does not add a *precinct*; it adds *voters* to a
+precinct already visible, so the precinct set stays constant while `ballots_returned` jumps for
+administrative reasons. King took 700 ballot-bridge rows 07-22..08-06 and is both the largest
+county and strongly Democratic. Whitman's 29 rows move it by <0.01. The control is on by default,
+the sensitivity is printed rather than described, and the cost is stated: 39% of ballots excluded,
+so the controlled figure describes 34 stable counties and King's true drift is not recoverable for
+this election.
+
+**The suite flakiness recorded in `0392384` is explained and was not the suite.** That commit body
+says two full runs were red (3 then 4 failures plus 15 module-fixture errors in
+`test_report_consistency`, every one passing in isolation) and calls the cause intermittent and
+unattributed. **Author, 2026-08-19: a separate `idea-gauntlet` session was hitting this warehouse
+when it should not have been, and is no longer running.** So it is the concurrent-access failure
+mode CLAUDE.md already documents, from an external process rather than from anything in this repo.
+Recorded here because the commit understates what is now known, and a future reader would
+otherwise re-investigate a closed question. Two process notes worth keeping from that chase: I
+attributed the first red run to my own concurrent access on a signature match **without testing
+it**, and the clean run failed identically; and I piped the background runs through `tail`, which
+discarded every traceback, so three 12-minute runs were spent reasoning about a failure whose error
+text no longer existed.
+
+**The SoS drifted its race-name spelling across the count window, and it minted duplicate `races`
+rows (2026-08-21).** Building `contest_results_vintage()` for the committed checkpoint artifact
+produced a figure nobody had asked for: the 2026 primary carries **668 distinct race names across
+27 snapshots, of which only 601 are present at the newest snapshot.** The first reading —
+"67 contests stopped reporting" — was wrong, and checking it is the part worth recording. All 67
+are *superseded spellings* of contests that do report at the newest snapshot (`DIST.` /`DISTRICT` /
+`DISTRICT NO.`, `POS.` / `POSITION` / `POSITION NO.`, hyphen and comma variants), and
+`historical_race_name` only uppercases and collapses whitespace, so each spelling minted its own
+`races` row. **0 orphans.**
+
+**It is currently harmless by a mechanism nobody chose, which is why it is written down rather than
+called fine.** 63 of 195 district races are "stale" in that sense, yet **0 of 59 districts select a
+stale row**: `contest_totals` orders by vote total, and a partial count of the same contest is
+always the smaller one. Spot-checked against a known figure — ld21 gives D% 72.41 against the 72.4
+already reported. So the property holds today on a tiebreak that was chosen for a different reason,
+and would break the moment a snapshot revised a count DOWNWARD across a spelling change. Pierce
+already lost 1,014 ballot records between two July exports, so that is not hypothetical.
+
+The response was disclosure, not a fix. Canonicalizing `races.race_name` is the obvious repair and
+is the wrong one — it merges 326 groups of genuinely distinct local contests, as
+`CLAUDE.md` has recorded since 2026-08-05. So `contest_results_vintage()` returns `races` and
+`races_at_max` as separate fields, and the checkpoint artifact's vintage line states the split in
+words instead of printing a clean "668 of 668". A count of contests taken as
+`COUNT(DISTINCT race_name)` on a JSON-loaded election is now known to be wrong by about 10%.
+
+**Also from this pass, and stated because it cost nothing to find and would have cost something to
+miss:** `docs/reference/source_field_register.csv` had a row-count floor of 10 against 24 rows.
+Registering the 20 published ballot-status columns took it to 44, at which point a floor of 10
+could not have detected three quarters of the file disappearing. Raised to 40, with the load that
+moved it named in the comment. The floor exists to catch a truncated read; a floor four times below
+the file is the "gate that cannot fail" shape again, and it had been sitting there since the
+register was created.

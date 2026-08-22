@@ -53,10 +53,9 @@ VRDB = str(vp.DATA / "wa_vrdb.duckdb")
 STATEWIDE = str(vp.DATA / "wa_statewide.duckdb")
 PAPER = vp.DOCS / "who-decides-washington.md"
 
-# Official certified 2024 general ballots counted (WA SoS). EXTERNAL, like OFFICIAL
-# below: the whole point of a roll-off denominator is that it is the published ballot
-# count, not a figure the returns can produce.
-BALLOTS_2024 = 3_961_569
+# BALLOTS_2024 is defined below, FROM THE PIN. It used to be a second literal
+# (3_961_569) sitting alongside the same value inside OFFICIAL — two hand-written copies
+# of one external constant, which is how they drift apart. Now there is one source.
 
 BANDS = ["18-29", "30-44", "45-64", "65+"]
 ELECTIONS = [("2024-11-05", "e24"), ("2022-11-08", "e22"), ("2021-11-02", "e21"),
@@ -66,8 +65,82 @@ OFF_YEARS = ["e21", "e23", "e25"]
 # Certified statewide ballots counted, WA Secretary of State
 # (results.vote.wa.gov/results/<yyyymmdd>/turnout.html). An EXTERNAL benchmark: the point of
 # the coverage table is to compare the voter file against a number the file cannot produce.
-OFFICIAL = {"2021-11-02": 1_896_481, "2022-11-08": 3_067_686, "2023-11-07": 1_758_084,
-            "2024-11-05": 3_961_569, "2025-11-04": 2_001_425}
+SOS_PIN = vp.DOCS / "reference" / "wa_sos_turnout_history_2026-08-21.csv"
+
+
+def _wa_sos_turnout() -> dict[str, dict[str, int | float]]:
+    """The WA SoS's own turnout table, read from the pin, keyed by election date.
+
+    These are EXTERNAL constants — the voter file cannot reproduce them, and that is the
+    point of every figure that uses them. They lived as a Python dict here until
+    2026-08-21, which is the same shape that was wrong TWICE in Idaho (2022 ballots
+    595,602 against the SoS's 599,493; 2024 917,608 against 917,469). Nothing in an
+    asserting verifier can catch that: it checks the paper against the constant, never the
+    constant against the world.
+
+    All five WA values were re-read from the SoS on 2026-08-21 and all five were CORRECT.
+    Recording that is the point — a negative result establishes something no prior run did.
+
+    A missing pin is a FAILURE, not a fallback to literals. The failure mode this exists to
+    prevent is a plausible number with no provenance.
+    """
+    if not SOS_PIN.exists():
+        raise SystemExit(
+            f"FATAL: the WA SoS turnout pin is missing ({SOS_PIN}). The Appendix E coverage "
+            f"table, the official turnout rates and the reconstructed-roll deltas all rest "
+            f"on it. Refusing to fall back to in-code constants — that is exactly how "
+            f"Idaho's retired 595,602 and 917,608 survived unreviewed.")
+    out: dict[str, dict[str, int | float]] = {}
+    for line in SOS_PIN.read_text(encoding="utf-8").splitlines():
+        if line.startswith("#") or line.startswith("election_date") or not line.strip():
+            continue
+        date_s, kind, reg, ballots, turnout = line.split(",")
+        if kind != "general":
+            continue
+        out[date_s] = {"registered": int(reg), "ballots_counted": int(ballots),
+                       "turnout_pct": float(turnout)}
+    if not out:
+        raise SystemExit(f"FATAL: the WA SoS turnout pin parsed to zero rows ({SOS_PIN}).")
+    return out
+
+
+_WA_SOS = _wa_sos_turnout()
+OFFICIAL = {date: v["ballots_counted"] for date, v in _WA_SOS.items()}
+
+# The roll-off denominator: the published 2024 ballot count, not a figure the returns can
+# produce. One source with OFFICIAL rather than a second literal beside it.
+BALLOTS_2024 = OFFICIAL["2024-11-05"]
+
+PANEL_PIN = vp.DOCS / "reference" / "ballot_status_final_panel_pin.csv"
+
+
+def _final_ballot_panel(slug: str = "20260804") -> str:
+    """The report_date of the FINAL ballot-status panel, from the pin.
+
+    Appendix A's rejection-channel figures used to derive off `MAX(report_date)`, so every
+    ballot-status load moved three PUBLISHED numbers (SSRN 7149263). The author's
+    2026-08-13 decision was to leave the gate red rather than pin to a pre-certification
+    count; this closes it against the established final panel.
+
+    Read from the pin rather than written here so that "which panel is final" has one
+    definition, shared with tests/test_etl/test_ballot_status_final_panel_pin.py, which
+    re-hashes the archived file against it. A missing pin is a FAILURE: falling back to
+    `MAX(report_date)` would silently restore the floating basis.
+    """
+    if not PANEL_PIN.exists():
+        raise SystemExit(
+            f"FATAL: the final-panel pin is missing ({PANEL_PIN}). Appendix A's rejection "
+            f"figures are pinned to it. Refusing to fall back to MAX(report_date) — that "
+            f"is the floating basis the 2026-08-13 decision was about.")
+    for line in PANEL_PIN.read_text(encoding="utf-8").splitlines():
+        if line.startswith("election_slug") or not line.strip():
+            continue
+        parts = line.split(",")
+        if parts[0] == slug:
+            return parts[1]
+    raise SystemExit(
+        f"FATAL: no row for election {slug} in {PANEL_PIN}. Appendix A cannot be derived "
+        f"without knowing which ballot panel is final.")
 
 # Metro counties, as the paper's geography cut defines them: the ten most populous.
 METRO = ("KING", "PIERCE", "SNOHOMISH", "SPOKANE", "CLARK", "THURSTON", "KITSAP",
@@ -277,9 +350,25 @@ def _a_rejection(con, d: dict) -> None:
     #
     # So: a red run on THESE THREE CELLS is expected and accepted. A red run anywhere else in
     # this verifier is not.
-    d["a_rej_date"], = con.execute(
-        "SELECT MAX(report_date) FROM voter_ballot_status").fetchone()
-    rows = con.execute("""
+    # PINNED 2026-08-21 to the FINAL panel, closing the author's 2026-08-13 decision.
+    # This read `MAX(report_date)`, so every ballot-status load moved three published
+    # figures — a floating basis, and the defect that decision recorded. The panel is now
+    # final and provable: the SoS's last posting was 2026-08-18, its own isOfficialResults
+    # flag flipped True by 08-19, a copy fetched by hand on 08-21 is byte-identical to the
+    # archived 08-18 file, and pending is 0 (every ballot adjudicated).
+    #
+    # The date comes from the panel pin, not a literal here, so "which panel is final" has
+    # ONE definition shared with tests/test_etl/test_ballot_status_final_panel_pin.py.
+    panel = _final_ballot_panel()
+    d["a_rej_date"] = panel
+    # The panel date is now PRINTED in the paper, so it is a figure and gets probed like
+    # one rather than exempted. Split into components because the probe layer compares
+    # numbers; the effect is that editing the date in the prose without re-pinning fails,
+    # which is the coupling that keeps the basis from floating again.
+    _y, _m, _dd = panel.split("-")
+    d["a_rej_panel_y"], d["a_rej_panel_m"], d["a_rej_panel_d"] = (
+        int(_y), int(_m), int(_dd))
+    rows = con.execute(f"""
         WITH b AS (
             SELECT s.ballot_status,
                    CASE WHEN date_diff('year', v.birthdate, DATE '2026-08-04') < 30
@@ -287,7 +376,7 @@ def _a_rejection(con, d: dict) -> None:
                         WHEN date_diff('year', v.birthdate, DATE '2026-08-04') >= 65
                              THEN '65+' ELSE 'mid' END AS band
             FROM voter_ballot_status s JOIN vrdb.voters v USING (state_voter_id)
-            WHERE s.report_date = (SELECT MAX(report_date) FROM voter_ballot_status)
+            WHERE s.report_date = DATE '{panel}'
               AND v.birthdate IS NOT NULL)
         SELECT band, COUNT(*), COUNT(*) FILTER (WHERE ballot_status = 'Rejected')
         FROM b GROUP BY 1""").fetchall()
@@ -1973,6 +2062,14 @@ def build_probes(derived: dict):
          r"composition gap of about ([\d.]+) points",
          ("a_rej_young", "a_rej_senior", "a_rej_ratio", "a_rej_comp_shift",
           "comp_gap_18_29"), 0.05),
+        # The panel date the four figures above are derived on. Added 2026-08-21 when the
+        # basis stopped floating: the paper now names the snapshot, so the snapshot is a
+        # figure. Derived from docs/reference/ballot_status_final_panel_pin.csv, so a
+        # reworded date that no longer matches the pin fails here rather than reading as
+        # provenance.
+        ("appendix A — the final ballot panel the rejection figures rest on",
+         r"the \*\*(\d{4})-(\d{2})-(\d{2})\*\* file, the last the",
+         ("a_rej_panel_y", "a_rej_panel_m", "a_rej_panel_d"), 0.05),
         # SURFACED BY `bold_is_result`, 2026-08-11. All four are results the author
         # bolded and no probe touched: the ratio restated in `n:1` notation, whose
         # decimal form beside it WAS asserted, and the two medians.

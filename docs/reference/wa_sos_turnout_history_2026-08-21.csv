@@ -1,0 +1,31 @@
+# Washington Secretary of State, statewide voter turnout, general elections.
+# Retrieved 2026-08-21 from https://results.vote.wa.gov/results/<yyyymmdd>/turnout.html
+#
+# WHY THIS FILE EXISTS. verify_who_decides_wa.py carried these five figures as a
+# hand-written Python dict (`OFFICIAL`), the same shape that was wrong twice in Idaho —
+# where 2022 ballots read 595,602 against the SoS's 599,493 and 2024 read 917,608 against
+# 917,469. An asserting verifier cannot catch that: it faithfully asserts whatever external
+# constant it is handed, and the paper is checked against the constant, never the constant
+# against the world. Pinning does not fix that either. It makes the source and the retrieval
+# date checkable in one click, which is the most a repo can do.
+#
+# THE NEGATIVE RESULT, WHICH IS THE POINT OF RECORDING IT. All five WA literals were
+# CORRECT. Idaho's pin found two errors; this one found none. That is worth stating rather
+# than passing over: nothing previously established that the WA transcription was sound, and
+# now something does.
+#
+# `ballots_counted` and `registered` are the SoS's own columns; `turnout_pct` is theirs, not
+# recomputed. Note the two do not divide exactly to the printed percentage, because the SoS
+# rounds it: 3,961,569 / 0.7895 = 5,018,447 against a printed 5,017,620, a 0.016% gap.
+# verify_who_decides_wa.py deliberately still DERIVES its roll as ballots/turnout_pct, so
+# that pinning moved no published figure. Switching it to the printed `registered` column
+# would be more accurate and would move `recon_roll_delta` — left as the author's call.
+#
+# The 2026 primary is absent on purpose: this host serves only through 20251104 (the CSV-era
+# retirement, see CLAUDE.md), and a primary is not a general.
+election_date,election,registered,ballots_counted,turnout_pct
+2025-11-04,general,5100871,2001425,39.24
+2024-11-05,general,5017620,3961569,78.95
+2023-11-07,general,4829084,1758084,36.41
+2022-11-08,general,4806852,3067686,63.82
+2021-11-02,general,4813143,1896481,39.40

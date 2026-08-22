@@ -609,6 +609,46 @@ def assert_relations(d: dict) -> None:
             f"{d['venuepct_contested_republican']:.1f}%, at or above 50%, so Sec IV's "
             f"correction — the primary electorate is the largest single venue but settles "
             f"less than half of seats — no longer describes the data.")
+    if d["nomstage_total"] != 105 or d["laststage_total"] != 105:
+        raise SystemExit(
+            f"FATAL: the two seat taxonomies must each partition all 105 seats — "
+            f"nomination-stage covers {d['nomstage_total']}, last-contested-stage "
+            f"{d['laststage_total']}. A seat counted in one and not the other makes the "
+            f"two decompositions non-comparable, which is the whole point of printing both.")
+    if d["laststage_general"] <= d["nomstage_r_contested"]:
+        raise SystemExit(
+            f"FATAL: Sec IV's central distinction is that the stage which SETTLED a seat and "
+            f"the stage which produced the winner's NOMINATION are different variables — "
+            f"{d['laststage_general']} seats still had a November choice against "
+            f"{d['nomstage_r_contested']} decided in a contested Republican primary. Those "
+            f"are now equal or inverted, so the two-taxonomy presentation describes nothing "
+            f"and the section must be re-derived rather than re-worded.")
+    if d["novmargin_total"] != d["laststage_general"]:
+        raise SystemExit(
+            f"FATAL: the November-margin cross must cover exactly the seats the contestation "
+            f"cut calls contested — {d['novmargin_total']} against "
+            f"{d['laststage_general']}. If they diverge the paper's three-layer summary "
+            f"(105 / 80 / 8) is describing two different universes.")
+    if d["novmargin_lt10"] >= 0.25 * d["laststage_general"]:
+        raise SystemExit(
+            f"FATAL: Sec IV's point is that ballot presence is not competitiveness — "
+            f"{d['novmargin_lt10']} of {d['laststage_general']} contested seats were decided "
+            f"by under ten points. At a quarter or more that framing weakens and the section "
+            f"should be re-argued rather than left standing.")
+    if d["solefiler_nov_opposed"] < 0.5 * d["solefiler_n"]:
+        raise SystemExit(
+            f"FATAL: the paper withdrew 'these {d['solefiler_n']} seats were decided once "
+            f"the filing period closed' because {d['solefiler_nov_opposed']} of them still "
+            f"faced an opponent in November. That is now a minority, so the retired reading "
+            f"would be defensible again and the withdrawal must be revisited — not left "
+            f"standing on a claim the data no longer supports.")
+    if not (d["norprim_nov_unopposed"] == d["norprim_n"] == d["norprim_sole_dem_filer"]):
+        raise SystemExit(
+            f"FATAL: the {d['norprim_n']} seats no Republican contested are the ONE cell the "
+            f"paper still assigns to filing, and it survives only because all of them drew a "
+            f"sole Democratic filer AND no November opponent. Measured: "
+            f"{d['norprim_sole_dem_filer']} sole-filer, {d['norprim_nov_unopposed']} "
+            f"unopposed. The assignment no longer holds.")
     if d.get("xo_UNAFF_survives") or not d.get("xo_DEM_survives"):
         raise SystemExit(
             f"FATAL: Sec VII's revised claim is that Democratic donor loyalty survives the "
@@ -710,8 +750,22 @@ def _seat_outcomes(d: dict) -> None:
         pri, = con.execute(
             "SELECT election_id FROM elections WHERE election_date = DATE '2024-05-21'"
         ).fetchone()
-        _leg = ("(r.race_name LIKE 'REPRESENTATIVE DISTRICT%' "
-                "OR r.race_name LIKE 'SENATOR DISTRICT%')")
+        # ANCHORED 2026-08-17. This read LIKE 'REPRESENTATIVE DISTRICT%', which in Idaho also
+        # matches the pre-2024 U.S. HOUSE offices ('REPRESENTATIVE DISTRICT 1'). Section IV's
+        # decomposition runs on 2024 only, where U.S. House carries the 'U.S.' prefix, so the
+        # 105-seat denominator was never wrong -- but pointing this at 2022 would have added
+        # two congressional districts to the chamber without erroring.
+        # The optional party suffix is load-bearing: this predicate is applied to the PRIMARY
+        # as well as the general, and primary race names carry it ('... SEAT A REPUBLICAN').
+        # A first attempt anchored without it, which silently emptied the primary CTE -- caught
+        # by the norprim relation guard rather than by any figure, which is what that guard is
+        # for.
+        _pty = "( (REPUBLICAN|DEMOCRATIC))?$'"
+        _leg = ("(REGEXP_MATCHES(r.race_name, '^REPRESENTATIVE DISTRICT [0-9]+ SEAT [AB]"
+                + _pty + ") "
+                "OR REGEXP_MATCHES(r.race_name, '^SENATOR DISTRICT [0-9]+" + _pty + ") "
+                "OR REGEXP_MATCHES(r.race_name, "
+                "'^LEGISLATIVE DISTRICT [0-9]+ ST (REP [AB]|SEN)" + _pty + "))")
         for party, key in (("Republican", "r"), ("Democratic", "d")):
             d[f"seats24_{key}"], = con.execute(f"""
                 WITH w AS (
@@ -747,19 +801,26 @@ def _seat_outcomes(d: dict) -> None:
         d["single_prim_n"] = d["single_prim_r_won"] + d["single_prim_d_won"]
         d["filing_settled_pct"] = 100.0 * d["single_prim_r_won"] / d["seats24_r"]
 
-        # --- THE DECISION-VENUE DECOMPOSITION over all 105 seats (2026-08-15).
+        # --- THE WINNER-NOMINATION-STAGE DECOMPOSITION over all 105 seats.
         #
-        # Added because an external referee pointed out that the paper's own seat counts
-        # defeat its own headline: 52 of 105 is 49.5%, which is not "the great majority".
-        # His decomposition was three-way (52 primary / 38 filing / 15 November) and is
-        # right in structure, but it puts all fifteen Democratic seats in November. Six of
-        # them had NO Republican primary at all — no Republican filed — so those were
-        # settled at filing too, in the Democrats' favour, and the count that genuinely
-        # turned on the general is nine, not fifteen.
+        # Added 2026-08-15 because an external referee pointed out that the paper's own
+        # seat counts defeat its own headline: 52 of 105 is 49.5%, which is not "the great
+        # majority". His decomposition was three-way (52 primary / 38 filing / 15 November)
+        # and is right in structure, but it puts all fifteen Democratic seats in November.
+        # Six of them had NO Republican primary at all — no Republican filed — so those
+        # were settled at filing too, in the Democrats' favour, and the count that
+        # genuinely turned on the general is nine, not fifteen.
         #
-        # A four-way cut over the same 105 seats is therefore both more accurate and
-        # sharper than either the old framing or the referee's. It is derived here from
-        # the loaded canvasses rather than reasoned from the printed cells.
+        # RENAMED from "decision venue" 2026-08-16, at a second referee's insistence, and
+        # he was right on a point the counts cannot show. These four cells are a function
+        # of (Republican primary shape) x (general winner party) and nothing else — they
+        # never look at whether anyone opposed the winner in November. So they measure the
+        # stage at which the WINNER'S NOMINATION was determined, not the stage at which the
+        # seat was electorally settled, and the paper's stated definition ("the last stage
+        # at which more than one candidate was still in contention") described the second
+        # while the table computed the first. `_contest_stages()` below derives the
+        # variables that definition actually needs; the counts here are unchanged and
+        # correct for what they measure.
         for a, b, n in con.execute(f"""
             WITH gseat AS (SELECT race_name seat, p FROM (
                 SELECT r.race_name, cd.party_normalized p,
@@ -790,8 +851,193 @@ def _seat_outcomes(d: dict) -> None:
         d["venue_r_nomination_n"] = (d.get("venue_contested_republican", 0)
                                      + d.get("venue_single_republican", 0))
         d["venue_r_nomination_pct"] = 100.0 * d["venue_r_nomination_n"] / d["venue_total"]
+        _contest_stages(con, d, gen, pri, _leg)
     finally:
         con.close()
+
+
+#: Idaho's loaded canvass carries the ballot-accounting lines as if they were candidates:
+#: 210 rows named OVERVOTES / UNDERVOTES, party 'Nan', 285,225 "votes" across the 2024
+#: legislative general. They cannot reach a two-party margin (party 'Nan' is neither D nor
+#: R), so every margin in this file was always safe — but any count of CANDIDATES must
+#: exclude them explicitly or every seat reads as having two more contenders than it had.
+_PSEUDO_CANDIDATES = "('OVERVOTES', 'UNDERVOTES')"
+
+
+def _contest_stages(con, d: dict, gen: int, pri: int, leg: str) -> None:
+    """The five variables the phrase "where a seat is decided" actually needs.
+
+    ADDED 2026-08-16. The four venue cells above are a real result, but they answer
+    "when was the winner's nomination determined?" — they are computed from the
+    Republican primary's shape and the general's winner, and never look at who else was
+    on the November ballot. The paper printed them under a definition about "the last
+    stage at which more than one candidate was still in contention", which is a
+    different variable, and the gap is not cosmetic: measured here, it moves 71 of the
+    105 seats between categories.
+
+    Five variables, so that no sentence has to carry more than one of them:
+
+    ``winner_nomination_stage``
+        filing (sole filer of the winner's party) or contested primary.
+    ``general_candidate_availability``
+        did November offer a choice at all — two or more real candidates?
+    ``general_margin``
+        the observed two-party margin, for seats where both major parties ran.
+    ``last_contested_stage``
+        general if November was contested; else primary if the winner's party primary
+        was; else filing. This is the variable the withdrawn definition described.
+    ``dominant_party_nomination_stage``
+        whether the Republican nomination — the one that decides most Idaho seats —
+        was itself contested, independent of who won in November.
+
+    The counts this produces are the paper's, derived here rather than reasoned from
+    printed cells, because a reconstruction from rounded output is how this project has
+    twice landed on the wrong side of a rounding boundary.
+    """
+    rows = con.execute(f"""
+        WITH gcand AS (
+            SELECT r.race_name seat, cd.candidate_id,
+                   cd.party_normalized p, SUM(pr.votes) v
+            FROM races r JOIN precinct_results pr USING (race_id)
+            JOIN candidates cd USING (candidate_id)
+            WHERE r.election_id = {gen} AND {leg}
+              AND UPPER(cd.candidate_name) NOT IN {_PSEUDO_CANDIDATES}
+            GROUP BY 1, 2, 3),
+        granked AS (
+            SELECT *, ROW_NUMBER() OVER (PARTITION BY seat ORDER BY v DESC) rk,
+                   COUNT(*) OVER (PARTITION BY seat) n_cand
+            FROM gcand),
+        gseat AS (
+            SELECT seat,
+                   MAX(n_cand) n_cand,
+                   MAX(CASE WHEN rk = 1 THEN p END) winner,
+                   SUM(CASE WHEN p = 'Democratic' THEN 1 ELSE 0 END) n_dem,
+                   SUM(CASE WHEN p = 'Republican' THEN 1 ELSE 0 END) n_rep,
+                   SUM(CASE WHEN p = 'Democratic' THEN v ELSE 0 END) dv,
+                   SUM(CASE WHEN p = 'Republican' THEN v ELSE 0 END) rv
+            FROM granked GROUP BY 1),
+        rprim AS (
+            SELECT REPLACE(r.race_name, ' REPUBLICAN', '') seat,
+                   COUNT(DISTINCT cd.candidate_id) n_r
+            FROM races r JOIN precinct_results pr USING (race_id)
+            JOIN candidates cd USING (candidate_id)
+            WHERE r.election_id = {pri} AND r.race_name LIKE '% REPUBLICAN' AND {leg}
+              AND UPPER(cd.candidate_name) NOT IN {_PSEUDO_CANDIDATES}
+            GROUP BY 1),
+        dprim AS (
+            SELECT REPLACE(r.race_name, ' DEMOCRATIC', '') seat,
+                   COUNT(DISTINCT cd.candidate_id) n_d
+            FROM races r JOIN precinct_results pr USING (race_id)
+            JOIN candidates cd USING (candidate_id)
+            WHERE r.election_id = {pri} AND r.race_name LIKE '% DEMOCRATIC' AND {leg}
+              AND UPPER(cd.candidate_name) NOT IN {_PSEUDO_CANDIDATES}
+            GROUP BY 1)
+        SELECT gseat.seat, gseat.winner, gseat.n_cand, gseat.n_dem, gseat.n_rep,
+               gseat.dv, gseat.rv,
+               COALESCE(rprim.n_r, 0), COALESCE(dprim.n_d, 0)
+        FROM gseat LEFT JOIN rprim USING (seat) LEFT JOIN dprim USING (seat)
+    """).fetchall()
+
+    nom = {"r_contested": 0, "r_uncontested": 0, "d_contested": 0, "d_uncontested": 0}
+    last = {"general": 0, "primary": 0, "filing": 0}
+    # How far apart the two taxonomies actually are, counted rather than asserted. The
+    # venue class maps onto a contestation stage (a contested primary -> 'primary'; a sole
+    # filer of the winner's party -> 'filing'; a Republican beaten in November -> 'general')
+    # and the disagreement is the off-diagonal. Deriving this instead of eyeballing it
+    # matters: the first draft of the sentence carried a number reconstructed by hand.
+    disagree = 0
+    domn = {"contested": 0, "uncontested": 0, "none": 0}
+    gen_contested = gen_uncontested = 0
+    # The 38 single-Republican-filer seats the Republican won — the cell the retired
+    # wording called "decided once the filing period closed".
+    s38 = {"n": 0, "nov_opposed": 0, "nov_major_opp": 0, "m_lt10": 0, "m_lt20": 0}
+    # The 6 seats no Republican contested at all.
+    s6 = {"n": 0, "nov_unopposed": 0, "sole_dem_filer": 0}
+
+    for seat, winner, n_cand, n_dem, n_rep, dv, rv, n_r, n_d in rows:
+        n_cand, n_dem, n_rep, n_r, n_d = (int(n_cand), int(n_dem), int(n_rep),
+                                          int(n_r), int(n_d))
+        contested_nov = n_cand >= 2
+        gen_contested += contested_nov
+        gen_uncontested += not contested_nov
+
+        domn["contested" if n_r >= 2 else "uncontested" if n_r == 1 else "none"] += 1
+
+        win_prim = n_r if winner == "Republican" else n_d
+        key = "r_" if winner == "Republican" else "d_"
+        nom[key + ("contested" if win_prim >= 2 else "uncontested")] += 1
+
+        if contested_nov:
+            last["general"] += 1
+            this_last = "general"
+        elif win_prim >= 2:
+            last["primary"] += 1
+            this_last = "primary"
+        else:
+            last["filing"] += 1
+            this_last = "filing"
+
+        if winner == "Democratic" and n_r == 1:
+            nom_as_stage = "general"      # a sole Republican filer beaten in November
+        elif win_prim >= 2:
+            nom_as_stage = "primary"
+        else:
+            nom_as_stage = "filing"
+        disagree += nom_as_stage != this_last
+
+        two_party = float(dv) + float(rv)
+        margin = abs(100.0 * (float(dv) - float(rv)) / two_party) if two_party > 0 else None
+
+        if n_r == 1 and winner == "Republican":
+            s38["n"] += 1
+            s38["nov_opposed"] += contested_nov
+            s38["nov_major_opp"] += bool(n_dem >= 1 and n_rep >= 1)
+            if contested_nov and margin is not None:
+                s38["m_lt10"] += margin < 10.0
+                s38["m_lt20"] += margin < 20.0
+        if n_r == 0 and winner == "Democratic":
+            s6["n"] += 1
+            s6["nov_unopposed"] += not contested_nov
+            s6["sole_dem_filer"] += n_d == 1
+
+    for k, v in nom.items():
+        d[f"nomstage_{k}"] = v
+    for k, v in last.items():
+        d[f"laststage_{k}"] = v
+    for k, v in domn.items():
+        d[f"domprim_{k}"] = v
+    d["nomstage_total"] = sum(nom.values())
+    d["laststage_total"] = sum(last.values())
+    d["gen_contested"] = gen_contested
+    d["gen_uncontested"] = gen_uncontested
+    for k, v in s38.items():
+        d[f"solefiler_{k}"] = v
+    for k, v in s6.items():
+        d[f"norprim_{k}"] = v
+    # ADDED 2026-08-17. The contestation cut counts BALLOT PRESENCE, not viability -- a
+    # reviewer's point, and a fair one: 80 of 105 seats offering a choice says nothing about
+    # whether the choice was live. Crossing it against the observed two-party margin is what
+    # turns a ballot-access figure into a statement about contests, and it sharpens the
+    # section's thesis rather than softening it.
+    novm = {"lt10": 0, "b10_20": 0, "b20_40": 0, "ge40": 0, "no_two_party": 0}
+    for seat, winner, n_cand, n_dem, n_rep, dv, rv, n_r, n_d in rows:
+        if int(n_cand) < 2:
+            continue
+        two = float(dv) + float(rv)
+        if two <= 0 or float(dv) <= 0 or float(rv) <= 0:
+            novm["no_two_party"] += 1
+            continue
+        m = abs(100.0 * (float(dv) - float(rv)) / two)
+        novm["lt10" if m < 10 else "b10_20" if m < 20 else "b20_40" if m < 40
+             else "ge40"] += 1
+    for k, v in novm.items():
+        d[f"novmargin_{k}"] = v
+    d["novmargin_total"] = sum(novm.values())
+
+    d["laststage_general_pct"] = 100.0 * last["general"] / max(1, sum(last.values()))
+    d["laststage_primary_pct"] = 100.0 * last["primary"] / max(1, sum(last.values()))
+    d["laststage_filing_pct"] = 100.0 * last["filing"] / max(1, sum(last.values()))
+    d["stage_disagreement_n"] = disagree
 
 
 def _primary_vs_donor_age(con, d: dict) -> None:
@@ -849,7 +1095,6 @@ def _donor_ballot_measure_split(con, d: dict) -> None:
     def contributor_type_person_sql(alias: str = "ic") -> str:
         col = f"{alias}.contributor_type" if alias else "contributor_type"
         return f"COALESCE({col}, 'UNKNOWN') NOT IN ('ORGANIZATION', 'COMMITTEE')"
-
 
     sd = str(vp.DATA / "id_statewide.duckdb")
     c = duckdb.connect(sd, read_only=True)
@@ -1169,17 +1414,17 @@ PROBES = [
     # the decomposition rewrite deleted; the same key is still asserted twice elsewhere
     # (§IV and §V), so no check is lost. It now covers the abstract's four venue shares,
     # which are the paper's new headline and were unprobed the moment they were written.
-    ("abstract — venue 1, the contested Republican primary",
-     r"a \*\*contested\*\* Republican primary for \*\*(\d+)\*\* of them \(\*\*([\d.]+)%\*\*\)",
+    ("abstract — nomination stage 1, the contested Republican primary",
+     r"a \*\*contested\*\* Republican primary for \*\*(\d+)\*\* \(\*\*([\d.]+)%\*\*\)",
      ("venue_contested_republican", "venuepct_contested_republican"), 0.05),
-    ("abstract — venue 2, a single Republican filer who won",
-     r"single filed candidate for \*\*(\d+)\*\* more \(\*\*([\d.]+)%\*\*\)",
+    ("abstract — nomination stage 2, an uncontested Republican nomination",
+     r"uncontested Republican nomination for \*\*(\d+)\*\* more \(\*\*([\d.]+)%\*\*\)",
      ("venue_single_republican", "venuepct_single_republican"), 0.05),
-    ("abstract — venue 3, the November general",
-     r"the November general for \*\*(\d+)\*\* \(\*\*([\d.]+)%\*\*\)",
+    ("abstract — nomination stage 3, the November general",
+     r"the November general for \*\*(\d+)\*\*\s*\(\*\*([\d.]+)%\*\*\)",
      ("venue_single_democratic", "venuepct_single_democratic"), 0.05),
-    ("abstract — venue 4, no Republican filed at all",
-     r"the remaining \*\*(\d+)\*\* \(\*\*([\d.]+)%\*\*\)",
+    ("abstract — nomination stage 4, no Republican filed at all",
+     r"for the remaining \*\*(\d+)\*\* \(\*\*([\d.]+)%\*\*\)",
      ("venue_norprim_democratic", "venuepct_norprim_democratic"), 0.05),
     ("§IV — the Republican contested-rate series",
      r"\*\*(\d+)% \(2016\) → (\d+)% \(2018\) → (\d+)% \(2022\) → (\d+)% \(2024\)\*\*",
@@ -1274,7 +1519,7 @@ PROBES = [
      r"Of the (\d+) seats whose Republican primary drew a single candidate",
      "single_prim_n", 0),
     ("abstract — the nomination process against the primary electorate",
-     r"produced\s*the winner in \*\*(\d+) of (\d+)\*\* seats, \*\*([\d.]+)%\*\*",
+     r"eventual winner in \*\*(\d+) of (\d+)\*\* seats \(\*\*([\d.]+)%\*\*\) was",
      ("venue_r_nomination_n", "venue_total", "venue_r_nomination_pct"), 0.05),
     ("§IV single-candidate primary outcomes, both ways",
      r"\*\*(\d+) of them were won by a Democrat in November\*\*,\s*while all (\d+)\s*"
@@ -1587,28 +1832,77 @@ PROBES = [
     ("§III — how many of those carry a 2024 general vote record",
      r"and ([\d,]+) of them carry a 2024 general vote record", "edr_persist_voted24", 0),
 
-    # ---- §IV, the decision-venue table
-    ("§IV venue table — contested Republican primary",
+    # ---- §IV, table 1: the stage that produced the winner's NOMINATION
+    ("§IV nomination table — contested Republican primary",
      r"a Republican won in November \| \*\*(\d+)\*\* \| \*\*([\d.]+)%\*\* \|",
      ("venue_contested_republican", "venuepct_contested_republican"), 0.05),
-    ("§IV venue table — single Republican filer who won",
-     r"that Republican won in November \| \*\*(\d+)\*\* \| \*\*([\d.]+)%\*\* \|",
+    ("§IV nomination table — uncontested Republican nomination",
+     r"that Republican won \| \*\*(\d+)\*\* \| \*\*([\d.]+)%\*\* \|",
      ("venue_single_republican", "venuepct_single_republican"), 0.05),
-    ("§IV venue table — single Republican filer who lost",
+    ("§IV nomination table — single Republican filer who lost",
      r"a \*\*Democrat\*\* won \| \*\*(\d+)\*\* \| \*\*([\d.]+)%\*\* \|",
      ("venue_single_democratic", "venuepct_single_democratic"), 0.05),
-    ("§IV venue table — no Republican filed",
-     r"no\* Republican filed; a Democrat won \| \*\*(\d+)\*\* \| \*\*([\d.]+)%\*\* \|",
+    ("§IV nomination table — no Republican filed at all",
+     r"No Republican filed at all\*\* — a Democrat won \| \*\*(\d+)\*\* \| \*\*([\d.]+)%\*\* \|",
      ("venue_norprim_democratic", "venuepct_norprim_democratic"), 0.05),
     ("§IV — the nomination process against the primary electorate",
-     r"eventual winner of \*\*(\d+) of (\d+) seats \(([\d.]+)%\)\*\*",
+     r"eventual winner in \*\*(\d+) of (\d+) seats \(([\d.]+)%\)\*\*",
      ("venue_r_nomination_n", "venue_total", "venue_r_nomination_pct"), 0.05),
-    ("§IV — the contested primary as the largest single venue",
-     r"contested primary settles (\d+) seats, ([\d.]+)%\*\*",
-     ("venue_contested_republican", "venuepct_contested_republican"), 0.05),
-    ("§IV — the filing total, and the two bands that make it up",
-     r"\*\*(\d+) seats\*\* \((\d+) Republican-held plus (\d+) Democratic-held\)",
-     ("_filing_total", "venue_single_republican", "venue_norprim_democratic"), 0),
+    ("§IV — the Democratic winners' own nomination shape",
+     r"\*\*(\d+)\*\* of the 15 drew a single Democratic\s*filer and only \*\*(\d+)\*\*",
+     ("nomstage_d_uncontested", "nomstage_d_contested"), 0),
+
+    # ---- §IV, table 2: the stage at which the seat stopped being CONTESTED.
+    # ADDED 2026-08-16. This is the variable the section's old definition described while
+    # its table computed the one above; the two are printed separately now precisely so no
+    # sentence has to carry both.
+    ("§IV contestation table — still contested in November",
+     r"two or more candidates on the general-election ballot \| \*\*(\d+)\*\* \| "
+     r"\*\*([\d.]+)%\*\* \|", ("laststage_general", "laststage_general_pct"), 0.05),
+    ("§IV contestation table — contested in the primary only",
+     r"a contested primary, then an unopposed general \| \*\*(\d+)\*\* \| \*\*([\d.]+)%\*\* \|",
+     ("laststage_primary", "laststage_primary_pct"), 0.05),
+    ("§IV contestation table — unopposed at every stage",
+     r"unopposed at every stage \| \*\*(\d+)\*\* \| \*\*([\d.]+)%\*\* \|",
+     ("laststage_filing", "laststage_filing_pct"), 0.05),
+    ("§IV — the contested-in-November seats crossed against margin",
+     r"only \*\*(\d+)\*\* were decided by fewer than ten points and \*\*(\d+)\*\* more by ten "
+     r"to twenty; \*\*(\d+)\*\* ran\s*to twenty-to-forty, \*\*(\d+)\*\* to forty or more, and a "
+     r"further \*\*(\d+)\*\*",
+     ("novmargin_lt10", "novmargin_b10_20", "novmargin_b20_40", "novmargin_ge40",
+      "novmargin_no_two_party"), 0),
+    ("§IV — the three-layer summary the margin cross adds",
+     r"\*\*(\d+)\*\* seats, \*\*(\d+)\*\* with a choice on the ballot, \*\*(\d+)\*\* with a "
+     r"close one",
+     ("venue_total", "laststage_general", "novmargin_lt10"), 0),
+    ("§IV — how far apart the two taxonomies are",
+     r"disagree about (\d+) of the (\d+) seats",
+     ("stage_disagreement_n", "venue_total"), 0),
+    ("§IV — the withdrawn 'decided at filing' reading, measured against itself",
+     r"of the \*\*(\d+)\*\* seats the old table assigned to candidate filing,\s*"
+     r"\*\*(\d+) faced an opponent in November\*\*, \*\*(\d+)\*\* of them a major-party "
+     r"opponent, and \*\*(\d+)\*\*",
+     ("solefiler_n", "solefiler_nov_opposed", "solefiler_nov_major_opp",
+      "solefiler_m_lt10"), 0),
+    # NB the "all six drew a sole Democratic filer and all six were unopposed" claim
+    # deliberately has NO probe: it carries no numeric token a regex can bind, which is
+    # exactly the class `assert_relations` exists for. It is guarded there, on
+    # norprim_n / norprim_sole_dem_filer / norprim_nov_unopposed, with a firing case in
+    # tests/test_infrastructure/test_id_relation_gates.py.
+
+    # ---- abstract, the same two cuts
+    ("abstract — the contestation cut, all three rows",
+     r"\*\*(\d+)\*\* \(\*\*([\d.]+)%\*\*\) still\s*offered two or more candidates on the "
+     r"general-election ballot, \*\*(\d+)\*\* \(\*\*([\d.]+)%\*\*\) were\s*contested only "
+     r"in the primary, and just \*\*(\d+)\*\* \(\*\*([\d.]+)%\*\*\)",
+     ("laststage_general", "laststage_general_pct", "laststage_primary",
+      "laststage_primary_pct", "laststage_filing", "laststage_filing_pct"), 0.05),
+    ("abstract — the three-layer summary the margin cross adds",
+     r"\*\*(\d+)\*\* seats, \*\*(\d+)\*\* offering a choice on the ballot, \*\*(\d+)\*\* "
+     r"offering a close one",
+     ("venue_total", "laststage_general", "novmargin_lt10"), 0),
+    ("abstract — the disagreement between the two cuts",
+     r"two\s*cuts disagree about \*\*(\d+)\*\* seats", "stage_disagreement_n", 0),
 
     # ---- §IV, the two-denominator basis note (referee item 4)
     ("§IV basis note — ballot choice against party of record, both cycles",
@@ -1645,8 +1939,10 @@ PROBES = [
      r"So the ([\d.]+)% is not a measure of people turned away", "p24_UNAFF", 0.05),
     ("§III — gross departures bounded below by the net decline",
      r"at least\*\* ([\d,]+) and could be far more", "roll_net_decline_n", 0),
-    ("§IV — the seat denominator, restated at the table",
-     r"The decision venue, all (\d+) legislative seats", "venue_total", 0),
+    ("§IV — the seat denominator, restated at each of the two tables",
+     r"All (\d+) legislative seats", "venue_total", 0),
+    ("§IV — the same denominator on the contestation cut",
+     r"The same (\d+) seats, assigned", "venue_total", 0),
     ("§IV — the arithmetic the referee's objection rested on",
      r"(\d+) of (\d+) is ([\d.]+)%, so \"the closed",
      ("venue_contested_republican", "venue_total", "venuepct_contested_republican"), 0.05),

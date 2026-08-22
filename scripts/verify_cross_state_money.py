@@ -831,17 +831,25 @@ def percycle_ordering_claims(d) -> list[str]:
                 f"abstract: 'Washington has the broadest donor participation relative to "
                 f"population' is false — {top} leads at {rates[top]:.2f}% vs WA "
                 f"{rates['WA']:.2f}%. Fix the sentence, not this guard.")
-    # §3's HEADING is an ordering ("largest in Idaho, then Washington"): each value is
-    # probed, but a WA/TX swap would leave every value probe green while the heading went
-    # false — the same shape the other guards here close.
+    # §3's HEADING is an ordering ("proportionally largest in Idaho, then Washington"):
+    # each value is probed, but a WA/TX swap would leave every value probe green while the
+    # heading went false — the same shape the other guards here close.
+    #
+    # The word "proportionally" is load-bearing and was added 2026-08-21. The heading read
+    # "is largest", which the paper's own numbers contradict: 31.7% is a SHARE (the highest
+    # of the four, correctly), but Idaho's federal money is ~1/20th of Texas's by §E's own
+    # line, so Texas's retired-donor economy in absolute dollars is roughly 12x Idaho's.
+    # This guard checks the ORDERING OF SHARES, which is what the heading now claims; it
+    # would not have caught the old absolute reading, and no guard here should be asked to
+    # — the fix was the word.
     ret = {st: d.get(f"out_{st}_retired") for st in HEADLINE_STATES}
     if all(v is not None for v in ret.values()):
         order = sorted(ret, key=ret.get, reverse=True)
         if order[:2] != ["ID", "WA"]:
             fails.append(
-                f"§3 heading: 'The retired-donor economy is largest in Idaho, then "
-                f"Washington' is false — measured ordering is {' > '.join(order)}. Fix "
-                f"the heading, not this guard.")
+                f"§3 heading: 'The retired-donor economy is proportionally largest in "
+                f"Idaho, then Washington' is false — measured ordering of SHARES is "
+                f"{' > '.join(order)}. Fix the heading, not this guard.")
     return fails
 
 
@@ -990,16 +998,16 @@ COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
     # checked for blast radius before being added: none of these values occurs unprobed
     # anywhere else in the six gated sections, which is the cost of a context-free literal
     # exemption and the reason the list stays this short.
-    "2.1": "the DONOR-side competitiveness ratio, quoted in §E as a contrast. It belongs to "
-           "§D and is derived by scripts/diag_cross_state_money_matrix.py; §D is named, not "
-           "gated, so this is the one figure §E borrows from a section that is still on the "
-           "backlog",
+    # PRUNED 2026-08-21: "2.1" (the donor-side competitiveness ratio §E borrowed
+    # from the ungated §D) and "250" (the "$250M" order-of-magnitude restatement
+    # of the TX Senate total). The verifier had been reporting both as "no longer
+    # fire — prunable" for some time; established by re-running against the
+    # pre-2026-08-21 §3 heading that the note predates today's edits. An
+    # exemption that cannot fire is a written claim of coverage over nothing,
+    # which is the same shape as a gate that cannot fail — so it goes.
     "2.6": "the 2018 TX Senate result (Cruz/O'Rourke R+2.6) — an election outcome naming why "
            "that race is called competitive, not a measurement from any database here",
     "8.8": "the 2024 TX Senate result (Cruz/Allred R+8.8); as above",
-    "250": "an order-of-magnitude restatement of the TX Senate total ('even harder than at "
-           "$250M'). The figure itself is $253.2M and IS asserted twice above, by the Senate "
-           "table probe and the Senate prose probe",
     "90": "the direct (non-earmarked) `15` total in the same sentence as the 194 "
           "and 150 below, and from the same source; owned by "
           "scripts/diag_earmark_inspect.py, which the paper cites inline. Exempted "

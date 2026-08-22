@@ -96,7 +96,7 @@ the national older-is-more-Republican pattern and with what the New York compani
 distinguishes Idaho's unaffiliated quarter is the senior end specifically — **21.3%** aged 65 or
 over against roughly 31.6% in both parties — and not the young end, where unaffiliated and
 Democratic voters are level at **19.6%** and **19.4%** under 30. Second, the file records the
-party ballot each voter pulled, so participation in the decisive primary is observed directly
+party ballot each voter pulled, so participation in the nominating primary is observed directly
 rather than inferred from registration: **83.4%** of 2024 primary participants took a
 Republican ballot. That observed measure matters because the registration-based one is
 contaminated by the primary itself — under Idaho Code **§ 34-411A** an unaffiliated elector who
@@ -148,7 +148,7 @@ unaffiliated bloc is the young one,
 but the gap that makes it so is at the senior end — it carries ten fewer points of
 over-65s than either party, while being level with Democrats among the under-30s.
 Second, the file records the party ballot each voter actually pulled, so participation
-in the decisive primary is **observed rather than inferred from registration alone**.
+in the nominating primary is **observed rather than inferred from registration alone**.
 That distinction is load-bearing here rather than decorative, because the
 registration-based measure is partly destroyed by the act it records, for the reason
 set out in Section IV.

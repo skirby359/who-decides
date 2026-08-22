@@ -32,7 +32,9 @@ and is deliberate.
   These need `overperformance`, which is the actual Democratic share minus a MODEL-derived
   baseline, so re-deriving them here would fork the forecast model rather than check it —
   and running the model costs five and a half minutes, which does not belong in a release
-  gate. `docs/reference/overperformance_cells_2026-08-01.csv` freezes the 163-cell frame;
+  gate. `docs/reference/overperformance_cells_2026-08-15.csv` freezes the 163-cell frame
+  (re-pinned 2026-08-15 for the referee's district-scoped finance linkage — two cells'
+  finance corrected, residuals refit from otherwise-pinned inputs);
   this script recomputes the statistics from it with DuckDB's own `corr`, which is at least
   an independent implementation of the statistics even though the cells are shared. The
   file's shape is asserted too, so a silently truncated or regenerated frame fails rather
@@ -62,8 +64,8 @@ import _verify_prose as vp  # noqa: E402
 vp.stdout_utf8()
 
 PAPER = vp.DOCS / "does-money-move-votes.md"
-CELLS = vp.DOCS / "reference" / "overperformance_cells_2026-08-01.csv"
-ALLOC = vp.DOCS / "reference" / "expenditures_vs_residual_2026-08-01.csv"
+CELLS = vp.DOCS / "reference" / "overperformance_cells_2026-08-15.csv"
+ALLOC = vp.DOCS / "reference" / "expenditures_vs_residual_2026-08-15.csv"
 # The state-legislative directional panel behind Finding 3, one row per
 # (advocacy scope, specification, cycle, district). Same reasoning as CELLS: the
 # residual needs the forecast model, and running it 191 times costs minutes that
@@ -71,7 +73,42 @@ ALLOC = vp.DOCS / "reference" / "expenditures_vs_residual_2026-08-01.csv"
 # coefficients — the slopes below are recomputed from it here, so a paper figure
 # that drifted from the panel fails rather than matching a stored answer.
 # Regenerate: python scripts/diag_pdc_ie_vs_margin.py --cells-csv <this path>
-PDCIE = vp.DOCS / "reference" / "pdc_ie_vs_residual_2026-08-09.csv"
+PDCIE = vp.DOCS / "reference" / "pdc_ie_vs_residual_2026-08-15.csv"
+# The federal IE panel (34 scorable House race-cycles). Until 2026-08-15 every figure from
+# it was exempted as diagnostic-owned; the referee's influence and clustering findings are
+# now derived HERE from the pin, so the paper's leverage and clustered-interval sentences
+# are asserted rather than trusted.
+IECELLS = vp.DOCS / "reference" / "ie_vs_residual_2026-08-09.csv"
+# The retired frame, kept for audit: the pin note narrates its 129-cell +0.58 state and
+# the linkage audit's two corrected lookups are DERIVED as the diff between the two pins.
+CELLS_OLD = vp.DOCS / "reference" / "overperformance_cells_2026-08-01.csv"
+
+
+def _cluster_boot(xs, ys, clusters, ols, iters=5000, seed=12345):
+    """Percentile bootstrap over CLUSTERS (external referee 2026-08-15, item 5).
+
+    Mirrors `cluster_bootstrap_slope_ci` in diag_ie_vs_margin.py — same seed, same
+    tails — so the paper's clustered intervals are recomputed by an independent
+    copy of the same scheme rather than read back from the diagnostic.
+    """
+    rng = random.Random(seed)
+    groups: dict = {}
+    for x, y, c in zip(xs, ys, clusters):
+        groups.setdefault(c, []).append((x, y))
+    keys = sorted(groups)
+    out = []
+    for _ in range(iters):
+        bx, by = [], []
+        for k in [rng.choice(keys) for _ in keys]:
+            for x, y in groups[k]:
+                bx.append(x)
+                by.append(y)
+        s = ols(bx, by)[0]
+        if s == 0.0 and len(set(bx)) <= 1:
+            continue
+        out.append(s)
+    out.sort()
+    return out[int(0.025 * len(out))], out[int(0.975 * len(out))]
 
 # PDC records an itemised expenditure with no purpose code as the literal string 'nan', not
 # as NULL. Reading it as NULL makes the file look 100% coded and silently contradicts the
@@ -101,6 +138,14 @@ def derive_finding1(d: dict) -> None:
         FROM {src} WHERE baseline_ok""").fetchone()
     (d["r_fin"], d["r_inc"], d["r_quality"], d["r_trend"], d["r_midterm"],
      d["fin_cells"]) = [float(x) if x is not None else None for x in row[:5]] + [int(row[5])]
+    # Appendix C's "two different 129s" paragraph (full-paper coverage, 2026-08-14): the
+    # 163-cell frame's legislative/congressional split. The OTHER 129 is the C6.3 panel's
+    # cell count (leg_all_agg_n); the paragraph's whole point is that the two populations
+    # are different, so both sides are derived and asserted.
+    d["cells_leg"], d["cells_cong"] = con.execute(f"""
+        SELECT COUNT(*) FILTER (WHERE district LIKE 'ld%'),
+               COUNT(*) FILTER (WHERE district NOT LIKE 'ld%')
+        FROM {src} WHERE baseline_ok""").fetchone()
     for grp, tag in (("fin_log2_dr > 1", "d_outraised"), ("fin_log2_dr < -1", "r_outraised"),
                      ("fin_log2_dr BETWEEN -1 AND 1", "even")):
         d[f"mean_{tag}"], = con.execute(
@@ -210,7 +255,7 @@ def derive_legislative_panel(d: dict) -> None:
 
     def _panel(scope: str, spec: str):
         return [(float(r["net_pro_dem_musd"]), float(r["residual_pp"]),
-                 float(r["total_directional_musd"]))
+                 float(r["total_directional_musd"]), r["district_id"])
                 for r in rows
                 if r["advocacy_scope"] == scope and r["specification"] == spec]
 
@@ -257,6 +302,17 @@ def derive_legislative_panel(d: dict) -> None:
         ys = [c[1] for c in cells]
         slope, rho = _ols(xs, ys)
         lo, hi = _boot(xs, ys)
+        # District-clustered bootstrap + per-SD slope (external referee 2026-08-15,
+        # items 5 and 11): resample the districts, not the race-cycles, and express
+        # the slope per one SD of treatment so panels with $1M-vs-$67K treatment
+        # scales can be compared at all. Same seed convention as _boot.
+        clo, chi = _cluster_boot(xs, ys, [c[3] for c in cells], _ols)
+        sdx = (sum((x - sum(xs) / len(xs)) ** 2 for x in xs) / len(xs)) ** 0.5
+        d[f"leg_{tag}_cluster_lo_abs"] = abs(clo)
+        d[f"leg_{tag}_cluster_hi"] = chi
+        d[f"leg_{tag}_sd_x"] = sdx
+        d[f"leg_{tag}_per_sd_slope"] = slope * sdx
+        d[f"leg_{tag}_per_sd_slope_abs"] = abs(slope * sdx)
         d[f"leg_{tag}_n"] = len(cells)
         d[f"leg_{tag}_material"] = sum(1 for c in cells if c[2] >= MATERIAL_M)
         d[f"leg_{tag}_slope"] = slope
@@ -295,6 +351,153 @@ def derive_legislative_panel(d: dict) -> None:
             "slope's printed unit ('per $1M') describes that column's denomination; "
             "if the column changed, the unit in the paper is unverified.")
     d["slope_unit_musd"] = 1.0
+
+
+def derive_federal_influence(d: dict) -> None:
+    """The federal IE regression's influence and clustering facts, from its pin.
+
+    Added 2026-08-15 (external referee, items 4 and 5): the +0.515 slope is a
+    single-district leverage result — deleting WA-08/2018 (Cook's distance 0.69)
+    moves it to −0.035 — and the iid case-resampling interval understates the
+    clustered one. The paper now says both, and both are derived here.
+    """
+    import csv as _csv
+    rows = list(_csv.DictReader(IECELLS.open(encoding="utf-8", newline="")))
+    xs = [float(r["net_pro_dem_m"]) for r in rows]
+    ys = [float(r["residual_pp"]) for r in rows]
+    dists = [r["district_id"] for r in rows]
+    labels = [f"{r['district_id']}/{str(r['cycle'])[-2:]}" for r in rows]
+    n = len(rows)
+
+    def _ols(bx, by):
+        m = len(bx)
+        mx, my = sum(bx) / m, sum(by) / m
+        sxx = sum((x - mx) ** 2 for x in bx)
+        sxy = sum((x - mx) * (y - my) for x, y in zip(bx, by))
+        syy = sum((y - my) ** 2 for y in by)
+        if sxx == 0 or syy == 0:
+            return 0.0, 0.0
+        return sxy / sxx, sxy / math.sqrt(sxx * syy)
+
+    slope, _ = _ols(xs, ys)
+    d["fed_slope"] = slope
+    # Leave-one-out extremes, and the drop-all-WA-08 sensitivity.
+    loo = sorted((_ols(xs[:i] + xs[i + 1:], ys[:i] + ys[i + 1:])[0], labels[i])
+                 for i in range(n))
+    d["fed_loo_min_abs"] = abs(loo[0][0])
+    d["fed_loo_max"] = loo[-1][0]
+    no8 = [(x, y) for x, y, dd in zip(xs, ys, dists) if dd != "cd08"]
+    d["fed_no_cd08_slope_abs"] = abs(_ols([p[0] for p in no8], [p[1] for p in no8])[0])
+    # Cook's distance of the top-leverage observation.
+    intercept = (sum(ys) / n) - slope * (sum(xs) / n)
+    mx = sum(xs) / n
+    sxx = sum((x - mx) ** 2 for x in xs)
+    resid = [y - (intercept + slope * x) for x, y in zip(xs, ys)]
+    mse = sum(e * e for e in resid) / (n - 2)
+    d["fed_cooks_max"] = max(
+        (resid[i] ** 2 / (2 * mse)) * ((1 / n + (xs[i] - mx) ** 2 / sxx)
+                                       / (1 - (1 / n + (xs[i] - mx) ** 2 / sxx)) ** 2)
+        for i in range(n))
+    # Clustered intervals + the per-SD scale.
+    clo, chi = _cluster_boot(xs, ys, dists, _ols)
+    d["fed_cluster_lo_abs"], d["fed_cluster_hi"] = abs(clo), chi
+    era = [f"{dd}-{'pre' if int(str(r['cycle'])) < 2022 else 'post'}"
+           for dd, r in zip(dists, rows)]
+    elo, ehi = _cluster_boot(xs, ys, era, _ols)
+    d["fed_era_cluster_lo_abs"], d["fed_era_cluster_hi"] = abs(elo), ehi
+    sdx = (sum((x - mx) ** 2 for x in xs) / n) ** 0.5
+    d["fed_sd_x"] = sdx
+    d["fed_per_sd_slope"] = slope * sdx
+    # The leverage case's own coordinates, quoted in 2c's influence paragraph.
+    imax = max(range(n), key=lambda i: xs[i])
+    d["fed_max_net_ie"] = xs[imax]
+    d["fed_max_net_resid"] = ys[imax]
+
+
+def derive_linkage_audit(d: dict) -> None:
+    """The 2026-08-15 finance-linkage correction, derived as the diff of the two pins.
+
+    The pin note quotes the audit — 2 of 326 lookups changed, one crediting a
+    same-name namesake's $190K — and the retired frame's 129-cell +0.58 state.
+    All of it is derived from the retained old pin against the current one, so
+    the narrative cannot drift from the files it describes.
+    """
+    con = duckdb.connect()
+    old = f"read_csv_auto('{CELLS_OLD.as_posix()}', header=true)"
+    new = f"read_csv_auto('{CELLS.as_posix()}', header=true)"
+    d["fin_cells_oldpin"], d["r_fin_oldpin"] = con.execute(f"""
+        SELECT COUNT(*) FILTER (WHERE fin_log2_dr IS NOT NULL),
+               corr(overperformance, fin_log2_dr)
+        FROM {old} WHERE baseline_ok""").fetchone()
+    d["audit_changed"], = con.execute(f"""
+        SELECT COUNT(*) FROM {old} o JOIN {new} n
+          ON o.district = n.district AND o.year = n.year
+        WHERE o.baseline_ok
+          AND (COALESCE(o.d_receipts, -1) <> COALESCE(n.d_receipts, -1)
+               OR COALESCE(o.r_receipts, -1) <> COALESCE(n.r_receipts, -1))""").fetchone()
+    d["audit_lookups"] = 2.0 * float(d["cells_scorable"])
+    # The wrongly-attached receipts: present in the old pin, absent from the new.
+    d["audit_namesake_k"], = con.execute(f"""
+        SELECT ROUND(o.r_receipts / 1000)
+        FROM {old} o JOIN {new} n ON o.district = n.district AND o.year = n.year
+        WHERE o.r_receipts IS NOT NULL AND n.r_receipts IS NULL""").fetchone()
+    con.close()
+
+
+def derive_common_sample(d: dict) -> None:
+    """Finding 1's competing correlations on the common finance-complete sample.
+
+    Added 2026-08-15 (external referee, item 2): the factor correlations used
+    different samples — finance saw only its non-null cells while the other four
+    saw all 163 — so the '+0.60 vs +0.43' ranking was not apples-to-apples until
+    recomputed on the common cells. Both versions are now printed and derived.
+    """
+    con = duckdb.connect()
+    src = f"read_csv_auto('{CELLS.as_posix()}', header=true)"
+    row = con.execute(f"""
+        SELECT corr(overperformance, inc_signed), corr(overperformance, candidate_quality),
+               corr(overperformance, local_trend), corr(overperformance, is_midterm)
+        FROM {src} WHERE baseline_ok AND fin_log2_dr IS NOT NULL""").fetchone()
+    (d["r_inc_common"], d["r_quality_common"],
+     d["r_trend_common"], d["r_midterm_common"]) = [float(x) for x in row]
+    con.close()
+
+
+def derive_estimator_facts(d: dict) -> None:
+    """Appendix C's estimator statement, tied to the instruments' own source.
+
+    Added 2026-08-15 (constructions-inventory finding 1): the paper now names its
+    estimator (bivariate OLS) and its bootstrap (case-resampling percentile, fixed
+    seed) with a replicate count. The count is read out of every IE script that
+    computes an interval, and they must all agree — so the sentence cannot drift
+    from the code, and a script that quietly changed its `iters=` would fail here
+    before the paper printed a stale B.
+    """
+    scripts_dir = Path(__file__).resolve().parent
+    iters_seen = {}
+    for name in ("diag_ie_vs_margin.py", "diag_pdc_ie_vs_margin.py",
+                 "diag_ie_early_late.py", "diag_ie_next_cycle_placebo.py"):
+        src = (scripts_dir / name).read_text(encoding="utf-8")
+        m = re.search(r"def bootstrap_\w+\([^)]*iters=(\d+), seed=(\d+)", src)
+        if m is None:
+            # A script may share the canonical implementation instead of defining
+            # one — the placebo script imports it from diag_ie_vs_margin. That IS
+            # the single-implementation property the paper's sentence relies on,
+            # so an import is accepted as evidence; anything else fails.
+            assert re.search(r"from diag_ie_vs_margin import\b[^)]*?bootstrap_slope_ci",
+                             src, re.S), (
+                f"{name}: neither defines a bootstrap with iters=/seed= nor imports "
+                "the canonical one — the paper's estimator statement no longer "
+                "describes this script")
+            continue
+        iters_seen[name] = int(m.group(1))
+        assert "rng.choice" in src, (
+            f"{name}: the case-resampling loop has changed shape — re-read it before "
+            "trusting the paper's 'pairs percentile bootstrap' description")
+    assert iters_seen and len(set(iters_seen.values())) == 1, (
+        f"the IE scripts disagree on replicate counts: {iters_seen} — the paper "
+        "states one B for all of them")
+    d["mv_bootstrap_iters"] = float(next(iter(iters_seen.values())))
 
 
 def derive_ceiling(d: dict) -> None:
@@ -356,6 +559,15 @@ def derive_ceiling(d: dict) -> None:
     d["pdc_c63_rows"] = int(rows)
     d["pdc_c63_dollars"] = float(dollars)
     d["pdc_c63_m"] = float(dollars) / 1e6
+    # The abstract's "direction-coded on 100% of rows" — a rate, derived rather than
+    # trusted: the share of legislative C6.3 rows carrying a For/Against value.
+    coded, = con.execute("""
+        SELECT 100.0 * COUNT(*) FILTER (WHERE for_or_against IN ('For','Against'))
+             / COUNT(*)
+        FROM pdc_ie_targets
+        WHERE candidate_office_type = 'Legislative'
+          AND election_year BETWEEN 2018 AND 2024""").fetchone()
+    d["c63_direction_pct"] = float(coded)
 
     express, electioneering = con.execute("""
         SELECT
@@ -456,28 +668,107 @@ PROBES = [
     ("abstract — WA-03 landed on its fundamentals",
      r"Washington's 3rd in 2024, finished ([\d.]+) points from its fundamentals",
      "wa03_residual_pp", 0.005),
+    # --- Full-paper coverage, 2026-08-14 --------------------------------------
+    ("abstract — the 2c slope and its interval",
+     r"returns \*\*\+([\d.]+) points of residual per \$1M of net\s+pro-Democratic IE with a\s+"
+     r"case-resampling bootstrap interval spanning −([\d.]+) to \+([\d.]+)\*\*",
+     ("_slope2c", "_ci_lo_abs", "_ci_hi"), 0.05),
+    ("abstract — the direction-coded share",
+     r"direction-coded on (\d+)% of rows", ("c63_direction_pct",), 0.05),
+    ("limits — the allocation-coverage denominator",
+     r"Coverage is 40 of (\d+) legislative baseline cel", ("cells_leg",), 0),
+    ("limits — the C6.3 panel restated",
+     r"the \$([\d.]+)M panel is in and contributes (\d+) scorable district-cycles",
+     ("pdc_c63_m", "leg_all_agg_n"), 0.05),
+    ("appendix C — the meta-sentence naming the near-collision",
+     r"A (\d+) and a (\d+) appear in this paper", ("cells_leg", "fin_cells"), 0),
+    ("appendix C — the two 129s, frame side",
+     r"Of the (\d+) baseline-scorable cells, \*\*(\d+) are legislative\*\* and "
+     r"(\d+)\s+congressional",
+     ("cells_scorable", "cells_leg", "cells_cong"), 0),
+    ("appendix C — the allocation-coverage 129 is the frame's",
+     r"that legislative\s+(\d+) is the denominator in the allocation-coverage limit "
+     r"\(\"40 of\s+(\d+)\"\)",
+     ("cells_leg", "cells_leg"), 0),
+    ("appendix C — the both-side finance count",
+     r"\*\*(\d+) of the (\d+) carry both-side finance\*\*",
+     ("fin_cells", "cells_scorable"), 0),
+    ("end note — the two reproduction-command counts",
+     r"across (\d+) race-cycles", ("cells_scorable",), 0),
+    ("end note — the legislative reproduction count",
+     r"\((\d+) cells, PDC C6\.3\)", ("leg_all_agg_n",), 0),
 
     # ---- Finding 1
     ("Finding 1 — cell universe", r"Across the (\d+) baseline-scorable Washington",
      "cells_scorable", 0),
-    ("Finding 1 — fundraising correlation",
-     r"\| \*\*fundraising, log2\(D receipts / R receipts\)\*\* \| \*\*\+([\d.]+)\*\* \|",
-     "r_fin", 0.005),
-    ("Finding 1 — incumbency correlation", r"\| incumbency \| \+([\d.]+) \|", "r_inc", 0.005),
-    ("Finding 1 — quality correlation",
-     r"\| candidate quality index \| \+([\d.]+) \|", "r_quality", 0.005),
-    ("Finding 1 — local-trend correlation",
-     r"\| local trend \| \+([\d.]+) \|", "r_trend", 0.005),
+    ("Finding 1 — fundraising correlation, both columns",
+     r"\| \*\*fundraising, log2\(D receipts / R receipts\)\*\* \| \*\*\+([\d.]+)\*\* "
+     r"\*\(n=(\d+)\)\* \| \*\*\+([\d.]+)\*\* \|",
+     ("r_fin", "fin_cells", "r_fin"), 0.005),
+    ("Finding 1 — incumbency correlation, both columns",
+     r"\| incumbency \| \+([\d.]+) \| \+([\d.]+) \|", ("r_inc", "r_inc_common"), 0.005),
+    ("Finding 1 — quality correlation, both columns",
+     r"\| candidate quality index \| \+([\d.]+) \| \+([\d.]+) \|",
+     ("r_quality", "r_quality_common"), 0.005),
+    ("Finding 1 — local-trend correlation, both columns",
+     r"\| local trend \| \+([\d.]+) \| \+([\d.]+) \|",
+     ("r_trend", "r_trend_common"), 0.005),
+    ("Finding 1 — midterm common-sample cell",
+     r"\| midterm year \| ≈0 \| \+([\d.]+) \|", ("r_midterm_common",), 0.005),
+    ("Finding 1 — the common-sample count in the preamble",
+     r"finance is\s+present for only \*\*(\d+)\*\* of the (\d+) cells",
+     ("fin_cells", "cells_scorable"), 0),
     ("Finding 1 — fundraising-position means",
      r"average of \*\*\+([\d.]+)\*\* points; where funding was even, \*\*\+([\d.]+)\*\*; "
      r"where the Republican\s+out-raised, \*\*−([\d.]+)\*\*",
      ("mean_d_outraised", "mean_even", "mean_r_outraised_abs"), 0.005),
-    ("Finding 1 — the pin note's cell counts",
-     r"held \*\*(\d+)\*\* such cells and\s+gave \+([\d.]+), \+([\d.]+), \+([\d.]+) and "
-     r"−([\d.]+); it now holds \*\*(\d+)\*\*",
-     ("_prev_cells", "_prev_fin", "_prev_d", "_prev_even", "_prev_r", "fin_cells"), 0.005),
+    ("Finding 1 — the pin note's first re-pin narrative",
+     r"held \*\*(\d+)\*\* both-side cells and gave\s+\+([\d.]+), \+([\d.]+), \+([\d.]+) "
+     r"and −([\d.]+); loading more filings took it to (\d+) and \+(\d+\.\d+)",
+     ("_prev_cells", "_prev_fin", "_prev_d", "_prev_even", "_prev_r",
+      "fin_cells_oldpin", "r_fin_oldpin"), 0.005),
+    ("Finding 1 — the pin note's collision-audit counts",
+     r"found (\d+) of (\d+) lookups\s+attaching the wrong records",
+     ("audit_changed", "audit_lookups"), 0),
+    ("Finding 1 — the pin note's namesake dollars",
+     r"another chamber with \$(\d+)K his namesake never\s+raised",
+     ("audit_namesake_k",), 0),
+    ("Finding 1 — the pin note's corrected state",
+     r"entirely \(\*\*(\d+)\*\* both-side cells\) and moves the\s+correlation to "
+     r"\*\*\+([\d.]+)\*\*",
+     ("fin_cells", "r_fin"), 0.005),
     ("Finding 1 — universe unchanged in the pin note",
      r"unchanged at (\d+) baseline-scorable cells", "cells_scorable", 0),
+
+    # ---- Finding 2c influence + clustering (external referee 2026-08-15) -------
+    ("Finding 2c — leave-one-out extremes",
+     r"runs from \*\*−([\d.]+)\*\*\s+\(dropping WA-08 2018\) to \*\*\+([\d.]+)\*\* "
+     r"\(dropping WA-03 2024\)",
+     ("fed_loo_min_abs", "fed_loo_max"), 0.005),
+    ("Finding 2c — Cook's distance and the drop-all-WA-08 slope",
+     r"carries a Cook's distance of \*\*([\d.]+)\*\* in a\s+34-observation regression; "
+     r"dropping every WA-08 observation gives \*\*−([\d.]+)\*\*",
+     ("fed_cooks_max", "fed_no_cd08_slope_abs"), 0.005),
+    ("Finding 2c — the district-clustered interval",
+     r"\*\*district-clustered bootstrap\*\* \(10 clusters\) is\s+reported beside it: "
+     r"\*\*−([\d.]+) to \+([\d.]+)\*\*",
+     ("fed_cluster_lo_abs", "fed_cluster_hi"), 0.005),
+    ("Finding 2c — the era-clustered interval",
+     r"redistricting boundary \(20 clusters\) gives −(\d+\.\d+) to \+(\d+\.\d+)",
+     ("fed_era_cluster_lo_abs", "fed_era_cluster_hi"), 0.005),
+    ("Finding 2c — the per-SD slope",
+     r"is\s+\*\*\+([\d.]+) points per one standard deviation of net IE\*\* "
+     r"\(SD = \$([\d.]+)M in this panel\)",
+     ("fed_per_sd_slope", "fed_sd_x"), 0.005),
+    ("abstract — the leverage sentence",
+     r"deleting one race\s+\(WA-08 2018, Cook's distance ([\d.]+)\) moves it to "
+     r"\*\*−([\d.]+)\*\*, and a district-clustered\s+bootstrap widens the interval to "
+     r"\*\*−([\d.]+) to \+([\d.]+)\*\*",
+     ("fed_cooks_max", "fed_loo_min_abs", "fed_cluster_lo_abs", "fed_cluster_hi"), 0.05),
+    ("limits — the leverage bullet",
+     r"deleting the single highest-leverage race \(WA-08 2018, Cook's distance "
+     r"([\d.]+)\)\s+moves it to −(\d+\.\d+)",
+     ("fed_cooks_max", "fed_loo_min_abs"), 0.005),
 
     # ---- Finding 2a, the itemised-expenditure universe
     ("Finding 2a — expenditure universe",
@@ -558,21 +849,38 @@ PROBES = [
     # simply going unchecked.
     ("Finding 3 — the four-specification table",
      r"\| \*\*express advocacy, race-matched\*\* \| (\d+) \| (\d+) \| \*\*\+([\d.]+)\*\* \| "
-     r"−([\d.]+) to \+([\d.]+) \| \+([\d.]+) \|.*?"
+     r"−([\d.]+) to \+([\d.]+) \| −([\d.]+) to \+([\d.]+) \| \+([\d.]+) \|.*?"
      r"\| express advocacy, district-aggregate \| (\d+) \| (\d+) \| −([\d.]+) \| "
-     r"−([\d.]+) to \+([\d.]+) \| −([\d.]+) \|.*?"
+     r"−([\d.]+) to \+([\d.]+) \| −([\d.]+) to \+([\d.]+) \| −([\d.]+) \|.*?"
      r"\| all directional, race-matched \| (\d+) \| (\d+) \| −([\d.]+) \| "
-     r"−([\d.]+) to \+([\d.]+) \| −([\d.]+) \|.*?"
+     r"−([\d.]+) to \+([\d.]+) \| −([\d.]+) to \+([\d.]+) \| −([\d.]+) \|.*?"
      r"\| all directional, district-aggregate \| (\d+) \| (\d+) \| \+([\d.]+) \| "
-     r"−([\d.]+) to \+([\d.]+) \| \+([\d.]+) \|",
+     r"−([\d.]+) to \+([\d.]+) \| −([\d.]+) to \+([\d.]+) \| \+([\d.]+) \|",
      ("leg_expr_matched_n", "leg_expr_matched_material", "leg_expr_matched_slope",
-      "leg_expr_matched_ci_lo_abs", "leg_expr_matched_ci_hi", "leg_expr_matched_r",
+      "leg_expr_matched_ci_lo_abs", "leg_expr_matched_ci_hi",
+      "leg_expr_matched_cluster_lo_abs", "leg_expr_matched_cluster_hi",
+      "leg_expr_matched_r",
       "leg_expr_agg_n", "leg_expr_agg_material", "leg_expr_agg_slope_abs",
-      "leg_expr_agg_ci_lo_abs", "leg_expr_agg_ci_hi", "leg_expr_agg_r_abs",
+      "leg_expr_agg_ci_lo_abs", "leg_expr_agg_ci_hi",
+      "leg_expr_agg_cluster_lo_abs", "leg_expr_agg_cluster_hi", "leg_expr_agg_r_abs",
       "leg_all_matched_n", "leg_all_matched_material", "leg_all_matched_slope_abs",
-      "leg_all_matched_ci_lo_abs", "leg_all_matched_ci_hi", "leg_all_matched_r_abs",
+      "leg_all_matched_ci_lo_abs", "leg_all_matched_ci_hi",
+      "leg_all_matched_cluster_lo_abs", "leg_all_matched_cluster_hi",
+      "leg_all_matched_r_abs",
       "leg_all_agg_n", "leg_all_agg_material", "leg_all_agg_slope",
-      "leg_all_agg_ci_lo_abs", "leg_all_agg_ci_hi", "leg_all_agg_r"), 0.005),
+      "leg_all_agg_ci_lo_abs", "leg_all_agg_ci_hi",
+      "leg_all_agg_cluster_lo_abs", "leg_all_agg_cluster_hi", "leg_all_agg_r"), 0.005),
+    ("Finding 3 — the zeros-retained correction note",
+     r"An earlier\s+version dropped those cells from the race-matched rows \(n = 127\), "
+     r"treating zero treatment\s+as missing data; the correction, prompted by an external "
+     r"referee, moved the primary slope\s+from \+([\d.]+) to \+([\d.]+)",
+     ("_prev_leg_slope", "leg_expr_matched_slope"), 0.005),
+    ("Finding 3 — the standardized cross-panel comparison",
+     r"one\s+standard deviation of net IE moves the point estimate \*\*\+([\d.]+)\*\* "
+     r"points in the federal\s+panel \(SD \$([\d.]+)M\) against \*\*\+([\d.]+)\*\* "
+     r"points in the primary legislative specification\s+\(SD \$([\d.]+)M\)",
+     ("fed_per_sd_slope", "fed_sd_x", "leg_expr_matched_per_sd_slope",
+      "leg_expr_matched_sd_x"), 0.005),
     # The "100% of them" claim is the one that replaced the false ceiling, so it
     # is probed rather than exempted: if C6.3's fill rate ever fell below 100 the
     # paper's central correction would be overstating the record it corrected to.
@@ -590,13 +898,36 @@ PROBES = [
      ("c63_expr_for_pct", "c63_elect_against_pct"), 0.5),
     ("Findings 2/3 — the bootstrap's printed confidence level against its tails",
      r"(\d+)% bootstrap", "boot_level_pct", 0),
+    ("Finding 3 — the cluster column header carries the same level",
+     r"district-cluster (\d+)% \| Pearson", "boot_level_pct", 0),
     ("Finding 3 — the materiality floor in the table header against MATERIAL_M",
      r"cells with ≥\$(\d+)K", "material_floor_k", 0),
     ("Finding 2 — the slope's money scaling against the panel's denomination",
-     r"points(?: of residual)? per \$(\d+)M", "slope_unit_musd", 0),
+     r"(?:points(?: of residual)? per|causal effect of|width: a) \$(\d+)M", "slope_unit_musd", 0),
     ("Finding 3 — the materiality band across the four specifications",
-     r"only (\d+)–(\d+)% of cells attract\s+any material independent expenditure",
+     r"[Oo]nly (\d+)–(\d+)% of cells attract\s+any material independent expenditure",
      ("leg_material_pct_lo", "leg_material_pct_hi"), 0.5),
+    ("Finding 1 — the two-sample table header",
+     r"\| factor \| full sample \(n=(\d+)\) \| common sample \(n=(\d+)\) \|",
+     ("cells_scorable", "fin_cells"), 0),
+    ("Finding 3 — the zeros note runs on the full universe",
+     r"runs on the full (\d+)-cell scorable universe", ("leg_expr_matched_n",), 0),
+    ("Finding 3 — the zeros note's historical pair",
+     r"race-matched rows \(n = (\d+)\), treating zero treatment",
+     ("_prev_leg_matched_n",), 0),
+    ("Finding 2c — the leverage case's IE and residual",
+     r"pairs the panel's largest net pro-Democratic IE\s+\(\+\$([\d.]+)M\) with a "
+     r"\+([\d.]+)-point residual",
+     ("fed_max_net_ie", "fed_max_net_resid"), 0.005),
+    ("appendix C — the audit figures restated in the linkage bullet",
+     r"measured\s+the damage at (\d+) of (\d+) lookups",
+     ("audit_changed", "audit_lookups"), 0),
+    ("appendix C — the namesake dollars restated",
+     r"\*\*same-name namesake's\*\* \$(\d+)K from another chamber",
+     ("audit_namesake_k",), 0),
+    ("appendix C — the broken coincidence, both values",
+     r"were equal by coincidence \(both (\d+)\) until the 2026-08-15",
+     ("_prev_leg_matched_n_plus2",), 0),
     ("Finding 3 — the retracted flag claim, quoted in the correction note",
      r"on all but 5 of ([\d,]+) rows", "pdc_ie_rows", 0),
     ("Finding 3 — the legislative panel restated in 'what more cycles would fix'",
@@ -605,15 +936,35 @@ PROBES = [
      r"no instrument\. The \+([\d.]+) correlation", "r_fin", 0.005),
     ("Appendix A — fundraising correlation restated in objection 1",
      r"\*\*1\. \"You found \+([\d.]+) and then explained it away\.\"\*\*", "r_fin", 0.005),
-    ("Finding 1 — incumbency restated in the pin note",
-     r"ahead of incumbency at \+(\d+\.\d+)", "r_inc", 0.005),
-    ("Appendix C — cell universe restated twice",
+        ("Appendix C — cell universe restated twice",
      r"restricted to the \*\*(\d+) baseline-scorable cells\*\*", "cells_scorable", 0),
     ("Appendix C — the same 163 used by the backtest",
      r"the same (\d+) used by the published backtest", "cells_scorable", 0),
+    # The estimator statement (2026-08-15): B is read out of the IE scripts' own
+    # source by derive_estimator_facts, so the paper's replicate count cannot
+    # drift from the code that produces the intervals.
+    ("Appendix C — bootstrap replicate count, from the scripts' source",
+     r"percentile bootstrap with ([\d,]+) replicates", "mv_bootstrap_iters", 0),
     ("Appendix A — WA-03 restated",
      r"landing ([\d.]+) points from its fundamentals", "wa03_residual_pp", 0.005),
 ]
+
+# Sections closed by a written reason rather than a derivation (2026-08-14, full-paper
+# coverage). Each reason names where the figures ARE verified — the audit-log rule.
+COVERAGE_EXEMPT_SECTIONS = {
+    "appendixD":
+        "A bibliography. Its numeric tokens are page ranges, volume/issue numbers and DOIs "
+        "— citations, not quantities; the figures those works are cited for are asserted "
+        "where the paper uses them. The WA paper's Appendix D closure.",
+    "appendixE":
+        "The full IE cross-section: the pinned panel printed in full, one row per "
+        "district-cycle, whose residual column only the forecast model produces. Owned by "
+        "scripts/diag_ie_vs_margin.py (named in UNCHECKED); the pinned frame is "
+        "docs/reference/ie_vs_residual_2026-08-09.csv, its statistics are recomputed and "
+        "asserted in Finding 2c's probes, and verify_whitepaper.py cross-checks the "
+        "restatements. Re-deriving 34 model residuals here would fork the model rather "
+        "than check it.",
+}
 
 UNCHECKED = [
     "Finding 2a's cross-cycle holdout R² table (0.000 / 0.013 / 0.026 / 0.022) and the "
@@ -644,10 +995,26 @@ UNCHECKED = [
 # The result sections, partitioned so no slice overlaps another: spans are
 # per-section coordinates, so a slice that swallows another reports the inner
 # one's probed cells as unmapped.
+#
+# EXTENDED TO THE WHOLE PAPER 2026-08-14 (full-paper coverage round): the three
+# findings covered under half the paper's numeric content; the abstract carried
+# probes but no completeness demand, which is the gap the series' abstract
+# defects lived in. Partitioned title to companion links, the WA standard.
 AUDIT_BOUNDS = {
+        "frontmatter": ("# Does Money Move Votes in Washington?", "## Abstract"),
+        "abstract": ("## Abstract", "## The question"),
+        "question": ("## The question", "## Finding 1"),
         "finding1": ("## Finding 1", "## Finding 2"),
         "finding2": ("## Finding 2", "## Finding 3"),
         "finding3": ("## Finding 3", "## What it means"),
+        "meaning": ("## What it means", "## What this paper does not claim"),
+        "limits": ("## What this paper does not claim", "## Appendix A"),
+        "appendixA": ("## Appendix A", "## Appendix B"),
+        "appendixB": ("## Appendix B", "## Appendix C"),
+        "appendixC": ("## Appendix C", "## Appendix D"),
+        "appendixD": ("## Appendix D", "## Appendix E"),
+        "appendixE": ("## Appendix E", "## End note"),
+        "endnote": ("## End note", "This is Paper #4 of the electoral-health series:"),
     }
 
 COVERAGE_EXEMPT = [
@@ -659,15 +1026,23 @@ COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
     # owned by the diagnostics the submission checklist re-runs before upload
     # (diag_ie_vs_margin.py and the holdout script). Exempted by REASON, naming
     # the owner -- not because they are "not results", which they plainly are.
-    "0.000": "holdout R2 table cell; owned by the holdout diagnostic (UNCHECKED)",
-    "0.013": "holdout R2 table cell; as above",
-    "0.026": "holdout R2 table cell; as above",
-    "0.022": "the allocation-alone holdout cell AS A TABLE CELL; the same value "
-             "restated in the pin note's 'fell from 0.041 to 0.022' IS asserted, "
-             "so a drift would still fail there",
-    "0.15": "wrong-signed r beside the allocation-alone holdout cell; as above",
-    "0.039": "in-sample R2 floor quoted beside the holdout table; as above",
-    "0.105": "in-sample R2 ceiling quoted beside the holdout table; as above",
+    "0.000": "holdout table cell; owned by the holdout diagnostic (UNCHECKED)",
+    "0.015": "holdout table cell (squared holdout correlation); as above",
+    "0.031": "holdout table cell; as above",
+    "0.028": "the allocation-alone holdout cell AS A TABLE CELL; the same value "
+             "restated in the pin note's 0.041 -> 0.022 -> 0.028 history IS "
+             "asserted, so a drift would still fail there",
+    "1.09": "predictive R2 table cell (negative; sign is prose), owned by the "
+            "holdout diagnostic — the 2026-08-15 metric split (referee item 7)",
+    "2.75": "predictive R2 table cell; as above",
+    "3.00": "predictive R2 table cell; as above",
+    "0.18": "predictive R2 table cell; as above — and the wrong-signed holdout "
+            "correlation −0.18 in the r-list sentence, same owner",
+    "0.02": "holdout correlation r-list value (+0.02), same owner",
+    "0.12": "holdout correlation r-list value (−0.12), same owner",
+    "0.17": "holdout correlation r-list value (−0.17), same owner",
+    "0.037": "in-sample squared-correlation floor beside the holdout table; as above",
+    "0.101": "in-sample squared-correlation ceiling beside the holdout table; as above",
     # The IE regression output. Owned by diag_ie_vs_margin.py, which the submission
     # checklist re-runs immediately before upload — the same arrangement the retired
     # "0.39" entry had, updated for the four-cycle panel. Not derivable here: the
@@ -681,6 +1056,11 @@ COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
     # if C6.3 rows stop being what is read.
     "6.3": "form C-6 section identifier (C6.3, Identified Entities), not a figure",
     "6.2": "form C-6 section identifier (C6.2, Itemized Expenditures), not a figure",
+    "359": "part of the GitHub account name `skirby359` in the repository URL, not a "
+           "figure — the tokenizer sees the digits inside the identifier",
+    "4.8": "the §J longshot-side inflow share, owned by cross-state-fec-money.md and "
+            "derived by scripts/diag_loser_side_money.py (named in UNCHECKED); quoted in "
+            "'What it means' as the cross-paper hand-off",
     "0.515": "IE-vs-residual slope; owned by diag_ie_vs_margin.py (UNCHECKED)",
     "0.186": "IE-vs-residual Pearson r; owned by diag_ie_vs_margin.py (UNCHECKED)",
     "0.600": "lower bootstrap bound on the slope; as above",
@@ -760,6 +1140,22 @@ def _claim_checks(d: dict, norm: str) -> list[str]:
                 f"slope, the interval and n, none of which are figure swaps."
             )
 
+    # "the strongest of any measured factor" (abstract) and "ahead of incumbency and
+    # candidate quality" — an ORDERING over Finding 1's correlate set, which the abstract
+    # probe cannot see: it asserts each value individually, so incumbency overtaking
+    # fundraising would pass every probe while the superlative went false. Added 2026-08-14
+    # (Pass 2 of the calculation review); same shape as safe-seat's "more than double any
+    # other year". The comparison set is every correlate the pinned frame measures.
+    _others = {k: d[k] for k in ("r_inc", "r_quality", "r_trend", "r_midterm")
+               if d.get(k) is not None}
+    _weaker = {k: v for k, v in _others.items() if abs(v) >= abs(d["r_fin"])}
+    if _weaker:
+        out.append(
+            f"the abstract calls fundraising (+{d['r_fin']:.2f}) 'the strongest of any "
+            f"measured factor', and it is not: " +
+            ", ".join(f"{k}={v:+.2f}" for k, v in _weaker.items()) +
+            ". Fix the sentence, not this guard.")
+
     # The superlative that a $2x data defect manufactured. WA-03's national rank
     # cannot be derived from the warehouse (it holds no out-of-state IE), so the
     # claim is checked NEGATIVELY: the paper must not reassert it.
@@ -781,6 +1177,10 @@ def main() -> int:
     derive_finding1(d)
     derive_allocation(d)
     derive_legislative_panel(d)
+    derive_estimator_facts(d)
+    derive_federal_influence(d)
+    derive_linkage_audit(d)
+    derive_common_sample(d)
     try:
         derive_ceiling(d)
     except StaleIEData as exc:
@@ -801,12 +1201,13 @@ def main() -> int:
     # asserted as a literal, exactly like the retired Finding 1 correlations.
     # Its purpose is that the correction note must keep saying what was said.
     d["_wa03_inflated"] = 40.1
-    # The bootstrap bounds as the paper prints them. Owned by
+    # The bootstrap bounds and slope as the paper prints them. Owned by
     # diag_ie_vs_margin.py (see UNCHECKED); asserted here only for INTERNAL
-    # consistency, so 2c and Finding 3 cannot drift apart while both stay
-    # individually plausible — which is the failure mode that let the
+    # consistency, so 2c, Finding 3 and the abstract cannot drift apart while
+    # each stays individually plausible — which is the failure mode that let the
     # single-cycle framing survive three sections after the panel grew.
     d["_ci_lo_abs"], d["_ci_hi"] = 0.600, 2.821
+    d["_slope2c"] = 0.515
     # The pin note quotes the frame it replaced. Those are historical by construction, so
     # they are asserted as literals: the note must keep saying what the old frame said.
     d.update({"_prev_cells": 109, "_prev_fin": 0.55, "_prev_d": 4.20,
@@ -821,7 +1222,18 @@ def main() -> int:
               # minus sign, so a signed literal here is a sign mismatch, not a
               # defect in the note.
               "_prev_media": 0.05, "_prev_prof": 0.03, "_prev_totalspend": 0.26,
-              "_prev_alloc_cell": 0.041, "_alloc_alone": 0.022})
+              # Finding 3's zeros note quotes the retired race-matched n and slope
+              # (127, +4.890): historical by construction, like the five above. The
+              # broken-coincidence sentence in Appendix C quotes the OLD both-side
+              # count (129 = 127 + 2 only numerologically; it is the retired
+              # fin_cells), so it is pinned as its own literal.
+              "_prev_leg_matched_n": 127, "_prev_leg_matched_n_plus2": 129,
+              "_prev_leg_slope": 4.890,
+              "_prev_alloc_cell": 0.041, "_alloc_alone_08_01": 0.022,
+              # The 2026-08-15 residual re-pin moved the holdout cells a second
+              # time; the current allocation-alone cell is diagnostic-owned
+              # (0.028 on the 08-15 basis) and quoted in the note's history.
+              "_alloc_alone": 0.028})
     norm = vp.normalise(PAPER.read_text(encoding="utf-8"))
     audit_sections, offsets, spans = {}, {}, {}
     for name, (start, end) in AUDIT_BOUNDS.items():
@@ -836,9 +1248,9 @@ def main() -> int:
          r"total spend \+([\d.]+) → \+([\d.]+)",
          ("_prev_media", "r_media", "_prev_prof", "r_prof_abs",
           "_prev_totalspend", "r_totalspend"), 0.006),
-        ("pin note — allocation-alone holdout cell fell",
-         r"in fact fell from ([\d.]+) to ([\d.]+)\.",
-         ("_prev_alloc_cell", "_alloc_alone"), 0.0005),
+        ("pin note — allocation-alone holdout cell history",
+         r"has run ([\d.]+) → ([\d.]+) → ([\d.]+) across the\s+three bases",
+         ("_prev_alloc_cell", "_alloc_alone_08_01", "_alloc_alone"), 0.0005),
         ("finding 2 — field vs overperformance is unchanged",
          r"field-vs-overperformance −([\d.]+)", "r_field_overperf_abs", 0.005),
     ])
@@ -847,7 +1259,8 @@ def main() -> int:
                 norm, PROBES, d, UNCHECKED, vp.wants_coverage(), spans_out=spans,
                 stats_out=stats)
     fails = vp.audit_coverage(audit_sections, spans, offsets, tuple(AUDIT_BOUNDS),
-                              COVERAGE_EXEMPT, COVERAGE_EXEMPT_LITERAL, strict_units=True,
+                              COVERAGE_EXEMPT, COVERAGE_EXEMPT_LITERAL,
+                              COVERAGE_EXEMPT_SECTIONS, strict_units=True,
         bold_is_result=True)
     fails += vp.audit_satellite_counts(PAPER.name, stats.get("figures"))
     fails += _claim_checks(d, norm)

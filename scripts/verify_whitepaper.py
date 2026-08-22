@@ -900,8 +900,16 @@ PROBES = [
     # SEPARATELY against the same derivation, so a range that stopped spanning its own
     # members fails — which is the defect shape all six of the 2026-08-06 author questions
     # had, and the one thing a single probe on a span cannot catch.
+    # The anchor said "of voters" until 2026-08-21, and this probe's own LABEL has said
+    # "of registrants" since it was written -- the code had the basis right and the paper's
+    # bolded lead-in did not. The sentence contradicted itself in one line: "**~4.0-5.7% of
+    # voters** -- matched donors as a share of all registrants". The number is the
+    # registrants figure and always was, by the author's 2026-08-06 basis call recorded
+    # beside the derivation (`vrdb.voters all`); only the label moved. Not a quibble: on a
+    # genuine voters reading WA would be 10.85% (super-voters) or 6.18% (active roll).
     ("donor share of registrants, the cross-state range",
-     r"\*\*~([\d.]+)–([\d.]+)% of voters\*\*", ("donor_share_lo", "donor_share_hi"), 0.05),
+     r"\*\*~([\d.]+)–([\d.]+)% of registrants\*\*",
+     ("donor_share_lo", "donor_share_hi"), 0.05),
     ("donor share of registrants, the three states named",
      r"ID \*\*([\d.]+)%\*\*, NY \*\*([\d.]+)%\*\*, WA \*\*([\d.]+)%\*\*",
      ("id_donor_share", "ny_donor_share", "wa_donor_share"), 0.05),

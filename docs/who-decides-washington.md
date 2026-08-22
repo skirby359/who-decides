@@ -617,14 +617,16 @@ however you judge it.
 That claim has one channel that could falsify it, and asserting it is not enough: Washington
 credits a vote when a ballot is **accepted**, not when it is returned, so signature-mismatch
 and late arrival can shut someone out after they have voted. Rejection does skew young —
-**2.89%** of ballots from under-30 voters against **0.76%** from 65+, a ratio of
-**3.8**. But the effect on this paper's measure is **0.13 points** on the 18–29 share of the
+**2.92%** of ballots from under-30 voters against **0.95%** from 65+, a ratio of
+**3.1**. But the effect on this paper's measure is **0.12 points** on the 18–29 share of the
 electorate, against a composition gap of about 6.6 points, so it cannot account for the
 finding. Two limits on that check, both real: it runs on the **August 2026 primary**, the
 only Washington election with a published per-voter ballot-status file, so it is indicative
-of the channel rather than a measurement of it in 2021, 2023 or 2025; and it reads the panel
-at its latest snapshot, so ballots cured afterwards still count as rejected and the gap is
-if anything overstated. The frame survives the objection, but it survives it by measurement
+of the channel rather than a measurement of it in 2021, 2023 or 2025; and it is a primary
+electorate rather than an off-year general one. The panel itself is now final — the
+**2026-08-18** file, the last the Secretary of State published, with every ballot
+adjudicated and none pending — so these are certified rates rather than a count still in
+motion. The frame survives the objection, but it survives it by measurement
 rather than by assertion. (It is also what makes Washington a useful test case. In a prepaid,
 same-day-registration state the usual "too hard to vote" explanation for young
 drop-off is weak, so the age gap is hard to pin on friction.)
@@ -1220,7 +1222,7 @@ Those rules do not remove every barrier as information costs, mobility, local at
 address stability, and uneven political recruitment are still factors, but they make it
 hard to chalk the age gap up mainly to the friction of voting.
 
-**Reproduction.** `scripts/verify_who_decides_wa.py` re-derives **875 figures** from
+**Reproduction.** `scripts/verify_who_decides_wa.py` re-derives **878 figures** from
 scratch, including the composition, rate and finer-cohort tables, the coverage and
 bounding tables, the habitual-core overlap, the snapshot cross-validation, the
 representativeness index, the turnout decomposition and Appendix H's banding-robustness
