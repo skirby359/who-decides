@@ -52,6 +52,7 @@ from __future__ import annotations
 
 import math
 import random
+import csv
 import re
 import sys
 from pathlib import Path
@@ -64,6 +65,18 @@ import _verify_prose as vp  # noqa: E402
 vp.stdout_utf8()
 
 PAPER = vp.DOCS / "does-money-move-votes.md"
+# The OPEN cycle's inventory reading, pinned. Finding 3's table is the only place this paper
+# reads a still-accruing source, and as of 2026-08-24 it accrues UNATTENDED: the scheduled task
+# "WA FEC IE Weekly Refresh" (f91c03d, Mondays 09:00) writes independent_expenditures for the
+# watched district. That moved three published cells with no human running a loader --
+# 50 -> 69 rows, $98K -> $490K, and the panel totals with them. Deriving the 2026 row live is
+# therefore a floating basis, the same defect the WA paper's Appendix A carried against
+# MAX(report_date) until it was pinned on 2026-08-21.
+CURRENT_CYCLE_PIN = vp.DOCS / "reference" / "fec_ie_current_cycle_pin.csv"
+# The last CLOSED cycle. The panel totals count completed cycles only, which is what the
+# analysis uses (34 scorable races, all of them 2018-2024) and what does not move. The open
+# cycle is printed with its as-of date beside it and excluded from the total.
+LAST_COMPLETED_CYCLE = 2024
 CELLS = vp.DOCS / "reference" / "overperformance_cells_2026-08-15.csv"
 ALLOC = vp.DOCS / "reference" / "expenditures_vs_residual_2026-08-15.csv"
 # The state-legislative directional panel behind Finding 3, one row per
@@ -82,6 +95,18 @@ IECELLS = vp.DOCS / "reference" / "ie_vs_residual_2026-08-09.csv"
 # The retired frame, kept for audit: the pin note narrates its 129-cell +0.58 state and
 # the linkage audit's two corrected lookups are DERIVED as the diff between the two pins.
 CELLS_OLD = vp.DOCS / "reference" / "overperformance_cells_2026-08-01.csv"
+# The pre-election receipts pin (2026-08-29): per-report FEC period totals for every
+# congressional frame candidate, cut at the last coverage window ending on or before
+# election day. Written by scripts/diag_receipts_preelection.py --fetch; Appendix C's
+# cutoff sensitivity and Finding 1's pre-election sentence are derived from it.
+PREPIN = vp.DOCS / "reference" / "fec_receipts_preelection_2026-08-29.csv"
+# Committee-grain sibling with each committee's designation AS OF ITS CYCLE (2026-08-29,
+# second referee pass): the primary cutoff figures are computed from THIS pin on the
+# authorized universe (at-cycle P or A), because "everything linked except J" is too broad
+# as a rule — it swept in one genuine at-cycle leadership PAC. The candidate-grain pin
+# above remains the everything-but-J comparability basis the reconciliation checks.
+CMTE_PIN = vp.DOCS / "reference" / "fec_receipts_preelection_committees_2026-08-29.csv"
+_EDAY = {2018: "2018-11-06", 2020: "2020-11-03", 2022: "2022-11-08", 2024: "2024-11-05"}
 
 
 def _cluster_boot(xs, ys, clusters, ols, iters=5000, seed=12345):
@@ -154,7 +179,205 @@ def derive_finding1(d: dict) -> None:
     # than part of the captured group. Compare magnitudes so the probe is not asserting a
     # positive number against a negative one — which reads as a defect and is a probe bug.
     d["mean_r_outraised_abs"] = abs(d["mean_r_outraised"])
+
+    # ---- Referee item (6): the stratification, all from this same pinned frame ----
+    # Two questions the pooled +0.60 cannot answer on its own. Whether it is a BETWEEN-group
+    # artifact (congressional and legislative races raise on different scales, so pooling can
+    # manufacture a correlation present in neither), and whether the 128 cells carrying a
+    # ratio differ in the OUTCOME from the 35 that do not -- which decides what population
+    # the headline describes.
+    for tag, pred in (("cong", "district NOT LIKE 'ld%'"), ("leg", "district LIKE 'ld%'")):
+        n, r = con.execute(
+            f"SELECT COUNT(*), corr(overperformance, fin_log2_dr) FROM {src} "
+            f"WHERE baseline_ok AND fin_log2_dr IS NOT NULL AND {pred}").fetchone()
+        d[f"r_fin_{tag}"], d[f"n_fin_{tag}"] = float(r), int(n)
+    for yr, r in con.execute(
+            f"SELECT year, corr(overperformance, fin_log2_dr) FROM {src} "
+            f"WHERE baseline_ok AND fin_log2_dr IS NOT NULL GROUP BY 1").fetchall():
+        d[f"r_fin_{int(yr)}"] = float(r)
+    # The partial correlation, and the overlap that makes it necessary. Computed from three
+    # Pearson r's rather than by fitting, so it stays a property of the same frame.
+    rxy, rxz, ryz = con.execute(
+        f"SELECT corr(overperformance, fin_log2_dr), corr(fin_log2_dr, inc_signed), "
+        f"corr(overperformance, inc_signed) FROM {src} "
+        f"WHERE baseline_ok AND fin_log2_dr IS NOT NULL").fetchone()
+    d["r_fin_inc_overlap"] = float(rxz)
+    d["r_fin_full"] = float(rxy)
+    d["r_fin_partial_inc"] = (rxy - rxz * ryz) / math.sqrt((1 - rxz ** 2) * (1 - ryz ** 2))
+    # Why the 35 lack a ratio, and whether their absence is related to the outcome.
+    d["fin_missing_d_only"], d["fin_missing_r_only"], d["fin_missing_neither"],         d["fin_missing_leg"] = con.execute(f"""
+        SELECT COUNT(*) FILTER (WHERE COALESCE(d_receipts,0) > 0
+                                  AND COALESCE(r_receipts,0) = 0),
+               COUNT(*) FILTER (WHERE COALESCE(r_receipts,0) > 0
+                                  AND COALESCE(d_receipts,0) = 0),
+               COUNT(*) FILTER (WHERE COALESCE(d_receipts,0) = 0
+                                  AND COALESCE(r_receipts,0) = 0),
+               COUNT(*) FILTER (WHERE district LIKE 'ld%')
+        FROM {src} WHERE baseline_ok AND fin_log2_dr IS NULL""").fetchone()
+    d["mean_op_with_ratio"], d["mean_op_without_ratio"] = con.execute(
+        f"SELECT AVG(overperformance) FILTER (WHERE fin_log2_dr IS NOT NULL), "
+        f"AVG(overperformance) FILTER (WHERE fin_log2_dr IS NULL) "
+        f"FROM {src} WHERE baseline_ok").fetchone()
+    d["cells_no_ratio"] = d["cells_scorable"] - d["fin_cells"]
     con.close()
+
+
+def derive_preelection(d: dict) -> None:
+    """Appendix C's pre-election cutoff sensitivity (2026-08-29), from PREPIN + CELLS.
+
+    Recomputes every correlation from the pin and the frame rather than trusting the diag's
+    print. The state-legislative analogue re-resolves each cell's candidate_finance row by
+    exact amount and sums dated itemized PDC rows in one scan — the same construction as
+    scripts/diag_receipts_preelection.py, which owns the fetch and the full table.
+    """
+    if not PREPIN.exists() or not CMTE_PIN.exists():
+        raise SystemExit(
+            f"FATAL: pre-election receipts pin(s) missing: {PREPIN} / {CMTE_PIN}\n"
+            f"  Regenerate with (network; needs FEC_API_KEY):\n"
+            f"    python scripts/diag_receipts_preelection.py --fetch\n"
+            f"  Re-fetching re-pins Appendix C's cutoff sensitivity; expect its figures to "
+            f"move and update them deliberately.")
+    con = duckdb.connect()
+    cells = f"read_csv_auto('{CELLS.as_posix()}', header=true)"
+    pin = f"read_csv_auto('{PREPIN.as_posix()}', header=true)"
+    cpin = f"read_csv_auto('{CMTE_PIN.as_posix()}', header=true)"
+    # The everything-but-J universe (candidate-grain pin): the comparability basis.
+    row = con.execute(f"""
+        WITH cong AS (SELECT district, year, overperformance, fin_log2_dr,
+                             d_receipts, r_receipts
+                      FROM {cells}
+                      WHERE baseline_ok AND fin_log2_dr IS NOT NULL
+                        AND district NOT LIKE 'ld%'),
+        p AS (SELECT district, year,
+                     MAX(CASE WHEN side='D' THEN pre_receipts END) dp,
+                     MAX(CASE WHEN side='R' THEN pre_receipts END) rp,
+                     MAX(CASE WHEN side='D' THEN full_receipts_reports END) df,
+                     MAX(CASE WHEN side='R' THEN full_receipts_reports END) rf
+              FROM {pin} GROUP BY 1, 2),
+        j AS (SELECT c.*, p.dp, p.rp, p.df, p.rf FROM cong c JOIN p USING (district, year))
+        SELECT COUNT(*),
+               corr(overperformance, fin_log2_dr),
+               corr(overperformance, log2(df/rf))   FILTER (WHERE df > 0 AND rf > 0),
+               corr(overperformance, log2(dp/rp))   FILTER (WHERE dp > 0 AND rp > 0)
+        FROM j""").fetchone()
+    (d["pre_n_cong"], d["pre_r_cong_pinbasis"], d["nonj_full_r"],
+     d["nonj_pre_r"]) = (int(row[0]), float(row[1]), float(row[2]), float(row[3]))
+    # The AUTHORIZED universe (committee-grain pin, at-cycle designation P or A): the
+    # primary basis the paper's figures state.
+    row = con.execute(f"""
+        WITH cong AS (SELECT district, year, overperformance FROM {cells}
+                      WHERE baseline_ok AND fin_log2_dr IS NOT NULL
+                        AND district NOT LIKE 'ld%'),
+        a AS (SELECT district, year, side,
+                     SUM(pre_receipts) pr, SUM(full_receipts_reports) fl
+              FROM {cpin} WHERE designation_at_cycle IN ('P','A') GROUP BY 1, 2, 3),
+        p AS (SELECT district, year,
+                     MAX(CASE WHEN side='D' THEN pr END) dp,
+                     MAX(CASE WHEN side='R' THEN pr END) rp,
+                     MAX(CASE WHEN side='D' THEN fl END) df,
+                     MAX(CASE WHEN side='R' THEN fl END) rf
+              FROM a GROUP BY 1, 2),
+        j AS (SELECT c.*, p.dp, p.rp, p.df, p.rf FROM cong c JOIN p USING (district, year))
+        SELECT COUNT(*),
+               corr(overperformance, log2(df/rf))   FILTER (WHERE df > 0 AND rf > 0),
+               corr(overperformance, log2(dp/rp))   FILTER (WHERE dp > 0 AND rp > 0),
+               COUNT(*) FILTER (WHERE dp > 0 AND rp > 0 AND df > 0 AND rf > 0)
+        FROM j""").fetchone()
+    (n_auth, d["fullrep_r_cong"], d["pre_r_cong"], d["pre_n_usable"]) = (
+        int(row[0]), float(row[1]), float(row[2]), int(row[3]))
+    if n_auth != d["pre_n_cong"]:
+        raise SystemExit(
+            f"FATAL: the authorized universe joins {n_auth} congressional cells against "
+            f"{d['pre_n_cong']} on the candidate pin — the two pins have diverged; "
+            f"re-run the --fetch.")
+    # The validation counts and the excluded leadership PAC's cells, as the paper states them.
+    d["cmte_rows_total"], d["cmte_rows_pa"] = [int(x) for x in con.execute(f"""
+        SELECT COUNT(*), COUNT(*) FILTER (WHERE designation_at_cycle IN ('P','A'))
+        FROM {cpin}""").fetchone()]
+    flags = [float(x) for (x,) in con.execute(f"""
+        SELECT full_receipts_reports FROM {cpin}
+        WHERE designation_at_cycle NOT IN ('P','A') ORDER BY year""").fetchall()]
+    if len(flags) != 3:
+        raise SystemExit(
+            f"FATAL: the paper enumerates THREE excluded committee-cycles; the pin holds "
+            f"{len(flags)} — re-derive the committee-universe paragraph before trusting it.")
+    d["flag_full_1"], d["flag_full_2"], d["flag_full_3"] = flags
+    # Reconciliation of report-built full-cycle sums against the frame's summary totals,
+    # per candidate-cycle, as a share of the frame value.
+    d["pre_recon_mean_pct"], d["pre_recon_max_pct"] = [float(x) for x in con.execute(f"""
+        WITH cong AS (SELECT district, year, d_receipts, r_receipts FROM {cells}
+                      WHERE baseline_ok AND fin_log2_dr IS NOT NULL
+                        AND district NOT LIKE 'ld%'),
+        long AS (SELECT district, year, 'D' side, d_receipts amt FROM cong
+                 UNION ALL SELECT district, year, 'R', r_receipts FROM cong),
+        j AS (SELECT 100.0*ABS(p.full_receipts_reports - l.amt)/l.amt rel
+              FROM {pin} p JOIN long l USING (district, year, side) WHERE l.amt > 0)
+        SELECT AVG(rel), MAX(rel) FROM j""").fetchone()]
+    con.close()
+    # State-legislative itemized analogue: resolve each cell side by exact amount, then one
+    # dated scan over the PDC rows.
+    wcon = duckdb.connect(str(vp.DOCS.parent / "data" / "wa_statewide.duckdb"),
+                          read_only=True)
+    lcon = duckdb.connect()
+    leg = lcon.execute(f"""
+        SELECT district, year, overperformance, d_receipts, r_receipts FROM {cells}
+        WHERE baseline_ok AND fin_log2_dr IS NOT NULL AND district LIKE 'ld%'""").fetchall()
+    lcon.close()
+    resolved: dict[tuple, str] = {}
+    for dist, yr, _op, dr, rr in leg:
+        bare = dist[2:].lstrip("0")
+        for side, amt in (("D", float(dr)), ("R", float(rr))):
+            hits = {r[0] for r in wcon.execute(
+                "SELECT fec_candidate_id FROM candidate_finance "
+                "WHERE office IN ('SR','SS') AND district=? AND election_cycle=? "
+                "AND total_receipts IS NOT NULL AND ABS(total_receipts - ?) < 1.0",
+                [bare, int(yr), amt]).fetchall()}
+            if len(hits) == 1:
+                resolved[(dist, int(yr), side)] = hits.pop()
+    ids = sorted(set(resolved.values()))
+    sums = {}
+    if ids:
+        marks = ",".join("?" for _ in ids)
+        for fid, cyc, full, pre in wcon.execute(f"""
+            SELECT fec_candidate_id, election_cycle,
+                   SUM(contribution_amount),
+                   SUM(contribution_amount) FILTER (WHERE contribution_date <=
+                       CASE election_cycle WHEN 2018 THEN DATE '2018-11-06'
+                            WHEN 2020 THEN DATE '2020-11-03'
+                            WHEN 2022 THEN DATE '2022-11-08'
+                            WHEN 2024 THEN DATE '2024-11-05' END)
+            FROM individual_contributions
+            WHERE fec_candidate_id IN ({marks}) AND contribution_amount > 0
+            GROUP BY 1, 2""", ids).fetchall():
+            sums[(fid, int(cyc))] = (float(full or 0), float(pre or 0))
+    wcon.close()
+    xs_full, xs_pre, ys = [], [], []
+    pairs = 0
+    for dist, yr, op, _dr, _rr in leg:
+        kd, kr = (dist, int(yr), "D"), (dist, int(yr), "R")
+        if kd not in resolved or kr not in resolved:
+            continue
+        pairs += 1
+        dv = sums.get((resolved[kd], int(yr)), (0.0, 0.0))
+        rv = sums.get((resolved[kr], int(yr)), (0.0, 0.0))
+        if min(dv[0], rv[0]) <= 0 or min(dv[1], rv[1]) <= 0:
+            continue
+        xs_full.append(math.log2(dv[0] / rv[0]))
+        xs_pre.append(math.log2(dv[1] / rv[1]))
+        ys.append(float(op))
+    d["leg_total_n"] = len(leg)
+    d["leg_resolved_n"] = pairs
+    n = len(ys)
+    d["leg_item_n"] = n
+
+    def _r(xs):
+        mx, my = sum(xs) / n, sum(ys) / n
+        sx = math.sqrt(sum((x - mx) ** 2 for x in xs))
+        sy = math.sqrt(sum((y - my) ** 2 for y in ys))
+        return sum((x - mx) * (y - my) for x, y in zip(xs, ys)) / (sx * sy)
+
+    d["leg_item_full_r"], d["leg_item_pre_r"] = _r(xs_full), _r(xs_pre)
+    d["leg_item_delta"] = d["leg_item_full_r"] - d["leg_item_pre_r"]
 
 
 def derive_allocation(d: dict) -> None:
@@ -410,6 +633,53 @@ def derive_federal_influence(d: dict) -> None:
     d["fed_per_sd_slope"] = slope * sdx
     # The leverage case's own coordinates, quoted in 2c's influence paragraph.
     imax = max(range(n), key=lambda i: xs[i])
+    # --- FUNCTIONAL-FORM SENSITIVITY (2026-08-25, second external referee) --------------
+    # The referee's objection was that influence diagnostics on ONE specification cannot show
+    # whether the specification is the reason for the influence. These are the frame-level
+    # facts and the alternative-form coefficients the paper now prints. Derived from the same
+    # pinned frame, so they cost no database and no model; the full run with intervals is
+    # scripts/diag_ie_functional_form.py, which reproduces the headline slope to the digit.
+    import math as _math
+    import numpy as _np
+    tots = [float(r["total_m"]) for r in rows]
+    d["ff_gross_m"] = sum(tots)
+    d["ff_absnet_m"] = sum(abs(x) for x in xs)
+    d["ff_cancel_pct"] = 100.0 * (d["ff_gross_m"] - d["ff_absnet_m"]) / d["ff_gross_m"]
+    d["ff_zero_n"] = sum(1 for x in xs if abs(x) < 0.01)
+    # The load-bearing qualifier: those zeros are GENUINE, not cancellation artifacts.
+    d["ff_zero_with_ie"] = sum(1 for x, tt in zip(xs, tots)
+                               if abs(x) < 0.01 and tt > 0.01)
+    _i822 = next(i for i, r in enumerate(rows)
+                 if r["district_id"] == "cd08" and str(r["cycle"]) == "2022")
+    d["ff_wa08_22_total"] = tots[_i822]
+    d["ff_wa08_22_net_abs"] = abs(xs[_i822])
+    d["ff_wa08_22_survive_pct"] = 100.0 * abs(xs[_i822]) / tots[_i822]
+
+    # Under the COMPRESSED forms, dropping the high-leverage race leaves the estimate
+    # positive instead of flipping the sign. That is the finding the single form could
+    # not show, so it is derived rather than described.
+    _drop = [i for i in range(n) if labels[i] != "cd08/18"]
+    for _tag, _fx in (("asinh", _math.asinh),
+                      ("slog", lambda v: _math.copysign(_math.log1p(abs(v)), v))):
+        _tx = [_fx(x) for x in xs]
+        d[f"ff_{_tag}_loo_drop_wa0818"] = _ols([_tx[i] for i in _drop],
+                                               [ys[i] for i in _drop])[0]
+
+    def _multi(cols):
+        A = _np.column_stack([_np.ones(n)] + [_np.array(c) for c in cols])
+        beta, *_ = _np.linalg.lstsq(A, _np.array(ys), rcond=None)
+        return [float(b) for b in beta]
+
+    _prod = [float(r["pro_dem"]) / 1e6 for r in rows]
+    _pror = [float(r["pro_rep"]) / 1e6 for r in rows]
+    _b3 = _multi([_prod, _pror])
+    d["ff_prodem_coef"], d["ff_prorep_coef_abs"] = _b3[1], abs(_b3[2])
+    _b4 = _multi([xs, tots])
+    d["ff_net_with_total"], d["ff_total_coef_abs"] = _b4[1], abs(_b4[2])
+
+    # The scorable-race count, printed in the reproduction note (2026-08-25). It is the
+    # frame's own length, so a frame that changed size would move the note with it.
+    d["fed_scorable_n"] = n
     d["fed_max_net_ie"] = xs[imax]
     d["fed_max_net_resid"] = ys[imax]
 
@@ -500,6 +770,27 @@ def derive_estimator_facts(d: dict) -> None:
     d["mv_bootstrap_iters"] = float(next(iter(iters_seen.values())))
 
 
+def _current_cycle_pin() -> dict:
+    """The open cycle's pinned inventory reading.
+
+    Read from the pin rather than written here so "what was the open cycle on the day this
+    paper was derived" has ONE definition, shared with
+    tests/test_infrastructure/test_fec_ie_current_cycle_pin.py. A missing pin is FATAL:
+    falling back to a live count would silently restore the floating basis this exists to
+    close, and would do it in the one paper whose figures a weekly scheduled task moves.
+    """
+    if not CURRENT_CYCLE_PIN.exists():
+        raise SystemExit(
+            f"FATAL: the open-cycle pin is missing ({CURRENT_CYCLE_PIN}). Finding 3's 2026 "
+            f"row and the panel totals are pinned to it. Refusing to fall back to a live "
+            f"count -- that is the floating basis this pin was created to close.")
+    with CURRENT_CYCLE_PIN.open(encoding="utf-8", newline="") as fh:
+        rows = list(csv.DictReader(fh))
+    if not rows:
+        raise SystemExit(f"FATAL: {CURRENT_CYCLE_PIN} has no rows.")
+    return rows[0]
+
+
 def derive_ceiling(d: dict) -> None:
     """The data-ceiling facts — re-derived in SQL, owing nothing to any diag script."""
     con = duckdb.connect(str(vp.DATA / "wa_statewide.duckdb"), read_only=True)
@@ -526,8 +817,195 @@ def derive_ceiling(d: dict) -> None:
     for cyc, (n, k, v) in by_cycle.items():
         d[f"ie{cyc}_rows"], d[f"ie{cyc}_districts"] = n, k
         d[f"ie{cyc}_m"], d[f"ie{cyc}_k"] = v / 1e6, v / 1e3
-    d["ie_total_rows"] = sum(n for n, _, _ in by_cycle.values())
-    d["ie_total_m"] = sum(v for _, _, v in by_cycle.values()) / 1e6
+
+    # THE OPEN CYCLE COMES FROM THE PIN, NOT FROM THE QUERY ABOVE. Overwriting the live
+    # values is the whole point: FEC filings for an open cycle keep arriving, and since
+    # 2026-08-24 they arrive unattended on a weekly timer, so a live read makes the paper's
+    # printed cells drift with no edit and no error. The paper prints the as-of date beside
+    # the row; the pin is what that date means.
+    pin = _current_cycle_pin()
+    open_cycle = int(pin["cycle"])
+    d[f"ie{open_cycle}_rows"] = int(pin["rows"])
+    d[f"ie{open_cycle}_districts"] = int(pin["districts"])
+    d[f"ie{open_cycle}_m"] = float(pin["total_usd"]) / 1e6
+    d[f"ie{open_cycle}_k"] = float(pin["total_usd"]) / 1e3
+    # The as-of date is PRINTED in the paper, so it is a figure and gets probed like one
+    # rather than exempted -- editing the date in the prose without re-pinning then fails,
+    # which is the coupling that keeps this basis from floating again. Same construction as
+    # verify_who_decides_wa.py's a_rej_panel_* keys.
+    _y, _m, _dd = pin["as_of"].split("-")
+    d["ie_asof_y"], d["ie_asof_m"], d["ie_asof_d"] = int(_y), int(_m), int(_dd)
+
+    # DRIFT IS DISCLOSED, NOT FAILED. The pin is a dated historical reading and stays true;
+    # the live view moving past it is expected, not a defect. But silence would make the pin
+    # unfalsifiable, which is this repo's first-named failure mode, so the gap is printed
+    # with the mechanism named. Re-pin deliberately if the paper is re-derived.
+    live_n, _live_k, live_v = by_cycle.get(open_cycle, (0, 0, 0.0))
+    if live_n != int(pin["rows"]) or abs(live_v - float(pin["total_usd"])) >= 0.01:
+        print(f"  NOTICE  open cycle {open_cycle} has moved past the pin "
+              f"({pin['as_of']}): pinned {int(pin['rows'])} rows / "
+              f"${float(pin['total_usd']):,.2f}, live {live_n} rows / ${live_v:,.2f}. "
+              f"Expected -- the cycle is open and 'WA FEC IE Weekly Refresh' writes it "
+              f"unattended. The paper's dated reading is unaffected; re-pin only if you "
+              f"re-derive the paper (docs/reference/fec_ie_current_cycle_pin.csv).")
+
+    # PANEL TOTALS COUNT COMPLETED CYCLES ONLY. This is what the analysis uses -- all 34
+    # scorable races are 2018-2024 -- and it is the half that does not move. Including the
+    # open cycle is what made these two cells drift.
+    _done = {c: v for c, v in by_cycle.items() if c <= LAST_COMPLETED_CYCLE}
+    # The number of COMPLETED cycles, distinct from `ie_cycles` (the inventory count). The
+    # abstract needs this one: the estimator's 34 scorable races all sit in closed cycles, and
+    # a claim-guard that compared the abstract against the INVENTORY count was what kept the
+    # abstract saying "five cycles" for a test that runs on four (second external referee,
+    # 2026-08-25). The gate was enforcing the defect.
+    d["ie_cycles_completed"] = len(_done)
+    d["ie_total_rows"] = sum(n for n, _, _ in _done.values())
+    d["ie_total_m"] = sum(v for _, _, v in _done.values()) / 1e6
+
+    # Appendix E's "party attribution is effectively complete" numerator, ON THE SAME
+    # COMPLETED-CYCLE BASIS as the panel total beside it. Derived rather than left as prose:
+    # the printed value was $0.03M, which reproduces on NEITHER basis today (completed cycles
+    # $1,560; all cycles $228,866), and the reason is the same one that moved the panel
+    # totals — new open-cycle filings routinely land before the candidate record that
+    # resolves them to a party, so an all-cycle numerator drifts upward every refresh.
+    # Confirmed against scripts/diag_ie_vs_margin.py, which owns Appendix E and splits it
+    # $1,560.32 completed / $227,305.77 open (all cd05/26).
+    unres, unres_cells = con.execute(f"""
+        WITH p AS (SELECT DISTINCT election_cycle, UPPER(candidate_name) cn, party
+                   FROM candidate_finance WHERE state='WA' AND office='H')
+        SELECT SUM(CASE WHEN p.party IS NULL OR p.party NOT IN ('Democratic','Republican')
+                        THEN ie.expenditure_amount ELSE 0 END),
+               COUNT(DISTINCT CASE
+                        WHEN p.party IS NULL OR p.party NOT IN ('Democratic','Republican')
+                        THEN ie.district || '/' || ie.election_cycle END)
+        FROM v_independent_expenditures ie
+        LEFT JOIN p ON p.election_cycle = ie.election_cycle
+                   AND p.cn = UPPER(ie.candidate_name)
+        WHERE ie.source='FEC' AND ie.office='H' AND ie.state='WA'
+          AND ie.support_oppose IN ('S','O')
+          AND ie.election_cycle <= {LAST_COMPLETED_CYCLE}""").fetchone()
+    d["ie_unresolved_usd"] = float(unres)
+    d["ie_unresolved_cells"] = int(unres_cells)
+
+    # --- THE RECEIPTS MEASUREMENT WINDOW (2026-08-25, second external referee) ----------
+    # The referee asked what cutoff defines "receipts" and noted that full-cycle totals would
+    # mean outcome-to-measure leakage on top of ordinary endogeneity. Measured rather than
+    # asserted: candidate_finance carries ONE row per candidate-cycle, and coverage_end_date
+    # straddles election day, so the predictor's window usually closes after the outcome it is
+    # correlated with. Derived here so the disclosure in Appendix C is gated like any figure.
+    _rb = con.execute("""
+        WITH eday(cyc, d) AS (VALUES (2018,DATE '2018-11-06'),(2020,DATE '2020-11-03'),
+                                     (2022,DATE '2022-11-08'),(2024,DATE '2024-11-05')),
+             f AS (SELECT cf.election_cycle cyc, cf.district dist, cf.party,
+                          date_diff('day', e.d, cf.coverage_end_date) rel
+                   FROM candidate_finance cf JOIN eday e ON e.cyc = cf.election_cycle
+                   WHERE cf.state='WA' AND cf.office='H' AND cf.total_receipts > 0
+                     AND cf.party IN ('Democratic','Republican')),
+             pr AS (SELECT cyc, dist,
+                           MAX(CASE WHEN party='Democratic' THEN rel END) d_rel,
+                           MAX(CASE WHEN party='Republican'  THEN rel END) r_rel
+                    FROM f GROUP BY 1,2)
+        SELECT COUNT(*), COUNT(*) FILTER (WHERE ABS(d_rel-r_rel) > 60),
+               MAX(ABS(d_rel-r_rel)), AVG(ABS(d_rel-r_rel))
+        FROM pr WHERE d_rel IS NOT NULL AND r_rel IS NOT NULL""").fetchone()
+    d["rb_pairs"], d["rb_gap_over_60"] = int(_rb[0]), int(_rb[1])
+    d["rb_worst_gap"], d["rb_mean_gap"] = float(_rb[2]), float(_rb[3])
+    d["rb_rows"] = int(con.execute("""
+        SELECT COUNT(*) FROM candidate_finance
+        WHERE state='WA' AND office='H' AND total_receipts > 0
+          AND election_cycle IN (2018,2020,2022,2024)""").fetchone()[0])
+
+    # --- THE IDENTIFICATION SEARCH (2026-08-25, referee item 1) --------------------------
+    # The paper now COUNTS the designs instead of naming them, so the counts are gated.
+    # Imported from the script the section cites, for the same reason the inference
+    # estimators are: one definition of "repeat match-up", not two.
+    import diag_repeat_matchups as _rm
+    for _lbl, _offs, _pfx in (("H", ("H",), "idsearch_fed"),
+                              ("LEG", ("SR", "SS"), "idsearch_leg")):
+        _tot, _rep, _diff, _mx = con.execute(_rm._sql(_offs)).fetchone()
+        d[f"{_pfx}_cycles"] = int(_tot)
+        d[f"{_pfx}_repeats"] = int(_rep)
+        # Only the FEDERAL differenced count is printed (the legislative one coincides with
+        # its repeat count, since every repeat spans exactly two cycles). Deriving the
+        # legislative one too would be a key nothing reads, which is the thing the no-probe
+        # ceiling exists to prevent -- so it is not derived.
+        if _pfx == "idsearch_fed":
+            d[f"{_pfx}_diffs"] = int(_diff)
+    _leghouse = con.execute(_rm._sql(("SR",))).fetchone()
+    _legsen = con.execute(_rm._sql(("SS",))).fetchone()
+    d["idsearch_leg_house_repeats"] = int(_leghouse[1])
+    d["idsearch_leg_sen_repeats"] = int(_legsen[1])
+    # The redistricting count: one redraw, and every scorable district observed either side.
+    import csv as _c2
+    _fr2 = list(_c2.DictReader(IECELLS.open(encoding="utf-8", newline="")))
+    d["idsearch_redraws"] = 1
+    d["idsearch_both_sides"] = len({r["district_id"] for r in _fr2
+                                    if int(r["cycle"]) < 2022}
+                                   & {r["district_id"] for r in _fr2
+                                      if int(r["cycle"]) >= 2022})
+
+    # The two UNSCORABLE federal races that nonetheless carried real money, named in
+    # Finding 3's zero-treatment paragraph (2026-08-25). They are NOT in the pinned 34-row
+    # frame -- that frame holds scorable races only, which is precisely the point being made:
+    # the federal panel discards treated observations for want of a scorable outcome. Derived
+    # live, which is safe here because both cycles are closed (see the disposition in
+    # tests/test_infrastructure/test_unattended_writer_exposure.py).
+    for _dist, _cyc, _key in (("10", 2020, "unsc_cd10_20_net"),
+                              ("04", 2024, "unsc_cd04_24_net")):
+        _n = con.execute(f"""
+            WITH p AS (SELECT DISTINCT election_cycle, UPPER(candidate_name) cn, party
+                       FROM candidate_finance WHERE state='WA' AND office='H')
+            SELECT SUM(CASE WHEN (p.party='Democratic' AND ie.support_oppose='S')
+                              OR (p.party='Republican' AND ie.support_oppose='O')
+                            THEN ie.expenditure_amount ELSE -ie.expenditure_amount END)/1e6
+            FROM v_independent_expenditures ie
+            LEFT JOIN p ON p.election_cycle = ie.election_cycle
+                       AND p.cn = UPPER(ie.candidate_name)
+            WHERE ie.source='FEC' AND ie.office='H' AND ie.state='WA'
+              AND ie.support_oppose IN ('S','O') AND ie.election_cycle = {_cyc}
+              AND ie.district IN ('{_dist}', '{_dist.lstrip("0")}')""").fetchone()[0]
+        d[_key] = float(_n or 0.0)
+
+    # --- INFERENCE SENSITIVITY + THE CLEAN LEGISLATIVE SUBSET (2026-08-25, referee) ------
+    # IMPORTED from the script the paper cites rather than reimplemented here. Two copies of
+    # an estimator drift apart, and this paper has already paid for a duplicated constant
+    # three times in Appendix E; a duplicated ESTIMATOR would be worse. Importing also means
+    # this gate checks the paper against the SAME code a reader would run.
+    import numpy as _np
+    import diag_ie_inference_sensitivity as _inf
+    _fr = _inf._read(_inf.FED)
+    _x = _np.array([float(r["net_pro_dem_m"]) for r in _fr])
+    _y = _np.array([float(r["residual_pp"]) for r in _fr])
+    _g = [r["district_id"] for r in _fr]
+    _b, _, _ = _inf._fit(_x, _y)
+    _se3 = _inf._hc3(_x, _y)
+    _secr, _G = _inf._cr_se(_x, _y, _g)
+    d["inf_hc3_lo_abs"] = abs(float(_b[1]) - 1.96 * _se3)
+    d["inf_hc3_hi"] = float(_b[1]) + 1.96 * _se3
+    d["inf_cr_lo_abs"] = abs(float(_b[1]) - 1.96 * _secr)
+    d["inf_cr_hi"] = float(_b[1]) + 1.96 * _secr
+    d["inf_wild_p"] = _inf._wild_cluster_p(_x, _y, _g)[0]
+
+    # The Senate-only (cleanly assignable) legislative subset.
+    _lg = _inf._read(_inf.LEG)
+    _sen = [r for r in _lg if r["is_senate"] == "1"]
+    d["sen_n"] = len({(r["district_id"], r["cycle"]) for r in _sen})
+    d["sen_min_n_threshold"] = _inf.MIN_N_FOR_SLOPE
+    _rm = [r for r in _sen if r["specification"] == "race_matched"
+           and r["advocacy_scope"] == "all"]
+    d["sen_max_net_k"] = max(abs(float(r["net_pro_dem_musd"])) for r in _rm) * 1000.0
+    d["sen_nearzero"] = sum(1 for r in _rm if abs(float(r["net_pro_dem_musd"])) <= 0.001)
+    _slopes = []
+    for _sc in ("all", "express"):
+        for _sp in ("district_aggregate", "race_matched"):
+            _s = [r for r in _sen if r["advocacy_scope"] == _sc
+                  and r["specification"] == _sp]
+            _nx = _np.array([float(r["net_pro_dem_musd"]) for r in _s])
+            _ny = _np.array([float(r["residual_pp"]) for r in _s])
+            if len(set(_nx.tolist())) > 1:
+                _slopes.append(float(_inf._fit(_nx, _ny)[0][1]))
+    d["sen_slope_min_abs"] = abs(min(_slopes))
+    d["sen_slope_max"] = max(_slopes)
 
     # WA-03 2024 — the largest independent-expenditure total in the panel.
     tot, net = con.execute("""
@@ -558,6 +1036,14 @@ def derive_ceiling(d: dict) -> None:
           AND election_year BETWEEN 2018 AND 2024""").fetchone()
     d["pdc_c63_rows"] = int(rows)
     d["pdc_c63_dollars"] = float(dollars)
+    # The DENOMINATOR the "100% of rows" sentence was missing (2026-08-25, referee). All C6.3
+    # dollars in the same window, across every office, so the legislative slice can be stated
+    # as a share of the directionally-coded record rather than of itself.
+    _all_c63 = con.execute("""
+        SELECT SUM(portion_of_amount) FROM pdc_ie_targets
+        WHERE election_year BETWEEN 2018 AND 2024""").fetchone()[0]
+    d["pdc_c63_all_offices_m"] = float(_all_c63) / 1e6
+    d["pdc_c63_leg_share_pct"] = 100.0 * d["pdc_c63_dollars"] / float(_all_c63)
     d["pdc_c63_m"] = float(dollars) / 1e6
     # The abstract's "direction-coded on 100% of rows" — a rate, derived rather than
     # trusted: the share of legislative C6.3 rows carrying a For/Against value.
@@ -651,6 +1137,165 @@ def derive_ceiling(d: dict) -> None:
 
 
 PROBES = [
+    # --- Appendix C's pre-election cutoff sensitivity + Finding 1's restatement of it
+    # (2026-08-29; re-anchored the same day when the primary basis moved to the AUTHORIZED
+    # committee universe after a referee's objection). Every value recomputed from
+    # PREPIN + CMTE_PIN + CELLS in derive_preelection.
+    ("Finding 1 — the cutoff pair, authorized universe",
+     r"correlation is essentially unchanged — \*\*\+([\d.]+)\*\* against \*\*\+([\d.]+)\*\*\s*"
+     r"full-cycle on the same\s*report-built basis",
+     ("pre_r_cong", "fullrep_r_cong"), 0.005),
+    ("Appendix C — the cutoff pair and its cell count",
+     r"within the (\d+) congressional cells, r = \*\*\+([\d.]+)\*\* using receipts through "
+     r"the final\s*pre-election report, against \*\*\+([\d.]+)\*\* on the same report-built "
+     r"full-cycle basis",
+     ("pre_n_cong", "pre_r_cong", "fullrep_r_cong"), 0.005),
+    # The SAME printed 31, bound a second time to the USABLE-cell count: the sentence reads
+    # as a same-cell contrast, which is only true while every frame cell carries positive
+    # receipts on both sides in both windows. If a re-pin drops a cell from r_pre, this
+    # probe fails against the printed count while the one above still passes — the two
+    # meanings of one token, asserted separately. (_claim_checks states the same invariant
+    # with a more actionable message.)
+    ("Appendix C — every congressional cell usable in the pre-election cut",
+     r"within the (\d+) congressional cells, r = \*\*\+[\d.]+\*\*",
+     "pre_n_usable", 0),
+    ("Appendix C — committee-cycle validation counts",
+     r"\*\*(\d+) of the (\d+) committee-cycle rows were designation\s*"
+     r"P or A as of their cycle\*\*", ("cmte_rows_pa", "cmte_rows_total"), 0),
+    ("Appendix C — the excluded at-cycle leadership PAC's three cells",
+     r"\$([\d,]+) / \$([\d,]+) / \$([\d,]+) across\s*2018–2022",
+     ("flag_full_1", "flag_full_2", "flag_full_3"), 0.5),
+    ("Appendix C — the everything-but-J pair, retained as the comparability check",
+     r"it gives \*\*\+([\d.]+) / \+([\d.]+)\*\*", ("nonj_pre_r", "nonj_full_r"), 0.005),
+    ("Appendix C — the pinned frame's own figure, matched by the non-J report basis",
+     r"matching\s*the pinned frame's own \*\*\+([\d.]+)\*\*", "pre_r_cong_pinbasis", 0.005),
+    ("Appendix C — report-built reconciliation against the summary totals",
+     r"mean absolute difference of \*\*([\d.]+)%\*\* per candidate-cycle \(maximum\s*"
+     r"\*\*([\d.]+)%\*\*\)", ("pre_recon_mean_pct", "pre_recon_max_pct"), 0.005),
+    ("Appendix C — the state-legislative itemized analogue",
+     r"resolves finance rows by exact amount for \*\*(\d+)\*\* of \*\*(\d+)\*\* legislative\s*"
+     r"cells \(\*\*(\d+)\*\* usable after one zero-side drop\) and moves "
+     r"\*\*\+([\d.]+) → \+([\d.]+)\*\*",
+     ("leg_resolved_n", "leg_total_n", "leg_item_n", "leg_item_full_r", "leg_item_pre_r"),
+     0.005),
+    ("Appendix C — non-comparability with Finding 1's legislative correlation",
+     r"not comparable to Finding 1's within-legislative \+([\d.]+)\*\*",
+     "r_fin_leg", 0.005),
+    ("Appendix C — the cutoff's own movement on the itemized measure",
+     r"moves the itemized correlation by \*\*([\d.]+)\*\*", "leg_item_delta", 0.0015),
+
+    ("frontmatter — the scorable count in the reproduction note",
+     r"and all \*\*(\d+)\*\* scorable district-cycles\s*reconcile", "fed_scorable_n", 0.5),
+    ("Finding 3 — the retired 100% restated in the correction note",
+     r"earlier version bolded the (\d+)% as though it measured c",
+     "pdc_c63_fill_pct", 0.05),
+    ("Finding 3 — the C6.3 denominator the 100% sentence was missing",
+     r"C6\.3 carries \*\*\$([\d.]+)M\*\* across all offices, so the legislative\s*"
+     r"slice is \*\*([\d.]+)%\*\*",
+     ("pdc_c63_all_offices_m", "pdc_c63_leg_share_pct"), 0.05),
+    # --- The identification-search section, 2026-08-25 (referee item 1) ------------------
+    ("Finding 3 — the congressional repeat-matchup count",
+     r"of \*\*(\d+)\*\* congressional D-versus-R district-cycles,\s*\*\*(\d+)\*\* are repeats",
+     ("idsearch_fed_cycles", "idsearch_fed_repeats"), 0.5),
+    ("Finding 3 — the differenced observations a Levitt design would give",
+     r"the design yields \*\*(\d+)\*\* differenced observations", "idsearch_fed_diffs", 0.5),
+    ("Finding 3 — the legislative repeat-matchup counts",
+     r"of \*\*(\d+)\*\* legislative D-versus-R district-cycles\s*only \*\*(\d+)\*\* are "
+     r"repeats — \*\*(\d+)\*\* in the House and \*\*(\d+)\*\* in the Senate",
+     ("idsearch_leg_cycles", "idsearch_leg_repeats", "idsearch_leg_house_repeats",
+      "idsearch_leg_sen_repeats"), 0.5),
+    # The redraw count is spelled as a WORD in the paper ("exactly **one** redraw"), which a
+    # numeric probe cannot capture -- so the count is checked by `_claim_checks` and only the
+    # district figure is probed here. Splitting them rather than renumbering the prose: "one"
+    # is the right word in that sentence and a bolded "1" would read worse.
+    ("Finding 3 — every scorable district observed either side of the redraw",
+     r"redraw inside this panel, and \*\*all (\d+)\*\* scorable",
+     "idsearch_both_sides", 0.5),
+    ("Finding 3 — the two treated races the federal panel discards",
+     r"\(cd10 2020, \+\$([\d.]+)M; cd04\s+2024, \+\$([\d.]+)M\)",
+     ("unsc_cd10_20_net", "unsc_cd04_24_net"), 0.02),
+    # --- Appendix F's errata table, 2026-08-25. Every figure it restates is bound to the
+    # SAME key as its live counterpart elsewhere in the paper. That is the whole point of
+    # consolidating: a correction history is a table of figures, and a table of figures that
+    # nothing checks is how a retired value comes back to life. Three of this paper's
+    # corrections were exactly that shape.
+    ("appendix F — the C6.3 direction share restated",
+     r"section \*\*C6\.3\*\*, on (\d+)% of rows", "c63_direction_pct", 0.05),
+    ("appendix F — the retired and restored legislative cell counts",
+     r"zero-treatment cells \(n=(\d+)\) \| restored to the full (\d+);",
+     ("_prev_leg_matched_n", "_prev_leg_matched_n_plus2"), 0),
+    ("appendix F — the retired and live primary slopes",
+     r"primary slope \+([\d.]+) → \+([\d.]+)",
+     ("_prev_leg_slope", "leg_expr_matched_slope"), 0.005),
+    # --- Inference sensitivity and the clean legislative subset, 2026-08-25 (referee) ----
+    ("Finding 2c — HC3 and the analytic cluster-robust intervals",
+     r"gives \*\*−([\d.]+) to \+([\d.]+)\*\*\. An analytic cluster-robust standard error on "
+     r"the same ten\s+districts gives \*\*−([\d.]+) to \+([\d.]+)\*\*",
+     ("inf_hc3_lo_abs", "inf_hc3_hi", "inf_cr_lo_abs", "inf_cr_hi"), 0.005),
+    ("Finding 2c — the wild cluster bootstrap p-value",
+     r"returns\s+\*\*p = ([\d.]+)\*\*", "inf_wild_p", 0.02),
+    # The two restatements of the legislative panel's n in the subset paragraph. Bound to
+    # the derived cell count, not exempted: "129" is the number the whole comparison is
+    # against, and a fourth copy of it is a fourth thing to update.
+    ("Finding 3 — the legislative n restated in the subset paragraph",
+     r"stop leaning on (\d+) cells and exploit the cl", "leg_all_matched_n", 0.5),
+    ("Finding 3 — the legislative n restated again in the same paragraph",
+     r"more sharply than the (\d+)-cell headline can", "leg_all_matched_n", 0.5),
+    ("Finding 3 — the cleanly assigned Senate subset",
+     r"the cleanly assigned panel is\s*\*\*(\d+)\*\* district-cycles — below the "
+     r"\*\*(\d+)\*\* at which",
+     ("sen_n", "sen_min_n_threshold"), 0.5),
+    ("Finding 3 — how little treatment the clean subset carries",
+     r"largest net advantage in any Senate cell is about \*\*\$(\d+)K\*\* and \*\*(\d+)\*\* of "
+     r"the\s+9 sit within a thousand dollars of zero",
+     ("sen_max_net_k", "sen_nearzero"), 0.6),
+    ("Finding 3 — the clean subset's descriptive slopes",
+     r"run from\s+\*\*−([\d.]+)\*\* to \*\*\+([\d.]+)\*\* across the four",
+     ("sen_slope_min_abs", "sen_slope_max"), 0.02),
+    # Appendix C's receipts-window disclosure, 2026-08-25 (second external referee).
+    # RETIRED 2026-08-29: the sentence this probe anchored — "testing whether the **+0.60**
+    # survives one requires re-pulling FEC data" — was replaced by the completed test
+    # itself. The caveat no longer restates the headline; it reports the cutoff result,
+    # whose probes sit at the top of this list, and the does-not-carry wording is
+    # guarded in _claim_checks against the pre/full gap widening.
+    ("appendix C — the receipts window, one row per candidate-cycle",
+     r"\*\*one summary row per candidate-cycle\*\*\s*\((\d+) of (\d+) Washington",
+     ("rb_rows", "rb_rows"), 0.5),
+    ("appendix C — how far apart the two sides of the ratio are measured",
+     r"of (\d+) district-cycles with\s*"
+     r"both a Democratic and a Republican filer,\s*\*\*(\d+)\*\* differ by more than 60 days "
+     r"and one by \*\*(\d+)\*\*, against a mean gap of \*\*([\d.]+)\*\* days",
+     ("rb_pairs", "rb_gap_over_60", "rb_worst_gap", "rb_mean_gap"), 0.05),
+    # --- Finding 2c's functional-form block, 2026-08-25 (second external referee) --------
+    # The functional-form paragraph restates the LOO minimum as the thing the compressed
+    # forms do NOT reproduce. Same key as the leave-one-out probe below, deliberately: two
+    # copies of one figure is how they drift apart, and this paper has already lost that bet
+    # three times in Appendix E.
+    ("Finding 2c — the raw-dollar LOO minimum, restated in the form block",
+     r"rather than flipping it to −([\d.]+)\. The cancellation assump",
+     "fed_loo_min_abs", 0.005),
+    ("Finding 2c — what net-IE cancellation discards",
+     r"gross\s+IE across these 34 races is \*\*\$([\d.]+)M\*\* against a summed absolute net "
+     r"of \*\*\$([\d.]+)M\*\*, so\s+\*\*([\d.]+)%\*\* of the money cancels",
+     ("ff_gross_m", "ff_absnet_m", "ff_cancel_pct"), 0.05),
+    ("Finding 2c — WA-08 2022, the race cancellation hides",
+     r"WA-08 2022 turns \*\*\$([\d.]+)M\*\* of two-sided expenditure into\s+"
+     r"\*\*−\$([\d.]+)M\*\* net — \*\*([\d.]+)%\*\* surviving",
+     ("ff_wa08_22_total", "ff_wa08_22_net_abs", "ff_wa08_22_survive_pct"), 0.05),
+    ("Finding 2c — the coded-untreated races are genuine zeros",
+     r"The \*\*(\d+)\*\* races the specification codes as\s+untreated",
+     "ff_zero_n", 0.5),
+    ("Finding 2c — the compressed forms keep a positive estimate without WA-08 2018",
+     r"leaves the\s+point estimate positive \(\*\*\+([\d.]+)\*\*, \*\*\+([\d.]+)\*\*\)",
+     ("ff_asinh_loo_drop_wa0818", "ff_slog_loo_drop_wa0818"), 0.005),
+    ("Finding 2c — the two sides entered separately",
+     r"roughly equal and opposite coefficients \(\*\*\+([\d.]+)\*\*\s*"
+     r"pro-Democratic, \*\*−([\d.]+)\*\* pro-Republican\)",
+     ("ff_prodem_coef", "ff_prorep_coef_abs"), 0.005),
+    ("Finding 2c — intensity adds nothing beside direction",
+     r"intensity is \*\*−([\d.]+)\*\* with an interval\s+spanning zero while net advantage "
+     r"is \*\*\+([\d.]+)\*\*",
+     ("ff_total_coef_abs", "ff_net_with_total"), 0.005),
     # ---- abstract, which restates Finding 1 and the ceiling
     ("abstract — cell universe and the three top correlates",
      r"Across (\d+) Washington\s+legislative and congressional races from 2018 to 2024, the "
@@ -740,6 +1385,51 @@ PROBES = [
     ("Finding 1 — universe unchanged in the pin note",
      r"unchanged at (\d+) baseline-scorable cells", "cells_scorable", 0),
 
+    # ---- Referee item (6): the stratification (2026-08-28) --------------------
+    # The referee asked whether +0.60 is one relationship or an average over several.
+    # Every figure the answer added is probed here rather than exempted to the diag
+    # script, because all of them are recomputed from the SAME pinned frame this
+    # verifier already reads -- an exemption would have named a script for numbers
+    # sitting two lines above their own derivation.
+    ("Finding 1 — within-chamber correlations",
+     r"within congressional cells r = \*\*\+([\d.]+)\*\* \(n=(\d+)\), within "
+     r"legislative cells\s+\*\*\+([\d.]+)\*\* \(n=(\d+)\)",
+     ("r_fin_cong", "n_fin_cong", "r_fin_leg", "n_fin_leg"), 0.005),
+    ("Finding 1 — within-cycle correlations",
+     r"\*\*\+([\d.]+)\*\* in\s+2018, \*\*\+([\d.]+)\*\* in 2020, "
+     r"\*\*\+([\d.]+)\*\* in 2022, \*\*\+([\d.]+)\*\* in 2024",
+     ("r_fin_2018", "r_fin_2020", "r_fin_2022", "r_fin_2024"), 0.005),
+    ("Finding 1 — the incumbency overlap and the partial correlation",
+     r"correlates with the incumbency term at \*\*\+([\d.]+)\*\*\. Removing "
+     r"incumbency's\s+linear contribution from both sides takes fundraising from "
+     r"\*\*\+([\d.]+)\*\* to \*\*\+([\d.]+)\*\*",
+     ("r_fin_inc_overlap", "r_fin_full", "r_fin_partial_inc"), 0.005),
+    ("Finding 1 — the selection on missingness",
+     r"the \*\*(\d+)\*\* cells that lack one average \*\*\+([\d.]+)\*\*\s+"
+     r"points of Democratic overperformance against \*\*\+([\d.]+)\*\* among the "
+     r"(\d+) that have it",
+     ("cells_no_ratio", "mean_op_without_ratio", "mean_op_with_ratio", "fin_cells"), 0.005),
+    ("Finding 1 — the composition of the missing cells",
+     r"In \*\*(\d+)\*\*\s+of the 35 only the Democrat filed at all, and \*\*(\d+)\*\* "
+     r"of the 35 are legislative",
+     ("fin_missing_d_only", "fin_missing_leg"), 0),
+    ("Appendix C — why 35 carry no ratio",
+     r"of the 35, \*\*(\d+)\*\*\s+carry a row for the Democrat only, \*\*(\d+)\*\* "
+     r"for the Republican only, and \*\*(\d+)\*\* for neither",
+     ("fin_missing_d_only", "fin_missing_r_only", "fin_missing_neither"), 0),
+    ("Appendix C — the legislative share of the missing cells",
+     r"\*\*(\d+) of the 35 are legislative\.\*\*", "fin_missing_leg", 0),
+    # The three RESTATEMENTS the new prose introduced, probed rather than exempted. A
+    # restated constant is the defect shape this paper has already shipped twice -- Appendix
+    # E's section exemption was hiding two of them -- and a second copy of a figure is a
+    # second thing to update, so each is bound to the same key as its original.
+    ("Finding 1 — the both-side count, restated",
+     r"\*\*The (\d+) are not a random (\d+)", ("fin_cells", "fin_cells"), 0),
+    ("Finding 1 — the headline correlation, restated in the selection paragraph",
+     r"So the \+([\d.]+)\s+is measured on the subset", "r_fin", 0.005),
+    ("Appendix C — the scorable universe, restated",
+     r"Why 35 of the (\d+) carry no ratio", "cells_scorable", 0),
+
     # ---- Finding 2c influence + clustering (external referee 2026-08-15) -------
     ("Finding 2c — leave-one-out extremes",
      r"runs from \*\*−([\d.]+)\*\*\s+\(dropping WA-08 2018\) to \*\*\+([\d.]+)\*\* "
@@ -802,18 +1492,44 @@ PROBES = [
     # Written as one regex over the whole table rather than four independent
     # ones so a row silently deleted from the table fails here rather than
     # simply going unchecked.
-    ("Finding 3 — the five-cycle inventory table",
+    # The open cycle's row now carries its AS-OF DATE inside the table, and the date is
+    # captured here rather than exempted as provenance: the three date groups are asserted
+    # against the pin, so rewording the date without re-pinning FAILS instead of reading as
+    # a harmless caption. Same coupling as verify_who_decides_wa.py's Appendix A panel date.
+    ("Finding 3 — the cycle inventory table",
      r"\| 2018 \| (\d+) \| \$([\d.]+)M \|.*?"
      r"\| 2020 \| (\d+) \| \$([\d.]+)M \|.*?"
      r"\| 2022 \| (\d+) \| \$([\d.]+)M \|.*?"
      r"\| 2024 \| \*\*(\d+)\*\* \| \*\*\$([\d.]+)M\*\* \|.*?"
-     r"\| 2026 \| \*\*(\d+)\*\* \| \*\*\$(\d+)K\*\* \|",
+     r"\| 2026 \(as of (\d{4})-(\d{2})-(\d{2})\) \| \*\*(\d+)\*\* \| \*\*\$(\d+)K\*\* \|",
      ("ie2018_rows", "ie2018_m", "ie2020_rows", "ie2020_m",
       "ie2022_rows", "ie2022_m", "ie2024_rows", "ie2024_m",
+      "ie_asof_y", "ie_asof_m", "ie_asof_d",
       "ie2026_rows", "ie2026_k"), 1.0),
+    # COMPLETED CYCLES ONLY (2026-08-24). This cell counted all five cycles and so drifted
+    # every time an open-cycle filing landed -- which, since the weekly refresh task, happens
+    # with no human in the loop. The completed-cycle panel is also the one the analysis uses:
+    # all 34 scorable races are 2018-2024.
     ("Finding 3 — the panel totals",
-     r"\*\*([\d,]+) flagged rows across all ten districts and\s+\$([\d.]+)M\*\*",
+     r"\*\*([\d,]+)\s+flagged rows across all ten districts and \$([\d.]+)M\*\*",
      ("ie_total_rows", "ie_total_m"), 0.05),
+    # The same total restated in Appendix E, previously a SECOND unprobed copy of the
+    # constant. Two hand-written copies of one figure is how they drift apart.
+    # ⚠ THIRD FIGURE THIS SECTION'S BLANKET EXEMPTION HAS HIDDEN (2026-08-25, external
+    # referee). Appendix E restates the open cycle's row, and it still said 50 rows after
+    # Finding 3 was re-derived to 69 and PINNED the day before -- in the same paper, under a
+    # paragraph promising the row "cannot drift under the paper unnoticed". It drifted,
+    # because a second copy of a figure is a second thing to update and nothing was pointed
+    # at this one. Now bound to the SAME keys as the inventory table, so the two cannot
+    # disagree. See the exemption note above: a section-level reason absorbs every figure in
+    # the section, and this section keeps having ordinary restated constants dropped into it.
+    ("Appendix E — the open cycle restated, bound to the pin",
+     r"it carries \*\*(\d+)\*\* flagged rows as of \*\*(\d{4})-(\d{2})-(\d{2})\*\*",
+     ("ie2026_rows", "ie_asof_y", "ie_asof_m", "ie_asof_d"), 0.5),
+    ("Appendix E — the completed-cycle total restated",
+     r"\*\*\$([\d,]+)\*\* of the \*\*\$([\d.]+)M\*\* completed-cycle total is\s+"
+     r"unresolvable to a side, across \*\*(\d+)\*\* district-cycles",
+     ("ie_unresolved_usd", "ie_total_m", "ie_unresolved_cells"), 0.5),
     # The correction passages. The RETIRED figure is asserted as a literal — the
     # note's job is to keep saying what the defective load reported — while the
     # corrected figure beside it is asserted against the live derivation, so a
@@ -840,7 +1556,7 @@ PROBES = [
     # section the loader had never read. See docs/pdc-c6-direction-audit.md.
     ("Finding 3 — the legislative universe",
      r"records \*\*\$([\d,.]+)\*\* of\s+independent expenditure identifying a legislative\s+"
-     r"candidate across 2018–2024, on \*\*([\d,]+) filed rows",
+     r"candidate across 2018–2024, on \*\*([\d,]+)\*\* filed rows",
      ("pdc_c63_dollars", "pdc_c63_rows"), 0.05),
     ("Finding 3 — scorable district-cycles",
      r"that yields \*\*(\d+) scorable district-cycles\*\*", "leg_all_agg_n", 0),
@@ -884,9 +1600,6 @@ PROBES = [
     # The "100% of them" claim is the one that replaced the false ceiling, so it
     # is probed rather than exempted: if C6.3's fill rate ever fell below 100 the
     # paper's central correction would be overstating the record it corrected to.
-    ("Finding 3 — the four fields are complete",
-     r"named candidate, a filer id and a jurisdiction on (\d+)% of them",
-     "pdc_c63_fill_pct", 0.05),
     ("Finding 3 — the advocacy split",
      r"\$([\d.]+)M against \$([\d.]+)M — and the two run in opposite directions",
      ("pdc_c63_electioneering_m", "pdc_c63_express_m"), 0.05),
@@ -963,7 +1676,15 @@ COVERAGE_EXEMPT_SECTIONS = {
         "docs/reference/ie_vs_residual_2026-08-09.csv, its statistics are recomputed and "
         "asserted in Finding 2c's probes, and verify_whitepaper.py cross-checks the "
         "restatements. Re-deriving 34 model residuals here would fork the model rather "
-        "than check it.",
+        "than check it. "
+        "⚠ NARROWED IN PRACTICE 2026-08-24: a SECTION-level exemption covers everything in "
+        "the section, not only the thing it is about, and this one was shielding two "
+        "ordinary restated constants that had nothing to do with model residuals -- the "
+        "completed-cycle panel total (a second, unprobed copy of Finding 3's figure) and the "
+        "unresolvable-to-a-side numerator, which had drifted to a value no basis reproduced. "
+        "Both are now probed individually above. The exemption stays for the 34-row table "
+        "itself; if another prose figure is added to this section, PROBE IT rather than "
+        "letting this reason absorb it.",
 }
 
 UNCHECKED = [
@@ -1013,8 +1734,19 @@ AUDIT_BOUNDS = {
         "appendixB": ("## Appendix B", "## Appendix C"),
         "appendixC": ("## Appendix C", "## Appendix D"),
         "appendixD": ("## Appendix D", "## Appendix E"),
-        "appendixE": ("## Appendix E", "## End note"),
-        "endnote": ("## End note", "This is Paper #4 of the electoral-health series:"),
+        "appendixE": ("## Appendix E", "## Appendix F"),
+        # Added 2026-08-25 with the errata consolidation. The correction history moved out of
+        # Findings 1 and 2a into its own appendix -- referee 2's call, and both referees agreed
+        # it should stop being scattered. It is INSIDE the coverage gate, not exempted: the
+        # retired figures it records are historical literals, and a section full of them is
+        # exactly where a live figure could hide unnoticed.
+        "appendixF": ("## Appendix F", "## End note"),
+        # EXTENDED 2026-08-26 (item 9a). This ended at "This is Paper #4 …", which stopped one
+        # sentence short of the document and left the series pointer in no span at all — the
+        # only gap in this paper, and `scripts/diag_audit_span_gaps.py` counted its single
+        # numeric token. Cheap to close and worth closing: a series pointer is where a paper
+        # states its own position in the sequence, and the sequence has been renumbered once.
+        "endnote": ("## End note", "(the four-state money layer)."),
     }
 
 COVERAGE_EXEMPT = [
@@ -1022,6 +1754,9 @@ COVERAGE_EXEMPT = [
     (r"^\d{1,2}$", "small integer — list ordinals, chamber ids, column counts"),
 ]
 COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
+    # A confidence LEVEL, not a result. Every interval in this paper is 95%; the number
+    # describes the estimator's convention, and there is nothing in the data to compare it to.
+    "95": "the confidence level of the reported intervals, not an estimate",
     # The holdout-R2 table and the IE cross-section are declared in UNCHECKED and
     # owned by the diagnostics the submission checklist re-runs before upload
     # (diag_ie_vs_margin.py and the holdout script). Exempted by REASON, naming
@@ -1086,6 +1821,10 @@ COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
     "0.716": "placebo slope after the single-race deletion that reverses it; as above",
     "4.415": "contemporaneous slope after its single-race deletion; as above",
     "0.031": "corr(net IE t, net IE t+1) across same-era pairs; as above",
+    # Added 2026-08-28 with referee item (10). Same owner and same 14 same-era pairs as
+    # 0.031 directly above it: the paper prints the two side by side precisely because the
+    # net figure alone could not support a sentence about money rather than direction.
+    "0.122": "corr(TOTAL IE t, TOTAL IE t+1) across the same same-era pairs; as above",
     # Not a result: an HTTP status code, in the sentence recording that the WA SoS
     # bulk export serves 2014 and 2016 but not 2012. Verified by request, not derived,
     # and there is nothing in the warehouse it could be asserted against.
@@ -1118,27 +1857,87 @@ def _claim_checks(d: dict, norm: str) -> list[str]:
     out: list[str] = []
     n_cycles = d.get("ie_cycles")
 
+    # Appendix C / Finding 1 say the association is "essentially unchanged" under the
+    # pre-election cutoff and "does not depend on receipts reported after that cutoff".
+    # Those sentences are licensed by the two correlations sitting within a hair of each
+    # other; if a re-pin separates them, the wording must move with the measurement.
+    # (2026-08-29; reworded the same day — a referee noted the earlier "contributes
+    # essentially nothing" claimed a decomposition the design does not perform.)
+    if "pre_r_cong" in d and "fullrep_r_cong" in d:
+        # Every congressional cell must stay usable in the pre-election cut: a side whose
+        # pre-window receipts hit zero drops its cell SILENTLY from r_pre, and the two
+        # correlations would then compare different samples while the sentence reads as a
+        # same-cell contrast. This is the structural guard that consumes pre_n_usable.
+        if d["pre_n_usable"] != d["pre_n_cong"]:
+            out.append(
+                f"Appendix C: only {d['pre_n_usable']} of {d['pre_n_cong']} congressional "
+                f"cells carry positive receipts on both sides in both windows — the "
+                f"pre/full contrast is no longer same-cell; restate both ns in the paper.")
+        gap = abs(d["pre_r_cong"] - d["fullrep_r_cong"])
+        if gap > 0.02:
+            out.append(
+                f"Appendix C: the paper says the association is essentially unchanged "
+                f"under the cutoff, but pre ({d['pre_r_cong']:+.3f}) and full-cycle "
+                f"({d['fullrep_r_cong']:+.3f}) now differ by {gap:.3f} — fix the sentences "
+                f"in Finding 1 and Appendix C, not this guard.")
+        # "The result is invariant to the choice" — the authorized and everything-but-J
+        # universes must agree, or that sentence and the universe adoption both need
+        # re-arguing.
+        if abs(d["pre_r_cong"] - d["nonj_pre_r"]) > 0.01 \
+                or abs(d["fullrep_r_cong"] - d["nonj_full_r"]) > 0.01:
+            out.append(
+                f"Appendix C: 'the result is invariant to the choice' no longer holds — "
+                f"authorized ({d['pre_r_cong']:+.3f}/{d['fullrep_r_cong']:+.3f}) vs "
+                f"everything-but-J ({d['nonj_pre_r']:+.3f}/{d['nonj_full_r']:+.3f}); "
+                f"re-argue the universe choice rather than loosening this guard.")
+        if abs(d["leg_item_pre_r"] - d["leg_item_full_r"]) > 0.05:
+            out.append(
+                "Appendix C: the state-legislative analogue no longer moves by a rounding "
+                "hair between full and pre-election — re-read its sentence before trusting "
+                "it.")
+
     # The abstract's cycle count, spelled out. `_WORD_NUM` exists because the
     # paper writes "five cycles" rather than "5 cycles" in prose, and a
     # spelled-out number is exactly what a numeric probe cannot see.
     _WORD_NUM = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
                  "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10}
-    m = re.search(r"estimable across (\w+) cycles", norm)
+    # ⚠ REWRITTEN 2026-08-25. This guard used to require the abstract to state a cycle count
+    # and compared it to `ie_cycles` -- the INVENTORY count, 5. But the sentence describes the
+    # ESTIMATOR, whose 34 scorable races all sit in the four COMPLETED cycles, so the gate was
+    # actively holding the abstract at a wrong number. A guard that enforces the defect is
+    # worse than no guard: it makes the error look checked. The abstract now states BOTH
+    # quantities and each is compared against its own denominator.
+    n_done = d.get("ie_cycles_completed")
+    m = re.search(r"estimable across \*\*(\w+) completed cycles\*\*", norm)
     if not m:
         out.append(
-            "the abstract no longer states how many cycles the directional test spans "
-            "('estimable across N cycles'). That sentence is the only place the panel's "
-            "breadth is claimed in prose; restore it or this check is dead weight."
+            "the abstract no longer states how many COMPLETED cycles the directional test "
+            "spans ('estimable across **N completed cycles**'). That sentence is the only "
+            "place the estimator's breadth is claimed in prose; restore it or this check is "
+            "dead weight. Do NOT restore the pre-2026-08-25 form, which compared the "
+            "abstract to the inventory count and so required a wrong number."
         )
     else:
         claimed = _WORD_NUM.get(m.group(1).lower())
-        if claimed != n_cycles:
+        if claimed != n_done:
             out.append(
                 f"the abstract says the directional test is estimable across "
-                f"'{m.group(1)}' cycles; the warehouse holds {n_cycles}. Re-run "
-                f"scripts/diag_ie_vs_margin.py — a change in panel breadth moves the "
-                f"slope, the interval and n, none of which are figure swaps."
+                f"'{m.group(1)}' COMPLETED cycles; the warehouse holds {n_done} completed "
+                f"({n_cycles} in the inventory). Re-run scripts/diag_ie_vs_margin.py — a "
+                f"change in panel breadth moves the slope, the interval and n, none of "
+                f"which are figure swaps."
             )
+    mi = re.search(r"the inventory spans (\w+), but 2026 contributes no scorable race", norm)
+    if not mi:
+        out.append(
+            "the abstract no longer distinguishes the INVENTORY breadth from the estimator's. "
+            "Conflating them is the defect this pair of checks exists for."
+        )
+    elif _WORD_NUM.get(mi.group(1).lower()) != n_cycles:
+        out.append(
+            f"the abstract says the inventory spans '{mi.group(1)}' cycles; the warehouse "
+            f"holds {n_cycles}."
+        )
 
     # "the strongest of any measured factor" (abstract) and "ahead of incumbency and
     # candidate quality" — an ORDERING over Finding 1's correlate set, which the abstract
@@ -1146,6 +1945,43 @@ def _claim_checks(d: dict, norm: str) -> list[str]:
     # fundraising would pass every probe while the superlative went false. Added 2026-08-14
     # (Pass 2 of the calculation review); same shape as safe-seat's "more than double any
     # other year". The comparison set is every correlate the pinned frame measures.
+    # Finding 2c's functional-form block says the 19 races coded untreated "are *genuine*
+    # zeros: none carries any gross IE". That is the qualifier which keeps the cancellation
+    # objection confined to six races instead of nineteen, and it has NO numeric token for a
+    # probe to capture -- "none" is a word. If a race ever appears with gross IE and a
+    # cancelling net, the sentence becomes false and the objection widens.
+    # The identification section says "there is exactly **one** redraw inside this panel".
+    # Spelled as a word, so no probe can see it, and the whole collinearity argument rests on
+    # it: two redraws would give the timing variation the section says is absent.
+    # Finding 3 used to print "a jurisdiction on 100% of them" and the 100 was probed. The
+    # sentence now says "every one carries ..." and explains that this is TRUE BY CONSTRUCTION
+    # rather than a coverage claim (2026-08-25, referee item on the self-selecting
+    # denominator). A word claim, so no probe can reach it -- but it still has to be true, and
+    # if a C6.3 row ever arrived with a missing field the sentence would be false.
+    _fill = d.get("pdc_c63_fill_pct")
+    if _fill is not None and abs(_fill - 100.0) > 0.05:
+        out.append(
+            f"claim: Finding 3 says every C6.3 row carries a direction, a named candidate, a "
+            f"filer id and a jurisdiction, and that this holds by construction. The derived "
+            f"fill rate is {_fill:.2f}%, not 100%. Either a row arrived incomplete or the "
+            f"extract is no longer what that sentence describes.")
+
+    _rd = d.get("idsearch_redraws")
+    if _rd is not None and _rd != 1:
+        out.append(
+            f"claim: the identification section says there is exactly ONE redistricting event "
+            f"inside this panel, and the collinearity argument depends on it — a second redraw "
+            f"would supply the cross-sectional timing variation the section says is missing. "
+            f"The derivation now counts {_rd}.")
+
+    _zwi = d.get("ff_zero_with_ie")
+    if _zwi:
+        out.append(
+            f"claim: Finding 2c says the races coded untreated are genuine zeros and that "
+            f"'none carries any gross IE', but {_zwi} of them do. The cancellation objection "
+            f"is then not confined to the six largest races, and that sentence must change."
+        )
+
     _others = {k: d[k] for k in ("r_inc", "r_quality", "r_trend", "r_midterm")
                if d.get(k) is not None}
     _weaker = {k: v for k, v in _others.items() if abs(v) >= abs(d["r_fin"])}
@@ -1175,6 +2011,7 @@ def _claim_checks(d: dict, norm: str) -> list[str]:
 def main() -> int:
     d: dict = {}
     derive_finding1(d)
+    derive_preelection(d)
     derive_allocation(d)
     derive_legislative_panel(d)
     derive_estimator_facts(d)

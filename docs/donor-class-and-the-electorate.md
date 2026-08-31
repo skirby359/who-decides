@@ -17,8 +17,17 @@ deterministic local code.
 Verdicts are published at row level and both passes and their divergences are reported
 (Appendix F). Assistance operated on code, schemas, aggregate outputs and prose. Person-level data
 handling — what the architecture keeps out of a hosted service, where that has rested on practice
-rather than enforcement, and one 2026 instance in which an operational command echoed voter rows
-into an assisted session — is documented in the project's data-use and research-ethics assessment.
+rather than enforcement, and **four 2026 instances in which person-level rows reached an
+assisted session, on three different channels**: operational commands' standard-output
+previews (twice — the opt-in gate added to two sibling commands after the first instance was
+not applied to the third until it too printed), a CSV parser error echoing an offending
+source line, and a recursive text search returning whole matched lines — is documented in the
+project's data-use and research-ethics assessment and its audit log.
+*(This sentence said "one 2026 instance ... in which an operational command echoed voter rows"
+until 2026-08-25, and "three instances" until 2026-08-29, when the ungated sibling command
+produced the fourth. Corrected on accuracy grounds each time; the author's separate
+determination is that none is reportable under RCW 19.255, and the two questions are
+independent.)*
 The author independently verified all sources, code and outputs and is solely responsible for
 the content and conclusions.*
 
@@ -593,6 +602,12 @@ directly while remaining exposed to the other two:
   Washington's overlap substantially but are not identical — FEC 2017–2026 against PDC
   2016–2026, so the PDC layer carries one extra year at the front. Neither is the Idaho
   mismatch, which is a three-year window against a ten-year one.
+  **The 2026 cycle at the back of both Washington layers is partial and still filing**, as of
+  the panel's newest record, **2026-05-19**: it is **2.12%** of the PDC layer's rows and
+  **3.79%** of its dollars, so no result here turns on it, but it is not a closed cycle and is
+  not comparable to the eight before it. The reading is pinned to that date
+  (`docs/reference/donor_panel_open_cycle_pin.csv`) so a later reload cannot move these
+  figures without the gate saying so.
 - **Small-dollar reach — probed by a common donor-total restriction, which the gap
   survives.** The state panels itemize from a much lower floor ($50 in Idaho, $99 in New
   York, $25 then $100 in Washington) than the federal $200, so they reach deeper into

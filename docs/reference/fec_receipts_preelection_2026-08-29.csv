@@ -1,0 +1,63 @@
+district,year,side,candidate,fec_candidate_id,resolved_by,committees,pre_receipts,full_receipts_reports,last_pre_coverage_end,n_reports_pre,n_reports_total,source,retrieved_on
+cd01,2018,D,SUZAN DELBENE,H0WA08046,amount,C00459099:P>P,2007785.44,2110820.42,2018-10-17,9,11,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd01,2018,R,JEFFREY BEELER,H8WA01077,amount,C00680264:P>P,19707.67,23157.67,2018-10-17,4,6,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd01,2022,D,SUZAN DELBENE,H0WA08046,amount,C00459099:P>P,2360423.50,2502763.72,2022-10-19,9,11,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd01,2022,R,VINCENT J CAVALERI,H2WA01252,amount,C00789644:P>P,177203.78,185847.78,2022-10-19,6,8,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd01,2024,D,SUZAN DELBENE,H0WA08046,amount,C00459099:P>P,3604341.07,3850571.40,2024-10-16,9,11,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd01,2024,R,JEB BREWER,H4WA01266,amount,C00862938:P>P,13279.00,14151.00,2024-10-16,4,6,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd02,2020,D,RICK LARSEN,H0WA02080,amount,C00345546:P>P,1179622.75,1284956.04,2020-10-14,9,11,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd02,2020,R,TIMOTHY S. HAZELO,H0WA02197,amount,C00737387:P>P,44473.02,49478.22,2020-10-14,4,6,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd02,2022,D,RICK LARSEN,H0WA02080,amount,C00345546:P>P,1589234.92,1697229.23,2022-10-19,9,11,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd02,2022,R,DAN MATTHEWS,H2WA02177,amount,C00815332:P>P,59195.81,145529.16,2022-10-19,4,6,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd03,2018,D,CAROLYN LONG,H8WA03198,amount,C00660472:P>P,3255853.16,3883284.00,2018-10-17,6,8,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd03,2018,R,JAIME HERRERA BEUTLER,H0WA03187,amount,C00472704:P>P,2273152.83,2705354.23,2018-10-17,9,11,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd03,2020,D,CAROLYN LONG,H8WA03198,amount,C00660472:P>P,3740753.38,4187790.70,2020-10-14,9,11,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd03,2020,R,JAIME HERRERA BEUTLER,H0WA03187,amount,C00472704:P>P,4108966.41,4623991.32,2020-10-14,9,11,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd03,2022,D,MARIE GLUESENKAMP PEREZ,H2WA03217,amount,C00806174:P>P,3279785.71,3924093.95,2022-10-19,5,7,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd03,2022,R,JOE KENT,H2WA03100,amount,C00771394:P>P,3189265.69,3816390.01,2022-10-19,9,11,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd03,2024,D,MARIE GLUESENKAMP PEREZ,H2WA03217,amount,C00806174:P>P,10699161.42,11856001.72,2024-10-16,9,11,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd03,2024,R,JOE KENT,H2WA03100,amount,C00771394:P>P;C00856708:A>A;C00858365:A>A,2308612.19,2565122.67,2024-10-16,11,15,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd04,2018,D,CHRISTINE BROWN,H8WA04089,amount,C00647008:P>P,443777.97,475862.12,2018-10-17,8,10,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd04,2018,R,DAN NEWHOUSE,H4WA04104,amount,C00559393:P>P;C00611400:D>D,1110595.11,1175167.61,2018-10-17,23,27,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd04,2020,D,DOUGLAS E. MCKINLEY,H6WA04141,amount,C00743880:P>P,58040.09,61816.45,2020-10-14,3,5,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd04,2020,R,DAN NEWHOUSE,H4WA04104,amount,C00559393:P>P;C00611400:D>D,1147233.83,1249000.40,2020-10-14,16,20,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd04,2022,D,DOUG WHITE,H2WA04199,amount,C00791491:P>P,702046.38,774333.86,2022-10-19,6,8,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd04,2022,R,DAN NEWHOUSE,H4WA04104,amount,C00559393:P>P;C00611400:D>U,2148213.41,2217795.38,2022-10-19,17,21,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd05,2018,D,LISA BROWN,H8WA05193,amount,C00654400:P>P,5296502.34,5763983.16,2018-10-17,7,9,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd05,2018,R,CATHY MCMORRIS RODGERS,H4WA05077,amount,C00390476:U>P,5502066.00,5863432.00,2018-10-17,9,11,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd05,2020,D,DAVE WILSON,H0WA05133,amount,C00747063:P>P,89507.99,112782.51,2020-10-14,4,5,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd05,2020,R,CATHY MCMORRIS RODGERS,H4WA05077,amount,C00390476:U>P,4044697.30,4419970.26,2020-10-14,9,11,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd05,2022,D,NATASHA HILL,H2WA05105,amount,C00792762:P>P,338064.70,377499.11,2022-10-19,6,8,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd05,2022,R,CATHY MCMORRIS RODGERS,H4WA05077,amount,C00390476:U>P,6005842.41,6416913.26,2022-10-19,9,11,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd05,2024,D,CARMELA CONROY,H4WA05168,amount,C00849794:P>P,527942.72,604595.92,2024-10-16,7,9,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd05,2024,R,MICHAEL BAUMGARTNER,H4WA05234,amount,C00870758:P>P,1318825.76,1505190.06,2024-10-16,5,7,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd06,2018,D,DEREK KILMER,H2WA06129,amount,C00514893:P>P,2274180.90,2350189.52,2018-10-17,9,11,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd06,2018,R,DOUGLAS DIGHTMAN,H8WA06100,amount,C00679571:P>P,46610.00,46610.00,2018-10-17,4,4,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd06,2020,D,DEREK KILMER,H2WA06129,amount,C00514893:P>P,2418084.74,2557718.74,2020-10-14,9,11,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd06,2020,R,ELIZABETH KREISELMAIER,H0WA06081,amount,C00726513:P>P,142243.20,156123.45,2020-10-14,6,8,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd06,2022,D,DEREK KILMER,H2WA06129,amount,C00514893:P>P,2528617.66,2637628.09,2022-10-19,9,11,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd06,2022,R,ELIZABETH KREISELMAIER,H0WA06081,amount,C00726513:P>P,401405.27,426186.56,2022-10-19,9,11,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd06,2024,D,EMILY RANDALL,H4WA06117,amount,C00857094:P>P,1696213.13,1978942.81,2024-10-16,6,8,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd06,2024,R,DREW C MACEWEN,H4WA06133,amount,C00858142:P>P,241963.67,255579.90,2024-10-16,6,8,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd07,2018,D,PRAMILA JAYAPAL,H6WA07458,amount,C00605592:P>P,2064543.56,2212622.98,2018-10-17,9,11,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd07,2018,R,CRAIG KELLER,H4WA07073,amount,C00569707:P>P,6238.00,7204.00,2018-10-17,9,11,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd07,2020,D,PRAMILA JAYAPAL,H6WA07458,amount,C00605592:P>P,2499899.41,2655142.94,2020-10-14,9,11,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd07,2020,R,CRAIG KELLER,H4WA07073,amount,C00569707:P>P,3995.00,5256.00,2020-10-14,9,12,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd07,2022,D,PRAMILA JAYAPAL,H6WA07458,amount,C00605592:P>P,2612833.36,2772436.29,2022-10-19,9,11,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd07,2022,R,CLIFF MOON,H2WA07127,amount,C00818708:P>P,5896.18,8019.18,2022-10-19,2,4,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd08,2018,D,KIM SCHRIER,H8WA08189,amount,C00652628:P>P,6937042.54,8144753.17,2018-10-17,7,9,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd08,2018,R,DINO ROSSI,H8WA08205,amount,C00656371:P>P,4418817.00,4846553.35,2018-10-17,7,9,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd08,2020,D,KIM SCHRIER,H8WA08189,amount,C00652628:P>P,5069527.80,5452642.06,2020-10-14,9,11,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd08,2020,R,JESSE JENSEN,H0WA08103,amount,C00702944:A>A;C00720870:D>P,737241.83,857231.78,2020-10-14,9,13,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd08,2022,D,KIM SCHRIER,H8WA08189,amount,C00652628:P>P,8724115.47,9640767.33,2022-10-19,9,11,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd08,2022,R,MATT LARKIN,H2WA08182,amount,C00775916:A>A;C00780049:P>P,2256626.07,2810552.79,2022-10-19,10,14,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd09,2020,D,ADAM SMITH,H6WA09025,amount,C00304709:P>P,1217403.47,1327196.11,2020-10-14,9,11,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd09,2020,R,DOUG BASLER,H4WA09061,amount,C00566232:P>P,14486.00,22729.80,2020-10-14,8,10,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd09,2022,D,ADAM SMITH,H6WA09025,amount,C00304709:P>P,1266225.60,1386775.73,2022-10-19,9,11,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd09,2022,R,DOUG BASLER,H4WA09061,amount,C00566232:P>P,126877.28,133962.28,2022-10-19,9,11,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd10,2018,D,DENNY HECK,H0WA03161,amount,C00472159:P>P,1530210.40,1632852.46,2018-10-17,9,11,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd10,2018,R,JOSEPH BRUMBLES,H8WA10045,amount,C00686170:P>P,5073.00,5243.00,2018-10-17,2,3,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd10,2022,D,MARILYN STRICKLAND,H0WA10034,amount,C00732826:P>P,1811030.59,1911259.96,2022-10-19,9,11,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd10,2022,R,KEITH R SWANK,H2WA08166,amount,C00700161:P>P,172000.77,187145.22,2022-10-19,12,14,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd10,2024,D,MARILYN STRICKLAND,H0WA10034,amount,C00732826:P>P,1957103.88,2067308.22,2024-10-16,9,11,api.open.fec.gov /committee/{id}/reports/,2026-08-29
+cd10,2024,R,DON HEWETT,H2WA10063+H4WA10044,amount-alias-ids,C00794362:P>P,39.57,39.57,2023-09-30,1,1,api.open.fec.gov /committee/{id}/reports/,2026-08-29

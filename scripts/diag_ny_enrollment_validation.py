@@ -49,9 +49,14 @@ Usage:
 """
 from __future__ import annotations
 
+from pathlib import Path
+
 import duckdb
 
-NY_VRDB = "data/ny_vrdb.duckdb"
+# Anchored to the repo, not the CWD (fixed 2026-08-28). verify_who_decides_ny.py imports
+# this module in-function, so a CWD-relative literal here was a latent failure for any
+# runner whose working directory is not the repo root.
+NY_VRDB = str(Path(__file__).resolve().parents[1] / "data" / "ny_vrdb.duckdb")
 
 # NYSBOE "NYSVoter Enrollment by County, Party Affiliation and Status", Statewide Total /
 # Active row. (date, slug, DEM, REP, CON, WOR, OTH, BLANK, TOTAL)

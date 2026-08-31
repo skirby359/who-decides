@@ -29,9 +29,9 @@ Washington?* (SSRN Abstract ID 7149263).
 ## The question
 
 A single-state paper answers *what does this state's low-salience electorate look like?*
-A multi-state paper answers the general-behavior question: *how far does the off-cycle
-age skew travel, and how does it change with party-registration rules and election
-administration?* This paper takes the validated, individual-record method of the
+A multi-state paper answers the general-behavior question: *how far does the age gradient
+across lower-salience electorates travel, and how does it change with party-registration
+rules and election administration?* This paper takes the validated, individual-record method of the
 Washington lead paper and runs it identically across three states chosen to differ on the
 axes that should matter — a high-access no-party-registration state (WA), a blue
 party-registration state (NY), and a red party-registration state (ID) — to separate the
@@ -40,8 +40,11 @@ particular state's institutions.
 
 The two questions this state set can answer, and the one it cannot:
 
-1. Is the off-cycle age skew present across blue, red, and mixed institutional settings?
-2. In party-registration states, does off-cycle participation skew toward one party?
+1. Is the age gradient across lower-salience electorates present across blue, red, and
+   mixed institutional settings?
+2. In party-registration states, does participation in the lowest-salience measured
+   contest skew toward one party? ("Off-cycle" is not the right word for that contest
+   everywhere — Idaho's is a closed May primary; see the salience note below.)
 3. *Not answerable here.* Where there is no party of record, does the age skew still have
    partisan consequences? Washington is the set's only no-party-registration state and its
    top-two primary records no party ballot, so nothing in this data can resolve it. A state
@@ -59,7 +62,11 @@ The two questions this state set can answer, and the one it cannot:
 
 The three cases were chosen to vary the two institutional axes the argument turns on —
 whether the state records party at all, and whether its lowest-salience measured contest is
-open to everyone — while holding the method fixed. They do not vary a third axis: **no state here
+open to everyone — while holding the computation protocol fixed. What is held fixed is the
+harmonization of the next section — the estimand, the age bands, age measured at each
+election date, one ACS vintage — not measurement itself: contest type, party variable,
+survivorship regime and the meaning of the lowest rung all differ by state, and Boundary
+of inference prices each in. They do not vary a third axis: **no state here
 lacks a party of record *and* publishes a party-primary history**, which is the configuration
 that would let the partisan question be asked where party is unrecorded. Texas is that case
 and is not loaded; see Boundary of inference.
@@ -69,6 +76,18 @@ and is not loaded; see Boundary of inference.
 "Off-year" does not mean the same thing in every state, and pretending it does would
 manufacture a false equivalence. This paper therefore compares **election *classes*
 defined by salience**, not by calendar:
+
+**⚠ "Salience" here is a RESEARCHER-IMPOSED ORDINAL, not a measured variable, and the ranking
+below is the paper's own construction.** Nothing in the data scores an election's salience;
+the ladder orders classes by an assumed prominence and the analysis then reports composition
+within each. Idaho's class is the sharpest illustration of why the label must not be read as a
+single dimension: its lowest rung is simultaneously lower-turnout, partisan, eligibility-
+restricted, a nomination rather than a final contest, and differently timed. Calling its
+distance from the presidential general a *salience* gradient would give a latent construct
+causal weight the design cannot support — which is why the heading of Finding 1 says "age
+gradient across lower-salience electorates" and not "off-cycle age skew", corrected 2026-08-26,
+and why what the paper concludes is the WITHIN-STATE statement: every selected lower-salience
+electorate is older than its own state's presidential electorate.
 
 - **Highest-salience** — the presidential November general. Directly comparable across all
   three states.
@@ -101,7 +120,7 @@ as a shared calendar. Three further comparability controls travel with every fig
   ID turnout *rates* unusable; ID is therefore reported as **composition shares only**, and
   all states foreground shares over rates (the WA paper's practice).
 
-## Finding 1 — The off-cycle age skew recurs across all three cases
+## Finding 1 — The age gradient across lower-salience electorates recurs across all three cases
 
 As salience falls, the electorate ages, in each of the three states and regardless of
 party-registration regime. The presidential and midterm rows below are directly comparable;
@@ -408,10 +427,14 @@ paper. As with the dissimilarity ladder, neither is a revision of the other.</su
   robust to it, because the reconstruction bias runs with lag and the states' cells sit at
   different lags (see the ladders under Finding 1: NY 28.4 → 41.6 across 2017–2023, ID 41.4 →
   48.6 across 2022–2026, both near-monotone in recency). Worse, the direction of the bias
-  differs by state: Washington's attrition is older-skewing, so correcting it would raise its
-  senior share, while Idaho's is larger for the young, unaffiliated and movers, so correcting
-  it would lower its senior share. The state supplying the study's extreme is the one whose
-  reconstruction most over-retains seniors relative to youth. Nothing here tests that.
+  need not match across states: Washington's attrition is older-skewing, so correcting it
+  would raise its senior share (the direction its own paper measures and bounds), while
+  Idaho's churn is largest among the young, unaffiliated and movers — a profile *consistent
+  with* over-retaining seniors, though the Idaho paper treats the net direction of its bias
+  as unestablished and relies on arithmetic missing-voter bounds instead, and this paper
+  follows it. If the consistent-with reading is right, the state supplying the study's
+  extreme is the one whose reconstruction most over-retains seniors relative to youth.
+  Nothing here tests that.
 
   **This is why Finding 3 no longer rests on a comparison of extremes.** An earlier version
   stated the headline on each state's most extreme cell and then retracted the basis for it
@@ -429,8 +452,10 @@ paper. As with the dissimilarity ladder, neither is a revision of the other.</su
   York's enrollment and Idaho's party are read from a current extract, not as of each
   analysed election, so every Finding 2 figure describes *today's* partisans' past behaviour.
   Both companions flag this as their largest limitation. Idaho's case is worse than a
-  staleness problem: under Idaho Code § 34-904A an unaffiliated elector who requests a
-  Republican primary ballot is thereafter registered Republican, so the snapshot
+  staleness problem: under Idaho Code § 34-411A an unaffiliated elector who requests a
+  Republican primary ballot is thereafter registered Republican — subsection (2) directs the
+  county clerk to record the poll-book affiliation into the elector's registration record after
+  the primary — so the snapshot
   mechanically reclassifies the very voters whose absence Finding 2 discusses, and the Idaho
   paper reports its unaffiliated primary shares as **lower bounds** for that reason.
 - **Three states, and what the third axis would have added.** The set varies party of
@@ -474,7 +499,7 @@ this design cannot say which feature of that setting produces the variation. On 
 low-salience local contests on-cycle — this study shows the *composition* problem it addresses
 is present in all three states; it does not show the remedy transfers, and Ornstein (2024)
 found the turnout and diversity gains without a detectable downstream effect on representation
-or policy. The assumption that off-cycle electorates tilt uniformly toward one party does not
+or policy. The assumption that lower-salience electorates tilt uniformly toward one party does not
 survive at all.
 
 ## Methods & reproducibility

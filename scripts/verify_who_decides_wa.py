@@ -1814,7 +1814,44 @@ def derive() -> dict:
     # statewide returns DB, and it reads `off_turnout_*` from `d` for the scenario grid,
     # so it has to run after those are set.
     derive_appendix_f(d)
+    _companion_safe_seat(d)
     return d
+
+
+def _companion_safe_seat(d: dict) -> None:
+    """The safe-seat headline this paper's End note restates, read from the owning paper.
+
+    ADDED 2026-08-26 (item 9a). The End note's companion pointer says the safe-seat paper
+    counts "**79-88% not close** across the five cycles, 83.5% in 2024". Those are that
+    paper's figures, not this one's, and until the endnote span was extended they sat
+    outside every audited region with nothing pointing at them.
+
+    SCRAPED, NOT TRANSCRIBED, and the difference is the point: a constant would agree with
+    a companion that had moved underneath it, which is precisely how the synthesis came to
+    carry a pooled donor panel and a retired match key its companions had superseded. An
+    anchor that stops matching FAILS here, loudly, rather than falling back.
+
+    Read off the PER-CYCLE TABLE rather than the safe-seat paper's own rounded prose. Its
+    prose says "79-88%"; rounding a rounded range is how two ranges in this series came to
+    quote two of three off-years. `verify_whitepaper.py::_companions` reads the same table
+    for the same reason, so the two synthesising documents cannot drift apart either.
+    """
+    ss = re.sub(r"\s+", " ", (vp.DOCS / "safe-seat-washington.md").read_text(encoding="utf-8"))
+    m = re.search(r"\(([\d.]+)%\) were not close .{0,60}?and \d+ \(([\d.]+)%\)", ss)
+    if not m:
+        raise SystemExit(
+            "FATAL: the safe-seat paper's WA 2024 headline anchor no longer matches, and "
+            "this paper's End note quotes it. Re-point the scrape, then re-read the "
+            "sentence that depends on it — do not fall back to a local constant.")
+    d["ss_wa24_notclose"] = float(m.group(1))
+    cyc = [float(x) for x in re.findall(
+        r"\| 20(?:1[68]|2[024]) \| \d+ \| \d+ \| \d+ \| \d+ \| \d+ \| \d+ \| \*\*([\d.]+)%\*\* \|",
+        ss)]
+    if len(cyc) != 5:
+        raise SystemExit(
+            f"FATAL: the safe-seat per-cycle table yielded {len(cyc)} of 5 cycles; the End "
+            "note's '79-88% across the five cycles' is a span over exactly those rows.")
+    d["ss_cycle_lo"], d["ss_cycle_hi"] = min(cyc), max(cyc)
 
 
 def build_probes(derived: dict):
@@ -2739,6 +2776,17 @@ def build_probes(derived: dict):
               r"certified November 2025 turnout page \(Kittitas ([\d,]+)\s*"
               r"registered; Klickitat ([\d,]+)\)",
               ("cty_pin_KITTITAS_reg", "cty_pin_KLICKITAT_reg"), 0))
+    # ---------------------------------------------------------------
+    # END NOTE — the companion pointer (added 2026-08-26, item 9a, when the endnote span
+    # was extended to the end of the document and these six tokens stopped being invisible).
+    # These are the SAFE-SEAT paper's figures restated here, scraped from it by
+    # _companion_safe_seat rather than held as constants. Tolerance 0.5 because this pointer
+    # rounds the owning paper's one-decimal per-cycle cells to whole percent; what it may not
+    # do is round to a different integer than the current cells.
+    # ---------------------------------------------------------------
+    p.append(("end note — the safe-seat range and 2024 cell, restated from the companion",
+              r"\(\*\*([\d.]+)–([\d.]+)% not close\*\* across the five cycles, ([\d.]+)% in 2024\)",
+              ("ss_cycle_lo", "ss_cycle_hi", "ss_wa24_notclose"), 0.5))
     return p
 
 
@@ -3063,8 +3111,16 @@ def main() -> int:
         "limits": ("## What this paper does not claim, and limits", "# Appendices"),
         # The End note runs to end-of-document, so it is sliced with an explicit
         # tail anchor rather than a following heading.
+        #
+        # EXTENDED 2026-08-26 (item 9a). The tail anchor used to be the companion-paper
+        # pointer itself, which stopped the audited region one paragraph short of the end and
+        # left that pointer in no span — the paper's ONLY gap, six numeric tokens. They are
+        # not decoration: the pointer restates the safe-seat paper's headline (79-88% not
+        # close, 83.5% in 2024), which is a cross-paper restatement, the exact surface this
+        # series keeps finding drift on. Now inside the span and probed against the safe-seat
+        # scrape rather than a remembered pair.
         "endnote": ("## End note — data, reproduction, and series",
-                    "**Companion paper: [Safe-Seat Washington]"),
+                    "extends the count to a four-state lower-chamber map."),
     }
     audit_sections, offsets = {}, {}
     for name, (start, end) in audit_bounds.items():

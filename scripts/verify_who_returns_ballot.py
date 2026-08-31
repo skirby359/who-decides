@@ -130,11 +130,16 @@ def build_derived() -> dict:
     for _yr, _kind in (("2016", "pres"), ("2017", "odd"), ("2019", "odd"),
                        ("2020", "pres"), ("2021", "odd")):
         _lbl = "pres" if _kind == "pres" else "odd"
+        # The OTHER column is matched but NOT captured. It has to be in the pattern -- the
+        # anchor is the whole row, and a column appearing or vanishing must still fail -- but
+        # capturing it minted `ny<yr>_oth65` keys that no probe and no guard ever read, five
+        # of the ten dead keys the 2026-08-24 no-probe triage found here. A non-capturing
+        # group keeps the anchor and stops manufacturing coverage that does not exist.
         scrape(src["ny"], f"NY §I table row {_yr}",
                rf"\| Nov {_yr} \({_lbl}\) \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| "
-               rf"([\d.]+)% \| \+([\d.]+) \|",
+               rf"(?:[\d.]+)% \| \+([\d.]+) \|",
                (f"ny{_yr}_dem65", f"ny{_yr}_rep65", f"ny{_yr}_nop65",
-                f"ny{_yr}_oth65", f"ny{_yr}_gap"), d)
+                f"ny{_yr}_gap"), d)
     # And the two ranges the bullet states, so the comparison itself is bound.
     scrape(src["ny"], "NY odd-vs-presidential gap ranges",
            r"gap in odd years runs \*\*\+([\d.]+) to \+([\d.]+)\*\*; in presidential\s*years "
@@ -218,6 +223,37 @@ def build_derived() -> dict:
     # gap is nearly symmetric, which inverts the reading. All three classes are
     # derived so the comparison cannot silently revert to one of them.
     d["dis_quarter_ratio"] = d["h_ID_dis_low_hi"] / d["h_NY_dis_low_hi"]
+    # --- The Idaho age-convention bracket (gated 2026-08-26, item 9a) ---------------------
+    # `h.derive()` has returned `id_convention` all along and this file never read it, so the
+    # nine figures the Methods section states about the bracket — the size of it, its effect
+    # on the dissimilarity index, and the two ends of the May-2024 cell — were produced by a
+    # diagnostic and asserted by nothing. They sat in the coverage gap, which is why: the
+    # audited slice stopped at "## What it means".
+    #
+    # This is the paper's own stated caveat about its cross-state instrument. An unasserted
+    # caveat is the worst kind to leave loose: it is quoted as a bound on the finding, so if
+    # it drifts the finding is overstated by exactly the amount nobody is watching.
+    _idc = hd["id_convention"]
+    d["id_conv_gap65_lo"], d["id_conv_gap65_hi"] = _idc["gap65_lo"], _idc["gap65_hi"]
+    _dgaps = [r["gap_dissim"] for k, r in _idc.items() if isinstance(r, dict)]
+    d["id_conv_dis_gap_lo"], d["id_conv_dis_gap_hi"] = min(_dgaps), max(_dgaps)
+    d["id_conv_2024_dis_lo"] = _idc["lowrep24"]["lo_dissim"]
+    d["id_conv_2024_dis_hi"] = _idc["lowrep24"]["hi_dissim"]
+    d["id_conv_2026_dis_lo"] = _idc["lowrep26"]["lo_dissim"]
+    # "one single-year cohort near 65 is about 1.8% of the Idaho roll" — the sentence that
+    # says why two points of the 65+ share is a lot. BASIS, stated because it is a choice:
+    # the share of the roll at EXACTLY age 65, over the harmonizer's own 18-105 filter. That
+    # is the cohort the boundary actually moves across when the convention shifts by a year,
+    # so it is the one the argument needs; the 60-69 mean is 1.7% and would round the other
+    # way, which is precisely why the basis is written down rather than left to whoever
+    # re-derives it next.
+    import duckdb  # noqa: PLC0415 — the file's lazy convention; see the two below
+    _idcon = duckdb.connect(str(vp.DATA / "id_vrdb.duckdb"), read_only=True)
+    d["id_cohort65_pct"], = _idcon.execute(
+        "SELECT 100.0 * COUNT(*) FILTER (WHERE age = 65) "
+        "/ COUNT(*) FROM voters WHERE age BETWEEN 18 AND 105").fetchone()
+    _idcon.close()
+
     # The lag-matched margin, which is what Finding 3 now claims.
     d["lagmatch_id_over_wa"] = d["h_ID_lagmatch_dis"] - d["h_WA_lagmatch_dis"]
     # NY's odd-year 65+ SPAN against the presidential-to-Idaho separation, both endpoints.
@@ -631,6 +667,42 @@ PROBES = [
      "id_roll_m", 0.005),
     ("Finding 1 footnote — ID midterm 65+ restated",
      r"gradient reaching ([\d.]+)% 65\+ before the primary cut", "id_mid_65", 0.05),
+
+    # ---- Methods & reproducibility (gated 2026-08-26, item 9a) ---------------------------
+    # The Idaho age-convention bracket. `h.derive()` returned all of this and this file read
+    # none of it, because the audited slice stopped at "## What it means" — so the paper's own
+    # stated bound on its cross-state instrument was produced by a diagnostic and asserted by
+    # nothing. An unasserted caveat is the worst kind to leave loose: it is quoted as a limit
+    # on the finding, so drift in it overstates the finding by exactly the amount nobody is
+    # watching.
+    ("methods — the Idaho age-convention bracket, on the 65+ share",
+     r"five classes it is \*\*([\d.]+)–([\d.]+) points of the 65\+ share\*\*",
+     ("id_conv_gap65_lo", "id_conv_gap65_hi"), 0.05),
+    ("methods — the same bracket on the dissimilarity index",
+     r"\*\*([\d.]+)–([\d.]+) points of the dissimilarity index\*\*",
+     ("id_conv_dis_gap_lo", "id_conv_dis_gap_hi"), 0.05),
+    ("methods — why a single-year cohort matters, as a share of the Idaho roll",
+     r"one single-year cohort near 65 is about ([\d.]+)% of the Idaho roll",
+     "id_cohort65_pct", 0.05),
+    ("methods — the May 2024 primary at both ends of the bracket",
+     r"dissimilarity is ([\d.]+) on the convention used here and ([\d.]+) on the other end",
+     ("id_conv_2024_dis_lo", "id_conv_2024_dis_hi"), 0.05),
+    # The scope note's whole point is that naming the CLASS reads as the range's top while
+    # the 2024 CELL is a different number, so both the range and the two cells are asserted.
+    # Probing only the range would leave the distinction it draws uncheckable.
+    ("methods — the primaries' range the scope note contrasts against",
+     r"report the primaries' range as ([\d.]+)–([\d.]+)",
+     ("h_ID_dis_low_lo", "h_ID_dis_low_hi"), 0.05),
+    ("methods — the two cells the scope note names",
+     r"the 2024 cell is ([\d.]+) and the 2026 cell ([\d.]+)",
+     ("id_conv_2024_dis_lo", "id_conv_2026_dis_lo"), 0.05),
+
+    # ---- Status / next actions (gated 2026-08-26) ----------------------------------------
+    # The CURRENT half of a then/now pair. The retired half is exempted by literal below; this
+    # half restates live derived values in a checklist forty thousand characters from the
+    # table that owns them, which is the restatement surface item 9a exists to close.
+    ("status — the multiplier span, restated in the correction note",
+     r"the multiplier runs \*\*([\d.]+)× to ([\d.]+)×\*\*", ("h_mult_lo", "h_mult_hi"), 0.05),
 ]
 
 UNCHECKED = (
@@ -642,6 +714,49 @@ UNCHECKED = (
     "Every source figure is checked against the SOURCE PAPER's prose, not against the voter "
     "files. The single-state verifiers own that layer.",
 )
+
+
+def claim_guards(d: dict) -> list[str]:
+    """Assert the LEVEL-ORDERING claim this paper makes about New York.
+
+    The paper says: "What DOES hold, 8 times out of 8, is the level ordering -- the Republican
+    electorate is the older of the two in every general New York's file records, and the
+    no-party bloc is younger than both in every one. That is the durable claim."
+
+    Nothing else here can see that. Each scraped cell is compared to the companion paper's
+    printed value, so all of them can be individually correct while the relationship the
+    sentence asserts is false. And this exact claim is the series' known propagation failure:
+    THIS paper reached it first, the New York paper did not carry it across, and a later round
+    found the stale version still standing. Guarded on both sides now.
+
+    ⚠ SCOPE, stated because the sentence says 8 and this checks 5. Only the five generals
+    added on 2026-08-17 are scraped per-party here (2016/2017/2019/2020/2021); 2023-2025 enter
+    this paper through the pres/mid/odd aggregates, which carry no party split. The New York
+    verifier's own `claim_guards` covers all eight on DERIVED data. This half catches the
+    synthesis quoting a companion table that no longer supports the sentence.
+    """
+    fails = []
+    bad_r, bad_nop = [], []
+    for _yr in ("2016", "2017", "2019", "2020", "2021"):
+        dem, rep = d.get(f"ny{_yr}_dem65"), d.get(f"ny{_yr}_rep65")
+        nop = d.get(f"ny{_yr}_nop65")
+        if dem is None or rep is None or nop is None:
+            continue
+        if not rep > dem:
+            bad_r.append(f"Nov {_yr} (REP {rep:.1f} vs DEM {dem:.1f})")
+        if not nop < min(dem, rep):
+            bad_nop.append(f"Nov {_yr} (NOPARTY {nop:.1f} vs {dem:.1f}/{rep:.1f})")
+    if bad_r:
+        fails.append(
+            "claim: this paper says the Republican electorate is the older of the two in "
+            "every New York general, but the scraped companion table does not support that "
+            "in " + "; ".join(bad_r) + ". Either the companion changed or the sentence is "
+            "wrong; do not adjust the scrape to make it pass.")
+    if bad_nop:
+        fails.append(
+            "claim: this paper says the no-party bloc is younger than both major parties in "
+            "every New York general, but not in " + "; ".join(bad_nop) + ".")
+    return fails
 
 
 def structural_guards(raw: str) -> list[str]:
@@ -671,12 +786,34 @@ def structural_guards(raw: str) -> list[str]:
 # transcribe other papers, so an unprobed number here is an unchecked copy of somebody else's
 # result. The cases table is audited alongside the findings because that is where the roll
 # scales live, and a stale roll scale is the cheapest kind of transcription drift to ship.
+# EXTENDED TO THE WHOLE DOCUMENT 2026-08-26 (item 9a). The six spans below covered 63.2% of
+# the paper and left 107 numeric tokens in no span at all — measured by
+# `scripts/diag_audit_span_gaps.py`, which exists because `audit_coverage` reports on the
+# spans it is GIVEN and is silent about the document between them.
+#
+# The largest single gap was "What it means" (84 tokens), and that is the pattern across the
+# series rather than a quirk here: the gaps cluster in the sections where findings are
+# RESTATED, which is where propagation lives. The synthesis's own closing verdict shipped a
+# false claim in exactly such a gap while the finding correcting it sat gated.
+#
+# Unlike verify_whitepaper.py, this file already scraped the whole paper — `norm` is
+# vp.normalise(raw) — so every probe could always reach these regions and only the audit was
+# short. Extending the dict is the whole fix here.
 AUDIT_BOUNDS = {
+    "header": ("# Who Returns the Ballot?", "## The question"),
+    "question": ("## The question", "## The cases"),
     "cases": ("## The cases", "## Harmonization protocol"),
+    "harmonization": ("## Harmonization protocol", "## Finding 1"),
     "finding1": ("## Finding 1", "## Finding 2"),
     "finding2": ("## Finding 2", "## Finding 3"),
     "finding3": ("## Finding 3", "## Boundary of inference"),
     "boundary": ("## Boundary of inference", "## What it means"),
+    "what_it_means": ("## What it means", "## Methods & reproducibility"),
+    "methods": ("## Methods & reproducibility", "## Related work"),
+    "related_work": ("## Related work", "## Status / next actions"),
+    # Last span: a real end anchor, because vp.slice_with_offset raises rather than running
+    # to end-of-document. This is the paper's closing clause; nothing numeric follows it.
+    "status": ("## Status / next actions", "with the validation that a proxy requires"),
 }
 
 COVERAGE_EXEMPT = [
@@ -685,9 +822,21 @@ COVERAGE_EXEMPT = [
 ]
 
 COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
-    "904": "part of the statutory citation Idaho Code § 34-904A, the poll-book "
-           "affiliation provision that makes Idaho's party snapshot reactive. Not a "
-           "quantity; its consequences are asserted in verify_who_decides_id.py",
+    # CORRECTED 2026-08-26. This entry read "34-904A, the poll-book affiliation provision that
+    # makes Idaho's party snapshot reactive" -- the wrong provision for that mechanism, and the
+    # paper cited it that way too. Checked against Idaho Code: § 34-904A governs ELIGIBILITY to
+    # vote in a primary (which party's ballot an elector may take, and a party's option to open
+    # its primary to unaffiliated voters). The REACTIVITY comes from § 34-411A, titled "Primary
+    # elections -- CHANGING PARTY AFFILIATION -- unaffiliated electors", whose subsection (2)
+    # directs the county clerk to record the poll-book affiliation into the elector's
+    # registration record after the primary, via § 34-437A. § 34-904A has no such write-back.
+    # The Idaho paper had it right in all three of its citations; this file and the cross-state
+    # paper did not.
+    "411": "part of the statutory citation Idaho Code § 34-411A, the CHANGING-PARTY-AFFILIATION "
+           "provision whose subsection (2) writes an unaffiliated elector's poll-book "
+           "affiliation into their registration record and so makes Idaho's party snapshot "
+           "reactive to primary participation. Not a quantity; its consequences are asserted in "
+           "verify_who_decides_id.py",
     "84.730": "part of the statutory citation RCW 29A.84.730, Washington's "
               "presidential-primary party-declaration disclosure window. Not a quantity",
     "29001": "Census table id B29001 (citizen voting-age population by age), not a figure — "
@@ -696,6 +845,43 @@ COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
     "13": "Idaho's roll contraction, ~13%, stated in the comparability controls and in "
           "Boundary of inference. Owned by who-decides-idaho.md, whose own verifier asserts "
           "both endpoints (1.18M -> 1.03M) against the voter file",
+    # --- Exposed 2026-08-26 when the audited slice became the whole document. -------------
+    # Citations and identifiers, on the same footing as the two statutory entries above:
+    # there is nothing to assert them against, and the way they go wrong (citing the wrong
+    # provision) is not numeric drift. Listed individually rather than waived by a pattern —
+    # a pattern loose enough for "04.321" also catches real results.
+    "7149263": "the SSRN abstract id of the posted Washington companion, in the header's "
+               "series note. An identifier; nothing derives it. check_cross_doc_consistency.py "
+               "also treats it as an identifier rather than a figure, so the honest statement "
+               "is that its CONSISTENCY across documents is checked there and its value is "
+               "not checked anywhere",
+    "04.321": "part of the statutory citation RCW 29A.04.321, which fixes Washington's "
+              "odd-year November local general as the low-salience class. Not a quantity; the "
+              "class it selects is what Finding 1 measures",
+    "08.720": "part of the statutory citation RCW 29A.08.720, the provision Washington's "
+              "voter file is used under. Not a quantity",
+    "437": "part of the statutory citation Idaho Code § 34-437A, the provision Idaho's voter "
+           "file is used under. Not a quantity",
+    # --- The Status bullet's RETIRED figures. Its own text says they were superseded within
+    # the same round, and the CURRENT pair beside them is probed ("status — the multiplier
+    # span"). These four are unre-derivable by construction: they were computed on a
+    # low-salience column of 3/5/3 contests that the widening replaced, so no current code
+    # path returns them and building one would defeat the bullet.
+    # ⚠ The retired LOW end happens to equal the current one (both 1.5x) — the widening moved
+    # only the top. It is exempted rather than probed against h_mult_lo for that reason:
+    # asserting a retired figure against a live derivation works only while they coincide,
+    # and the day h_mult_lo moved the gate would demand that the CORRECTION NOTE be edited to
+    # match — rewriting the record of what was superseded. Only unprobed occurrences reach
+    # this exemption, so Finding 1's live 1.5x and the current pair below stay asserted.
+    "1.5": "the retired LOWER end of the senior-to-youth multiplier, in the correction note. "
+           "Numerically equal to the current low end today and not the same claim; the "
+           "current pair is probed at 'status — the multiplier span'",
+    "4.9": "the retired upper end of the senior-to-youth multiplier, computed 2026-08-06 on "
+           "the narrower 3/2/1 low-salience selection. The current 1.5x-5.1x pair in the same "
+           "bullet is probed against h_mult_lo/h_mult_hi",
+    "46.7": "the retired single Idaho low-salience 65+ cell, same superseded selection; "
+            "Idaho's cell is now a range and is probed in Finding 1",
+    "5.0": "the retired Idaho 18-29 cell that accompanied 46.7, same superseded selection",
 }
 
 COVERAGE_EXEMPT_SECTIONS: dict[str, str] = {}
@@ -728,7 +914,7 @@ def main() -> int:
         print(f"  - {sat_fail}")
         rc = 1
 
-    guards = structural_guards(raw)
+    guards = structural_guards(raw) + claim_guards(derived)
     print("\n  STRUCTURAL GUARDS")
     print(f"    harmonization script present: {HARMONIZER.exists()}")
     print(f"    '[recompute]' placeholders:   {raw.count('[recompute]')}")

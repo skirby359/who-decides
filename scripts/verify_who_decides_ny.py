@@ -182,6 +182,37 @@ def derive() -> dict:
         f"SELECT COUNT(*), COUNT(*) FILTER (WHERE is_active) FROM {PIN}").fetchone()
     d["roll_m"] = d["roll_all"] / 1e6
 
+    # FIELD POPULATION, for the provenance line's "all ~100% populated" (gated 2026-08-26,
+    # item 9a — it sat in the front matter, outside every span, until that round).
+    #
+    # ⚠ IT COVERS TWO OF THE THREE FIELDS THE SENTENCE NAMES, DELIBERATELY, and the third is
+    # an OPEN QUESTION FOR THE AUTHOR rather than something to fold in quietly.
+    #
+    #   party        100.0000%  of the pinned roll
+    #   birth_year   100.0000%
+    #   voter_history 82.8667%  of `voters` rows carry a non-empty history string
+    #
+    # 82.87% is not obviously a defect and is not obviously fine, which is exactly why it is
+    # not silently averaged into a "~100%". A registrant who has never voted HAS no events,
+    # so an empty history is a turnout fact rather than a missing field — on that reading the
+    # sentence is true and the third field is 100% populated in the only sense available. On
+    # the plainer reading of "populated" it is 82.9% and the sentence overstates. Choosing the
+    # reading that makes the printed figure pass is precisely the move this series has been
+    # bitten by, so the probe checks what is unambiguous and this comment records the rest.
+    # The VOTE-HISTORY population share, added 2026-08-26 when the provenance line stopped
+    # claiming "all ~100% populated" and began stating this field separately. Denominated on the
+    # `voters` table rather than the pinned roll because `voter_history` lives there; a
+    # registrant with no recorded event has an empty string, which is a turnout fact and not a
+    # missing field -- the distinction the sentence now draws explicitly.
+    d["hist_pop_pct"], = con.execute(
+        "SELECT 100.0 * COUNT(*) FILTER (WHERE voter_history IS NOT NULL "
+        "AND voter_history <> '') / COUNT(*) FROM voters").fetchone()
+    d["field_pop_min"], = con.execute(
+        f"""SELECT LEAST(100.0 * COUNT(*) FILTER (WHERE party IS NOT NULL AND party <> '')
+                           / COUNT(*),
+                         100.0 * COUNT(*) FILTER (WHERE birth_year IS NOT NULL) / COUNT(*))
+            FROM {PIN}""").fetchone()
+
     # Party mix, both bases — the paper states the blank share on each.
     for tag, filt in (("mixA", "WHERE is_active"), ("mixF", "")):
         rows = con.execute(f"SELECT party, COUNT(*) FROM {PIN} {filt} GROUP BY 1").fetchall()
@@ -827,11 +858,14 @@ PROBES = [
     # ordering reverses between the two odd years, which is the whole reason "ages hardest"
     # came out. Derived rather than left as bare tokens: a withdrawal argued from figures
     # needs its figures checked as much as a finding does.
-    # The replacement dynamic reading: the Republican odd-year level is stable across both
-    # odd years and it is the DEMOCRATIC share that swings. Same four cells as the level
-    # probe above, restated in the other direction, and probed for the same reason.
-    ("§party — the Republican odd-year level is stable across both odd years",
-     r"high 65\+ share in \*\*both\*\* odd years \(([\d.]+)% and ([\d.]+)%\)",
+    # The replacement reading (NY referee round): the Republican odd-year 65+ share has RISEN
+    # across the five odd years and is highest in the two most recent, and it is the DEMOCRATIC
+    # share that swings between those two. Same cells as the level probe above, restated in the
+    # other direction. The old anchor said "high in **both** odd years", which the referee read
+    # as cherry-picking the two most recent against a rising series -- so the sentence and this
+    # probe now name them as the two most recent.
+    ("§party — the Republican odd-year level, peaking in 2023 then dipping in 2025",
+     r"peak of ([\d.]+)% in 2023, then ([\d.]+)% in\s*2025",
      ("g23_REP_65", "g25_REP_65"), 0.05),
     ("§party — and it is the Democratic share that swings between them",
      r"share that swings, from ([\d.]+)% in 2023 to ([\d.]+)% in 2025",
@@ -873,6 +907,23 @@ PROBES = [
      r"only \*\*(\d+)\*\* of \*\*(\d+)\*\* congressional and Assembly districts are\s+"
      r"within five points", ("comp_total", "seat_total"), 0),
     ("roll size", r"statewide file \(([\d.]+)M registrants", "roll_m", 0.005),
+    # Front matter (gated 2026-08-26, item 9a). The subtitle states the roll a THIRD time, at
+    # coarser precision than the provenance line beside it — probed against the same pinned
+    # key so the two cannot drift apart, which is the failure the pin exists to prevent.
+    ("front matter — the roll in the subtitle",
+     r"resolved by party — from ([\d.]+) million individual", "roll_m", 0.05),
+    # The provenance sentence used to say all THREE fields were "~100% populated" and this
+    # comment used to record the third as an open question. Author decision 2026-08-26: the
+    # sentence now states party and DOB as 100% and vote history separately at 82.9%, so both
+    # halves are asserted and there is no open question left to record.
+    ("front matter — field population, party and DOB",
+     r"individual party enrollment and full DOB \*\*(\d+)%\s+populated\*\*",
+     "field_pop_min", 0.05),
+    # The third field, stated SEPARATELY since 2026-08-26 rather than folded into a
+    # "~100%" that covered two fields honestly and one only on a strained reading.
+    ("front matter — vote-history population, stated on its own",
+     r"vote history for the \*\*([\d.]+)%\*\* of registrants carrying any",
+     "hist_pop_pct", 0.05),
     ("blank share, active and full roll",
      r"\(([\d.]+)% of the active roll; ([\d.]+)% of the full roll\)",
      ("mixA_NOPARTY", "mixF_NOPARTY"), 0.05),
@@ -976,8 +1027,8 @@ PROBES = [
     ("§IV — the two chamber-level competitive counts, and both chamber sizes",
      r"— (\d+) of (\d+) and (\d+) of (\d+) — are within\s+five points",
      ("cd_comp", "cd_n", "ad_comp", "ad_n"), 0),
-    ("§IV — safe-D seats on the symmetric 40+ threshold, both chambers",
-     r"makes (\d+) seats\s+safe for Democrats", "safe_d_total", 0),
+    ("§IV — D+40-or-more districts on the symmetric threshold, both chambers",
+     r"(\d+) districts are\s+D\+40 or more by registration", "safe_d_total", 0),
 
     # ---- Section VI
     ("§V 2008 registration cohort",
@@ -1029,7 +1080,8 @@ PROBES = [
      r"swings from \+([\d.]+) \(2023\) to \+([\d.]+) \(2025\)",
      ("g23_gap_dr", "g25_gap_dr"), 0.05),
     ("§III — the blank share and its primary-participation span",
-     r"the \*\*([\d.]+)% enrolled \"blank\" are structurally absent\*\* \(≈([\d.]+)–([\d.]+)%",
+     r"the \*\*([\d.]+)% enrolled \"blank\" today are near-absent from these primaries by "
+     r"current classification\*\* \(≈([\d.]+)–([\d.]+)%",
      ("mixA_NOPARTY", "np_primary_lo", "np_primary_hi"), 0.05),
     ("§I footnote — the all-roll-matched bases run this much higher",
      r"NOPARTY [\d.]+\), ~([\d.]+)pp higher", "dg_base_gap", 0.05),
@@ -1151,26 +1203,37 @@ PROBES = [
      r"its gaps are (-\d+\.\d+) to \+(\d+\.\d+)",
      ("nysboe_20260220_NOPARTY", "nysboe_20260220_OTHER"), 0.005),
     ("App. C — the largest historical gap, twice",
-     r"largest historical gap is \*\*([\d.]+) points\*\*", "nysboe_worst", 0.005),
-    ("App. C — the same bound restated against the median-age effect",
-     r"a ([\d.]+)-point share gap against an", "nysboe_worst", 0.005),
+     r"largest observed aggregate gap is \*\*([\d.]+) points\*\*", "nysboe_worst", 0.005),
+    # REMOVED (NY referee round): the order-of-magnitude comparison "a 1.39-point share gap
+    # against an eight-year median-age difference" was withdrawn as a units mismatch — an
+    # aggregate share gap is not commensurable with a within-party median-age difference, so the
+    # sentence and its probe are gone. The 1.39 bound is still probed at points 1 and 3 and in
+    # the front-matter/Boundary restatements below.
     ("App. C — Feb 2021 retention, restated in prose",
-     r"Only \*\*([\d.]+)%\*\* of the registrants NYSBOE", "nysboe_20210221_retain", 0.005),
+     r"captures \*\*([\d.]+)%\*\* as many qualifying records as NYSBOE",
+     "nysboe_20210221_retain", 0.005),
     ("App. C — the same bound in the attrition sentence",
-     r"moved by at most ([\d.]+) points", "nysboe_worst", 0.005),
+     r"differs by at most ([\d.]+) points", "nysboe_worst", 0.005),
     # The front matter is NOT inside AUDIT_BOUNDS, so the coverage gate cannot reach these two
     # restatements and they would be unchecked by default — which is the precise shape of the
     # defect this round corrected in the §III note. Probed explicitly instead.
-    ("Boundary — Appendix C's ceiling, restated where the bullet used to deny it existed",
-     r"ceiling of \*\*([\d.]+) points\*\* on this and the survivorship bound",
+    ("Boundary — Appendix C's aggregate bound, restated where the bullet used to deny it existed",
+     r"party shares differing from NYSBOE's published series by at most \*\*([\d.]+) points\*\*",
      "nysboe_worst", 0.005),
-    ("front matter — Appendix C's ceiling, restated in caveat (2)",
-     r"external\s+ceiling of \*\*([\d.]+) points\*\*", "nysboe_worst", 0.005),
+    ("front matter — Appendix C's aggregate bound, restated in caveat (2)",
+     r"finds them differing\s*by at most \*\*([\d.]+) points\*\*", "nysboe_worst", 0.005),
 
     # ---- §V's re-registration caveat, 2026-08-11.
     ("§V — re-registration lower bound, both measurable cohorts",
      r"at least \*\*([\d.]+)%\*\* of the 2020 row and \*\*([\d.]+)%\*\* of the 2024 row",
      ("rereg2020_share", "rereg2024_share"), 0.005),
+    # Related Work restates §V's two lower bounds inside the note that withdraws the
+    # "new-registrant abandonment" framing (2026-08-26). Probed against the SAME keys as §V's
+    # own sentence, so the correction cannot drift from the section it is correcting -- which
+    # is the exact failure this note exists to record.
+    ("Related Work — §V's re-registration bounds, in the withdrawal note",
+     r"at least ([\d.]+)% of the 2020 row and ([\d.]+)% of the 2024 row are\s+"
+     r"re-registrations", ("rereg2020_share", "rereg2024_share"), 0.005),
     ("§V — the 2024 split that gives the bias its direction",
      r"\*\*([\d.]+)%\*\* Democratic and \*\*([\d.]+)%\*\* no-party against \*\*([\d.]+)%\*\* "
      r"and\s+\*\*([\d.]+)%\*\*",
@@ -1223,6 +1286,25 @@ AUDIT_BOUNDS = {
     # A slice whose end anchor does not exist runs to end-of-document and silently swallows
     # whatever follows, which is one of the three coverage rules this gate already encodes.
     "appendix_c": ("## Appendix C — External validation", "## Appendix B — Section numbering"),
+    # EXTENDED TO THE WHOLE DOCUMENT 2026-08-26 (item 9a). The nine spans above covered 73.0%
+    # and left 81 numeric tokens in no span — measured by `scripts/diag_audit_span_gaps.py`,
+    # which exists because `audit_coverage` reports on the spans it is GIVEN and says nothing
+    # about the document between and around them.
+    #
+    # The biggest gap was "What it means" (39 tokens), and that is the series pattern rather
+    # than a quirk of this paper: the unaudited regions are the ones where findings get
+    # RESTATED. The Idaho companion's own text records the cost — two withdrawn phrases "sat
+    # in this conclusion, which is outside every coverage span, while the section they
+    # contradict was gated". The front matter (27) is the same shape: it summarises §I-§V
+    # before a reader reaches them.
+    "front":       ("# Who Decides New York?", "## Abstract"),
+    "question":    ("## The question", "## I. The graying is party-structured"),
+    "what_it_means": ("## What it means", "## Related work"),
+    "related_work": ("## Related work", "## Methods & reproducibility"),
+    "methods":     ("## Methods & reproducibility", "## Appendix A — Validation"),
+    # Appendix B is last in the document; its end anchor is the closing clause, because
+    # slice_with_offset requires a real one and raises rather than running to end-of-file.
+    "appendix_b":  ("## Appendix B — Section numbering", "is a reference to what are now"),
 }
 
 COVERAGE_EXEMPT = [
@@ -1304,6 +1386,55 @@ COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
 COVERAGE_EXEMPT_SECTIONS: dict[str, str] = {}
 
 
+# The eight general elections in New York's vote history, oldest first. Used by
+# `claim_guards`; the same eight stems the SS-I table prints.
+_GENERALS = ("g16", "g17", "g19", "g20", "g21", "g23", "g24", "g25")
+
+
+def claim_guards(d: dict) -> list[str]:
+    """Assert the ORDERING claim, which carries no token a probe can capture.
+
+    SS-I says: "the Republican electorate is older than the Democratic one on the
+    65-and-over share, 8 times out of 8, and the no-party bloc is younger than both, also
+    8 out of 8. The ordering never once reverses." Every cell of that table is probed
+    individually, and NONE of that catches a reversal -- a probe compares one number to one
+    derivation, so all sixteen cells can be individually right while the sentence describing
+    their relationship is wrong. That is exactly how safe-seat shipped "more than double any
+    other year in the series" false for a round.
+
+    This claim is also the one the paper got WRONG by propagation once already: the
+    cross-state companion reached it first, this paper did not carry it across, and the
+    2026-08-17 round found the stale version still standing. A guard is cheaper than the
+    next round finding it again.
+
+    A module-level function of the derived dict so it can be shown FAILING without a full
+    verifier run -- freeze rule SS-0 rule 2.
+    """
+    fails = []
+    r_not_older, nop_not_younger = [], []
+    for g in _GENERALS:
+        dem, rep = d.get(f"{g}_DEM_65"), d.get(f"{g}_REP_65")
+        nop = d.get(f"{g}_NOPARTY_65")
+        if dem is None or rep is None or nop is None:
+            continue
+        if not rep > dem:
+            r_not_older.append(f"{g} (REP {rep:.1f} vs DEM {dem:.1f})")
+        if not nop < min(dem, rep):
+            nop_not_younger.append(f"{g} (NOPARTY {nop:.1f} vs DEM {dem:.1f} / REP {rep:.1f})")
+    if r_not_older:
+        fails.append(
+            "claim: SS-I says the Republican electorate is older than the Democratic one on "
+            "the 65+ share in every general and that the ordering never once reverses, but "
+            "it does not hold in " + "; ".join(r_not_older) + ". The cells are each probed; "
+            "only this sees the relationship between them. Fix the sentence or the "
+            "derivation -- the count '8 times out of 8' moves with it.")
+    if nop_not_younger:
+        fails.append(
+            "claim: SS-I says the no-party bloc is younger than both major parties in every "
+            "general, but it is not in " + "; ".join(nop_not_younger) + ".")
+    return fails
+
+
 def main() -> int:
     """Scrape the whole paper, assert, then GATE coverage over sections I-VI.
 
@@ -1316,13 +1447,15 @@ def main() -> int:
     for name, (start, end) in AUDIT_BOUNDS.items():
         audit_sections[name], offsets[name] = vp.slice_with_offset(norm, start, end)
     stats: dict = {}
+    _d = derive()
     rc = vp.run("WHO DECIDES NEW YORK — prose scraped and asserted against the voter file",
-                norm, PROBES, derive(), UNCHECKED, vp.wants_coverage(), spans_out=spans,
+                norm, PROBES, _d, UNCHECKED, vp.wants_coverage(), spans_out=spans,
                 stats_out=stats)
     fails = vp.audit_coverage(audit_sections, spans, offsets, tuple(AUDIT_BOUNDS),
                               COVERAGE_EXEMPT, COVERAGE_EXEMPT_LITERAL,
                               COVERAGE_EXEMPT_SECTIONS, strict_units=True)
     fails += vp.audit_satellite_counts(PAPER.name, stats.get("figures"))
+    fails += claim_guards(_d)
     if fails:
         print("\n" + "=" * 78)
         print(f"WHO DECIDES NEW YORK: {len(fails)} coverage/satellite FAILURE(S)")

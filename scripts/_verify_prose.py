@@ -36,6 +36,8 @@ pattern the public repo already uses for `donor_matcher.py`.
 """
 from __future__ import annotations
 
+import ast
+import hashlib
 import re
 import sys
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
@@ -356,6 +358,28 @@ def wants_coverage(argv=None) -> bool:
 # `sync_public_repo.NEVER`, so the public checkout legitimately has none of them.
 # --------------------------------------------------------------------------
 SATELLITES = {
+    # REGISTERED 2026-08-26, and its absence was the largest hole this registry has had: the
+    # LEAD ARTICLE, the one paper under journal submission, was not here at all, and
+    # `verify_donor_class.py` did not call `audit_satellite_counts`. So nothing checked the
+    # figure-count claims in any document about it.
+    #
+    # It was invisible to the check that exists for exactly this — `test_every_series_paper_is
+    # _registered` derives its population from `FLOORS`, which lists eight verifiers and
+    # excludes both the donor gate and the state-money gate. A registration check covering
+    # eight of ten papers, missing the one under submission: the same shape this module's own
+    # `audit_satellite_counts` docstring records ("a guard that checks every document about the
+    # paper except the paper") and the same shape as the satellite allowlist that once carried
+    # seven of eight papers by not looking at them.
+    #
+    # It had already cost something. The build drifted 1,465 -> 1,470 with the release
+    # checklist's A10 row, the readiness dossier and the methods supplement all still saying
+    # 1,465 — A10 being the gate whose entire purpose is that a signature describe the CURRENT
+    # text. Found by hand on 2026-08-26; this is what would have found it.
+    "donor-class-and-the-electorate.md": ("donor-class-methods-supplement.md",
+                                          "donor-class-submission-memo.md",
+                                          "donor-class-cover-letter.md",
+                                          "donor-class-submission-metadata.md",
+                                          "donor-class-release-checklist.md"),
     # The CORRECTIONS LEDGER was added 2026-08-11 and it was not a theoretical gap: it stated
     # "verify_who_decides_wa.py now asserts 246 figures", present tense, against a real 539 — the
     # count as of the round that wrote it, four rounds stale. It is the one satellite of a POSTED
@@ -381,6 +405,13 @@ SATELLITES = {
     # decision, not an omission, for as long as it was a prospectus with no submission intent.
     "electoral-health-whitepaper.md": ("electoral-health-submission-metadata.md",
                                        "electoral-health-submission-notes.md"),
+    # Registered 2026-08-22 with verify_state_money_note.py, the tenth verifier. The tuple
+    # is EMPTY and that is a recorded decision rather than an omission: the note has no
+    # submission metadata or notes of its own — it is tracked inside its parent paper's
+    # `cross-state-money-submission-notes.md`, whose figures belong to
+    # cross-state-fec-money.md and are checked there. What registration buys is the guard
+    # over the note's OWN "re-derives **64 figures**" line, which the paper scan covers.
+    "cross-state-state-money-note.md": (),
 }
 
 # Each pattern must capture a count a document states about THIS verifier, in the
@@ -413,6 +444,33 @@ _COUNT_CLAIMS = (
     # about the WORDS and tolerant of the markup between them.
     r"asserts\s+\*\*([\d,]+)\*\*\s+figures",
     r"asserting\s+\*\*([\d,]+)\*\*\s+figures",
+)
+
+# ENVIRONMENT-TAGGED COUNT CLAIMS (2026-08-28). The donor methods supplement legitimately
+# states BOTH environments' counts: the private build's and the public checkout's, because
+# four operational documents are withheld there by design and their probes skip (a 21-figure
+# gap the supplement's own prose explains). The first PUBLIC run of this guard — the day the
+# sync first carried it — compared the private claim against the public run and failed a
+# sentence that was TRUE.
+#
+# The first fix tried any-claim-matches semantics and was REVERTED the same day:
+# `test_one_matching_claim_does_not_excuse_a_stale_sibling` failed, correctly — under
+# any-match, one current figure silences a stale sibling in the same document, which is the
+# compounding defect that test exists to keep dead. So the rule is precision, not leniency:
+# a claim whose PHRASING names an environment is checked strictly in that environment and
+# reported informationally (`ok~`) in the other; every untagged claim keeps the old strict
+# semantics everywhere. Environment detection: a run with any registered satellite absent is
+# the public checkout (that is what absence-by-design means); a run with all present is the
+# private build.
+_ENV_COUNT_CLAIMS = (
+    ("public", r"from the public repository will see\s+\*\*([\d,]+)\*\*"),
+    ("private",
+     # \s+ between EVERY word: the supplement line-wraps inside this phrase, and the first
+     # version used literal spaces — so the tagged pattern missed, the GENERAL pattern
+     # swallowed the sentence, and the public run would have failed the true claim again.
+     # Caught because the private run printed plain "ok" where "(private claim)" belonged:
+     # the guard's own display is what showed which pattern had matched.
+     r"asserts\s+\*\*([\d,]+)\s+figures\*\*\s+against\s+the\s+full\s+private\s+build"),
 )
 
 # Anchors used ONLY on satellite documents. The loose "— N of them" idiom belongs
@@ -456,6 +514,10 @@ def audit_satellite_counts(paper_name: str, figures: int | None) -> list[str]:
         print(f"  FAIL {msg}")
         return [msg]
     fails, n_claims, n_present = [], 0, 0
+    # The public checkout is DEFINED by absence: satellites withheld by design. A run where
+    # every registered satellite is present is the private build.
+    run_env = ("public" if any(not (DOCS / n).exists() for n in SATELLITES[paper_name])
+               else "private")
     for name in names:
         path = DOCS / name
         if not path.exists():
@@ -465,8 +527,33 @@ def audit_satellite_counts(paper_name: str, figures: int | None) -> list[str]:
         text = path.read_text(encoding="utf-8")
         pats = (_COUNT_CLAIMS if name == paper_name
                 else _COUNT_CLAIMS + _SATELLITE_ONLY_CLAIMS)
+        # ENVIRONMENT-TAGGED FIRST (2026-08-28; see _ENV_COUNT_CLAIMS above for the whole
+        # story). Tagged claims are strict in their own environment and informational in
+        # the other; their spans are then excluded from the general pass so a tagged
+        # sentence is not double-read as an untagged claim. Untagged claims keep the old
+        # strict-everywhere semantics -- one matching claim never excuses a stale sibling.
+        tagged_spans = []
+        for env, pat in _ENV_COUNT_CLAIMS:
+            for m in re.finditer(pat, text):
+                stated = int(m.group(1).replace(",", ""))
+                n_claims += 1
+                tagged_spans.append((m.start(), m.end()))
+                line = text[:m.start()].count("\n") + 1
+                if env == run_env:
+                    if stated == figures:
+                        print(f"  ok   {name}:{line:<4} states {stated:,} ({env} claim)")
+                    else:
+                        print(f"  FAIL {name}:{line:<4} states {stated:,} ({env} claim), "
+                              f"this {env} run asserts {figures:,}")
+                        fails.append(f"{name}:{line} states {stated:,} figures ({env} "
+                                     f"claim); this {env} run asserts {figures:,}")
+                else:
+                    print(f"  ok~  {name}:{line:<4} states {stated:,}  "
+                          f"(the {env} checkout's count; not this run's to check)")
         for pat in pats:
             for m in re.finditer(pat, text):
+                if any(a <= m.start() < b for a, b in tagged_spans):
+                    continue
                 stated = int(m.group(1).replace(",", ""))
                 n_claims += 1
                 line = text[:m.start()].count("\n") + 1
@@ -835,3 +922,123 @@ def audit_basis_consistency(path: Path | None = None) -> list[str]:
     return fails
 
 
+
+
+# ---------------------------------------------------------------------------
+# Sweep provenance: what the probe-mutation artifact was measured AGAINST.
+#
+# WHY THIS LIVES HERE and not in either caller. `mutation_probe_verifiers.py` WRITES these rows
+# and `tests/test_infrastructure/test_probe_mutation_roster.py` READS them to decide whether the
+# artifact still describes the tree. Two copies of a fingerprint function is two things that can
+# drift, and a staleness gate whose baseline is computed one way and whose live value is computed
+# another does not compare what it claims to -- it just goes green. One definition, imported by
+# both, is the control.
+#
+# WHAT IT REPLACES. Staleness used to be judged by `git log -1 -- <artifact>` and `git show
+# <that commit>:scripts/<verifier>`: a MTIME PROXY. It had a state it could not be worked out
+# of. An edit that adds probes over keys `derive()` already produces changes no derived key, no
+# verdict and no ceiling, so a re-sweep returned byte-identical rows, the artifact file did not
+# change, its commit could not advance, and the gate stayed red however many times the sweep was
+# repeated correctly. Three verifiers sat in `ACCEPTED_STALE` for exactly that reason and were
+# cleared only because a later round happened to touch the artifact for unrelated reasons.
+#
+# Recording the fingerprint IN the artifact fixes that at the root: a re-sweep after a probe-only
+# edit now writes a different fingerprint, so the file does change, and the comparison is against
+# measured content rather than against git history. It also removes git from the judgment
+# entirely, so the gate no longer skips on a shallow checkout or an uncommitted artifact.
+PROVENANCE_RUN = "(provenance)"
+PROVENANCE_KEY = "source-fingerprint"
+PROVENANCE_STATUS = "provenance"
+
+# The two files that decide what a sweep MEASURES without being verifiers themselves. A change to
+# either can move every verdict in the artifact while leaving all ten verifier fingerprints
+# identical, so they are fingerprinted alongside them. This tuple is the single source of truth;
+# the roster test appends it to its verifier set rather than keeping its own copy.
+HARNESS_FILES = ("_verify_prose.py", "mutation_probe_verifiers.py")
+
+
+def local_dependencies(script_names) -> list[str]:
+    """Sibling `scripts/*.py` modules the named scripts import, transitively.
+
+    DISCOVERED, NOT LISTED, and the difference is the whole point. The fingerprint set was
+    hand-written as "the ten verifiers plus the two harness files" and therefore did not
+    cover the modules a verifier imports to DO its derivation. On 2026-08-28 a real ordering
+    defect was fixed in `cross_state_state_money.py` -- which decides what
+    `verify_state_money_note.py` derives -- and nothing in the gate would have noticed that
+    the artifact no longer described the code. Same class as the hole this gate exists to
+    close, one import away from it. Six modules across five verifiers, measured; a list would
+    have been accurate that day and wrong at the next import.
+    """
+    here = {q.stem: q for q in (ROOT / "scripts").glob("*.py")}
+    seen, queue = set(), [n for n in script_names]
+    while queue:
+        name = queue.pop()
+        path = ROOT / "scripts" / name
+        if not path.exists():
+            continue
+        try:
+            tree = ast.parse(path.read_text(encoding="utf-8"))
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                mods = [a.name.split(".")[0] for a in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+                mods = [node.module.split(".")[0]]
+            else:
+                continue
+            for m in mods:
+                fn = m + ".py"
+                if m in here and fn not in seen and fn not in script_names:
+                    seen.add(fn)
+                    queue.append(fn)
+    return sorted(seen)
+
+
+def fingerprint_source(source: str) -> str:
+    """Structure only: no comments, no docstrings, no line numbers.
+
+    Deliberately blind to prose so that rewriting a comment does not demand a 15-minute
+    re-sweep, and deliberately NOT blind to string literals -- the SQL and the regex anchors
+    live in them, and a gate that ignored those would call a real change cosmetic. Same
+    reasoning as `_code_only()` in the unattended-writer gate, which had to keep literals for
+    the same reason.
+    """
+    tree = ast.parse(source)
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.Module, ast.ClassDef,
+                                 ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        body = getattr(node, "body", None)
+        if (body and isinstance(body[0], ast.Expr)
+                and isinstance(body[0].value, ast.Constant)
+                and isinstance(body[0].value.value, str)):
+            node.body = body[1:]
+    dumped = ast.dump(tree, annotate_fields=True, include_attributes=False)
+    return hashlib.sha256(dumped.encode("utf-8")).hexdigest()
+
+
+def provenance_rows(script_names) -> list[dict]:
+    """One row per source file, in the artifact's own five-column schema.
+
+    In-band rather than a sidecar, following the `(baseline, unperturbed)` row this artifact
+    already carries: a sidecar is a second file to commit, and the failure mode of forgetting it
+    is precisely the git-coupling this replaces.
+    """
+    rows = []
+    for name in sorted(set(script_names)):
+        path = ROOT / "scripts" / name
+        rows.append({
+            "verifier": name,
+            "run": PROVENANCE_RUN,
+            "key": PROVENANCE_KEY,
+            "value": fingerprint_source(path.read_text(encoding="utf-8")),
+            "status": PROVENANCE_STATUS,
+        })
+    return rows
+
+
+def recorded_fingerprints(rows) -> dict[str, str]:
+    """The inverse of `provenance_rows`, for whoever reads the artifact back."""
+    return {r["verifier"]: r["value"] for r in rows
+            if r.get("status") == PROVENANCE_STATUS and r.get("key") == PROVENANCE_KEY}

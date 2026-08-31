@@ -62,6 +62,9 @@ MONEY_PAPER = vp.DOCS / "does-money-move-votes.md"
 DONOR_PAPER = vp.DOCS / "donor-class-and-the-electorate.md"
 SAFE_SEAT_PAPER = vp.DOCS / "safe-seat-washington.md"
 WA_PAPER = vp.DOCS / "who-decides-washington.md"
+# Added 2026-08-26 with the whole-document window: the "What the evidence does not support"
+# section quotes this companion's §E-I flow matrices in ten places and nothing read it.
+XSTATE_PAPER = vp.DOCS / "cross-state-fec-money.md"
 GENS = ["Silent", "Boomer", "Gen X", "Millennial", "Gen Z"]
 
 # Bootstrap settings, copied from diag_donor_concentration_bootstrap.py. The seed is fixed
@@ -78,6 +81,21 @@ UNCHECKED = [
     "of re-derived; the independent derivation is scripts/diag_ie_vs_margin.py",
     "Findings 1-3 — prospectus items; their realized analyses are verified by "
     "verify_who_decides_wa.py and diag_seat_competition.py",
+    # DECLARED 2026-08-26, when the whole-document window first exposed them. Not a
+    # derivation this file can add: both grids come from scripts/backtest_model.py, which
+    # runs the forecast model over every district-cycle, and re-deriving them here would
+    # fork the model rather than check it — the same reasoning that keeps Finding 6's slope
+    # out of this file.
+    "The 'are outcomes pre-determined?' limits item — MAE 6.41 / 94% directional on the "
+    "163-cell filtered grid, and 10.12 / 85% on the unfiltered 170-cell grid. Owned by "
+    "scripts/backtest_model.py; the 170-cell pair is also stated in METHODOLOGY.md §6 and "
+    "CLAUDE.md. ⚠ OPEN FOR THE AUTHOR, and declared rather than quietly exempted: the two "
+    "pairs are quoted inside one parenthesis as though they were one backtest, but "
+    "METHODOLOGY.md dates 10.12/85% to the May-15 grid expansion while the 163-cell "
+    "6.41/94% belongs to the current v-jun17 model. If they are two model versions, the "
+    "sentence is comparing a filtered and an unfiltered grid ACROSS a coefficient change "
+    "and the contrast it draws is not the one it states. Settling it needs a backtest run, "
+    "not a scrape.",
 ]
 
 
@@ -125,8 +143,14 @@ def _zip3_top2(con, panel):
     return float(v)
 
 
-def _ipw(con):
-    """Raw and matcher-bias-reweighted over-representation on the POOLED match."""
+def _ipw(con, panel: str = "voter_donor_affiliation"):
+    """Raw and matcher-bias-reweighted over-representation, for ONE panel.
+
+    PANELISED 2026-08-24. This was hardcoded to the pooled panel while the sentence it
+    answers claims the invariance holds "in both panels" -- so half the claim was
+    uncheckable, and the half that was checkable turned out to be false. The caller now runs
+    it for pooled and federal and `claim_guards` checks both.
+    """
     gen = ("CASE WHEN EXTRACT(year FROM v.birthdate) IS NULL THEN NULL "
            "WHEN EXTRACT(year FROM v.birthdate)<=1945 THEN 'Silent' "
            "WHEN EXTRACT(year FROM v.birthdate)<=1964 THEN 'Boomer' "
@@ -140,7 +164,7 @@ def _ipw(con):
     roll = dict(con.execute("SELECT g,COUNT(*) FROM _w WHERE g IS NOT NULL GROUP BY 1").fetchall())
     pm = dict(con.execute("""SELECT w.g, 100.0*AVG(CASE WHEN k.n=1 THEN 1.0 ELSE 0 END)
         FROM _w w JOIN _wk k USING(k) WHERE w.g IS NOT NULL GROUP BY 1""").fetchall())
-    don = dict(con.execute("""SELECT w.g,COUNT(*) FROM voter_donor_affiliation a
+    don = dict(con.execute(f"""SELECT w.g,COUNT(*) FROM {panel} a
         JOIN _w w ON w.sid=a.state_voter_id WHERE w.g IS NOT NULL GROUP BY 1""").fetchall())
     rt, dt = sum(roll.values()), sum(don.values())
     ipw = {g: don.get(g, 0) / (pm[g] / 100) for g in roll if pm.get(g)}
@@ -295,7 +319,6 @@ def _finding6(d):
     # notice rows (they restate the periodic Schedule E and double the totals)
     # AND any row loaded before that distinction was recorded. Without this stop
     # a stale table asserts $0.0M rather than failing.
-    # (public adaptation: assert_ie_classified is defined at module level above)
     assert_ie_classified(c)
     # WA-03 2024: the most IE-saturated US House race in the country that cycle.
     tot, net = c.execute("""
@@ -358,6 +381,192 @@ def _scale(con, d):
         d[f"wa_{key}"] = float(v)
 
 
+#: The state-disclosure layer inside each state's `individual_contributions`, by the
+#: `contribution_id` prefix that CLAUDE.md makes the scoping rule. TX has none — it is
+#: FEC-only in this table, which is why it carries no state row in the inventory sum.
+_STATE_LAYER = {"wa": "PDC:", "ny": "NY:", "id": "SUNSHINE:", "tx": None}
+
+
+def _inventory(d):
+    """The "Data, and what each state can actually support" table — the paper's scale claims.
+
+    ADDED 2026-08-26 with the whole-document window. This section is the first thing a
+    reader meets after the scope statement and it is where the programme states its size:
+    row counts, dollar totals, the per-panel matched counts. Nothing asserted any of it.
+    That is worse than it sounds, because the paragraph itself says "Every count below is a
+    **live read that drifts** as the 2026 cycle accrues" — an explicitly drifting figure with
+    no gate is a figure that will be wrong and cannot announce it.
+
+    THREE BASES, and they are NOT interchangeable — writing them down is the point:
+
+      federal layer   `contribution_id LIKE 'FEC:%'`, the BULK loader's rows. This is what
+                      every published federal cut in the series is scoped to, and it is what
+                      the per-state "WA 5.58M / NY 9.98M / TX 12.56M / ID 0.77M" row is.
+      state layer     the per-state disclosure prefix in _STATE_LAYER.
+      the table       `COUNT(*)`, which is NOT the sum of the two. WA and NY each hold a
+                      further 45,494 rows whose `contribution_id` carries no prefix at all.
+
+    WHAT THOSE 45,494 ROWS ARE, since the number is the same in both databases and that
+    looks like a copy: they are not. WA's carry WA candidate ids (H0WA02080, H0WA03187),
+    NY's carry NY ones (H0NY09080, H2NY03139); the equal count is a property of the FEC API
+    loader's paging, not a shared population. They came from `load-fec-contributions-allcycles`
+    rather than the bulk file, and they are donor-residence UNFILTERED — the top contributor
+    state in both is California — so they are inflow-shaped rows sitting in a table CLAUDE.md
+    defines as outflow. No published cut reads them: every federal figure filters `FEC:%` and
+    every panel is built with the matcher's `source_prefixes`.
+
+    They matter to exactly one sentence, which is why this is derived rather than exempted.
+    "Adding each state's own finance system takes it to N rows" describes federal + state
+    layers, and that sum is 36.0M. 36.1M was `COUNT(*)`, which adds 90,988 rows from neither
+    layer. Same digit either way in the dollar total ($6.06B both ways), so the row count is
+    the only place the two bases separate — and it separated in the direction that made the
+    programme look bigger than the sentence's own description supports.
+    """
+    wa = duckdb.connect(str(DATA / "wa_statewide.duckdb"), read_only=True)
+    wa.execute(f"ATTACH '{DATA / 'wa_vrdb.duckdb'}' AS vrdb (READ_ONLY)")
+    # ELECTIONS, on the precinct-results basis and not `COUNT(*) FROM elections`. The two
+    # differ by one today and the difference is structural, not a rounding: the 2026 primary
+    # is JSON-loaded and has ZERO precinct rows by design (see CLAUDE.md on the votewa.gov
+    # migration), so it is a row in `elections` and not an election this figure counts.
+    # Taking the easier count would have printed 23 for a "precinct-result rows across N
+    # elections" claim whose own denominator has 22.
+    d["inv_wa_precinct_m"], d["inv_wa_elections"] = wa.execute(
+        "SELECT COUNT(*)/1e6, COUNT(DISTINCT election_id) FROM precinct_results").fetchone()
+    d["inv_wa_vs_m"], d["inv_wa_voters_m"] = wa.execute(
+        "SELECT COUNT(*)/1e6, COUNT(DISTINCT state_voter_id)/1e6 FROM voter_scores").fetchone()
+    d["inv_wa_vrdb_hist_m"], = wa.execute(
+        "SELECT COUNT(*)/1e6 FROM vrdb.voting_history").fetchone()
+    wa.close()
+
+    fed_rows = fed_usd = all_rows = all_usd = api_extra = 0.0
+    star_rows = star_usd = 0.0
+    for st in ("wa", "ny", "tx", "id"):
+        c = duckdb.connect(str(DATA / f"{st}_statewide.duckdb"), read_only=True)
+        n, m = c.execute(
+            "SELECT COUNT(*), SUM(contribution_amount)/1e6 FROM individual_contributions "
+            "WHERE contribution_id LIKE 'FEC:%'").fetchone()
+        d[f"inv_{st}_fed_rows_m"], d[f"inv_{st}_fed_musd"] = n / 1e6, float(m)
+        fed_rows += n
+        fed_usd += float(m)
+        layer = _STATE_LAYER[st]
+        sn, sm = (0, 0.0)
+        if layer:
+            sn, sm = c.execute(
+                "SELECT COUNT(*), SUM(contribution_amount)/1e6 FROM individual_contributions "
+                f"WHERE contribution_id LIKE '{layer}%'").fetchone()
+            # ONLY WASHINGTON'S state layer is stored, because only Washington's is printed
+            # ("FEC $646.2M + state PDC $394.6M"). The other three states' state layers feed
+            # the four-state totals below as locals. Deriving and storing all four would put
+            # six keys nothing probes into the mutation sweep's no-probe bucket, which raises
+            # the ceiling without raising the coverage — the sweep counted exactly that on
+            # this block's first run.
+            # ...and of Washington's pair only the DOLLARS are a key, because the dollars are
+            # what the paper prints for the PDC layer ("state PDC `$394.6M`"). Its row count
+            # is summed into the 8.6M and never printed alone, so it stays a local: a key the
+            # sweep can mutate without any probe noticing is a key that is not being checked,
+            # whatever it feeds — the sweep mutates `d` after derive() has already run.
+            if st == "wa":
+                wa_state_rows = sn
+                d["inv_wa_state_musd"] = float(sm)
+        # The RETIRED basis, derived rather than transcribed. The correction note has to keep
+        # saying what 36.1M was, and a note that quotes a figure the data no longer produces
+        # is a worse defect than the one it corrects — so the plain row count is asserted too.
+        tot, tot_m = c.execute("SELECT COUNT(*), SUM(contribution_amount)/1e6 "
+                               "FROM individual_contributions").fetchone()
+        star_rows += tot
+        star_usd += float(tot_m)
+        api_extra += tot - n - sn
+        all_rows += n + sn
+        all_usd += float(m) + float(sm)
+        # Matched panels, quoted PER PANEL in the same bullet. The pooled WA figure is
+        # asserted separately and hard, by the 314,974 guard at the top of derive().
+        for tag, tbl in (("fed", "voter_donor_affiliation_fec"),
+                         ("state", "voter_donor_affiliation_state")):
+            try:
+                v, = c.execute(f"SELECT COUNT(*) FROM {tbl}").fetchone()
+                d[f"inv_{st}_panel_{tag}"] = int(v)
+            except duckdb.CatalogException:
+                pass                                    # TX has no voter file, so no panel
+        c.close()
+
+    d["inv_wa_contrib_rows_m"] = d["inv_wa_fed_rows_m"] + wa_state_rows / 1e6
+    # The dollar total is printed in BILLIONS and only in billions, so only the billions key
+    # is stored — a millions intermediate beside it is a key no probe can reach.
+    d["_inv_wa_contrib_busd"] = (d["inv_wa_fed_musd"] + d["inv_wa_state_musd"]) / 1e3
+    d["inv_fed_rows_m"], d["inv_fed_busd"] = fed_rows / 1e6, fed_usd / 1e3
+    d["inv_all_rows_m"], d["inv_all_busd"] = all_rows / 1e6, all_usd / 1e3
+    d["inv_star_rows_m"], d["inv_star_busd"] = star_rows / 1e6, star_usd / 1e3
+    d["inv_api_extra"] = int(api_extra)
+
+    # The two voter-file sizes the paper states, both ROW counts of the loaded roll. NY's is
+    # quoted as 13.5M in the support table and 13.54M in the Conclusion, and is pinned at
+    # 13,540,505 in the NY paper's own verifier; these are the coarse restatements, so they
+    # are checked at the precision printed. WA's roll is NOT derived here — the paper states
+    # WA's scale as voter-score rows and distinct voters, not as a roll count, so a wa key
+    # would be a derivation with nothing to check it against.
+    for st in ("ny", "id"):
+        c = duckdb.connect(str(DATA / f"{st}_vrdb.duckdb"), read_only=True)
+        d[f"inv_{st}_roll_m"], = c.execute("SELECT COUNT(*)/1e6 FROM voters").fetchone()
+        c.close()
+
+
+#: The current backtest, pinned rather than re-run. A verifier cannot run the forecast model
+#: over every district-cycle inside a ten-second gate, and re-implementing it here would fork
+#: the model rather than check it — the same reasoning that keeps Finding 6's slope out of this
+#: file. So the run is the measurement, the CSV is the frame, and this asserts the paper
+#: against the frame. Same pattern as the ACS population pin and the IE current-cycle pin.
+BACKTEST_PIN = vp.DOCS / "reference" / "backtest_current_2026-08-26.csv"
+
+
+def _backtest(d):
+    """The backtest metrics the limits section states, read from the pinned run.
+
+    ADDED 2026-08-26, when a re-run settled a question that had been declared in UNCHECKED.
+    The section used to quote TWO pairs as one backtest — "MAE 6.41, 94% directional on 163
+    filtered cells; 10.12 / 85% on the unfiltered 170-cell grid" — and both halves of that
+    framing were wrong: 170 was the VALID-cell count on the May-2026 grid (the same kind of
+    quantity as 163, not an unfiltered counterpart), and 10.12/85% belongs to the v-may15 model
+    against 6.41/94% for v-jun17. A fresh run gives 163 valid of 236 attempted.
+
+    Pinning rather than declaring is the upgrade: the figures were previously in UNCHECKED with
+    the model-version question written out, which is honest but unenforced. A pin makes them
+    fail if the paper drifts, and re-pinning is a deliberate act with a dated filename.
+    """
+    import csv  # noqa: PLC0415
+    with BACKTEST_PIN.open(encoding="utf-8", newline="") as fh:
+        rows = {r["metric"]: float(r["value"]) for r in csv.DictReader(fh)}
+    for k in ("cells_valid", "mae_margin", "directional_accuracy",
+              "systematic_bias", "ci_coverage_95"):
+        if k not in rows:
+            raise SystemExit(
+                f"FATAL: {BACKTEST_PIN.name} is missing {k!r}. The limits section states it, so "
+                f"a pin without it cannot check the sentence.")
+        d[f"bt_{k}"] = rows[k]
+
+
+def _ledger_mean(d):
+    """The unweighted mean of Appendix A's Failure column, read out of the table itself.
+
+    A DERIVATION WITH NO DATABASE IN IT, and that is the whole point. Appendix A's paragraph
+    makes a claim ABOUT its own table — that the published 22/100 "cannot be recomputed from
+    the table below, which gives an unweighted mean of 18.3". Nothing outside the document
+    can settle that; the table is the only source, so the check has to read the table.
+
+    Written as a parse rather than a constant so that editing a cell moves the derived mean
+    and fails the probe. A transcribed 18.3 would agree with a table it no longer describes,
+    which is the failure mode the paragraph is itself warning about one sentence earlier.
+    """
+    rows = re.findall(r"^\| (?!Question|-)[^|]+\| *(\d+) *\| *(\d+) *\|",
+                      PAPER.read_text(encoding="utf-8"), re.M)
+    fails = [int(f) for _ins, f in rows]
+    if len(fails) != 10:
+        raise AssertionError(
+            f"Appendix A's ledger parsed to {len(fails)} scored questions, not the ten the "
+            "paragraph above it describes — the table's shape moved and this derivation is "
+            "reading the wrong thing. Fix the parse deliberately, do not widen it.")
+    d["ledger_mean"] = sum(fails) / len(fails)
+
+
 def _companions(d):
     """Figures this synthesis QUOTES rather than owns, scraped from the owning papers.
 
@@ -384,6 +593,7 @@ def _companions(d):
     mp = re.sub(r"\s+", " ", MONEY_PAPER.read_text(encoding="utf-8"))
     wa = re.sub(r"\s+", " ", WA_PAPER.read_text(encoding="utf-8"))
     ss = re.sub(r"\s+", " ", SAFE_SEAT_PAPER.read_text(encoding="utf-8"))
+    xs = re.sub(r"\s+", " ", XSTATE_PAPER.read_text(encoding="utf-8"))
 
     def grab(text, rx, keys, cast=float, where=""):
         m = re.search(rx, text)
@@ -479,6 +689,11 @@ def _companions(d):
     d["wp_retired_r65_off"] = 61.3
     d["money_r_fundraising_retired"] = 0.58
     d["money_holdout_alloc_retired"] = 0.02
+    # The in-state share the nationalization item retires as an ingestion artifact. Held as
+    # a constant for the same reason as the pair above: it exists nowhere else now, because
+    # the ingest direction that produced it was corrected, and the note's whole job is to say
+    # what the number WAS. Probed so it cannot be "corrected" into a current figure.
+    d["wp_retired_instate_share"] = 93.6
     # Idaho's unaffiliated recipient-resolution rate, which decides whether that row can
     # carry a direction. Owned and asserted by verify_who_decides_id.py (xo_UNAFF_resolved_pct);
     # restated here because Finding 5 gives it as the reason the state panel is not used.
@@ -505,6 +720,35 @@ def _companions(d):
             f"FATAL: the safe-seat WA per-cycle table yielded {len(cyc)} of 5 cycles; "
             f"Finding 2's not-close range is a span over exactly those rows.")
     d["ss_wa_cycle_lo"], d["ss_wa_cycle_hi"] = min(cyc), max(cyc)
+
+    # ---- "What the evidence does not support" — the nationalization result (2026-08-26) ---
+    # This section reports the ONE blocked question that became answerable, and it does so by
+    # quoting ten figures from cross-state-fec-money.md §E-I. It sat outside the scrape
+    # window, so none was read. Scraped from the owning paper's own MATRIX ROWS rather than
+    # from its prose, for the reason the safe-seat per-cycle scrape gives: the synthesis
+    # prints these rounded to whole percent and rounding a rounded number is how this project
+    # has been bitten.
+    #
+    # ⚠ A NEAR-MISS WORTH RECORDING. The synthesis gives "27% (WA) / 41% (NY) / 34% (TX) /
+    # 53% (ID)" and the money paper has a sentence reading "(WA 41%, TX 45%, NY 53%)" —
+    # overlapping digits, different state order, and it is NOT the same quantity: that
+    # sentence is the SENATE-only out-of-state share, while the synthesis is quoting the
+    # House+Senate inflow matrix's Rest-of-US column. Anchoring on the prose would have
+    # produced a check that passed against the wrong row. Anchor on the table.
+    infl = re.findall(r"\| \*\*(WA|NY|TX|ID)\*\* \| \$[\d.]+M \| \*?[\d.]+%\*? \| "
+                      r"\*?\*?[\d.]+%\*?\*? \| \*?\*?([\d.]+)%\*?\*? \|", xs)
+    if len(infl) != 8:
+        raise SystemExit(
+            f"FATAL: the cross-state money paper's two flow matrices yielded {len(infl)} of "
+            "8 rows (4 inflow + 4 outflow). The synthesis's nationalization paragraph is a "
+            "restatement of exactly those Rest-of-US cells; re-point this scrape.")
+    for i, (st, rest) in enumerate(infl):
+        d[f"xs_{'in' if i < 4 else 'out'}_{st.lower()}"] = float(rest)
+    grab(xs, r"`fec_inflow\.duckdb`: \*\*([\d.]+)M contributions / \$([\d.]+)B\*\*",
+         ("xs_inflow_rows_m", "xs_inflow_busd"),
+         where="the cross-state money paper's Section E provenance line")
+    grab(xs, r"Loeffler\) drew ~\$(\d+)M\*\* from residents", ("xs_georgia_musd",),
+         where="the cross-state money paper's magnet list")
 
 
 def _money_paper(d):
@@ -575,6 +819,16 @@ def _money_paper(d):
     m = re.search(r"\| allocation shares alone \| ([\d.]+) \|", t)
     if m:
         d["money_holdout_alloc"] = float(m.group(1))
+    # The pre-election cutoff pair (2026-08-29): scraped from the owning paper's Finding 1
+    # restatement so a re-pin of fec_receipts_preelection_2026-08-29.csv moves both
+    # documents. verify_money_votes.py derives the pair from the pins; this document only
+    # restates it. RE-ANCHORED the same day: the owner adopted the authorized-committee
+    # universe and the "essentially unchanged" framing after a referee pass.
+    m = re.search(r"correlation is essentially unchanged — \*\*\+([\d.]+)\*\* against "
+                  r"\*\*\+([\d.]+)\*\*\s*full-cycle on the same\s*report-built basis", t)
+    if m:
+        d["money_pre_r"] = float(m.group(1))
+        d["money_fullrep_r"] = float(m.group(2))
 
 
 def _finding3(d):
@@ -677,13 +931,31 @@ def derive():
     d["wa_pooled_zip3"] = _zip3_top2(wa, "voter_donor_affiliation")
     d["wa_fed_zip3"] = _zip3_top2(wa, "voter_donor_affiliation_fec")
     ipw, pm_lo, pm_hi = _ipw(wa)
-    d["wa_ipw_Silent"], d["wa_ipw_Gen Z"] = ipw["Silent"][1], ipw["Gen Z"][1]
-    # The LEFT side of the "1.96→1.91×" arrow, previously unprobed. Taken from _ipw's own
-    # raw ratio rather than from _multipliers, so both halves of one sentence sit on one
-    # basis (vrdb.voters + birth year, not voter_scores ld-scope). The two agree to 2dp on
-    # WA — see _multipliers' docstring — which is why the paper can print the pooled figure
-    # from one beside the IPW figure from the other.
-    d["wa_raw_Silent"], d["wa_raw_Gen Z"] = ipw["Silent"][0], ipw["Gen Z"][0]
+    # RAW and INVERSE-PROPENSITY-REWEIGHTED multipliers, ALL FIVE GENERATIONS, because the
+    # sentence they answer says "every Washington generation multiplier is unchanged to two
+    # decimal places in both panels" (Finding F, the matcher-artifact objection). Read by
+    # `claim_guards`, which is the only thing that can check that sentence: a claim of
+    # INVARIANCE carries no numeric token for a probe to capture or the coverage audit to
+    # see, and the one digit in it ("two") is waived by the small-integer rule.
+    #
+    # ⚠ THESE KEYS WERE DEAD UNTIL 2026-08-24. Two were added to probe a "1.96 → 1.91×"
+    # arrow that has since been removed from the paper -- 0 occurrences of "1.91", "IPW" or
+    # "inverse-propensity" remain -- so they were derived, described in a comment as probed,
+    # and consumed by nothing. Found by the no-probe triage
+    # (scripts/diag_triage_no_probe_keys.py); this is the fix. Storing only Silent and Gen Z
+    # would under-check a claim that says "every".
+    for _g in GENS:
+        d[f"wa_raw_{_g}"], d[f"wa_ipw_{_g}"] = ipw[_g][0], ipw[_g][1]
+    # The FEDERAL panel too, because the sentence says "in both panels". pm_lo/pm_hi are a
+    # property of the ROLL, not the panel, so they are taken from the pooled call only.
+    _ipw_fed, _, _ = _ipw(wa, "voter_donor_affiliation_fec")
+    for _g in GENS:
+        d[f"wafed_raw_{_g}"], d[f"wafed_ipw_{_g}"] = _ipw_fed[_g][0], _ipw_fed[_g][1]
+    # The largest movement in EITHER panel. Printed, so the paper states a measured maximum
+    # rather than a threshold nobody checks -- the sentence used to claim invariance to two
+    # decimal places, which was false in six of ten cells.
+    d["wa_ipw_max_move"] = max(abs(a - b) for _p in (ipw, _ipw_fed)
+                               for a, b in (_p[_g] for _g in GENS))
     d["wa_pmatch_lo"], d["wa_pmatch_hi"] = pm_lo, pm_hi
     # The all-tier federal top-1% the F2 line records as its own superseded value. Derived
     # rather than exempted: the retained _alltier snapshot reproduces it to the digit
@@ -692,6 +964,9 @@ def derive():
     _scale(wa, d)
     d.update({f"wa_{k}": v for k, v in _turnout(wa).items()})
     wa.close()
+    _inventory(d)
+    _ledger_mean(d)
+    _backtest(d)
 
     ny = _party_and_age("ny", "CASE WHEN v.party IN ('DEM','D') THEN 'DEM' ELSE 'X' END", "DEM",
                         dem_pred="IN ('DEM','D')")
@@ -781,6 +1056,140 @@ def derive():
 # ------------------------------------------------------------------------------ the probes
 # (label, regex over the normalised Findings 4-5 text, derived key(s), tolerance)
 PROBES = [
+    # ---- "Data, and what each state can actually support" (gated 2026-08-26) -------------
+    # The paragraph these sit under says every count in it is "a live read that drifts". It
+    # was right, and until this block existed nothing read them. See _inventory for the three
+    # bases and for what the 36.1M -> 36.0M correction was.
+    ("inventory — WA precinct rows and the elections they span",
+     r"~([\d.]+)M precinct-result rows across (\d+) elections",
+     ("inv_wa_precinct_m", "inv_wa_elections"), 0.05),
+    ("inventory — WA contributions, rows and dollars",
+     r"\*\*([\d.]+)M individual\s+contributions, \$([\d.]+)B\*\*",
+     ("inv_wa_contrib_rows_m", "_inv_wa_contrib_busd"), 0.05),
+    ("inventory — WA federal and state dollar layers",
+     r"\(FEC `\$([\d.]+)M` \+ state PDC `\$([\d.]+)M`",
+     ("inv_wa_fed_musd", "inv_wa_state_musd"), 0.05),
+    ("inventory — WA voter-score rows and distinct voters",
+     r"~([\d.]+)M voter-score rows \(one per voter per district scope,\s*~([\d.]+)M distinct voters\)",
+     ("inv_wa_vs_m", "inv_wa_voters_m"), 0.05),
+    ("inventory — WA VRDB vote records",
+     r"~([\d.]+)M individual VRDB vote records", "inv_wa_vrdb_hist_m", 0.05),
+    ("inventory — four-state federal layer",
+     r"\*\*([\d.]+)M contribution rows / \$([\d.]+)B\*\* of\s+resident-donor outflow",
+     ("inv_fed_rows_m", "inv_fed_busd"), 0.05),
+    ("inventory — per-state federal rows and dollars",
+     r"\(WA ([\d.]+)M/\$([\d.]+)M · NY ([\d.]+)M/\$([\d,.]+)M · TX ([\d.]+)M/\$([\d,.]+)M ·\s*"
+     r"ID ([\d.]+)M/\$([\d.]+)M\)",
+     ("inv_wa_fed_rows_m", "inv_wa_fed_musd", "inv_ny_fed_rows_m", "inv_ny_fed_musd",
+      "inv_tx_fed_rows_m", "inv_tx_fed_musd", "inv_id_fed_rows_m", "inv_id_fed_musd"), 0.05),
+    # The corrected total AND the row count the correction note retires, as a pair — same
+    # discipline as the Finding 6 correction-note probes: a note that retires a figure has to
+    # keep stating it, and the live sentence has to keep stating the derived one, so a later
+    # drift cannot make the two agree by moving the wrong one.
+    ("inventory — federal plus state layers, all four states",
+     r"takes it to \*\*([\d.]+)M rows /\s*\$([\d.]+)B\*\*", ("inv_all_rows_m", "inv_all_busd"),
+     0.05),
+    ("inventory — the retired plain row count, as the correction note states it",
+     r"This read \"([\d.]+)M\" until 2026-08-26", "inv_star_rows_m", 0.05),
+    ("inventory — the two bases, side by side in the correction note",
+     r"their sum is ([\d.]+)M; ([\d.]+)M was a plain row\s+count",
+     ("inv_all_rows_m", "inv_star_rows_m"), 0.05),
+    ("inventory — the API-loaded rows the 36.1M count had swept in",
+     r"picks up ([\d,]+) rows loaded from the FEC \*\*API\*\*", "inv_api_extra", 0),
+    # "on either basis" is an equality claim, so BOTH bases are asserted against the one
+    # printed digit. Stating it and checking only the basis you kept is how a claim of
+    # agreement survives the two sides diverging.
+    ("inventory — dollar total, layer basis",
+     r"dollar total is \$([\d.]+)B on either basis", "inv_all_busd", 0.005),
+    ("inventory — dollar total, plain-row-count basis (the same printed digit)",
+     r"dollar total is \$([\d.]+)B on either basis", "inv_star_busd", 0.005),
+    ("inventory — matched panels, quoted per panel",
+     r"WA federal ([\d,]+) / state ([\d,]+); NY federal\s*([\d,]+) / state ([\d,]+); "
+     r"ID federal ([\d,]+) / state ([\d,]+)",
+     ("inv_wa_panel_fed", "inv_wa_panel_state", "inv_ny_panel_fed", "inv_ny_panel_state",
+      "inv_id_panel_fed", "inv_id_panel_state"), 0),
+    ("inventory — the pooled figure it names as retired",
+     r"The pooled ([\d,]+) WA figure", "wa_pooled_n", 0),
+    ("inventory — support table, WA vote records and NY roll",
+     r"\*\*measured\*\* \(([\d.]+)M vote records, birthdate\) \| \*\*measured\*\* "
+     r"\(([\d.]+)M roll, year of birth\)",
+     ("inv_wa_vrdb_hist_m", "inv_ny_roll_m"), 0.05),
+    ("inventory — support table, the campaign-effects cell counts",
+     r"\*\*measured\*\* \((\d+) federal \+ (\d+) state cells\)", ("ie_n", "leg_n"), 0),
+
+    # ---- "What the evidence does not support" (gated 2026-08-26) -------------------------
+    # The nationalization result, restated from cross-state-fec-money.md §E-I. Tolerance is
+    # 0.5 on the whole-percent cells because the synthesis rounds the owning paper's one
+    # decimal: 26.7 -> 27, 34.2 -> 34, 53.3 -> 53. That is a rounding the synthesis is
+    # entitled to make; what it is not entitled to do is round to a DIFFERENT integer than
+    # the current cell, which is what this catches.
+    ("limits — inflow Rest-of-US share, all four states",
+     r"inflow level: \*\*(\d+)% \(WA\) / (\d+)% \(NY\) / (\d+)% \(TX\) / (\d+)% \(ID\)\*\*",
+     ("xs_in_wa", "xs_in_ny", "xs_in_tx", "xs_in_id"), 0.5),
+    ("limits — outflow Rest-of-US share, the three named in the sentence",
+     r"\(ID (\d+)% — the most — NY (\d+)%, WA ([\d.]+)%\)", ("xs_out_id", "xs_out_ny",
+                                                             "xs_out_wa"), 0.5),
+    ("limits — outflow, the Texas cell the sentence contrasts",
+     r"\*\*Texas sends (\d+)%\*\*", "xs_out_tx", 0.5),
+    ("limits — the recipient-anchored inflow dataset",
+     r"dataset \(([\d.]+)M gifts / \$([\d.]+)B, all-state donors",
+     ("xs_inflow_rows_m", "xs_inflow_busd"), 0.005),
+    ("limits — Georgia Senate, the magnet-list anecdote",
+     r"Georgia Senate races alone drew ~\$(\d+)M", "xs_georgia_musd", 0.5),
+    # The BACKTEST, pinned 2026-08-26 (see _backtest). Previously declared in UNCHECKED with
+    # the model-version question written out; a re-run settled it, so it is asserted now.
+    ("limits — the backtest, live sentence",
+     r"MAE ([\d.]+), (\d+)% directional\s+across (\d+) district-cycles\*\*, bias \+([\d.]+), "
+     r"95% interval covering (\d+)%",
+     ("bt_mae_margin", "bt_directional_accuracy", "bt_cells_valid", "bt_systematic_bias",
+      "bt_ci_coverage_95"), 0.05),
+    ("limits — the backtest, restated in the withdrawal note",
+     r"(\d+) valid cells of 236 attempted \(73 skipped\), MAE ([\d.]+), (\d+)% directional, "
+     r"bias \+([\d.]+), CI coverage (\d+)%",
+     ("bt_cells_valid", "bt_mae_margin", "bt_directional_accuracy", "bt_systematic_bias",
+      "bt_ci_coverage_95"), 0.05),
+    ("limits — the in-state share the item retires as an ingestion artifact",
+     r"The earlier \"([\d.]+)% in-state\"", "wp_retired_instate_share", 0.05),
+
+    # ---- Conclusion and appendices (gated 2026-08-26) ------------------------------------
+    # Everything here is a RESTATEMENT of a figure owned earlier in this paper or by a
+    # companion, which is the one surface this file was built to guard and the one it could
+    # not see until the scrape window became the whole document. The Conclusion's own
+    # correction note records what that cost: a false "most seats are uncontested" verdict
+    # shipped "outside every coverage span, while the finding that corrects it was gated".
+    ("conclusion — the safe-seat shares, restated in the closing verdict's correction note",
+     r"\*\*([\d.]+)%\*\* of seats were not close and \*\*([\d.]+)%\*\* offered no D-v-R",
+     ("ss_wa24_notclose", "ss_wa24_no_dvr"), 0.05),
+    ("conclusion — the two voter files, by roll size",
+     r"NYSVOTER FOIL, ([\d.]+)M\) and ID \(SoS statewide file, ([\d.]+)M\)",
+     ("inv_ny_roll_m", "inv_id_roll_m"), 0.005),
+    # Appendix A's "and never re-run" sentence contrasts the 2026-06-27 data description with
+    # TODAY's. The historical half cannot be re-derived — that is the point of the sentence —
+    # but the CURRENT half is the inventory section restated 40,000 characters later, and a
+    # restated inventory is exactly what drifts. Probed against the same keys, so the two
+    # cannot disagree.
+    ("appendix A — the current data description, restated against the inventory",
+     r"against (\d+), \$([\d.]+)B \(Washington\) and ([\d.]+)M today",
+     ("inv_wa_elections", "_inv_wa_contrib_busd", "inv_wa_vs_m"), 0.05),
+    # The ledger's own arithmetic. The paragraph above the table says the published 22/100
+    # "cannot be recomputed from the table below, which gives an unweighted mean of 18.3" —
+    # a claim ABOUT the table, checkable from the table and from nothing else. Derived by
+    # parsing the ten Failure cells rather than transcribed, so editing a cell moves it.
+    ("appendix A — unweighted mean of the ledger's failure column",
+     r"unweighted mean of (\d+\.\d+)", "ledger_mean", 0.05),
+    ("appendix B — fundraising correlation, restated in the money-series summary",
+     r"strongest single correlate of overperformance \(\+([\d.]+)\)",
+     "money_r_fundraising", 0.005),
+    ("appendix B — allocation squared holdout correlation, restated in the money-series summary",
+     # RE-ANCHORED 2026-08-29: the paper stopped calling this quantity "holdout R²" —
+     # the owning paper corrected the name to "squared holdout correlation" and the
+     # synthesis had kept the old label (an external referee's catch). \s+ because the
+     # restatement wraps mid-phrase.
+     r"allocation squared\s+holdout correlation ([\d.]+)", "money_holdout_alloc", 0.005),
+    ("appendix B — the two directional panels, restated in the money-series summary",
+     r"run across (\d+) federal district-cycles and a further (\d+)\s+state-legislative ones",
+     ("ie_n", "leg_n"), 0),
+
     # RE-POINTED 2026-08-15. These five probes used to sit on live claims; the claims are
     # retired and the figures now appear only inside the notes that retire them. Keeping the
     # probes there is deliberate: a retired figure quoted wrongly is still a defect, and the
@@ -789,9 +1198,12 @@ PROBES = [
      r"the \*\*pooled\*\* ([\d,]+)-voter match", "wa_pooled_n", 0),
     ("pooled matched voters (F2 retirement note)",
      r"on the pooled ([\d,]+) match, top-1%", "wa_pooled_n", 0),
-    # NB there is a third restatement of this figure, in the Data-provenance block, which
-    # these probes cannot reach: they run over the Findings 3-6 slice only. It is covered by
-    # the whole-document restatement guard instead, not left unchecked.
+    # NB there is a third restatement of this figure, in the Data-provenance block. That
+    # comment used to end "which these probes cannot reach: they run over the Findings 3-6
+    # slice only" — true when the scrape window was a regex slice, false since 2026-08-26.
+    # The window is the whole document now, and that restatement has its own probe
+    # ("inventory — the pooled figure it names as retired") rather than relying on wording
+    # these two anchors do not match.
     ("super-voter donor / non-donor % (retirement note)",
      r"\"([\d.]+)% are super-voters vs ([\d.]+)%\"", ("wa_super_d", "wa_super_n"), 0.05),
     ("Finding 4 — the eligible-for-all age-standardized gap that REPLACED the super-voter cut",
@@ -810,26 +1222,35 @@ PROBES = [
     ("state panel donors / top-1% / Gini",
      r"\*\*state\*\* ([\d,]+) / \*\*([\d.]+)%\*\* / \*\*([\d.]+)\*\*",
      ("wa_state_n", "wa_state_top1", "wa_state_gini"), 0.05),
-    ("pooled generation multipliers",
-     r"pooled WA: Silent \*\*([\d.]+)×\*\*,\s*Boomer \*\*([\d.]+)×\*\* over-represented; "
-     r"Gen Z \*\*([\d.]+)×\*\*, Millennial \*\*([\d.]+)×\*\*",
-     ("wa_pooled_mult_Silent", "wa_pooled_mult_Boomer", "wa_pooled_mult_Gen Z",
-      "wa_pooled_mult_Millennial"), 0.005),
-    ("federal generation multipliers",
-     r"— ([\d.]+)× / ([\d.]+)× / ([\d.]+)× / ([\d.]+)× on the federal panel",
+    # --- 3c's defensible claim, RE-ANCHORED 2026-08-29: the claim now leads with the
+    # federal panel and demotes the superseded pooled figures to trailing context (an
+    # external referee found the synthesis still headlining pooled figures its own panel
+    # note supersedes). Every number is unchanged; the ORDER swapped, so the two probes
+    # whose regex survived the reorder ("top 10%") swap their key tuples — binding the
+    # first group to the pooled key after the reorder would fail on a real distinction.
+    ("federal generation multipliers (3c lead)",
+     r"WA federal panel: Silent \*\*([\d.]+)×\*\*, Boomer \*\*([\d.]+)×\*\* over-represented; "
+     r"Gen Z \*\*([\d.]+)×\*\*,\s*Millennial \*\*([\d.]+)×\*\*",
      ("wa_fed_mult_Silent", "wa_fed_mult_Boomer", "wa_fed_mult_Gen Z",
       "wa_fed_mult_Millennial"), 0.005),
-    ("two-ZIP3 share, pooled", r"\*\*([\d.]+)% of WA donor dollars", "wa_pooled_zip3", 0.05),
+    ("pooled generation multipliers (superseded, trailing)",
+     r"— ([\d.]+)× / ([\d.]+)× / ([\d.]+)× / ([\d.]+)× on the superseded\s+pooled basis",
+     ("wa_pooled_mult_Silent", "wa_pooled_mult_Boomer", "wa_pooled_mult_Gen Z",
+      "wa_pooled_mult_Millennial"), 0.005),
+    ("two-ZIP3 share, federal (3c lead)",
+     r"\*\*([\d.]+)% of WA federal donor\s+dollars", "wa_fed_zip3", 0.05),
+    ("two-ZIP3 share, pooled (trailing)",
+     r"two Seattle-metro ZIP3s\*\*; ([\d.]+)% pooled", "wa_pooled_zip3", 0.05),
     ("two-ZIP3 share, pooled (F2 retirement note)",
      r"and \*\*([\d.]+)%\*\* of dollars from two Seattle ZIP3s", "wa_pooled_zip3", 0.05),
-    ("two-ZIP3 share, federal", r"([\d.]+)% federal-only", "wa_fed_zip3", 0.05),
     ("two-ZIP3 share, federal (F2 restatement)",
      r"two-ZIP3 share \*\*([\d.]+)%\*\*", "wa_fed_zip3", 0.05),
-    ("top-1% pooled then federal",
-     r"supply \*\*([\d.]+)%\*\* of matched dollars pooled, \*\*([\d.]+)%\*\* federal",
-     ("wa_pooled_top1", "wa_fed_top1"), 0.05),
-    ("top-10% pooled / federal",
-     r"top 10% \*\*([\d.]+)%\*\* / \*\*([\d.]+)%\*\*", ("wa_pooled_top10", "wa_fed_top10"), 0.05),
+    ("top-1% federal then pooled",
+     r"supply \*\*([\d.]+)%\*\* of matched dollars on the federal panel,\s+"
+     r"\*\*([\d.]+)%\*\* pooled",
+     ("wa_fed_top1", "wa_pooled_top1"), 0.05),
+    ("top-10% federal / pooled",
+     r"top 10% \*\*([\d.]+)%\*\* / \*\*([\d.]+)%\*\*", ("wa_fed_top10", "wa_pooled_top10"), 0.05),
     ("pooled top-1% / top-10% / Gini (F2 retirement note)",
      r"top-1% \*\*([\d.]+)%\*\*, top-10%\s*\*\*([\d.]+)%\*\*, Gini ([\d.]+)",
      ("wa_pooled_top1", "wa_pooled_top10", "wa_pooled_gini"), 0.05),
@@ -857,6 +1278,14 @@ PROBES = [
     ("federal multipliers restated in the panel note",
      r"on the federal panel \(Silent \*\*([\d.]+)×\*\*,\s*Gen Z \*\*([\d.]+)×\*\*\)",
      ("wa_fed_mult_Silent", "wa_fed_mult_Gen Z"), 0.005),
+    # The re-weighting movement, printed 2026-08-24 in place of a false invariance claim.
+    ("Finding F — the largest re-weighting movement and the two cells the paper names",
+     r"moves by more than \*\*([\d.]+)\*\*, the largest being Silent on the federal\s+"
+     r"panel \(\*\*([\d.]+)\*\* → \*\*([\d.]+)\*\*\)",
+     ("wa_ipw_max_move", "wafed_raw_Silent", "wafed_ipw_Silent"), 0.005),
+    ("Finding F — Gen X crossing parity on the federal panel",
+     r"crosses it on the federal panel\s+\(\*\*([\d.]+)\*\* → \*\*([\d.]+)\*\*\)",
+     ("wafed_raw_Gen X", "wafed_ipw_Gen X"), 0.005),
     ("federal top-1% restated in the withdrawal note",
      r"contradicting the ([\d.]+)% in the panel note", "wa_fed_top1", 0.05),
     # RE-POINTED 2026-08-15: the "ID crossover and 51.3% figures are the state-money layer"
@@ -932,8 +1361,12 @@ PROBES = [
      ("state_gini_lo", "state_gini_hi"), 0.0005),
 
     # ---- Finding 6 ----------------------------------------------------------------------
-    ("Finding 6 — scorable races (five-cycle panel)",
-     r"2018–2026 FEC Schedule-E, (\d+) scorable WA U\.S\. House races", "ie_n", 0),
+    # RE-ANCHORED 2026-08-29: the sentence now states the inventory (five cycles) and the
+    # estimator's population (34 races, four completed cycles) SEPARATELY — the owning
+    # paper's own 2026-08-25 correction, which this document had not carried.
+    ("Finding 6 — scorable races, stated apart from the cycle inventory",
+     r"the (\d+) scorable WA U\.S\. House races all sit in the four\s*completed ones",
+     "ie_n", 0),
     ("Finding 6 — WA-03 total and net IE",
      r"WA-03 2024 \(\$([\d.]+)M total IE, \+\$([\d.]+)M net pro-Dem\)",
      ("wa03_ie_total", "wa03_ie_net"), 0.05),
@@ -972,8 +1405,14 @@ PROBES = [
     # Replaces the "0.00" literal exemption (author answered 2026-08-06: drop the tilde and
     # cite the two-decimal round). Tolerance is the paper's printed precision, not a slack
     # wide enough to let 0.00 back through.
-    ("Finding 6 — allocation holdout R2 (vs does-money-move-votes.md)",
-     r"cross-cycle holdout R² of \*\*([\d.]+)\*\*", "money_holdout_alloc", 0.005),
+    ("Finding 6 — allocation squared holdout correlation (vs does-money-move-votes.md)",
+     # RE-ANCHORED 2026-08-29, same cause as the Appendix B probe: the label moved to the
+     # owning paper's corrected term.
+     r"cross-cycle squared holdout correlation of \*\*([\d.]+)\*\*", "money_holdout_alloc", 0.005),
+    ("Finding 6 — the pre-election cutoff pair (vs does-money-move-votes.md, 2026-08-29)",
+     r"correlation is\s*essentially unchanged — \*\*\+([\d.]+)\*\* against "
+     r"\*\*\+([\d.]+)\*\* full-cycle on the same\s*report-built",
+     ("money_pre_r", "money_fullrep_r"), 0.005),
     # --- Finding 3, gated 2026-08-10. See _finding3 for why none of this was asserted.
     ("Finding 3 — median itemized gift, both money systems",
      r"median itemized gift is \$(\d+)\*\* in both money systems",
@@ -1109,6 +1548,26 @@ AUDIT_BOUNDS = {
     #
     # domain3_intro exists because spans MUST NOT OVERLAP and must not leave gaps: the prose
     # between Domain 3's heading and 3a would otherwise be audited by nothing.
+    #
+    # EXTENDED TO THE WHOLE DOCUMENT 2026-08-26. domain3_intro's comment above states the
+    # rule — "must not leave gaps" — and the bounds dict then honoured it only BETWEEN the
+    # domains. `scripts/diag_audit_span_gaps.py` measured what that cost here: 51.1% of the
+    # paper covered, 267 numeric tokens in no span at all, the worst of the ten. The audit
+    # printed "fully mapped" seven times over half a document.
+    #
+    # Two of those gaps were load-bearing, not preamble. "Data, and what each state can
+    # actually support" is the paper's inventory table — row counts, dollar totals and the
+    # per-panel matched counts a reader takes as the programme's scale — asserted by nothing.
+    # And "What the evidence does not support" plus the Conclusion RESTATE companion findings,
+    # which is the propagation surface this file exists to guard; the Conclusion's own
+    # correction note says an earlier verdict shipped a false claim there "outside every
+    # coverage span, while the finding that corrects it was gated". That note described the
+    # mechanism accurately and the mechanism was left in place.
+    "front_matter": ("# Electoral Health in Four States", "## What this paper claims"),
+    "claims": ("## What this paper claims", "## Scope and integrity statement"),
+    "scope": ("## Scope and integrity statement", "## Data, and what each state"),
+    "data_inventory": ("## Data, and what each state", "## Method Each research question"),
+    "method": ("## Method Each research question", "### Domain 1 — Participation"),
     "domain1": ("### Domain 1 — Participation", "### Domain 2 — Contestation"),
     "domain2": ("### Domain 2 — Contestation", "### Domain 3 — Political voice"),
     "domain3_intro": ("### Domain 3 — Political voice", "#### 3a. Small transactions"),
@@ -1116,6 +1575,15 @@ AUDIT_BOUNDS = {
     "money3b": ("#### 3b. Donors are also", "#### 3c. The donor class"),
     "money3c": ("#### 3c. The donor class", "### Domain 4 — Campaign effects"),
     "domain4": ("### Domain 4 — Campaign effects", " --- "),
+    "not_supported": ("## What the evidence does not support", "## Conclusion"),
+    "conclusion": ("## Conclusion", "## Appendix A — Methodological history"),
+    "appendix_a": ("## Appendix A — Methodological history",
+                   "## Appendix B — The companion papers"),
+    # The last span needs a real end anchor — vp.slice_with_offset raises rather than running
+    # to end-of-document, which is the discipline that stops a moved heading from silently
+    # widening a slice. This is the document's closing clause; nothing numeric follows it.
+    "appendix_b": ("## Appendix B — The companion papers",
+                   "remains for a future extension."),
 }
 
 COVERAGE_EXEMPT = [
@@ -1139,6 +1607,67 @@ COVERAGE_EXEMPT = [
 # Every literal here names WHERE the figure is checked, or the open question that closes it.
 # "Not a result" with no reason is how a real figure hides — see verify_who_decides_wa.
 COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
+    # --- Statute and docket numbers, exposed 2026-08-26 when the audited slice became the
+    # whole document. These are CITATIONS, not measurements: there is nothing in a database
+    # to assert them against, and the thing that could go wrong with them (citing the wrong
+    # provision) is not a numeric-drift failure. They are listed one by one rather than
+    # waived by a pattern, because a pattern loose enough to catch "08.720" would also catch
+    # real two-and-three-digit results.
+    "08.720": "RCW 29A.08.720, the statute Washington's voter file is obtained under — a "
+              "citation. The legal basis is recorded in CLAUDE.md and the ethics assessment",
+    "103": "N.Y. Elec. Law § 3-103(5), the elections-purpose certification NYSVOTER is used "
+           "under — a citation",
+    "437": "Idaho Code § 34-437A, the statute Idaho's voter file is obtained under — a "
+           "citation",
+    "56.050": "RCW 29A.56.050, the presidential-primary declaration statute — a citation. "
+              "The sentence's substantive claim is that it sets no disclosure DURATION, "
+              "which is prose, and the '~60-90 day window' it retires is explicitly marked "
+              "unverified and is not asserted",
+    # ⚠ THE FIRST DRAFT OF THIS REASON SAID check_cross_doc_consistency.py "matches it
+    # against the submission metadata". It does not — its only mention of this number is a
+    # comment about stripping a trailing comma so the IDENTIFIER ALLOWLIST recognises it,
+    # i.e. that checker waives it too. Naming a script that waives a figure as the script
+    # that verifies it is precisely the "another script owns it" failure the exemption rule
+    # was written against, so the reason states what is actually true.
+    "7149263": "the SSRN submission id of the posted Washington companion — an identifier, "
+               "not a measurement, and nothing derives it. It is waived as an identifier by "
+               "check_cross_doc_consistency.py as well; what IS checked across documents is "
+               "that the seven places it appears agree, by that script's orphan pass",
+    # --- The backtest, PINNED and PROBED since 2026-08-26 (see _backtest and BACKTEST_PIN).
+    # Six exemptions stood here while the figures were declared in UNCHECKED: 6.41, 10.12, 163,
+    # 170, 94 and 85. Five are gone because the figures they waived are either asserted now or
+    # withdrawn from the paper. What remains is the interval's NOMINAL LEVEL, which is a choice
+    # of confidence level and not a measurement of anything -- the coverage it achieves (97%) is
+    # the measurement, and that is probed.
+    # The WITHDRAWN pair and the current pair, both quoted inside the withdrawal note that
+    # explains the difference. A note whose job is to say "this said 10.12/85% on 170 cells and
+    # that was two model versions read as one" cannot avoid restating them. The LIVE sentence's
+    # figures are probed against the pin; these occurrences are the record of what was removed.
+    "10.12": "the WITHDRAWN v-may15 backtest MAE, quoted only inside its withdrawal note. Not "
+             "re-derivable on the current model, which is the point the note makes",
+    "85": "the WITHDRAWN v-may15 directional accuracy, same note, same reason",
+    "170": "the WITHDRAWN valid-cell count from the May-2026 grid. Also the label of "
+           "METHODOLOGY.md 6.3's dated 24/46/170-cell table, cited there as history",
+    "163": "the CURRENT valid-cell count, restated inside the withdrawal note; the live "
+           "sentence's occurrence is probed against bt_cells_valid",
+    "94": "the current directional accuracy, in the note's 'v-may15 versus v-jun17' contrast "
+          "where it labels a MODEL VERSION's pair rather than restating the result. The two "
+          "live occurrences are captured and probed against bt_directional_accuracy",
+    "6.41": "the CURRENT backtest MAE, restated inside the withdrawal note; the live "
+            "occurrence is probed against bt_mae_margin",
+    "95": "the interval's nominal confidence level -- a choice, not a result. The coverage it "
+          "actually achieves is 97% and is probed against the pinned backtest",
+    # --- Appendix A's 2026-06-27 data description, the HISTORICAL half of a then/now pair.
+    # These two are unre-derivable BY CONSTRUCTION: the sentence exists to say the gauntlet
+    # was scored against a data description that has since moved, so there is no current
+    # query that returns them and producing one would defeat the sentence. The half that CAN
+    # drift is the "today" half, and it is probed against the same keys the inventory section
+    # uses ("appendix A — the current data description"), so the two cannot disagree.
+    "1.3": "the ~$1.3B contribution total as the 2026-06-27 gauntlet described it — a "
+           "superseded historical figure quoted to date the scoring exercise. Its current "
+           "counterpart in the same sentence is probed against inv_wa_contrib_musd",
+    "9.2": "the 9.2M voter-score rows as of 2026-06-27, same then/now pair. The current "
+           "counterpart is probed against inv_wa_vs_m",
     "58.4": "Lucero et al. 2025's off-cycle over-45 share. NB it collides numerically with "
             "Washington's own 18-29 presidential participation rate, which is probed as "
             "wa_r1829_24 earlier in the same section — two different quantities that happen "
@@ -1284,16 +1813,72 @@ def _restated_outside_the_slice(d) -> list[str]:
         return fails + ["Appendix guard: could not scrape the allocation holdout cell from "
                         "does-money-move-votes.md — the anchor moved"]
     hwant = d["money_holdout_alloc"]
-    hhits = [float(x) for x in re.findall(r"allocation holdout R² ([\d.]+)", whole)]
+    # RE-ANCHORED 2026-08-29: the restatement's label moved to the owning paper's corrected
+    # term ("squared holdout correlation", not "holdout R²"); \s+ because it wraps.
+    hhits = [float(x) for x in
+             re.findall(r"allocation squared\s+holdout correlation ([\d.]+)", whole)]
     if not hhits:
         fails.append("Appendix guard: no whole-document occurrence of the allocation "
-                     "holdout R² matched — the wording moved, so this guard is disarmed")
+                     "squared holdout correlation matched — the wording moved, so this "
+                     "guard is disarmed")
     for got in hhits:
         if abs(got - hwant) > 0.005:
-            fails.append(f"whole-document allocation holdout R²: paper {got} vs "
+            fails.append(f"whole-document allocation squared holdout correlation: paper {got} vs "
                          f"does-money-move-votes.md {hwant}")
     print(f"  restated-outside-the-slice guard: {len(hhits)} whole-document occurrence(s) "
-          f"of the allocation holdout R², target {hwant}")
+          f"of the allocation squared holdout correlation, target {hwant}")
+    return fails
+
+
+def claim_guards(d: dict) -> list[str]:
+    """Assert the comparative claims no probe can anchor on.
+
+    A claim of INVARIANCE has no numeric token: "every Washington generation multiplier is
+    unchanged to two decimal places in both panels" is checkable arithmetic stated in words,
+    so `audit_coverage` cannot see it and a regex probe has nothing to capture. That is the
+    blind spot that let safe-seat ship "more than double any other year in the series" false
+    for a round while every value it compared was individually asserted.
+
+    A module-level function of the derived dict so it can be shown FAILING without a full
+    verifier run. Tested in tests/test_infrastructure/test_whitepaper_claim_guards.py.
+    """
+    fails = []
+    # Finding F, the matcher-artifact objection. The paper's defensible conclusion rests on
+    # this invariance: if re-weighting DID move a multiplier, "measured roll-side strict-key
+    # matchability does not explain the age skew" would no longer follow from it.
+    # The paper's conclusion, not its arithmetic: re-weighting must not overturn the skew.
+    # This replaced a check that re-weighting leaves every multiplier "unchanged to two
+    # decimal places", which the paper asserted and which was FALSE in six of ten cells
+    # (2026-08-24) -- pooled Silent 1.96->1.91, Boomer 1.71->1.70, Gen X 1.22->1.24; federal
+    # Silent 2.67->2.61, Boomer 2.04->2.03, Gen X 0.98->1.01. The sentence now states the
+    # measured maximum instead, and what has to hold is the DIRECTION and RANK, which is what
+    # "matchability does not explain the age skew" actually rests on.
+    for _pfx, _label in (("wa", "pooled"), ("wafed", "federal")):
+        if f"{_pfx}_raw_Silent" not in d:
+            continue
+        raw = [d[f"{_pfx}_raw_{g}"] for g in GENS]
+        rw = [d[f"{_pfx}_ipw_{g}"] for g in GENS]
+        # GENS runs oldest -> youngest, so both series must be strictly decreasing.
+        for name, series in (("raw", raw), ("re-weighted", rw)):
+            if any(series[i] <= series[i + 1] for i in range(len(series) - 1)):
+                fails.append(
+                    f"claim: Finding F says every cohort 'keeps its direction and its rank' "
+                    f"under re-weighting, but the {name} {_label} multipliers are not "
+                    f"monotonically decreasing oldest-to-youngest: "
+                    f"{dict(zip(GENS, [round(x, 4) for x in series]))}. The age skew this "
+                    f"paragraph defends is a ranking claim; if the ranking breaks the "
+                    f"paragraph is wrong, not the tolerance.")
+        # Silent and Boomer over-represented, Millennial and Gen Z under. Gen X is EXCLUDED
+        # on purpose: it sits at parity and the paper says so, naming the federal crossing.
+        for g, want_over in (("Silent", True), ("Boomer", True),
+                             ("Millennial", False), ("Gen Z", False)):
+            for name, val in (("raw", d[f"{_pfx}_raw_{g}"]), ("re-weighted", d[f"{_pfx}_ipw_{g}"])):
+                if (val > 1.0) != want_over:
+                    fails.append(
+                        f"claim: Finding F rests on {g} being "
+                        f"{'over' if want_over else 'under'}-represented, but the {name} "
+                        f"{_label} multiplier is {val:.4f}. Re-weighting overturning a "
+                        f"direction would defeat the matcher-artifact rebuttal.")
     return fails
 
 
@@ -1319,12 +1904,21 @@ def main():
     # drifting forecast-snapshot band counts, so there was nothing worth gating; it now
     # leads with the safe-seat paper's OBSERVED shares, which are scraped and must not
     # drift underneath it.
-    m = re.search(r"### Domain 1 — Participation.*?(?=\n## What the evidence does not)",
-                  text, re.S)
-    if not m:
-        print("FATAL: could not locate the four evidence domains in the paper")
-        return 1
-    norm = vp.normalise(m.group(0))
+    # WIDENED TO THE WHOLE DOCUMENT 2026-08-26, and this line was the real gap.
+    #
+    # The two widenings above moved a REGEX WINDOW, and the window was doing more than
+    # scoping the coverage audit: `norm` is what `vp.run` matches every probe against, so a
+    # figure outside it could not be probed even by a probe written for it. The audit then
+    # reported "fully mapped" on seven spans that together were 51.1% of the paper
+    # (`scripts/diag_audit_span_gaps.py`), and the other half was not merely unaudited — it
+    # was unreadable to this script. `_restated_outside_the_slice` exists precisely because
+    # someone noticed one figure in that half and hand-wrote a guard for it; that fix
+    # treated the symptom.
+    #
+    # Widening the window is what makes the paper's own restatements checkable: `vp.run`
+    # asserts EVERY occurrence of a figure, so the inventory table, the limits section, the
+    # Conclusion and both appendices are now held to the same values as the domains.
+    norm = vp.normalise(text)
     audit_sections, offsets, spans = {}, {}, {}
     for name, (start, end) in AUDIT_BOUNDS.items():
         audit_sections[name], offsets[name] = vp.slice_with_offset(norm, start, end)
@@ -1337,6 +1931,7 @@ def main():
                               COVERAGE_EXEMPT, COVERAGE_EXEMPT_LITERAL,
                               COVERAGE_EXEMPT_SECTIONS, strict_units=True)
     fails += _restated_outside_the_slice(d)
+    fails += claim_guards(d)
     fails += vp.audit_satellite_counts(PAPER.name, stats.get("figures"))
     if fails:
         print("\n" + "=" * 78)

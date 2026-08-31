@@ -1,22 +1,36 @@
-"""Flagship electoral-health analysis: NY turnout by age x PARTY-OF-RECORD.
+"""NY turnout by age x PARTY-OF-RECORD — the table generator behind
+docs/ny-turnout-by-party-age.md (a diagnostic companion; the citable owner of every claim
+is docs/who-decides-new-york.md).
 
-This is the party-resolved upgrade of the WA "who decides" finding (the gray
-off-year electorate). WA could only show the electorate is *older* in off
-years; NY publishes individual party enrollment, so we can ask the sharper
-question: does one party's electorate age-collapse harder in off-year/local
-elections than the other's — mechanically advantaging it when turnout falls?
+The party-resolved upgrade of the WA "who decides" finding: WA could only show the
+off-year electorate is *older*; NY publishes individual party enrollment, so the question
+becomes WHOSE electorate is older, at every salience level. (The paper's answer is the
+LEVEL claim — the Republican-enrolled electorate is oldest in every general — after the
+dynamic "ages hardest off-cycle" reading was withdrawn on 2026-08-16.)
 
-Data: data/ny_vrdb.duckdb table `voters` (13.54M, party + full DOB +
-voter_history). The voter_history field mixes ~6 free-text formats per
-election across counties (e.g. "2024 GENERAL ELECTION", "General Election,
-2024", date-form "20241105 GE"). We parse every event per-voter into a
-normalized `voter_participation` table (state_voter_id, election_year, kind,
-method), then join age + party.
+Data: data/ny_vrdb.duckdb table `voters` (13.54M, party + DOB + voter_history). The
+voter_history field mixes ~6 free-text formats per election across counties (e.g. "2024
+GENERAL ELECTION", "General Election, 2024", date-form "20241105 GE"). We parse every
+event per-voter into a normalized `voter_participation` table (state_voter_id,
+election_year, kind, method), then join age + party.
 
-Survivorship caveat: the file is the CURRENT (2026) roll, so voters who voted
-in a past election but were since purged/moved are absent. => composition
-SHARES (of those who voted) are robust; turnout RATES are biased high for
-older cycles. We lead with shares and report rates with the caveat.
+Survivorship caveat (restated 2026-08-29 to match the paper; this docstring carried the
+withdrawn "shares are robust" version): the file is the CURRENT (2026) roll, so voters
+purged/moved since a past election are absent, and party is 2026 enrollment, not
+enrollment at the time. Composition SHARES are less denominator-sensitive than RATES but
+not immune — the paper measured the bias (attrition near-flat across parties, about twice
+as high for under-30s as for 45-64s), so age shares understate youth in past electorates;
+turnout RATES are biased high for older cycles. Note §D's denominator is the whole roll
+enrolled by election day; the paper's §II rates additionally restrict to ACTIVE
+registrants, which is why its 2025 under-30 pair (32.8/16.6) sits above §D's (30.8/15.9)
+— two defensible denominators, the paper's is the published one.
+
+2026-08-29 bug fix: three queries said `GROUP BY party` while `voters v` was in scope, and
+DuckDB binds the raw COLUMN over the SELECT alias there — so the four raw codes that map
+to OTHER (OTH/CON/WOR/IND) grouped separately and the print dict silently kept whichever
+landed last: the roll baseline printed OTHER at 0.5% (the WOR group) against a true 4.5%.
+DEM/REP/NOPARTY map 1:1 from single codes and were never affected. Fixed with GROUP BY 1;
+same defect family as the ANY_VALUE nondeterminism in CLAUDE.md.
 
 Usage:
     PYTHONPATH=src python scripts/diag_ny_turnout_party.py --rebuild   # build participation table (~1-2 min)
@@ -148,7 +162,7 @@ def analysis_age_by_party(con):
                       AND date_diff('year', v.birthdate, make_date({year},11,5)) BETWEEN 18 AND 105
                 )
                 SELECT party, 100.0*count(*) FILTER(WHERE band='{band}')/count(*) pct
-                FROM e GROUP BY party
+                FROM e GROUP BY 1
             """).fetchall()
             d = {p: v for p, v in vals}
             print(f"  {label:32} " + " ".join(
@@ -164,7 +178,7 @@ def analysis_age_by_party(con):
             FROM voter_participation p JOIN voters v USING (state_voter_id)
             WHERE p.election_year={year} AND p.kind='GENERAL' AND v.birthdate IS NOT NULL
               AND date_diff('year', v.birthdate, make_date({year},11,5)) BETWEEN 18 AND 105
-            GROUP BY party
+            GROUP BY 1
         """).fetchall()
         d = {p: v for p, v in vals}
         print(f"  {label:32} " + " ".join(
@@ -195,7 +209,7 @@ def analysis_party_composition(con):
     # Baseline: registration composition of the full roll.
     vals = con.execute(f"""
         SELECT {PARTY_CASE} AS party, 100.0*count(*)/sum(count(*)) OVER () pct
-        FROM voters v GROUP BY party
+        FROM voters v GROUP BY 1
     """).fetchall()
     d = {p: v for p, v in vals}
     gap = d.get("DEM", 0) - d.get("REP", 0)

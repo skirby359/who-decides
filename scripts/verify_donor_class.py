@@ -97,7 +97,18 @@ except Exception:  # noqa: BLE001
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
+
+# This gate drives its OWN harness and deliberately imports no analysis code, so it did not
+# import `_verify_prose` either. It does now, for one shared control: the figure-count guard.
+# Keeping a private copy of that guard was the alternative and is the pattern this series has
+# already paid for twice — a check that exists in nine places and is subtly different in the
+# tenth. `vp` is used for `audit_satellite_counts` and nothing else here.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _verify_prose as vp  # noqa: E402
+
 PAPER = ROOT / "docs" / "donor-class-and-the-electorate.md"
+#: Set by prose_probes(); read by the figure-count guard at the module tail.
+_FIGURE_COUNT: int | None = None
 # The manuscript no longer carries its own provenance, reproduction recipe or drafting
 # history — those moved to a companion supplement (2026-07-29, manuscript compression).
 # The verifier scrapes BOTH, because figures live in both and a probe must not go blind
@@ -965,6 +976,57 @@ def _d_wa_ldscope_crosswalk(con, panels, out):
     out["wa_active_n"] = int(con.execute(
         "SELECT COUNT(*) FROM vrdb.voters WHERE status_code='A'").fetchone()[0])
     out["wa_active_m"] = out["wa_active_n"] / 1e6
+
+    # THE OPEN CYCLE AT THE BACK OF THE WA PDC PANEL (2026-08-25, author decision).
+    # The paper states its window as cycles 2016-2026 and now discloses that 2026 is partial
+    # and still filing. Derived rather than asserted so the disclosure is checkable, and the
+    # as-of date is the panel's newest record -- there is no load-vintage column, so the
+    # latest transaction is what dates a static load. Shares are of the whole loaded PDC
+    # layer, which is what "of the panel" means in the sentence.
+    _oc = con.execute("""
+        WITH p AS (SELECT election_cycle c, COUNT(*) n, SUM(contribution_amount) a
+                   FROM individual_contributions
+                   WHERE contribution_id LIKE 'PDC:%' GROUP BY 1)
+        SELECT (SELECT n FROM p WHERE c=2026) * 100.0 / SUM(n),
+               (SELECT a FROM p WHERE c=2026) * 100.0 / SUM(a) FROM p""").fetchone()
+    out["wa_pdc_open_pct_rows"], out["wa_pdc_open_pct_dollars"] = float(_oc[0]), float(_oc[1])
+    _asof = con.execute("""
+        SELECT MAX(contribution_date) FROM individual_contributions
+        WHERE contribution_id LIKE 'PDC:%' AND election_cycle = 2026""").fetchone()[0]
+    out["wa_pdc_open_asof_y"] = int(str(_asof)[:4])
+    out["wa_pdc_open_asof_m"] = int(str(_asof)[5:7])
+    out["wa_pdc_open_asof_d"] = int(str(_asof)[8:10])
+
+    # ⚠ AND THE PIN IS NOW READ, not merely written (2026-08-25). The paper cites
+    # `donor_panel_open_cycle_pin.csv` and says the reading is pinned "so a later reload
+    # cannot move these figures without the gate saying so". That was true via the PROBES and
+    # false of the pin file itself, which nothing opened -- a decorative pin, which is the
+    # same defect class as a gate that cannot fire. Found by sweeping for reference CSVs no
+    # verifier reads. The pin is the RECORDED EXPECTATION; a disagreement names the mechanism
+    # rather than surfacing as a bare probe mismatch three layers downstream.
+    import csv as _pincsv
+    _pin_path = ROOT / "docs" / "reference" / "donor_panel_open_cycle_pin.csv"
+    if _pin_path.exists():
+        with _pin_path.open(encoding="utf-8", newline="") as _fh:
+            _pin = next(iter(_pincsv.DictReader(_fh)), None)
+        if _pin is not None:
+            for _k, _got, _want in (
+                    ("pct_of_panel_rows", out["wa_pdc_open_pct_rows"],
+                     float(_pin["pct_of_panel_rows"])),
+                    ("pct_of_panel_dollars", out["wa_pdc_open_pct_dollars"],
+                     float(_pin["pct_of_panel_dollars"]))):
+                if abs(_got - _want) > 0.05:
+                    raise SystemExit(
+                        f"FATAL: the WA PDC open-cycle panel has moved away from its pin. "
+                        f"{_k}: pinned {_want}, derived {_got:.4f} "
+                        f"({_pin_path.name}, as_of {_pin['as_of']}). The PDC layer was "
+                        f"reloaded, or the panel definition changed. Re-pin DELIBERATELY and "
+                        f"update the paper's disclosure — do not refresh the pin to match.")
+            if _pin["as_of"] != str(_asof):
+                raise SystemExit(
+                    f"FATAL: the pin's as_of ({_pin['as_of']}) is not the panel's newest "
+                    f"record ({_asof}). The paper prints the pinned date, so the two must "
+                    f"agree or the printed date describes a panel that no longer exists.")
 
     # Headline super-voter share, published (ld-scope) against active-only.
     for tag, panel in panels.items():
@@ -3325,6 +3387,14 @@ SECTION_BOUNDS = {
 # Bold markers are written `\*{0,2}` so re-bolding a figure does not disarm a probe;
 # the anchor is the surrounding WORDS.
 PROBES = [
+    # The open-cycle disclosure added 2026-08-25. The as-of DATE is captured, not exempted as
+    # provenance: reworded without re-deriving, it fails -- the same coupling that keeps the
+    # money paper's open-cycle row from floating.
+    ("open cycle — the WA PDC panel's partial 2026 tail", "f1_gap",
+     r"the panel's newest record, \*\*(\d{4})-(\d{2})-(\d{2})\*\*: it is \*\*([\d.]+)%\*\* of "
+     r"the PDC layer's rows and\s+\*\*([\d.]+)%\*\* of its dollars",
+     ("wa_pdc_open_asof_y", "wa_pdc_open_asof_m", "wa_pdc_open_asof_d",
+      "wa_pdc_open_pct_rows", "wa_pdc_open_pct_dollars"), 0.05),
     # --- Finding 2's geographic-selection check, added 2026-08-11 after external review.
     # Every cell of the table is probed: it is the paper's answer to the sharpest objection
     # available against a geographic finding computed on matched donors, so an unchecked cell
@@ -5492,6 +5562,11 @@ def prose_probes():
         if not any(f.startswith(label) for f in fails):
             print(f"  ok   {label:52} {len(matches)} occurrence(s), all agree")
     print(f"\n  {checked} figures scraped and compared")
+    # Exposed for vp.audit_satellite_counts (2026-08-26). Until then this count was PRINTED
+    # and returned to nobody, which is precisely why nothing could check the documents that
+    # restate it — and three of them had drifted five figures behind.
+    global _FIGURE_COUNT
+    _FIGURE_COUNT = checked
 
     # Estimator robustness, reported every run so it cannot quietly start to matter.
     print("\n  top-1% estimator: published NTILE(100) vs an exact donor-weight cutoff")
@@ -5527,8 +5602,84 @@ def check_pin_date() -> list[str]:
     return []
 
 
+def claim_guards(d: dict) -> list[str]:
+    """Assert the two UNIVERSAL claims, which carry no token a probe can capture.
+
+    Every figure in Finding 2's table is probed individually. None of that sees the word
+    "every". A probe compares one number to one derivation, so all eighteen cells can be
+    right while a sentence about the relationship between them is false -- which is exactly
+    how the whitepaper carried "every Washington generation multiplier is unchanged to two
+    decimal places" while six of ten cells moved (found 2026-08-24).
+
+    A module-level function of the derived dict so it can be shown FAILING without a full
+    derivation -- freeze rule SS-0 rule 2.
+    """
+    fails = []
+
+    # 1. THE ROLL CONVENTION, and this is the tight one. The paper: the active roll "is the
+    #    baseline for every comparison, in all three states and every cut, without exception",
+    #    and explicitly NOT the wider 5.46M roll the companion Washington papers use. Two
+    #    conventions for one state's denominator is this project's most expensive recurring
+    #    defect class; here it is checkable, because both numbers are derived side by side.
+    act, wide = d.get("wa_active_m"), d.get("wa_ldroll_m")
+    if act is not None and wide is not None:
+        if not act < wide:
+            fails.append(
+                f"claim: the paper says its Washington baseline is the ACTIVE roll and that "
+                f"the companion papers' wider roll retaining inactive registrants is not used "
+                f"here, but the derived active roll ({act:.2f}M) is not smaller than the "
+                f"wider one ({wide:.2f}M). One of the two denominators is wrong, or they have "
+                f"been crossed.")
+        elif abs(act - wide) < 0.05:
+            fails.append(
+                f"claim: the active ({act:.3f}M) and wider ({wide:.3f}M) Washington rolls are "
+                f"within 0.05M of each other. The paper's Appendix C crosswalk exists because "
+                f"they differ by ~0.36M; if they have converged, the distinction the paper "
+                f"draws no longer describes the data.")
+
+    # 2. CONCENTRATION IS UNIVERSAL. "Money concentrates at the very top of the matched-donor
+    #    distribution, in every state and in both money systems."
+    #
+    #    ⚠ THIS IS A FLOOR TEST AND IS DELIBERATELY NOT TIGHT, which is worth stating rather
+    #    than dressing up. "Concentrates at the very top" names no threshold, and inventing a
+    #    tight one (top1 > 35%, say) would put a number in a gate that the paper never claims
+    #    and that a legitimate re-derivation could cross. What IS falsifiable without invention
+    #    is the universality: no panel may be an exception, top1 must exceed a tenfold equal
+    #    share, and top10 must dominate top1. Today the tightest panel is Idaho federal at
+    #    37.2% / 70.8%, so this fires only on a real collapse or a broken derivation -- which
+    #    is the failure it is for.
+    for st in ("wa", "ny", "id"):
+        for sys_ in ("fed", "state"):
+            t1, t10 = d.get(f"{st}_{sys_}_top1"), d.get(f"{st}_{sys_}_top10")
+            if t1 is None or t10 is None:
+                continue
+            if t1 <= 10.0:
+                fails.append(
+                    f"claim: Finding 2 says money concentrates at the very top in EVERY state "
+                    f"and BOTH money systems, but {st.upper()} {sys_} has the top 1% of donors "
+                    f"supplying {t1:.1f}% of dollars -- at or below a tenfold equal share. "
+                    f"That panel is an exception to a sentence that admits none.")
+            if not t10 > t1:
+                fails.append(
+                    f"claim: {st.upper()} {sys_} reports top-10% share {t10:.1f}% not above "
+                    f"top-1% share {t1:.1f}%. The top decile contains the top percentile, so "
+                    f"this is arithmetically impossible -- the estimator is broken.")
+    return fails
+
+
 _FAILURES += prose_probes()
 _FAILURES += check_pin_date()
+_FAILURES += claim_guards(cached_derive())
+# FIGURE-COUNT CLAIMS (added 2026-08-26). Every document stating how many figures this gate
+# asserts is now checked against what it actually asserted.
+#
+# THIS PAPER WAS THE ONE SERIES PAPER WITH NO SUCH CHECK, and it is the lead article. It was
+# absent from `vp.SATELLITES` and this file never called the guard, so the build drifted
+# 1,465 -> 1,470 with three documents still saying 1,465 — the methods supplement, the
+# readiness dossier, and the A10 sign-off row, whose entire purpose is to describe the CURRENT
+# text. The invariant that should have caught the omission derives its population from
+# `FLOORS`, which excludes this verifier because it drives its own harness rather than vp.run.
+_FAILURES += vp.audit_satellite_counts(PAPER.name, _FIGURE_COUNT)
 
 # ============================== INTEGRITY SUMMARY ==============================
 print("\n" + "=" * 78)

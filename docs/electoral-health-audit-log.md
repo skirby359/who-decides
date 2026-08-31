@@ -7614,3 +7614,723 @@ could not have detected three quarters of the file disappearing. Raised to 40, w
 moved it named in the comment. The floor exists to catch a truncated read; a floor four times below
 the file is the "gate that cannot fail" shape again, and it had been sitting there since the
 register was created.
+
+**A paper was corrupted at character level between commits, a PDF was built from it, and the
+verifier is the only thing that noticed (2026-08-23).** `docs/who-decides-washington.md` — the
+posted paper, SSRN 7149263 — was damaged during a hand-editing pass. **Author's account, given
+when asked rather than inferred: the author is confident the editing was the source, and the
+errors clustered where the hand edits were, though what the editor actually did is unclear.**
+That signature matters more than the mechanism: it points at the editing tool, not at Dropbox
+sync, which was the other hypothesis on the table and was wrong.
+
+**What the damage looked like**, recorded because a recurrence will be recognised by its shape
+long before its cause. Characters dropped inside words (`roll`→`rol`, `and`→`dd`,
+`survives`→`survivs`, `voters`→`votes`, `for`→`fr`, `survivorship`→`survivorshp`,
+`trivial`→`ivial`, `school`→`schol`, `consolidation`→`csolidation`); line-ends truncated and
+adjacent fragments merged (`18–29afesll from`, `ballot,usingt the state'`, `databas;—`); and
+whole clauses gone — `records, of which 26.3 million resolve to a roll row and so to an age — it
+measures the` collapsed to `records,t measures th`. The file grew rather than shrank (1,255 lines
+against a correct 1,275), because lines were merged as well as cut. It decoded as clean UTF-8
+with no lone CR and no NUL, so it was not an encoding or line-ending artifact — that was checked
+first and ruled out.
+
+**Two figures were silently mutilated**, which is the part that would have survived a proofread:
+`2024` became **`204`**, and `16.4%` became **`.4%`**. Neither is a plausible typo and neither
+looks wrong in isolation.
+
+**The verifier caught all of it**: 41 anchor failures, 9 of 19 coverage sections red, and the
+figure count falling **878 → 750** because 128 anchors no longer matched their sentences. Nothing
+else did. `scripts/md_to_pdf.py` rendered the damaged file and reported `Done. PDF written.`, so
+a corrupt PDF existed for ten minutes looking exactly like a successful build. **A PDF build is
+not a check.** Recovered with `git restore`; the file is byte-identical to `8d4f452` and the
+verifier is back to 878 with every section mapped.
+
+**Three things to keep.**
+
+1. **Verifier green immediately before any PDF build or publish**, and a PDF without one is
+   suspect. This is the A14 pattern, which had simply never been applied to a one-off local
+   render. Adopted as a rule by the author, 2026-08-23.
+2. **The edit view looked fine.** The author read the file as uncorrupted while the bytes on disk
+   were damaged — so the verifier is doing double duty now: checking figures, and detecting that
+   what is on disk is not what was written. **A large anchor-failure count with garbled context
+   strings means the FILE is damaged, not that the numbers are wrong.** Worth recognising on
+   sight, because the two failures read identically in the summary and want opposite responses.
+3. **Transient corruption is worse than permanent corruption**, and this was recoverable only
+   because the paper was committed. `git restore` also discarded the in-progress hand edits along
+   with the damage — the recovery is lossy by construction. Committing mid-pass costs one section
+   instead of a session.
+
+**No hardening was added to `md_to_pdf.py`.** A guard built against a mechanism nobody has
+identified is the pattern this log already records twice (gate B10a's free-space premise; the
+`rules.dropboxignore` claim). The rule above is behavioural and needs no code.
+
+---
+
+## 2026-08-26 — the synthesis's audited slice was half the paper, and the window was the reason
+
+**Item 9a of the 2026-08-25 handoff, for the worst paper of the ten.**
+`scripts/diag_audit_span_gaps.py` measured `electoral-health-whitepaper.md` at **51.1% covered,
+267 numeric tokens in no span at all** — while its coverage audit printed "fully mapped" seven
+times and its submission metadata told a journal the gate asserts 180 figures.
+
+**The gap was not in the bounds dict. It was in the scrape window.** `AUDIT_BOUNDS` had a
+comment stating the rule — spans "must not overlap and must not leave gaps" — and honoured it
+only *between* the four evidence domains. But `main()` built `norm` from a regex slice running
+from "### Domain 1" to "## What the evidence does not", and `norm` is what `vp.run` matches
+**every probe** against. So the other half of the document was not merely unaudited: **a probe
+written for a figure out there could not have matched it.** Widening the bounds dict alone
+produced `LookupError: section start anchor not found: '# Electoral Health in Four States'` —
+the paper's own title, absent from the text the verifier could see. That error is the finding.
+
+**It was the ONLY verifier with a truncated window, and that is checkable in one grep.** The
+other nine all build `norm` from the whole paper (`vp.normalise(PAPER.read_text(...))` or
+`(raw)`); this file alone sliced first. So the remaining five papers in the 9a list are a
+bounds-dict-and-probes job, not this one — their probes can already reach the gaps, and their
+coverage numbers understate nothing about what the scrape can see. It also explains why the
+synthesis was both the worst covered (51.1%) and the only paper needing a hand-written
+whole-document guard.
+
+`_restated_outside_the_slice` is the evidence this was known in outline and treated as a
+symptom: it exists because someone noticed *one* figure out there (a +0.55 stale in Appendix B)
+and hand-wrote a whole-document guard for that one figure. Two figures were guarded; sixty-five
+were not.
+
+**Now: 16 spans, whole document, 0 tokens in gaps, `242` figures** (from 180). Satellite counts
+updated in both submission files, which is the count gate working.
+
+### The one defect it found, and its shape
+
+The inventory bullet read "Adding each state's own finance system takes it to **36.1M rows /
+$6.06B**". The federal and state layers are selected by `contribution_id` prefix and **their sum
+is 36.0M**. 36.1M was a plain `COUNT(*)` over the four tables, which also picks up **90,988 rows
+loaded from the FEC API** rather than the bulk files — donor-residence *unfiltered* (top
+contributor state in both WA and NY is California), so inflow-shaped rows inside a table
+CLAUDE.md defines as outflow.
+
+Three things about it are worth more than the 0.1M.
+
+1. **No published figure is affected.** Every federal cut filters `FEC:%` and every panel is
+   built through the matcher's `source_prefixes`. The rows are read by nothing. The only place
+   the two bases separate is this row count — the dollar total is $6.06B either way — and it
+   separated in the direction that makes the programme look bigger than its own sentence.
+2. **The sentence described a basis it did not use.** This is the derivation-bases defect class
+   (§0 rule 3) appearing in an inventory rather than a finding, and it was invisible because the
+   inventory was outside the window.
+3. **WA and NY hold *exactly* 45,494 such rows each.** That looked like one table copied into
+   two databases and is not: WA's carry WA candidate ids, NY's carry NY ones. Checked before it
+   was written down, because "the same number in two places" is how a wrong correction starts.
+
+### Two near-misses, recorded because avoiding them was the work
+
+**Anchoring on prose would have checked the wrong row.** The synthesis gives out-of-region
+inflow as "27% (WA) / 41% (NY) / 34% (TX) / 53% (ID)", and `cross-state-fec-money.md` contains a
+sentence reading "(WA 41%, TX 45%, NY 53%)" — overlapping digits, different state order, and a
+**different quantity**: that sentence is the Senate-only out-of-state share, while the synthesis
+quotes the House+Senate inflow matrix's Rest-of-US column (26.7 / 41.0 / 34.2 / 53.3). A scrape
+anchored on the prose would have passed against the wrong row. The scrape reads the **table**.
+
+**An exemption reason named a script that waives the figure, not one that checks it.** The first
+draft of the SSRN-id exemption said `check_cross_doc_consistency.py` "matches it against the
+submission metadata". It does not — its only mention of that number is a comment about stripping
+a trailing comma so its *identifier allowlist* recognises it. That is the "another script owns
+it" failure the exemption rule was written against, committed inside the fix for a coverage gap.
+Caught by looking, not by a gate.
+
+### A gate that fired on a comment saying the opposite of what it concluded
+
+`test_unattended_writer_exposure.py` reported `verify_whitepaper.py reads elections`. The only
+match in the file is a **code comment** — "on the precinct-results basis and not `COUNT(*) FROM
+elections`" — recording that the derivation deliberately does *not* read that table. `_reads` ran
+a regex over whole files with no notion of comments.
+
+The tempting fix was to reword the comment. **Rewording prose until a gate goes quiet is not a
+fix**: the next person writes the same comment, and meanwhile a file's explanation of a subtle
+basis choice gets bent to suit a regex. `_reads` now runs over `_code_only()`, which blanks `#`
+comments and docstrings **in place** and leaves string literals alone — the SQL it hunts lives
+inside them, so stripping strings would turn all five tests green and check nothing. Both
+directions are locked in by `test_comment_stripping_does_not_disarm_the_read_detector`, and both
+were shown failing: disabling the stripping returns the false positive (2 failed), also stripping
+string literals loses the true positive (3 failed).
+
+### What was declared rather than closed
+
+**The backtest pair is UNCHECKED, with an open question for the author.** "MAE 6.41, 94%
+directional on 163 filtered cells; 10.12 / 85% on the unfiltered 170-cell grid" sits in one
+parenthesis as though it were one backtest. `METHODOLOGY.md` §6.2 dates 10.12/85% to the
+**May-15 grid expansion**, while 163-cell 6.41/94% belongs to the current **v-jun17** model. If
+those are two model versions, the sentence contrasts a filtered against an unfiltered grid
+*across a coefficient change*, and the contrast it draws is not the one it states. Settling it
+needs a backtest run, not a scrape — so it is declared in `UNCHECKED` with the question spelled
+out, not exempted quietly. **Treat it as "unchecked with paperwork".**
+
+### Sweep
+
+`188 caught / 0 UNCAUGHT / 32 no-probe` for this verifier, against a `144 / 0 / 32` baseline —
+**+44 keys shown able to fail, and the no-probe ceiling back to exactly where it started.** It
+did not start there: the first pass put **seven** new keys in the no-probe bucket, all of them
+per-state convenience derivations and intermediates the paper never prints. That is the trap the
+2026-08-25 handoff names — a convenience loop raising the ceiling without raising the coverage —
+and the fix was the rule's third option both times: **store only what is printed, keep the rest
+local.** A key the sweep can mutate with no probe noticing is not being checked, whatever it
+feeds, because the sweep perturbs `d` after `derive()` has already run.
+
+### Second paper the same day — `who-decides-cross-state.md`, 63.2% → 99.8%
+
+Six spans became twelve; **107 tokens in gaps → 0**; `204 → 217` figures. Its window was
+already the whole paper, so this was bounds-and-probes only.
+
+**What the gap was hiding: the paper's own caveat on its main instrument, asserted by
+nothing.** The Methods section states the Idaho age-convention bracket — 1.7–2.6 points of the
+65+ share, 1.3–1.4 points of the dissimilarity index, the May-2024 cell at 27.6 against 29.0 on
+the other convention. `diag_cross_state_age_harmonized.py` has returned all of it as
+`id_convention` all along and **this verifier never read the key**. An unasserted caveat is the
+worst kind to leave loose: it is quoted as a *bound on the finding*, so if it drifts the
+finding is overstated by exactly the amount nobody is watching.
+
+**A basis written down because it decides the printed digit.** "One single-year cohort near 65
+is about 1.8% of the Idaho roll" is now derived as the share at **exactly age 65** over the
+harmonizer's own 18–105 filter — the cohort the boundary actually moves across. That is 1.781%.
+The 60–69 single-year mean is 1.700% and would print 1.7. Two defensible readings of "near 65",
+different digits; registered rather than left to whoever re-derives it next.
+
+**One figure deliberately NOT probed, and the reason generalises.** The Status bullet's retired
+multiplier is "1.5×–4.9×" and the current one is "1.5× to 5.1×" — the widening moved only the
+top, so the retired LOW end equals the live `h_mult_lo` today. Probing it against the live key
+would work exactly as long as they coincide, and the day `h_mult_lo` moves the gate would demand
+that the **correction note** be edited to match — rewriting the record of what was superseded.
+Exempted with that stated; only unprobed occurrences reach an exemption, so Finding 1's live
+1.5× and the current pair stay asserted.
+
+**Operational, and paid for twice today:** a `duckdb` import added at module level was shadowed
+by the file's two existing lazy in-function imports (`UnboundLocalError`), and the full mutation
+sweep had to be killed and restarted because a verifier was edited while it ran. The second one
+is in this repo's notes already. Restarting cost the sweep; letting it finish would have cost a
+red baseline in the artifact every ceiling is enforced against, which is worse.
+
+### The remaining four, same day — item 9a closed at 686 → 1
+
+`does-money-move-votes.md` 99.5→100.0% (1→0) · `who-decides-washington.md` 99.6→99.9% (6→0) ·
+`cross-state-state-money-note.md` 87.3→99.8% (19→1) · `who-decides-new-york.md` 73.0→99.9%
+(81→0) · `cross-state-fec-money.md` 80.8→99.9% (99→0) · `who-decides-idaho.md` 78.4→99.9%
+(106→0). Figure counts: WA 878→**881**, NY 308→**310**, ID 460→**485**, money 184→**197**,
+state-money **96** unchanged, money-votes **255** unchanged.
+
+**The single residue is declared, not missed.** `cross-state-state-money-note.md` keeps one
+token outside every span: `K2`, a section cross-reference in the document's closing clause,
+which that verifier's own K5 comment already describes as "the closing clause itself, which
+carries no result token".
+
+**These five were bounds-and-probes only, and one grep is why.** Every other verifier already
+builds `norm` from the whole paper; only the synthesis sliced first. So the remaining 374
+tokens closed in a fraction of the time the synthesis's 267 took, and the difference was
+entirely the window.
+
+### A cross-paper contradiction that is two undeclared bases
+
+The synthesis prints Washington's federal contributions as **5.58M**; `cross-state-fec-money.md`
+prints **5.59M**. Neither is wrong.
+
+| basis | rows | prints |
+|---|--:|---|
+| synthesis — `contribution_id LIKE 'FEC:%'` (the bulk layer) | 5,583,887 | 5.58M |
+| money paper — `fec_candidate_id ~ '^[CPHS][0-9]'` + `contributor_state='WA'` | 5,585,649 | 5.59M |
+
+**The entire 1,762-row difference is the FEC API layer** — the same population that produced
+the 36.1M correction earlier in the day, surfacing a second time as an apparent contradiction
+between two papers. Neither declares its basis. **That is a `derivation-bases.csv` row, and it
+makes item 10a's case better than any argument for it: the registry's purpose is exactly to
+stop two documents printing one quantity on two footings with nothing to appeal to.**
+
+Recorded rather than "fixed": changing either figure would make one paper wrong on its own
+stated population. The check that matters is that each is asserted against its own derivation,
+and both now are.
+
+### A claim that may overstate, left with the author rather than resolved
+
+`who-decides-new-york.md`'s provenance line says the file carries "individual party enrollment
++ full DOB + per-event vote history, **all ~100% populated**". Measured: party **100.0000%**,
+`birth_year` **100.0000%**, `voter_history` **82.87%**.
+
+82.87% is not obviously a defect. A registrant who has never voted *has* no events, so on that
+reading the field is as populated as it can be and the sentence is true. On the plainer reading
+of "populated" it is 82.9% and the sentence overstates. **Choosing the reading that makes the
+printed figure pass is the move this series keeps paying for**, so the probe asserts the two
+unambiguous fields, the third is written out beside the derivation, and the question goes to
+the author.
+
+### §F's pointer: the backlog this file had written for itself
+
+`cross-state-fec-money.md` §F moved to the donor companion on 2026-08-16 and left a pointer
+that quotes the two Washington panel rows to justify the removal — "nothing is lost". Those
+eight figures were in no span. The file's own `COVERAGE_EXEMPT_SECTIONS` comment already
+prescribed the fix — "probe them as CROSS-DOCUMENT checks against
+donor-class-and-the-electorate.md — the pattern verify_whitepaper.py uses" — and that is what
+was built. **A pointer that quotes the figures it is handing off is a drift surface that
+outlives the handoff**: the owning paper is free to re-derive those cells and nothing here
+would have noticed.
+
+### Two more exemption reasons that named the wrong guard
+
+Both caught by reading, neither by anything automatic, and this is now three in one day:
+
+* The SSRN-id reason said `check_cross_doc_consistency.py` verifies it. That script's only
+  mention of the number is a comment about its **identifier allowlist** — it waives it too.
+* A comment written for the state-money note asserted that a figure count stated in a paper's
+  *body* is invisible to `vp.audit_satellite_counts` "which reads the registered satellite
+  files and not the paper itself". **False**, and the function carries a comment saying so:
+  it scans `(paper_name,) + SATELLITES[paper_name]`, added 2026-08-09 after the WA paper
+  shipped a count its own satellite contradicted. The run prints
+  `ok cross-state-state-money-note.md:33 states 96`.
+
+**Verify the mechanism, not the sentence describing it** — the rule this log already states
+twice, failing twice more in one session, in the act of writing exemptions whose entire job is
+to name where a figure is checked.
+
+## 2026-08-26 (second round) — item 10a opens: the state-money note declares its bases
+
+`verify_state_money_note.py` is the **second paper on the basis registry**, after the
+`verify_safe_seat` pilot: **130 of 130 derived keys declared by 27 patterns**, calling BOTH
+halves — `vp.require_bases` and `vp.audit_basis_consistency`.
+
+It was taken first among the nine for the reason its own BACKLOG entry gave: **a four-regime
+comparison is all basis**, so it is where an undeclared footing is likeliest to be *wrong*
+rather than merely missing. That prediction held twice.
+
+### What declaring the bases found
+
+**1. A docstring describing the wrong POPULATION, contradicted by the same file.**
+`cross_state_state_money.py` opened by listing WA's PDC layer as *"legislative + curated locals
+ONLY"*, while `SPEC["WA"]["universe"]` twenty lines below called it a full filer universe.
+Measured: **8,244 committee rows carrying $1,047.3M** against 8,360 candidate rows at $469.1M.
+K5's own top-filer list settles it on sight — `housedemocraticcampaigncommittee`,
+`seiu775ballotfund`, `noon1631` are none of them a legislative candidate or a curated local.
+Nothing was arithmetically wrong; a reader taking the docstring at face value would have read
+every K-section figure against the wrong population.
+
+**2. Four figures computed on ALREADY-ROUNDED intermediates**, none of them recoverable by
+differencing the printed columns:
+
+* K1's per-seat-per-cycle divides a dollar total already rounded to $0.1M in SQL.
+* K2's competitive premium sums band totals rounded to $0.01M and divides by a per-district
+  figure rounded the same way.
+* K3's Democratic share is rounded **twice** — party dollars to $0.1M, then the share itself —
+  before it is scaled to a percentage.
+
+`computed_on` now records each, and the note carries a rounding-convention paragraph. That
+paragraph is not decoration: `test_a_paper_with_unrounded_composites_discloses_the_convention`
+**failed** the moment the verifier was promoted to `ENABLED`, because the registry declared
+unrounded composites in a paper that told the reader nothing. The gate demanded the disclosure
+before it would go green, which is the gate working.
+
+### A namespace that would have made the registry lie
+
+Two keys sat under the `k2_` prefix without being band cells — `k2_WA_leg_cand_total_m` (K2's
+caucus-routing denominator) and `k2_NY_racc_m` (a named committee). A `k2_WA_*` pattern would
+have matched the first and claimed a basis for it that is **wrong on two axes**: it is both
+chambers, not the house, and its window takes cycles 2022/2024 *literally* where K2's bands
+fold 2021 into 2022 and 2023 into 2024. Same years named, a different set of rows.
+
+`require_bases` only asks whether *some* pattern matches a key, so an overlapping pattern with
+a conflicting basis is invisible to it — and nothing else checks pattern overlap. **Renamed to
+`k2ref_`** so the namespace matches the footing, rather than left to be resolved by a check
+that does not exist.
+
+### The cross-paper basis, now a CHECKED divergence
+
+The 5.58M/5.59M split found earlier today is declared as two rows sharing one `quantity`, so
+`audit_basis_consistency` — which any enabled verifier runs over the whole registry — enforces
+that the divergence stays disclosed. Getting that right took a failure too: the first
+disclosure tagged `[population]` only, and the per-axis rule correctly refused it, because the
+two rows also differ on `source_prefix`. **A disclosure for one axis is not a disclosure for
+the others**, exactly as that check's docstring says.
+
+### One design point worth keeping
+
+The first draft of these rows embedded each state's prefix and seat count *into* the
+`population` string. That would have made all four rows differ on `population` as an artifact
+of phrasing, demanding four `[population]` disclosures for a difference that is not one — and
+burying the axis that genuinely differs. **The checked columns must hold only what is
+comparable; per-state mechanism belongs in `note`, which is documentation and not an axis.**
+
+## 2026-08-26 (third round) — the lead article's figure count was guarded by nothing
+
+Asked what was still open and whether the papers were current. The papers were: all ten gates
+green. **Three documents about them were not, and the reason was a hole in the machinery.**
+
+### The hole
+
+`verify_donor_class.py` — the gate for the paper under journal submission — **did not call
+`vp.audit_satellite_counts`**, and `donor-class-and-the-electorate.md` was **absent from
+`vp.SATELLITES` entirely**. So no document stating how many figures that gate asserts was
+checked by anything. The orphan pass in `check_cross_doc_consistency.py` cannot substitute: a
+figure COUNT appears nowhere in the paper, so it is absent-by-construction there.
+
+**The invariant that exists for exactly this covered eight of ten papers.**
+`test_calls_the_satellite_guard` and `test_every_series_paper_is_registered` iterate
+`GUARDED = FLOORS - PRE_HARNESS`, and `FLOORS` is a **probe-count ratchet** that happens to
+list eight verifiers. The two it omits are `verify_donor_class.py`, which drives its own
+harness, and `verify_state_money_note.py`, which post-dates the ratchet. A registration check
+missing the lead article is the same shape this repo has recorded twice already — the satellite
+allowlist that "carried seven of eight papers by not looking at them", and this module's own
+docstring on "a guard that checks every document about the paper except the paper".
+
+### What it had already cost
+
+The donor build had drifted **1,465 → 1,470** with three documents still saying 1,465:
+
+* `donor-class-methods-supplement.md` — a public document, part of the manuscript package
+* `publication-readiness-2026-08-15.md` — the one-screen readiness table
+* `donor-class-release-checklist.md` — **the A10 row**, the author sign-off gate whose entire
+  purpose is that a signature describe the *current* text
+
+**Which round added the five is not established here and is not guessed at.** The 2026-08-26
+rounds touched other papers' verifiers, not this one's. What is established is that the number
+went stale with nothing watching it.
+
+### Fixed
+
+The paper is registered with five satellites; `prose_probes()` now exposes its count (it was
+**printed and returned to nobody**, which is why nothing could check the documents restating
+it); the guard is called and its result reaches the exit status. Shown failing: restore the
+supplement's 1,465 and the run exits 1 with `states 1,465, this run asserts 1,470`.
+
+**The root cause is closed by DISCOVERY, not by extending a list.**
+`TestEveryPaperVerifierGuardsItsFigureCount` derives its population from every `verify_*.py`
+that names a `PAPER` — ten today, and there is nothing to remember to extend. It is
+deliberately NOT folded into `GUARDED`: those tests also require `stats_out=`, a property of
+the shared `vp.run` harness the donor gate does not use, so widening `GUARDED` would have
+failed that gate for the wrong reason and invited a `PRE_HARNESS` waiver putting it straight
+back outside every check. Both new invariants shown failing (un-register the paper; remove the
+call).
+
+### Two things the fix exposed in turn
+
+**A guard only sees the phrasings it anchors on.** The checklist's live count was written "the
+build reads 1,470 figures", which matches none of `_COUNT_CLAIMS`. Rewritten as "the gate
+asserts **1,470 figures**" so it IS anchored — while the row's *historical* counts ("reading
+**1,324 figures over 48 sections**") are deliberately left in unmatched phrasing. A ledger of
+superseded counts must not be dragged to the current value, which is why those anchors require
+the verb.
+
+**Correcting a live count orphans the superseded one.** Updating the supplement to 1,470 left
+the checklist's status line quoting 1,465, which then appeared in no verified document —
+`test_no_orphan_figures` caught it immediately. Trimmed; that history belongs in the A10 row
+and is still there.
+
+### The public-repo count, measured rather than adjusted
+
+The supplement states both the private count and what a public reader sees. Rather than scale
+the second figure, it was **measured**: the four withheld documents (memo, cover letter,
+metadata, release checklist — confirmed against `sync_public_repo.py`'s withhold list and the
+sibling checkout) were moved aside and the gate re-run. **1,449**, against 1,470 private — a
+21-figure gap, exactly the gap the supplement's explanation describes. Both absolutes moved by
+five; the explanation did not need changing.
+
+### And one thing left ungated on purpose
+
+`publication-readiness-2026-08-15.md` **cannot** be registered as a satellite as written: it
+carries ten counts for ten different papers, and the guard compares one paper's count to one
+run, so registering it would fail nine cells by construction. Its counts are corrected and its
+footnote now says plainly that nothing checks them and that they are a dated snapshot. Nine of
+its ten had moved — two (money-votes 193 → 255, synthesis 175 → 242) were already stale before
+this date.
+
+## 2026-08-26 (fourth round) — an external hostile review, and the register that should have made it unnecessary
+
+An external cross-paper review arrived. Its central thesis: *"the series needs a distinction
+between numeric verification and claim propagation verification… the semantic layer is now the
+larger risk."* Broadly right, and eight of its items were live. But its best catch had a
+**numeric** mechanism, and acting on that mechanism found more than the review did.
+
+### Its best catch, and why two gates could not see it
+
+Safe-seat's paste-ready submission abstract carried four superseded figures: 47/46 for the 2024
+no-D-v-R count, fifteen-and-fourteen for the same-party generals against sixteen-and-fifteen,
+27–49% for the no-major-choice range against 25–49%, and 89–94% for the comparison states
+against 88–94%. The review called this "a workflow failure". It is narrower and worse:
+
+1. **`verify_safe_seat.py` read `PAPER` and nothing else.** The donor and money gates scrape
+   their satellites; this one never opened the metadata.
+2. **`check_cross_doc_consistency.py` waived every one- and two-digit number**, under an
+   `ALLOWLIST` entry reading "small integer: list ordinal, gate count, column count" — i.e.
+   over exactly the shape in which an abstract states results.
+
+So **every satellite figure under 100 was unchecked across the whole series**, and the
+safe-seat abstract is where it bit because that abstract is almost all two-digit figures. The
+checker's own docstring half-admitted the gap — "misses roughly half of stale PERCENTAGES…
+needs the verifier's probe machinery pointed at these documents, not this heuristic" — and that
+fix had never been made.
+
+**Both halves are now closed.** ISO date fragments are skipped *structurally* (a date component
+is not a figure, so it belongs with the table-row and list-ordinal skips, not in an allowlist);
+the blanket entry is replaced by five context-scoped idioms. Removing the blanket entry
+surfaced 13 findings, of which 11 were date fragments — so the waiver was carrying a real class
+and hiding two real ones. And `_check_metadata_abstract` now asserts the paste-ready abstract
+against the same derivation as the paper, because the orphan pass alone is not enough: it flags
+only figures ABSENT from the paper, and a drift back to 47 would pass, 47 appearing four times
+in the paper in other roles. Shown failing on all five claims.
+
+### What the register found that the review did not
+
+The review named two NY propagation sites (Appendix C, Related Work). Registering the withdrawn
+claims — **New York had ELEVEN fewer register rows than Idaho: zero** — found **twenty sites
+across ten files**, and six of them were LIVE assertions, not narration:
+
+* `ny-turnout-by-party-age.md` carried "ages hardest" as a **★ FLAGSHIP section heading**
+* `electoral-health-TODO.md` asserted it twice
+* `ny-electorate-extras.md` carried the withdrawn §V reading as a live heading claiming a
+  "secular shift"
+* **`ny-submission-metadata.md`** asserted it in the paste-ready text — "Recent registration
+  cohorts are markedly less likely to enroll in a party, so the excluded bloc is growing"
+* `ny-submission-notes.md` inverted its section in **three** items, including "state both, not
+  the level alone" — an instruction to lead with precisely the claim §I withdrew
+
+### The finding that matters most
+
+`pre-read-findings-2026-08-20.md` stated: **"'ages hardest' is dead everywhere it appears. All
+four occurrences (NY:157, 166, 171; cross-state:241) are retractions or discussions of the
+withdrawal. No live use."**
+
+There were seven occurrences, and two were live — one a flagship heading. **The enumeration was
+done by hand, in one document order, and a hand enumeration is not a control.** The claim is
+struck through in place with its correction; completeness is now a test result over every
+`docs/*.md` and every `scripts/*.py`, not a reviewer's assertion.
+
+That is the honest form of the review's thesis. The semantic layer is not weak because it is
+semantic — it is weak wherever the *enforcement* is a person remembering to look. Idaho has
+eleven register rows because Idaho's rounds registered them; New York's withdrawal on
+2026-08-16 was never registered, and ten days later a careful reader concluded it had
+propagated everywhere. Registering a claim takes minutes and it does not forget.
+
+### Also fixed
+
+Idaho's opening said **"in about two-fifths of seats no contested election of any kind takes
+place"**; its own corrected table says **9 of 105 (8.6%)**. Residue from the retired reading
+that treated the 38 uncontested Republican nominations as seats settled at filing, when §IV
+records that **35 of those 38 drew a November opponent**, three within ten points — verified
+against the paper, not the review, before the correction shipped. Both the corrected count and
+the quantity that genuinely IS about two-fifths (36.2%, the uncontested-nomination share) are
+now probed against §IV's own keys.
+
+### One judgement recorded rather than acted on
+
+Retired figures quoted inside a withdrawal note are exactly what the audit-log exclusion exists
+for, and the tempting fix was an allowlist entry keyed on "until 2026-". **Declined**: the
+excerpt window is 110 characters, so such a waiver could hide a LIVE figure sitting near a
+correction note — reopening the hole just closed. The notes were paraphrased instead, so no
+retired digit is restated at all.
+
+## 2026-08-26 (fifth round) — the author's eight decisions, executed
+
+Eight decisions taken on the open items. Seven are implemented below; the eighth (publishing
+the forecast model) is prepared but held for confirmation, because it is an outward-facing
+push to a public repository.
+
+### The statute question resolved by reading the statute — and the Idaho paper was right
+
+`who-decides-idaho.md` cited **§ 34-411A** in three places; `who-decides-cross-state.md` and
+the audit log cited **§ 34-904A** for the same mechanism. Checked against Idaho Code:
+
+* **§ 34-411A** — *"Primary elections — CHANGING PARTY AFFILIATION — unaffiliated electors"*.
+  Subsection (2) is the mechanism: an unaffiliated elector may declare affiliation to the poll
+  worker, and **"After the primary election, the county clerk shall record the party
+  affiliation so recorded in the poll book as part of such elector's record within the voter
+  registration system as provided for in section 34-437A."** That write-back is *why* Idaho's
+  party field is reactive to primary participation.
+* **§ 34-904A** — eligibility to vote in a primary: which party's ballot an elector may take,
+  and a party's option to open its primary. It carries poll-worker declaration language for
+  the multi-party case and **no write-back provision at all.**
+
+So the cross-state paper cited the wrong provision for the claim it was making, and so did
+`verify_who_returns_ballot.py`'s coverage-exemption reason, which described § 34-904A as "the
+poll-book affiliation provision that makes Idaho's party snapshot reactive". Both corrected;
+the audit log is history and is left. **Neither of us could have adjudicated this from the
+repository — the answer was in the statute, and the right move was to read it rather than
+standardise on the majority spelling.**
+
+### The backtest pair: a re-run, and the framing was wrong in two ways
+
+The synthesis quoted "MAE 6.41, 94% directional on 163 filtered cells; 10.12 / 85% on the
+unfiltered 170-cell grid". A fresh run on the current model returns **163 valid predictions of
+236 attempted (73 skipped), MAE 6.41, 94% directional (153/163), bias +0.38, CI coverage 97%**
+— so the first half is current to the digit. The second half is worse than stale:
+
+1. **It was never an "unfiltered" counterpart.** `METHODOLOGY.md` §6.3 says 170 was the count
+   of *valid* cells after uncontested and undefined-PVI skips on the May-2026 grid — the same
+   kind of quantity as today's 163.
+2. **The two are different MODEL VERSIONS.** 10.12/85% is v-may15; 6.41/94% is v-jun17. The
+   parenthesis contrasted two coefficient sets while reading as one measurement.
+
+The pair is withdrawn, the current run is pinned in
+`docs/reference/backtest_current_2026-08-26.csv` and now **probed** rather than declared in
+`UNCHECKED`. The self-critical caveat is kept but re-based: the aggregate mixes competitive and
+safe districts and so is not a competitive-race accuracy figure, with the dated 24/46/170-cell
+table in METHODOLOGY named as where the curated contrast lives.
+
+**Two stale documents fell out of the same run.** CLAUDE.md's backtest block described the two
+invocations as "6-CD curated cells" and a "170-cell sweep"; **both now return the same 163
+cells** — `--residual-matrix` adds the matrix print and does not change the grid, and no
+curated-subset flag exists. And METHODOLOGY's May-15 row was still labelled *"current"*. Both
+corrected.
+
+### Idaho: the "decision" construct rebuilt, and its survivorship direction withdrawn
+
+The abstract now **leads with the three-layer count** — 105 seats, 80 offering a choice on the
+ballot, 8 offering a close one — and demotes the two cuts to descriptive sub-results. Gone:
+"locates the decision seat by seat", "a decomposition ... on two variables that the phrase
+'where a seat is decided' ordinarily conflates", "whose nomination was settled before
+November", and "settles who will hold most seats long before November". §IV is retitled from
+*"Where seats are actually settled"* to *"The two nomination gates"*, and the short answer no
+longer names an event the data cannot identify. **No figure moved**; every count is the one it
+was, and the probes were re-pointed at the rebuilt sentences rather than loosened.
+
+The survivorship direction is deleted. It had reasoned from **Washington's** retained snapshot
+to a conclusion about Idaho, while the cross-state companion concludes the opposite for Idaho
+from the load's own churn profile and says "nothing here tests that". Two consequences worth
+recording: the `wachurn_*` derivation, its probe **and its `SystemExit` guard** are all gone —
+a guard over a claim the paper no longer makes is a gate enforcing a retired reading — and
+**this verifier no longer opens `wa_vrdb.duckdb` at all.** An Idaho gate reached into
+Washington's voter file for exactly one reason, and that reason is withdrawn.
+
+### The caucus numerator: tested before it was dropped
+
+K2's $36.2M is withdrawn as unreproducible — but the note *does* name eight committees, so the
+claim "no enumerated set exists" was worth testing rather than asserting. All eight resolve to
+real PDC filers. A name-matched sum lands anywhere across roughly $31M–$41M depending on two
+choices the note never records — whether the state party committee's exempt and non-exempt
+funds both count, and whether committees sponsored **by** a caucus fund count as part of it —
+and returns $36.2M on none of them. That measurement is now the recorded reason, which is a
+stronger disposition than "underived".
+
+### Also applied
+
+Cross-state's Finding 1 retitled to *"The age gradient across lower-salience electorates"*,
+with **salience declared a researcher-imposed ordinal** rather than a measured variable and
+Idaho's rung named as the reason the label must not be read as one dimension. The obsolete
+`who-decides-cross-state-design.md` carries a SUPERSEDED banner and joins the withdrawn-claims
+`HISTORY` set. Safe-seat's title now attaches its period to Washington. NY's provenance line
+states party and DOB at **100%** and vote history at **82.9%** separately — both now probed,
+after the reworded sentence broke my own anchor, which is the discipline working.
+
+## 2026-08-28 — the staleness gate had the right instrument and the wrong baseline, and fixing it found a nondeterministic query
+
+Work-order items (d), (6) and (10). The first was scoped as plumbing and was not.
+
+### (d) The baseline, not the instrument
+
+The staleness gate has compared AST fingerprints since 2026-08-24, and the fingerprint was never
+the problem. Its BASELINE was `git show <the artifact's last commit>:scripts/<file>` — a
+git-mtime proxy wearing a content check — and it had a state nothing could clear. An edit that
+adds probes over keys `derive()` already produces changes no derived key, no verdict and no
+ceiling, so a re-sweep returns byte-identical rows, the artifact does not change, its commit
+cannot advance, and the gate stays red however correctly the sweep is repeated. Three verifiers
+sat in `ACCEPTED_STALE` for exactly that, and were freed only because a later round happened to
+touch the artifact for unrelated reasons.
+
+The artifact now carries one `(provenance)` row per fingerprinted file, in its own five-column
+schema, following the `(baseline, unperturbed)` row it already held. Git is out of the judgment
+entirely — which also removed two silent skips nobody had counted as coverage loss: a shallow
+checkout and an uncommitted artifact both used to make this gate inert.
+
+**The part worth generalising: two derivations of one quantity, assumed to agree, is not a
+check.** The fingerprint function lived privately in the test and was needed by the sweep. Had
+the copies drifted, the gate would have compared a baseline computed one way against a live
+value computed another and gone green. One definition in `_verify_prose`, imported by both.
+
+### What it caught, which is larger than what it fixed
+
+Proving the fix meant re-sweeping one verifier twice, and the two runs disagreed. In
+`scripts/cross_state_state_money.py`, the top-filer query read `ORDER BY 2 DESC LIMIT 10` where
+ordinal 2 is `ROUND(SUM(total_receipts)/1e6, 1)`. Two defects on one line: it ranks on the
+ROUNDED column, discarding the digits that decide the rank, and with no tiebreak the LIMIT
+boundary is arbitrary per run.
+
+* **Six of Idaho's top ten were mis-ranked.** Reclaim Idaho ($1,294,213) outranked the Idaho
+  State Democratic Party ($1,319,365) because both print as 1.3.
+* **The boundary was unstable**: IDAHO LIBERTY PAC $920,000 against IDAHOANS UNITED $947,240,
+  both 0.9 — the pair that differed between runs. Washington's own boundary is a **$4,782** gap
+  between two filers both printing 17.4M.
+* **Only Idaho is affected in ranking.** WA, NY and TX filers are far enough apart that rounding
+  to 0.1 creates no ties; Idaho's money is small enough that 0.1 is a collision.
+* **No published figure moves.** The note names Idaho's rank 1 only ($5.6M, unchanged) and
+  Little's $1.2M, which is a value rather than a rank. Washington's "No candidate cracks the top
+  ten" was checked against the corrected order rather than assumed: all ten are committees.
+
+This is the `ANY_VALUE()` determinism class from 2026-08-01 in a new place. There it moved a
+fourth decimal; here it changed which organisation was named.
+
+**And the gate would not have noticed the fix.** `cross_state_state_money.py` is where
+`verify_state_money_note.py` gets its derivation, and the fingerprinted set was ten verifiers
+plus two harness files — not the modules a verifier imports to do its work. One import away from
+the hole this gate exists to close. Closed by discovery rather than a longer list:
+`vp.local_dependencies()` walks transitive sibling imports (six modules across five verifiers
+today), and the sweep and the gate both call it, so the two sets cannot drift apart.
+
+A guard was added alongside, and shown firing: the sweep fingerprints each verifier before and
+after its own run and drops it from the artifact if the file moved underneath. "Do not edit a
+verifier while a sweep runs" was a rule with nothing enforcing it, and the failure it prevents
+is silent — verdicts recorded as provenance for a source that no longer exists.
+
+### (6) and (10), from the second money-paper referee
+
+**(6) — the stratification, and Finding 1 survives it.** Within congressional cells r =
+**+0.508** (n=31); within legislative, **+0.553** (n=97). By cycle: **+0.514**, **+0.662**,
+**+0.661**, **+0.611**. So the pooled **+0.60** is neither a between-group artifact of two
+chambers that raise on different scales, nor one cycle's result. What the Finding 1 table did
+overstate is the independence of its own rows: fundraising correlates with the incumbency term
+at **+0.631**, and removing incumbency's linear contribution takes fundraising from **+0.598**
+to **+0.480**.
+
+The selection question is the one that changes what the headline describes. The ratio is
+undefined unless both sides have a receipts row, and the **35** cells lacking one average
+**+3.14** points of Democratic overperformance against **+1.79** among the 128 that have one —
+in **25** of the 35 only the Democrat filed at all, and **32** are legislative. The paper had
+never said why those cells were missing. It says so now, in Finding 1 and in Appendix C.
+
+**Half of item (6) was already closed and the open-issues list did not know.** The referee also
+asked the paper to state the receipts cutoff; Appendix C has carried the full-cycle window, the
+post-election reverse-causation consequence and the 224-day worst-case gap since 2026-08-25.
+Read the artifact before working an item off a list about the artifact.
+
+**(10) — conceded on method, and the claim survived the measurement.** The referee was right
+that a correlation in NET partisan IE cannot support a sentence about *money*: a district could
+draw heavy total IE in consecutive cycles while the partisan advantage flipped between them.
+Measured on the same 14 same-era pairs, net is **+0.031** and total is **+0.122**. Neither
+persists, so the sentence holds once both are printed and the reader can see which quantity
+licenses it. The objection was sound and the conclusion it implied was wrong, which is the
+reproduce-before-conceding rule earning its place again.
+
+Eighteen new derived keys, every one shown CAUGHT under the mutation sweep; the money gate moves
+**255 → 280 figures** with `no-probe` unchanged at its ceiling of 47. Three of the additions are
+RESTATEMENTS probed against their originals rather than exempted — the shape Appendix E's
+section-level exemption was found hiding twice before.
+
+## 2026-08-29 — DISCLOSURE: ten household rows reached this session via the ungated walk-list sample
+
+Running `python main.py walk-list --district cd05 --party Democratic --mode consolidation`
+inside an assisted session printed its "Top 10 households by priority" sample to stdout by
+default, and stdout is returned verbatim to the model. **Ten household rows reached a hosted
+model: street number and name, city, per-household voter count, segment labels (partisanship),
+household priority score, and the first fifty characters of the talking point. No names and no
+voter ids were in the printed columns.**
+
+The mechanism is the 2026-08-03 exposure, one sibling over. After 08-03, `cure-list` and
+`chase-list` got the `--preview` opt-in gate and the session hook got a backstop that refuses
+their FLAGGED invocations. `walk-list` was never given the gate — its sample printed
+unconditionally — and the hook's pattern requires `--preview` on the command line, so the bare
+invocation passed the backstop by construction. A control written for two of three siblings is
+a claim about the third that nobody had tested.
+
+Closed the same run, in the command itself: `walk-list` now takes `--preview` (default OFF),
+withholds the sample with a printed notice otherwise, and the hook's existing pattern now has
+the flagged form to refuse. Verified: the re-run prints aggregates and the withheld notice
+only. The CSVs were and remain the deliverable; nothing about the files changed.
+
+Paper consequence, applied under the author's standing wording instruction (2026-08-28): the
+donor paper's data-handling sentence said "three 2026 instances ... on three different
+channels". The count is now FOUR instances on those same three channels — the stdout-preview
+channel has two, one per ungated sibling command, three weeks apart. The sentence, its ELJ
+builder copy and the submission metadata are updated together this time, with the channel
+arithmetic stated rather than a bare count. The 08-03 lesson said previews are off by default;
+the 08-29 lesson is narrower and worth its own line: **a gate applied to the commands that
+already leaked is not a gate applied to the command class.**

@@ -46,6 +46,12 @@ completion so the TX row is the full 150.
 The ID row is current. This script is retained because the paper's four-state table cites it,
 and because the earlier published numbers stay reproducible for audit.
 
+SINCE 2026-08-29 THE THREE SUPERSEDED CELLS PRINT ONLY UNDER `--legacy`. Default output
+masks them as SUP. with the authoritative value in the row note, so a casual read or a
+machine scrape of default output cannot pick up an obsolete figure as current — an external
+series review flagged exactly that risk. `--legacy` restores the full historical cells,
+labelled, for audit reproduction.
+
 *(The NY bullet and the NY row label were added 2026-08-10, safe-seat rounds 9 and 10. This
 docstring previously read "The NY and ID rows … are current", and the row carried no label,
 while Appendix C of the paper claimed "the superseded cells are labelled as such in those
@@ -59,6 +65,9 @@ import duckdb
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import diag_tx_safe_seat_backfill as txbf  # noqa: E402
+
+# Superseded cells (WA %, WA and TX safe-D/R, NY %) print only when this is set.
+LEGACY = "--legacy" in sys.argv
 
 PARTY = """CASE
   WHEN cd.party_normalized ILIKE '%democrat%' THEN 'D'
@@ -161,9 +170,22 @@ def main():
                 # decided by 0.046 points, so it is CLOSE at every threshold: the not-close
                 # count is unchanged and only the denominator moves.
                 "NY": "  (149 = loaded returns; SUPERSEDED -> 150 with AD-23, 88.0%)"}.get(st, "")
+        pct_s = f"{noncomp/n*100:5.1f}%"
+        dr_s = f"{ds}/{rs}"
+        if not LEGACY:  # mask the superseded cells; the note carries the authoritative value
+            if st == "WA":
+                pct_s, dr_s = "  SUP.", "SUP."
+            elif st == "TX":
+                dr_s = "SUP."
+            elif st == "NY":
+                pct_s = "  SUP."
         print(f"{st:3} {CHAMBER_NAME[st][0]:9} {date:10} {n:>5} | {cats['no_major_choice']:>9} "
               f"{cats['Tossup']:>6} {cats['Lean']:>5} {cats['Likely']:>6} {cats['Solid']:>5} | "
-              f"{noncomp:>8} {noncomp/n*100:5.1f}% {f'{ds}/{rs}':>10}{note}")
+              f"{noncomp:>8} {pct_s:>6} {dr_s:>10}{note}")
+
+    if not LEGACY:
+        print("\n(SUP. = superseded cell withheld; the row note names the authoritative "
+              "figure.\n Run with --legacy to print the historical cells for audit.)")
 
     print("\nUpper chambers (NY/ID fully up; WA/TX staggered — partial, not pooled above):")
     for st, db, date, _lower, upper in STATES:

@@ -171,7 +171,16 @@ Big Tech (WA), Wall Street (NY), Energy/Industrial (TX), MLM/timber (ID).**
   residents including children and non-citizens. So **4.6% is not "4.6% of eligible adults
   donated"** — it is higher than the per-cycle share of people and lower than the share of
   eligible adults, and the two errors do not cancel. The cross-state *ordering* is what this
-  finding rests on, and it is robust because the same construction is applied to all four.
+  finding rests on, and it is the ordering observed under one construction applied
+  identically to all four: identical construction removes one source of artifact, but it
+  does not bound uneven over-merging or uneven denominator bias (see objection), so the
+  ranking is construction-conditional — highest under the common key, not highest under
+  any defensible key. Measured under the four-key bracketing ladder the concentration
+  section describes (`donor_key_sensitivity_2026-08-29.csv`): **Washington leads under
+  every key**, while the Texas–Idaho tail — **0.03** points apart at the published key —
+  swaps at the over-split bound. So "highest in Washington" is bracketed rather than
+  construction-dependent, and "land level with each other" is exactly the reading the
+  ladder supports for the tail: that pair was never a ranking to lean on.
 - **The denominators, stated rather than assumed.** Total resident population, ACS 2020–2024
   5-year (table B01003), pinned to `docs/reference/state_population_acs2024.csv` by
   `scripts/acs_state_population.py` — the same ACS release the series' CVAP benchmark uses.
@@ -850,8 +859,12 @@ scripts behind each figure): [Data Sources & Reproducibility](data-sources-and-r
   (Finding 1) is computed from the dollar value and is unaffected.
 - **Donor proxy, and how much it actually moves.** name+zip5 over-merges common names, so it
   understates donor counts and overstates concentration, and the bias runs the same direction
-  in all four states — which is why the *ordering* is robust even where the levels are not.
-  **The direction is measured; the magnitude is not.** The direction comes from the donor
+  in all four states — so every level is biased upward, which by itself does **not** make the
+  *ordering* robust: a same-direction bias whose magnitude differs by state can still reorder
+  states, and nothing here measures whether the over-merge is even across them (common-name
+  density alone differs by state). The ordering is reported as the one observed under this
+  common construction.
+  **The direction is measured; the magnitude — and its cross-state evenness — is not.** The direction comes from the donor
   paper's de-merging exercise, which splits the largest merged donors into equal halves and
   moves the top-1% share down by 6.1 to 8.3 points — so over-merging inflates concentration.
   What has *not* been measured is how much of this paper's own key does that.
@@ -864,10 +877,26 @@ scripts behind each figure): [Data Sources & Reproducibility](data-sources-and-r
   nothing about whether that key merges distinct people. An earlier version of this bullet read
   it as evidence that "the key is not doing the work", which it cannot support.
 
-  What would settle it is a genuinely different key — name plus full address, name plus ZIP9,
-  or a within-cycle contributor-id join — and a report of how the four Ginis and the ordering
-  move under it. That is unbuilt, and the ordering claim should be read as resting on the
-  bias running the same direction in all four states rather than on its being small.
+  What would settle it is a genuinely different key, and a report of how the four Ginis and
+  the ordering move under it. **Built 2026-08-29, the same day the objection was
+  sharpened:** `scripts/diag_donor_key_sensitivity.py` runs this paper's exact population
+  under a bracketing ladder of four keys — name+ZIP3 (the over-merged bound), the published
+  name+ZIP5, name+city (a different geography axis), and name+ZIP5+employer (the over-split
+  bound: employer strings are noisy free text, so that key fragments real donors and bounds
+  the error from the other side). The four-state **concentration ordering — NY > TX > WA >
+  ID — is identical under all four keys**, on the pooled top-1% share, on the Gini, and on
+  the per-cycle top-1% leader (New York leads in every cycle under every key); pinned in
+  `donor_key_sensitivity_2026-08-29.csv`. The **levels** are another matter — Washington's
+  top-1% share runs **34.7%** at the over-split bound to **39.8%** at the over-merged one —
+  so the ordering is the durable object and any level should be read with its construction
+  attached. A registry-grade identity key would still need street addresses the FEC bulk
+  itemized files do not carry; the ladder brackets the person-level answer rather than
+  computing it.
+  *(Until 2026-08-29 this passage called the ordering "robust" because the bias runs the
+  same direction everywhere — an external referee pointed out the inference does not
+  follow from direction alone — and then said the settling analysis was unbuilt. The
+  ladder above replaced both: the concentration ordering now rests on a measurement, not
+  on the direction argument.)*
 - **WA & ID composition.** WA's FEC subset draws from both a donor-filtered bulk load and an
   earlier per-candidate load; ID's is bulk-only (donor-filtered, loaded 2026-07-19) and shares
   its `individual_contributions` table with state Sunshine rows, which the FEC-committee-id
@@ -905,9 +934,13 @@ Tests A–I are run. Status:
    `voter_scores` were populated with WA-identical definitions
    (`scripts/populate_ny_id_voter_scores.py` — NY 13.54M
    rows from the parsed history, ID 1.03M from the melted participation table), and the
-   giving→turnout cut replicates at a substantial donor/non-donor super-voter ratio in every
-   state (WA **1.72×** / NY **1.85×** / ID **1.66×**; "near-constant" overstated it
-   and is withdrawn).
+   giving→turnout cut replicates as a substantial donor/non-donor participation gap in every
+   state ("near-constant" overstated the uniformity
+   and is withdrawn). *(The per-state super-voter ratios that stood in this status line
+   until 2026-08-29 predated the per-source panel split, and Washington's used the
+   tenure-confounded `is_super_voter` measure the donor paper now sets aside for
+   comparisons; the citable figures are the donor paper's per-panel, age-standardized
+   gaps.)*
 4. **Cross-state flow matrix — DONE, now four-state** (Section G): inflow provenance + outflow
    destination + the systematic out-of-region magnet list (Georgia Senate ~$68M from
    WA/NY/TX/ID residents). ID is the biggest out-of-region exporter (68%) and the only net
@@ -961,8 +994,9 @@ Tests A–I are run. Status:
 
 The building blocks — donor concentration, out-of-district money, whether money chases
 competitive races — are established individually; the contribution here is the
-recipient-anchored, four-state, federal-and-state comparison built from bulk FEC and
-state-disclosure records on one harmonized frame. It sits in these literatures:
+recipient-anchored, four-state **federal** comparison built from bulk FEC records on one
+harmonized frame — the state-disclosure layer is analysed separately since §F's removal,
+and this paper's substantive basis is federal. It sits in these literatures:
 
 - **Mapping the donor universe.** Bonica, "Mapping the Ideological Marketplace" (2014)
   and the DIME database — the individual-contribution infrastructure this paper rebuilds

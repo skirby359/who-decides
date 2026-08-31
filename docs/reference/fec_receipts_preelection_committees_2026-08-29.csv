@@ -1,0 +1,70 @@
+district,year,side,candidate,fec_candidate_id,committee_id,committee_name,designation_current,designation_at_cycle,designation_source,pre_receipts,full_receipts_reports,n_reports,source,retrieved_on
+cd01,2018,D,SUZAN DELBENE,H0WA08046,C00459099,DELBENE FOR CONGRESS,P,P,history/2018,2007785.44,2110820.42,11,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd01,2018,R,JEFFREY BEELER,H8WA01077,C00680264,BEELER4CONGRESS,P,P,history/2018,19707.67,23157.67,6,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd01,2022,D,SUZAN DELBENE,H0WA08046,C00459099,DELBENE FOR CONGRESS,P,P,history/2022,2360423.50,2502763.72,11,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd01,2022,R,VINCENT J CAVALERI,H2WA01252,C00789644,CAVALERI FOR CONGRESS,P,P,history/2022,177203.78,185847.78,8,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd01,2024,D,SUZAN DELBENE,H0WA08046,C00459099,DELBENE FOR CONGRESS,P,P,history/2024,3604341.07,3850571.40,11,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd01,2024,R,JEB BREWER,H4WA01266,C00862938,FRIENDS OF JEB BREWER,P,P,history/2024,13279.00,14151.00,6,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd02,2020,D,RICK LARSEN,H0WA02080,C00345546,CITIZENS TO ELECT RICK LARSEN,P,P,history/2020,1179622.75,1284956.04,11,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd02,2020,R,TIMOTHY S. HAZELO,H0WA02197,C00737387,TIMHAZELOFORCONGRESS,P,P,history/2020,44473.02,49478.22,6,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd02,2022,D,RICK LARSEN,H0WA02080,C00345546,CITIZENS TO ELECT RICK LARSEN,P,P,history/2022,1589234.92,1697229.23,11,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd02,2022,R,DAN MATTHEWS,H2WA02177,C00815332,DAN MATTHEWS FOR CONGRESS 2022,P,P,history/2022,59195.81,145529.16,6,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd03,2018,D,CAROLYN LONG,H8WA03198,C00660472,ELECT CAROLYN LONG,P,P,history/2018,3255853.16,3883284.00,8,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd03,2018,R,JAIME HERRERA BEUTLER,H0WA03187,C00472704,JAIME FOR CONGRESS,P,P,history/2018,2273152.83,2705354.23,11,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd03,2020,D,CAROLYN LONG,H8WA03198,C00660472,ELECT CAROLYN LONG,P,P,history/2020,3740753.38,4187790.70,11,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd03,2020,R,JAIME HERRERA BEUTLER,H0WA03187,C00472704,JAIME FOR CONGRESS,P,P,history/2020,4108966.41,4623991.32,11,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd03,2022,D,MARIE GLUESENKAMP PEREZ,H2WA03217,C00806174,MARIE FOR CONGRESS,P,P,history/2022,3279785.71,3924093.95,7,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd03,2022,R,JOE KENT,H2WA03100,C00771394,JOE KENT FOR CONGRESS,P,P,history/2022,3189265.69,3816390.01,11,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd03,2024,D,MARIE GLUESENKAMP PEREZ,H2WA03217,C00806174,MARIE FOR CONGRESS,P,P,history/2024,10699161.42,11856001.72,11,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd03,2024,R,JOE KENT,H2WA03100,C00771394,JOE KENT FOR CONGRESS,P,P,history/2024,2308562.30,2565072.78,11,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd03,2024,R,JOE KENT,H2WA03100,C00856708,JOE KENT FOR WA-03 REPUBLICAN NOMINEE FUND 2024,A,A,history/2024,49.89,49.89,2,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd03,2024,R,JOE KENT,H2WA03100,C00858365,JOE KENT FOR CONGRESS-GTM NF WA03,A,A,history/2024,0.00,0.00,2,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd04,2018,D,CHRISTINE BROWN,H8WA04089,C00647008,COMMITTEE TO ELECT CHRISTINE BROWN,P,P,history/2018,443777.97,475862.12,10,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd04,2018,R,DAN NEWHOUSE,H4WA04104,C00559393,DAN NEWHOUSE FOR CONGRESS,P,P,history/2018,1098095.11,1155667.61,11,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd04,2018,R,DAN NEWHOUSE,H4WA04104,C00611400,NEW ENERGY IN WASHINGTON HOUSE PAC (N.E.W. HOUSE PAC),D,D,history/2018,12500.00,19500.00,16,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd04,2020,D,DOUGLAS E. MCKINLEY,H6WA04141,C00743880,DOUGLAS MCKINLEY FOR CONGRESS,P,P,history/2020,58040.09,61816.45,5,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd04,2020,R,DAN NEWHOUSE,H4WA04104,C00559393,DAN NEWHOUSE FOR CONGRESS,P,P,history/2020,1107483.83,1184750.40,11,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd04,2020,R,DAN NEWHOUSE,H4WA04104,C00611400,NEW ENERGY IN WASHINGTON HOUSE PAC (N.E.W. HOUSE PAC),D,D,history/2020,39750.00,64250.00,9,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd04,2022,D,DOUG WHITE,H2WA04199,C00791491,DOUG WHITE FOR CONGRESS,P,P,history/2022,702046.38,774333.86,8,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd04,2022,R,DAN NEWHOUSE,H4WA04104,C00559393,DAN NEWHOUSE FOR CONGRESS,P,P,history/2022,2078713.41,2148295.38,11,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd04,2022,R,DAN NEWHOUSE,H4WA04104,C00611400,NEW ENERGY IN WASHINGTON HOUSE PAC (N.E.W. HOUSE PAC),D,U,history/2022,69500.00,69500.00,10,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd05,2018,D,LISA BROWN,H8WA05193,C00654400,LISA BROWN FOR CONGRESS,P,P,history/2018,5296502.34,5763983.16,9,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd05,2018,R,CATHY MCMORRIS RODGERS,H4WA05077,C00390476,CMR WA PAC,U,P,history/2018,5502066.00,5863432.00,11,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd05,2020,D,DAVE WILSON,H0WA05133,C00747063,FRIENDS OF DAVE WILSON,P,P,history/2020,89507.99,112782.51,5,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd05,2020,R,CATHY MCMORRIS RODGERS,H4WA05077,C00390476,CMR WA PAC,U,P,history/2020,4044697.30,4419970.26,11,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd05,2022,D,NATASHA HILL,H2WA05105,C00792762,NATASHA HILL,P,P,history/2022,338064.70,377499.11,8,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd05,2022,R,CATHY MCMORRIS RODGERS,H4WA05077,C00390476,CMR WA PAC,U,P,history/2022,6005842.41,6416913.26,11,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd05,2024,D,CARMELA CONROY,H4WA05168,C00849794,CONROY FOR CONGRESS,P,P,history/2024,527942.72,604595.92,9,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd05,2024,R,MICHAEL BAUMGARTNER,H4WA05234,C00870758,VOTE BAUMGARTNER FOR CONGRESS,P,P,history/2024,1318825.76,1505190.06,7,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd06,2018,D,DEREK KILMER,H2WA06129,C00514893,PEOPLE FOR DEREK KILMER,P,P,history/2018,2274180.90,2350189.52,11,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd06,2018,R,DOUGLAS DIGHTMAN,H8WA06100,C00679571,DIGHTMAN FOR CONGRESS,P,P,history/2018,46610.00,46610.00,4,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd06,2020,D,DEREK KILMER,H2WA06129,C00514893,PEOPLE FOR DEREK KILMER,P,P,history/2020,2418084.74,2557718.74,11,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd06,2020,R,ELIZABETH KREISELMAIER,H0WA06081,C00726513,ELIZABETH FOR CONGRESS,P,P,history/2020,142243.20,156123.45,8,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd06,2022,D,DEREK KILMER,H2WA06129,C00514893,PEOPLE FOR DEREK KILMER,P,P,history/2022,2528617.66,2637628.09,11,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd06,2022,R,ELIZABETH KREISELMAIER,H0WA06081,C00726513,ELIZABETH FOR CONGRESS,P,P,history/2022,401405.27,426186.56,11,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd06,2024,D,EMILY RANDALL,H4WA06117,C00857094,EMILY RANDALL FOR CONGRESS,P,P,history/2024,1696213.13,1978942.81,8,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd06,2024,R,DREW C MACEWEN,H4WA06133,C00858142,FRIENDS FOR DREW MACEWEN,P,P,history/2024,241963.67,255579.90,8,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd07,2018,D,PRAMILA JAYAPAL,H6WA07458,C00605592,PRAMILA FOR CONGRESS,P,P,history/2018,2064543.56,2212622.98,11,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd07,2018,R,CRAIG KELLER,H4WA07073,C00569707,KELLER4AMERICA,P,P,history/2018,6238.00,7204.00,11,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd07,2020,D,PRAMILA JAYAPAL,H6WA07458,C00605592,PRAMILA FOR CONGRESS,P,P,history/2020,2499899.41,2655142.94,11,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd07,2020,R,CRAIG KELLER,H4WA07073,C00569707,KELLER4AMERICA,P,P,history/2020,3995.00,5256.00,12,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd07,2022,D,PRAMILA JAYAPAL,H6WA07458,C00605592,PRAMILA FOR CONGRESS,P,P,history/2022,2612833.36,2772436.29,11,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd07,2022,R,CLIFF MOON,H2WA07127,C00818708,CLIFF4CONGRESS,P,P,history/2022,5896.18,8019.18,4,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd08,2018,D,KIM SCHRIER,H8WA08189,C00652628,DR KIM SCHRIER FOR CONGRESS,P,P,history/2018,6937042.54,8144753.17,9,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd08,2018,R,DINO ROSSI,H8WA08205,C00656371,DINO FOR CONGRESS,P,P,history/2018,4418817.00,4846553.35,9,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd08,2020,D,KIM SCHRIER,H8WA08189,C00652628,DR KIM SCHRIER FOR CONGRESS,P,P,history/2020,5069527.80,5452642.06,11,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd08,2020,R,JESSE JENSEN,H0WA08103,C00702944,JENSEN FOR WA-08,A,A,history/2020,25401.40,25401.40,4,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd08,2020,R,JESSE JENSEN,H0WA08103,C00720870,FOUR TOUR PAC,D,P,history/2020,711840.43,831830.38,9,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd08,2022,D,KIM SCHRIER,H8WA08189,C00652628,DR KIM SCHRIER FOR CONGRESS,P,P,history/2022,8724115.47,9640767.33,11,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd08,2022,R,MATT LARKIN,H2WA08182,C00775916,LARKIN FOR WA-08,A,A,history/2022,87353.32,87353.32,4,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd08,2022,R,MATT LARKIN,H2WA08182,C00780049,MATT LARKIN FOR CONGRESS,P,P,history/2022,2169272.75,2723199.47,10,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd09,2020,D,ADAM SMITH,H6WA09025,C00304709,ADAM SMITH FOR CONGRESS COMMITTEE,P,P,history/2020,1217403.47,1327196.11,11,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd09,2020,R,DOUG BASLER,H4WA09061,C00566232,FRIENDS OF DOUG BASLER,P,P,history/2020,14486.00,22729.80,10,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd09,2022,D,ADAM SMITH,H6WA09025,C00304709,ADAM SMITH FOR CONGRESS COMMITTEE,P,P,history/2022,1266225.60,1386775.73,11,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd09,2022,R,DOUG BASLER,H4WA09061,C00566232,FRIENDS OF DOUG BASLER,P,P,history/2022,126877.28,133962.28,11,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd10,2018,D,DENNY HECK,H0WA03161,C00472159,DENNY HECK FOR CONGRESS,P,P,history/2018,1530210.40,1632852.46,11,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd10,2018,R,JOSEPH BRUMBLES,H8WA10045,C00686170,CAMPAIGN COMMITTEE OF JOSEPH BRUMBLES,P,P,history/2018,5073.00,5243.00,3,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd10,2022,D,MARILYN STRICKLAND,H0WA10034,C00732826,STRICKLAND FOR WASHINGTON,P,P,history/2022,1811030.59,1911259.96,11,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd10,2022,R,KEITH R SWANK,H2WA08166,C00700161,FRIENDS OF KEITH SWANK,P,P,history/2022,172000.77,187145.22,14,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd10,2024,D,MARILYN STRICKLAND,H0WA10034,C00732826,STRICKLAND FOR WASHINGTON,P,P,history/2024,1957103.88,2067308.22,11,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29
+cd10,2024,R,DON HEWETT,H2WA10063+H4WA10044,C00794362,DON HEWETT FOR CONGRESS WA10,P,P,history/2024,39.57,39.57,1,"api.open.fec.gov /committee/{id}/{history,reports}/",2026-08-29

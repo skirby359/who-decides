@@ -35,8 +35,11 @@ killers for safe-seat-washington.md.
 NOTE ON THE WA ROW: WA figures here come from `precinct_results` under this script's
 definition and read 88.8% at >=10pt. The paper publishes WA from
 `diag_seat_competition.py` on the certified universe (87.8%), which is the authoritative
-WA number. Both are printed side by side below so the 1-seat difference is visible
-instead of looking like a contradiction.
+WA number. SINCE 2026-08-29 the precinct-table WA read prints only under `--legacy` —
+default output shows the certified figure and a withheld-cell marker, so a casual read or
+machine scrape of default output cannot pick up the superseded value as current (an
+external series review flagged exactly that risk). `--legacy` restores the side-by-side
+print for audit reproduction.
 """
 import csv
 import os
@@ -50,6 +53,8 @@ import diag_tx_safe_seat_backfill as txbf  # noqa: E402
 PARTY = """CASE WHEN cd.party_normalized ILIKE '%democrat%' THEN 'D'
   WHEN cd.party_normalized ILIKE '%republican%' OR cd.party_normalized ILIKE '%gop%' THEN 'R'
   ELSE 'O' END"""
+# The superseded precinct-table WA cells print only when this is set (module docstring).
+LEGACY = "--legacy" in sys.argv
 THRESHOLDS = [5, 8, 10, 12, 15]
 # The paper's WA >=10pt figure, from diag_seat_competition.py on the certified universe.
 # Kept here only so the contest gap can be printed on the number the paper publishes;
@@ -210,6 +215,10 @@ def main():
     print("=" * 70)
     print(f"\n{'state':5} {'seats':>5} " + " ".join(f"{'>='+str(t):>7}" for t in THRESHOLDS))
     for st, (nmc, margins) in state_data.items():
+        if st == "WA" and not LEGACY:
+            print(f"{'WA':5} {'—':>5}  [superseded precinct-table read withheld — the "
+                  "paper's certified WA row is below; --legacy prints this one]")
+            continue
         n = nmc + len(margins)
         cells = []
         for t in THRESHOLDS:
@@ -240,6 +249,11 @@ def main():
             print(f"{st:5} {actual:16.1f}% {'n/a':>16} {'':>9}  no matched-vintage presidential")
             continue
         presafe = sum(1 for m in pm if m >= 10) / len(pm) * 100
+        if st == "WA" and not LEGACY:
+            print(f"{'WA*':5} {WA_CERTIFIED_NOTCLOSE_10:16.1f}% {presafe:15.1f}% "
+                  f"{WA_CERTIFIED_NOTCLOSE_10-presafe:8.1f}  PAPER: certified universe "
+                  f"(precinct-table read withheld; --legacy prints it)")
+            continue
         print(f"{st:5} {actual:16.1f}% {presafe:15.1f}% {actual-presafe:8.1f}  "
               f"(pres districts n={len(pm)})")
         if st == "WA":

@@ -81,8 +81,14 @@ when they were Washington's alone.
   ~5.5M distinct voters); ~27.1M individual VRDB vote records.
 - **All four states, federal layer only:** **28.9M contribution rows / $4.73B** of
   resident-donor outflow (WA 5.58M/$646.2M · NY 9.98M/$2,066.6M · TX 12.56M/$1,942.1M ·
-  ID 0.77M/$76.2M). Adding each state's own finance system takes it to **36.1M rows /
-  $6.06B**.
+  ID 0.77M/$76.2M). Adding each state's own finance system takes it to **36.0M rows /
+  $6.06B**. *(This read "36.1M" until 2026-08-26. The federal and state layers are selected
+  by `contribution_id` prefix, and their sum is 36.0M; 36.1M was a plain row count of the
+  four tables, which also picks up 90,988 rows loaded from the FEC **API** rather than the
+  bulk files. Those rows are donor-residence unfiltered, so they do not belong in a
+  resident-donor outflow count, and no published cut in this series reads them — every
+  federal figure filters the bulk prefix. The dollar total is $6.06B on either basis, so the
+  row count was the only place the two separated, and it separated upward.)*
 - **The rare asset:** voters matched to their own donations at the person level. Quote
   these **per panel**, never pooled — WA federal 147,745 / state 217,114; NY federal
   269,218 / state 378,383; ID federal 23,303 / state 23,613. The pooled 314,974 WA figure
@@ -168,8 +174,9 @@ programme does. Treating the count of results as a count of corroborating studie
 
 ### Domain 1 — Participation: who actually votes
 
-- **Defensible claim.** The electorate that decides odd-year general elections in
-  WA is roughly half the size of the presidential electorate and dramatically
+- **Defensible claim.** The electorate that returns an accepted ballot in WA's odd-year
+  general elections — credited participation, which is what the vote history records, not
+  contest-level voting — is roughly half the size of the presidential electorate and dramatically
   older. From **27.1M** VRDB vote records (~100% birthdate coverage): voters 65 and older were
   **36.7%, 40.2% and 40.3%** of the 2021, 2023 and 2025 odd-year electorates against
   **28.5%** in 2024, while voters 18–29 fell from **14.2%** in 2024 to about **7.6%**
@@ -228,11 +235,16 @@ programme does. Treating the count of results as a count of corroborating studie
   lower-turnout primaries" is removed as an inference the safe-seat companion has expressly
   withdrawn* — an ex-post margin cannot date the binding decision.</sub>
   *(A basis note here described how the four retired band cells were computed from `forecast_predictions` — including that the Texas district count differed between two snapshots four days apart, which is why they were never trustworthy as published figures. It went with the cells.)*
-- **Strongest objection.** Those are *model-projected* 2026 margins, sensitive to
-  the 10-pt threshold; and "non-competitive" conflates a closed-shop seat with one
+- **Strongest objection.** "Not close" is a 10-pt threshold call on an *ex-post* margin —
+  it neither dates when a contest stopped being live nor escapes the threshold choice
+  (the companion's sweep addresses the second, not the first); and "non-competitive"
+  conflates a closed-shop seat with one
   that is lopsided because voters *genuinely* lean that way (self-sorting). A
   Solid-D Seattle seat and a Solid-R rural-ID seat each *represent* their
-  electorates — the null's "outcomes reflect voter choice."
+  electorates — the null's "outcomes reflect voter choice." *(This bullet attacked
+  "model-projected 2026 margins" until 2026-08-29 — the basis the claim above stopped
+  using on 2026-08-15. An objection must attack the argument as it now stands; an external
+  referee found the two bullets arguing past each other.)*
 - **First analysis — DONE** ([`safe-seat-washington.md`](safe-seat-washington.md)):
   Ran **observed** margins, not the projection: per state, the
   most recent general for partisan legislative + congressional offices → margin per
@@ -246,8 +258,11 @@ programme does. Treating the count of results as a count of corroborating studie
   the rewrite removed. For WA, built the 2016–2024 seat-level trend (not-close share runs
   **78.9–88.1%** across the five cycles, dipping in the 2018 wave) and the
   primary-to-general turnout ratio in safe seats (~0.5) — the one
-  place this data *adds* to Cook/Ballotpedia/Unite America by attaching real
-  turnout (and the voter-donor join) to the "primary decides" claim.
+  place this data *adds* to Cook/Ballotpedia/Unite America, by attaching real
+  turnout (and the voter-donor join) to the primary-versus-general comparison the
+  "primary decides" literature argues over. The companion itself declines that
+  inference — an ex-post margin cannot date the binding decision — so the ratio
+  describes who shows up at each stage, not which stage decided.
 - **Key literature.** Cook PVI (swing districts 164 in 1997 → ~72 post-2016);
   Ballotpedia Competitiveness Index (38% of state-leg seats uncontested in 2024);
   Unite America (*The Primary Problem*).
@@ -270,7 +285,8 @@ floors keep out of the record entirely.*
   **median itemized gift is $25** in both money systems, while per-recipient-cycle
   concentration is substantial: median Gini **0.578** federal and **0.579** state, over
   recipient-cycles with ≥100 distinct donors (**834** federal, **1,997** state). The data can
-  quantify, per race and cycle, the sub-$200 retail share against the whale layer.
+  quantify, per recipient-cycle, the sub-$200 retail share against the whale layer — per
+  *race* only once the ultimate-recipient attribution the objection below names is built.
 
   <sub>**Corrected 2026-08-10.** These figures were previously given as "n=2,821 … single
   gifts reach $2.5M … Gini ~0.61", which was computed on the **pooled** FEC+PDC table — the
@@ -362,13 +378,18 @@ floors keep out of the record entirely.*
 - **Defensible claim.** At the person level, donors are a narrow slice that does not
   mirror the electorate: **~4.0–5.7% of registrants** — matched donors as a share of
   each state's full roll on the pooled panels, ID **4.0%**, NY **4.1%**, WA **5.7%** — skewed old
-  (pooled WA: Silent **1.96×**,
-  Boomer **1.71×** over-represented; Gen Z **0.09×**, Millennial **0.54×**
-  under-represented — 2.67× / 2.04× / 0.04× / 0.35× on the federal panel),
-  overwhelmingly super-voters, geographically concentrated (**61.4% of WA donor
-  dollars from two Seattle-metro ZIP3s**; 63.5% federal-only), and internally top-heavy
-  (top 1% of matched donors supply **46.6%** of matched dollars pooled, **41.2%**
-  federal; top 10% **79.3%** / **74.2%**).
+  (WA federal panel: Silent **2.67×**, Boomer **2.04×** over-represented; Gen Z **0.04×**,
+  Millennial **0.35×** under-represented — 1.96× / 1.71× / 0.09× / 0.54× on the superseded
+  pooled basis),
+  high-frequency voters on the clean measure 3b states (the retired super-voter
+  metric is not reused here), geographically concentrated (**63.5% of WA federal donor
+  dollars from two Seattle-metro ZIP3s**; 61.4% pooled), and internally top-heavy
+  (top 1% of matched donors supply **41.2%** of matched dollars on the federal panel,
+  **46.6%** pooled; top 10% **74.2%** / **79.3%**). *(Until 2026-08-29 this claim led with
+  the pooled figures the panel note above supersedes, and said "overwhelmingly
+  super-voters" — the measure 3b retires. Same referee catch as 3b's, one section later:
+  the synthesis kept headlining what its own note had already demoted. Every figure is
+  unchanged; the panels now lead in the order the donor paper reports them.)*
   RETIRED ($154.0M, 23.8%) and NOT EMPLOYED ($128.8M, 19.9%) are the two largest
   occupation blocs. *(These are contribution-level, not matched-donor, figures — occupation
   is on the gift, not the voter — and they are stated on the series' documented outflow
@@ -384,9 +405,12 @@ floors keep out of the record entirely.*
   older, rarer-named, stable-address residents it then "finds" over-represented. What has
   been tested is the **roll-side** half of that. On the current full-name key the probability
   a voter is uniquely matchable is nearly flat across age — **NY 94.5–95.4%** (0.9-pt
-  spread), **WA 96.3–97.6%** (1.4-pt spread) — so inverse-propensity re-weighting does not
-  move the distribution: NY's 65+ donor share goes 47.9% → **47.9%**, and every Washington
-  generation multiplier is unchanged to two decimal places in both panels.
+  spread), **WA 96.3–97.6%** (1.4-pt spread) — so inverse-propensity re-weighting barely
+  moves the distribution: NY's 65+ donor share goes 47.9% → **47.9%**, and no Washington
+  generation multiplier moves by more than **0.05**, the largest being Silent on the federal
+  panel (**2.67** → **2.61**). Every cohort keeps its direction and its rank; the one
+  qualification is Gen X, which sits at parity and crosses it on the federal panel
+  (**0.98** → **1.01**).
 
   The defensible conclusion is therefore **"measured roll-side strict-key matchability does
   not explain the age skew"** — not "matcher bias has been rejected". The test says nothing
@@ -451,9 +475,17 @@ floors keep out of the record entirely.*
 
 - **Defensible claim.** Fundraising is the single strongest correlate of
   overperformance in the panel — raw log2(D/R) receipts correlate **+0.60** — while
-  spend *allocation* carries a cross-cycle holdout R² of **0.028**, and the forecast
+  spend *allocation* carries a cross-cycle squared holdout correlation of **0.028** (the
+  owning paper's term — it is a squared out-of-sample correlation, not predictive R²;
+  this bullet said "holdout R²" until 2026-08-29), and the forecast
   model zeroes the fundraising term post-redistricting because the baseline already
-  absorbs it. **What none of that establishes is direction.** The association is
+  absorbs it. The timing half is now measured (the owning paper's Appendix C, 2026-08-29):
+  cut at the final pre-election FEC report, the within-congressional correlation is
+  essentially unchanged — **+0.506** against **+0.507** full-cycle on the same
+  report-built, cycle-validated authorized-committee basis — so the association does not
+  depend on receipts reported after that cutoff (a robustness result about the reporting
+  cutoff, the owning paper notes, not a decomposition of the post-election component).
+  **What none of that establishes is direction.** The association is
   equally consistent with money buying votes and with money chasing candidates who
   were already going to win, and no design available here separates them. The
   citable result is a **non-identification**: the public record can measure the
@@ -471,14 +503,19 @@ floors keep out of the record entirely.*
   had silently broken when that paper's tables were rebuilt, which is how the figures
   drifted unnoticed.</sub>
 - **Strongest objection — and it is sustained.** The whole thing is a correlation with no
-  exogenous variation. The allocation-R² null is underpowered and tests spend *mix*, not
+  exogenous variation. The allocation null is underpowered and tests spend *mix*, not
   *level*. So the data can neither confirm nor refute vote-buying; it can only show money
-  is endogenous to candidate quality.
+  is endogenous — to candidate strength, or to anything else that produces performance the
+  baseline misses (private polling, anticipated closeness, targeting, networks), which is
+  the owning paper's own narrowing of what the marker marks.
 - **First analysis — DONE** (`scripts/diag_ie_vs_margin.py`). For FEC-attributed
   races (Schedule E carries support/oppose + district), it regresses the
   *fundamentals-net residual* (actual − model-predicted Dem %, **not** the raw
   margin) on the net pro-Dem IE advantage. **Directional IE on disk spans five cycles
-  (2018–2026 FEC Schedule-E, 34 scorable WA U.S. House races)**, and the **$51.7M of
+  (2018–2026 FEC Schedule-E); the 34 scorable WA U.S. House races all sit in the four
+  completed ones** — the owning paper's abstract states both quantities separately since
+  2026-08-25, after a referee caught the inventory count standing in for the estimator's,
+  and this sentence carried the same conflation until 2026-08-29 — and the **$51.7M of
   direction-coded PDC state-legislative IE** (form C-6 section C6.3, ingested 2026-08-09)
   adds **129 scorable district-cycles** on the same design — see
   `scripts/diag_pdc_ie_vs_margin.py`. That extension does not settle the question: every
@@ -551,15 +588,31 @@ They are reported as limits — and they map the data we would need to say more.
   null, and an earlier version reported it as "exactly 0 voters" as though it were evidence. WA has no party registration. The honest result is a
   limits-and-null finding that *converges with* the gold-standard literature
   (Abramowitz & Webster; Kuriwaki's cast-vote-record work), not against it.
-- **Are outcomes pre-determined? (insight 38).** The backtest (MAE 6.41, 94% directional on
-  163 filtered cells; **10.12 / 85% on the unfiltered 170-cell grid**) bounds how much
+- **Are outcomes pre-determined? (insight 38).** The backtest (**MAE 6.41, 94% directional
+  across 163 district-cycles**, bias +0.38, 95% interval covering 97%) bounds how much
   aggregate campaigning moves results. It is a **retrospective fit**, not a notarized
   out-of-sample result — what is notarized is the locked 2026 forward prediction set, which
   scores in November — and the model's coefficients were tuned against a residual matrix, so
   the figure is not pre-registered. Further —
   predictability is **not** causal inertness (Gelman & King: predictability is the
-  *footprint* of effective deliberation), the headline is safe-seat-inflated, and
-  the data has no counterfactual.
+  *footprint* of effective deliberation), the aggregate mixes competitive and safe districts
+  and so is not a competitive-race accuracy figure, and the data has no counterfactual.
+
+  *(This item quoted a second pair — "10.12 / 85% on the unfiltered 170-cell grid" — beside
+  the first until 2026-08-26, and both halves of that framing were wrong. The pair was
+  **withdrawn after a re-run**, the resolution the author chose over rewording. First, the two
+  were not a filtered/unfiltered contrast: 170 was the count of VALID cells after uncontested
+  and undefined-PVI skips on the May-2026 grid, exactly the same kind of quantity as the 163
+  here, and `METHODOLOGY.md` §6.3 says so. Second, they were not one backtest — 10.12/85%
+  belongs to the **v-may15** model and 6.41/94% to **v-jun17**, so the parenthesis contrasted
+  two coefficient sets while reading as one measurement. A fresh run on the current model gives
+  163 valid cells of 236 attempted (73 skipped), MAE 6.41, 94% directional, bias +0.38, CI
+  coverage 97% — pinned in
+  [`docs/reference/backtest_current_2026-08-26.csv`](reference/backtest_current_2026-08-26.csv).
+  The sample-composition caveat is retained because it is real and self-critical, but it is now
+  stated as a property of the grid rather than rested on a cross-version comparison: the dated
+  24/46/170-cell table in `METHODOLOGY.md` §6.3 is where the curated-versus-full contrast
+  lives, and its numbers belong to that older model.)*
 
 **The pattern that matters:** of the three pieces of evidence that would most
 strengthen a failure case, **one is now in hand** — the *true cross-state money-flow
@@ -726,8 +779,8 @@ signal. Accuracy-weighted failure signal across all findings = **22/100**.*
 4. **Methods/curiosity piece:** Finding 6 — **DRAFTED** as
    [`does-money-move-votes.md`](does-money-move-votes.md) (2026-07-26). The story is the
    honest non-identification: money is the strongest single correlate of overperformance
-   (+0.60) yet leaves no causal fingerprint that this design can read — allocation holdout R²
-   0.028, the forecast model discards the term against a known baseline, and the directional
+   (+0.60) yet leaves no causal fingerprint that this design can read — allocation squared
+   holdout correlation 0.028, the forecast model discards the term against a known baseline, and the directional
    test, run across 34 federal district-cycles and a further 129 state-legislative ones,
    returns intervals that span zero on every specification and a headline slope that one
    deleted race reverses. The verdict stays "cannot confirm or refute," and the citable

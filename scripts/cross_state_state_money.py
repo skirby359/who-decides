@@ -4,10 +4,24 @@ The federal cuts (docs/cross-state-fec-money.md Sections A-I) all run on FEC
 data. This is the first analysis over the STATE-disclosure layer now loaded
 for every region state in ``candidate_finance``:
 
-    WA  PDC        rows prefixed ``PDC:``       (legislative + curated locals ONLY)
+    WA  PDC        rows prefixed ``PDC:``       (full filer universe)
     NY  NYSBOE     rows prefixed ``NY:``        (full filer universe)
     TX  TEC        rows prefixed ``TX:``        (full filer universe)
     ID  Sunshine   rows prefixed ``SUNSHINE:``  (full filer universe, no office/party)
+
+⚠ THE WA LINE SAID "legislative + curated locals ONLY" UNTIL 2026-08-26, and that was a
+description of the POPULATION — the one thing a four-regime comparison cannot afford to get
+wrong. Measured: the PDC layer holds 16,604 rows, **8,244 of them committee rows carrying
+$1,047.3M**, against 8,360 candidate rows at $469.1M. It is a full filer universe, exactly as
+``SPEC["WA"]["universe"]`` twenty lines below already said — so this docstring and the code's
+own declared universe string had been contradicting each other. K5's own top-filer list
+settles it on sight: `housedemocraticcampaigncommittee`, `seiu775ballotfund`, `noon1631` are
+none of them a legislative candidate or a curated local.
+
+Found while declaring this module's bases for the registry rollout
+(`docs/reference/derivation-bases.csv`), which is the argument for that rollout: nothing
+here was arithmetically wrong, and a reader taking the docstring at face value would have
+read every K-section figure against the wrong population.
 
 Apples-to-apples core = STATE-HOUSE candidate money (office='SR'), because
 every state's lower chamber is fully up each cycle (senates are staggered
@@ -310,11 +324,27 @@ def analyze(st: str, path: str) -> dict:
     res["top_filers"] = [
         dict(name=nm, total_m=m, cycles=cy)
         for nm, m, cy in c.execute(
+            # ORDER BY THE RAW SUM, NOT THE ROUNDED ONE, AND BREAK TIES BY NAME.
+            # This read `ORDER BY 2 DESC` -- ordinal 2 being the value already ROUNDED to
+            # 0.1 -- with no tiebreak, and it was wrong twice over. Ranking on the rounded
+            # column discards the digits that decide the rank: Idaho's Reclaim Idaho
+            # ($1,294,213) outranked the State Democratic Party ($1,319,365) because both
+            # print as 1.3. And an unbroken tie at the LIMIT boundary makes the result
+            # NONDETERMINISTIC -- two sweeps of this verifier minutes apart returned
+            # different tenth filers (IDAHO LIBERTY PAC $920,000 vs IDAHOANS UNITED
+            # $947,240, both 0.9), which is how this was found: the pinned mutation
+            # artifact stopped being reproducible run to run.
+            #
+            # Measured 2026-08-28: 5 of Idaho's 10 positions were mis-ranked and its top-10
+            # membership was unstable. WA, NY and TX are unaffected -- their filers are far
+            # enough apart that rounding to 0.1 creates no ties -- and NO published figure
+            # moves, because the note names only ID's rank 1 ($5.6M, unchanged) and Little's
+            # $1.2M, which is a value rather than a rank. The defect was in the instrument.
             "SELECT candidate_name, ROUND(SUM(total_receipts)/1e6, 1), "
             "COUNT(DISTINCT election_cycle) "
             f"FROM candidate_finance WHERE fec_candidate_id LIKE '{pfx}%' "
             "AND election_cycle <= 2025 "
-            "GROUP BY 1 ORDER BY 2 DESC LIMIT 10"
+            "GROUP BY 1 ORDER BY SUM(total_receipts) DESC, candidate_name ASC LIMIT 10"
         ).fetchall()
     ]
     # Person-vs-org split: WA carries an explicit recipient_type (candidate vs

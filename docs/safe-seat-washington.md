@@ -488,10 +488,10 @@ why, rather than quietly restating.
   the seat universe. The corresponding `_AllStatePrecincts.csv` files are **not** used for
   the universe, because King County is largely absent from them in 2016 and 2018 — the
   defect Appendix G describes.
-- **New York.** State Board of Elections returns as ingested into the project warehouse.
-  *Provenance note: the repository's loader path for New York results involves an
-  intermediary; the exact ingested artifact and its transformation commit should be cited
-  alongside the originating authority before publication.*
+- **New York.** State Board of Elections certified returns, ingested via the
+  OpenElections-NY compilation of the county canvasses — the intermediary an earlier
+  version of this note said should be cited before publication; the citations file below
+  names the exact artifact, its checksum, and the loader commit.
 - **Idaho.** Secretary of State certified returns.
 - **Texas.** Two sources, because one is insufficient. The Legislative Council's
   canvass-grade VTD returns supply precinct-level results but **omit uncontested races at
@@ -502,9 +502,16 @@ why, rather than quietly restating.
   `data/raw/tx/2024_tx_house_candidates.csv`. The TLC r206 report
   (`planh2316_r206_election24g.xls`) is retained only for district presidential lean in
   Appendix E.
-- **Outstanding for publication.** Full dataset citations — release date, access date,
-  archived location, checksum, and loader commit — are not yet assembled for every source
-  and should be before circulation.
+- **Dataset citations — assembled 2026-08-29.**
+  [`docs/reference/safe_seat_source_citations.csv`](reference/safe_seat_source_citations.csv)
+  carries one row per source: originating authority, source URL, the exact ingested
+  artifact, its SHA-256, the on-disk archive date, and the loader with its last commit.
+  It also resolves the New York provenance note above: the ingested artifact is the
+  OpenElections-NY compilation of the NYSBOE certified county canvasses
+  (`20221108__ny__general__precinct.csv`), loaded by the generic results loader, with
+  AD-23 supplied from the certified NYSBOE contest pinned in-repo. *(This bullet said the
+  citations were "not yet assembled" until 2026-08-29; an external series review listed
+  the gap among the paper's remaining pre-publication items.)*
 
 ## Appendix C — Methods
 
@@ -558,12 +565,18 @@ why, rather than quietly restating.
   `diag_safe_seat_robustness.py` (Appendix E), `diag_safe_seat_party_ratio.py` and
   `diag_efficiency_gap.py` (Appendix E's exploratory cuts).
 - **Where the scripts disagree with each other, and why.** Two of the supporting scripts
-  predate the universe rebuild and still print their old Washington cell:
+  predate the universe rebuild and can still reproduce their old Washington cell:
   `diag_safe_seat_states.py` reads the precinct table under the retired conflated definition
-  and reports WA House at 88.8%. Every Washington figure in this paper comes from
-  `diag_seat_competition.py` on the certified universe (87.8%), which is authoritative; the
-  superseded cells are labelled as such in those scripts' own output rather than removed, so
-  the earlier published numbers remain reproducible for audit. `diag_safe_seat_party_ratio.py`
+  and computes WA House at 88.8%, and `diag_safe_seat_robustness.py`'s threshold sweep
+  reads the same table. Every Washington figure in this paper comes from
+  `diag_seat_competition.py` on the certified universe (87.8%), which is authoritative.
+  **Since 2026-08-29 both scripts withhold their superseded cells unless run with
+  `--legacy`**, which prints them labelled — default output shows a withheld-cell marker
+  beside the authoritative value, so the earlier published numbers remain reproducible for
+  audit without sitting in default output where a casual read or a machine scrape would
+  take them as current. (They printed by default, labelled, until an external series
+  review pointed out that casually machine-readable obsolete output is how propagation
+  errors start.) `diag_safe_seat_party_ratio.py`
   was corrected in place, since the paper quotes it directly.
 
 ## Appendix D — Related work
@@ -579,7 +592,9 @@ why, rather than quietly restating.
   Legislative Elections," *Legislative Studies Quarterly* 25(1) (2000): 131–146. Burden &
   Snyder, "Explaining Uncontested Seats in Congress and State Legislatures," *American
   Politics Research* 49(3) (2021): 247–258, doi:10.1177/1532673X20960565 — on why parties
-  decline to field candidates, the mechanism behind Appendix E's contest gap.
+  decline to field candidates — one mechanism potentially contributing to Appendix E's
+  contest gap, which (as Appendix E says) does not observe filing decisions and cannot
+  single any mechanism out.
 - **Political geography versus intentional gerrymandering.** Chen & Rodden, "Unintentional
   Gerrymandering: Political Geography and Electoral Bias in Legislatures," *Quarterly
   Journal of Political Science* 8(3) (2013): 239–269 — residential concentration produces

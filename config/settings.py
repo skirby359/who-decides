@@ -56,6 +56,20 @@ class Settings(BaseSettings):
         return get_state_config(self.state)
 
     @property
+    def fec_inflow_db_path(self) -> Path:
+        """The standalone recipient-anchored FEC inflow warehouse.
+
+        Added 2026-08-28: until then this database existed ONLY as ~10 script-side
+        string literals ("data/fec_inflow.duckdb") -- no config entry at all, so
+        nothing could repoint it and the WRITER (scripts/load_fec_inflow_bulk.py)
+        was CWD-relative: run from anywhere but the repo root, it would silently
+        CREATE a new empty database wherever it stood. It is state-independent by
+        design (one all-states inflow store), hence anchored to db_path's parent
+        rather than resolved through state_config.
+        """
+        return self.db_path.parent / "fec_inflow.duckdb"
+
+    @property
     def resolved_db_path(self) -> Path:
         """Database path resolved from state config if db_path is default."""
         # If user set a custom DB_PATH, use it; otherwise derive from state

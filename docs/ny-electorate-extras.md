@@ -83,7 +83,9 @@ the rolls are differently composed. This is the institutional, on-cycle-timing-
 fixable diagnosis — and it is **strongest for Republicans**, whose electorate
 ages +10.2 points off-cycle (almost entirely behavior).
 
-## 4. Recent registration cohorts are choosing no party — a secular shift to "blank"
+## 4. Party mix by registration-record year — NOT an intake cohort series
+
+*(This read "recent registration cohorts are choosing no party" / "the excluded bloc is growing" until 2026-08-26. §V withdrew that reading on 2026-08-16: `registration_date` is the date of the most recent registration TRANSACTION, not necessarily first registration, so the rows are not intake cohorts and the series is not a trajectory. At least 9.96% of the 2020 row and 13.91% of the 2024 row are re-registrations, and those two bounds are not comparable to each other.)*
 
 Party mix and age of each year's *registration cohort* still on the roll — the people whose
 registration record carries that year:

@@ -435,6 +435,79 @@ def _check_spelled_out_counts(raw: str, d: dict) -> list[str]:
             f"“{want}”"]
 
 
+#: The paste-ready submission abstract. It is a SATELLITE, so this verifier never opened it.
+_METADATA = vp.DOCS / "safe-seat-submission-metadata.md"
+
+
+def _check_metadata_abstract(d: dict) -> list[str]:
+    """Assert the PASTE-READY submission abstract, which nothing was checking.
+
+    THE DEFECT, found by an external hostile review 2026-08-26. This file read `PAPER` and
+    nothing else, so the metadata's abstract — the text that gets pasted into a journal form —
+    had drifted four figures behind the manuscript:
+
+        no D-v-R in 2024        47 (35.3%)   against the paper's 46 (34.6%)
+        same-party generals     fifteen/fourteen   against sixteen/fifteen
+        no-major-choice range   27-49%       against 25-49%
+        comparison states       89-94%       against 88-94%
+
+    Two gates were pointed at this document and neither could see it. `audit_satellite_counts`
+    checks only the FIGURE COUNT claim, not content figures. And the orphan pass in
+    `check_cross_doc_consistency.py` waived every one- and two-digit number under a blanket
+    `^\\d{1,2}$` allowlist entry — i.e. over exactly the shape an abstract states results in.
+    That entry is now narrowed to named idioms, which surfaced the 89 immediately.
+    BUT THE ORPHAN PASS IS STILL NOT ENOUGH ON ITS OWN, which is why this function exists: it
+    only flags a figure ABSENT from the paper, so a drift BACK to 47 would pass unnoticed —
+    47 appears in the paper four times, in other roles.
+
+    Written against the metadata's OWN phrasing ("percent", spelled-out counts) rather than by
+    joining it into `norm`: the manuscript writes "46 (34.6%)" and the abstract writes
+    "46 (34.6 percent)", so a shared haystack would have matched neither reliably and reported
+    success. The reason the drift is possible at all is that the two documents are prose copies
+    of one result, and the check has to read the copy as it is actually written.
+    """
+    if not _METADATA.exists():
+        return []                      # withheld from the public checkout by design
+    flat = re.sub(r"\s+", " ", _METADATA.read_text(encoding="utf-8"))
+    fails = []
+    # The 2024 no-D-v-R COUNT, derived here from two existing keys rather than added to
+    # derive() as five per-year keys of which one is printed. Four keys nothing probes would
+    # raise this verifier's no-probe ceiling to hold values no document states — the trap the
+    # 2026-08-25 handoff names, walked into twice on 2026-08-26 already.
+    local = dict(d)
+    local["_md_nodr_n"] = d["d2_2024_seats"] - d["d2_2024_dr"]
+    d = local
+    checks = [
+        (r"and (\d+) \(([\d.]+) percent\) offered no Democratic-versus-Republican option",
+         ("_md_nodr_n", "d2_2024_nodr"), "2024 no-D-v-R count and share"),
+        (r"the not-close share runs (\d+) to (\d+) percent",
+         ("notclose_lo", "notclose_hi"), "five-cycle not-close range"),
+        (r"the no-major-choice share (\d+) to (\d+) percent",
+         ("nodr_lo", "nodr_hi"), "five-cycle no-major-choice range"),
+        (r"comparison states, (\d+) to (\d+) percent of seats were not close",
+         ("fs_cmp_lo", "fs_cmp_hi"), "comparison-state not-close range"),
+    ]
+    for rx, keys, label in checks:
+        m = re.search(rx, flat)
+        if not m:
+            fails.append(f"metadata abstract: the sentence carrying {label} no longer matches "
+                         f"— re-point this check and re-read the abstract, do not assume it is "
+                         f"still right")
+            continue
+        for got, key in zip(m.groups(), keys):
+            want = d[key]
+            if abs(float(got) - float(want)) > 0.5:
+                fails.append(f"metadata abstract [{label}/{key}]: says {got}, data says "
+                             f"{float(want):.1f}")
+    # The spelled-out sentence, the one whose paper copy already has a guard because "fifteen
+    # same-party generals" once survived the count moving to sixteen. The metadata carried
+    # exactly that stale sentence.
+    fails += [f"metadata abstract: {f}" for f in _check_spelled_out_counts(flat, d)]
+    print(f"\n  metadata abstract: {len(checks) + 1} paste-ready claim(s) checked against the "
+          f"same derivation as the paper")
+    return fails
+
+
 def _ny_ad23_supplement(tag: str) -> list[tuple]:
     """New York Assembly District 23, 2022 — the one seat absent from the loaded returns.
 
@@ -948,6 +1021,9 @@ COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
     "88.8": "the SUPERSEDED WA House share from the conflated pre-rebuild universe, quoted "
             "as history in Appendix C and the End note. The current figure is 87.8, "
             "asserted as fs_wa_notclose. No current result in this paper reads 88.8",
+    "256": "the hash-algorithm name SHA-256 in Appendix B's dataset-citations bullet "
+           "(added 2026-08-29), not a figure; the hashes themselves live in "
+           "docs/reference/safe_seat_source_citations.csv",
     "206": "the TLC report id (r206) inside two file names, not a figure",
     "2316": "the TLC plan id (planh2316) inside the same file names",
     "144": "a Texas House district number in Appendix F's misimputation list (HD 144)",
@@ -1072,6 +1148,9 @@ def main() -> int:
                               COVERAGE_EXEMPT_SECTIONS, strict_units=True,
         bold_is_result=True)
     fails += _spelled
+    # The paste-ready submission abstract, checked against the SAME derivation as the
+    # paper (2026-08-26). It had drifted four figures behind with two gates pointed at it.
+    fails += _check_metadata_abstract(d)
     # Basis registry (2026-08-10). This paper is the ROLLOUT PILOT — see
     # tests/test_infrastructure/test_basis_registry_rollout.py for which verifiers are enabled
     # and what each remaining one owes. Coverage asks "is every published figure probed";

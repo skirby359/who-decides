@@ -1,0 +1,7 @@
+metric,value,unit,note
+cells_valid,163,count,"valid district-cycles after skips (uncontested races and undefined PVI); 73 skipped of 236 attempted"
+mae_margin,6.41,points,mean absolute error on the two-party margin
+rmse_margin,8.38,points,
+directional_accuracy,94,percent,"153 of 163 correct in sign"
+systematic_bias,0.38,points,"positive = predicted too Democratic; labelled Neutral by the script"
+ci_coverage_95,97,percent,"158 of 163 actuals inside the 95% interval"

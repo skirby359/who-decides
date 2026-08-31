@@ -113,6 +113,14 @@ def make_pairs(panel, boundary):
                 "residual_t": cell["residual_pp"],
                 "net_ie_t": cell["net_pro_dem_m"],
                 "net_ie_next": future["net_pro_dem_m"],
+                # Referee item (10). The persistence figure the paper quotes is computed on
+                # NET partisan IE, and the sentence it supports -- "Washington's outside money
+                # does not persist in a seat" -- is about money, not about its direction. A
+                # district can draw heavy IE in consecutive cycles while the partisan advantage
+                # flips, which would leave net persistence near zero and total persistence high.
+                # Carrying both is what lets the claim be stated at the level it is measured at.
+                "total_ie_t": cell["total_m"],
+                "total_ie_next": future["total_m"],
                 "crosses_redistricting": crosses,
             })
     return pairs
@@ -210,6 +218,23 @@ def main() -> int:
         _, _, r_persist = ols_slope(xs_t, xs_n)
         res["ie_persistence_r"] = r_persist
         print(f"\n  corr(net IE t, net IE t+1) = {r_persist:+.3f}")
+        # Referee item (10): the same correlation on TOTAL dollars. The net figure answers
+        # "does a district keep being contested in the same DIRECTION"; only this one answers
+        # "does a district keep drawing money". The paper stated the second while measuring
+        # the first, so both are printed and labelled with the quantity each licenses.
+        tot_t = [p["total_ie_t"] for p in usable]
+        tot_n = [p["total_ie_next"] for p in usable]
+        _, _, r_total = ols_slope(tot_t, tot_n)
+        res["ie_total_persistence_r"] = r_total
+        print(f"  corr(TOTAL IE t, TOTAL IE t+1) = {r_total:+.3f}")
+        if abs(r_total) - abs(r_persist) >= 0.3:
+            print("    The two disagree: a district keeps DRAWING outside money while the"
+                  "\n    partisan advantage does not persist. A claim that outside money"
+                  "\n    does not persist in a seat is therefore FALSE on totals and true"
+                  "\n    only of direction -- say which.")
+        else:
+            print("    The two agree in magnitude, so the net figure is not hiding a"
+                  "\n    persistent total.")
         # Persistence in the SPENDING is the obvious channel by which a placebo
         # could pick up a signal, so whether it is present changes how a
         # non-null placebo should be read. Stated conditionally rather than

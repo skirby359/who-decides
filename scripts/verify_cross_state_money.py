@@ -57,6 +57,7 @@ Run:  python scripts/verify_cross_state_money.py
 """
 from pathlib import Path
 import csv
+import re
 import sys
 
 import duckdb
@@ -70,6 +71,12 @@ PAPER = Path(__file__).resolve().parent.parent / "docs" / "cross-state-fec-money
 # §2's population denominators. Pinned, not fetched — see scripts/acs_state_population.py.
 POP_PIN = (Path(__file__).resolve().parent.parent / "docs" / "reference"
            / "state_population_acs2024.csv")
+
+# The donor-identity key-sensitivity ladder (2026-08-29) — the alternative-key analysis the
+# §1 objection used to call unbuilt. Written by scripts/diag_donor_key_sensitivity.py; the
+# paper's bracketing claims (§1 objection, §2) are derived from and guarded against it.
+KEYSENS_PIN = (Path(__file__).resolve().parent.parent / "docs" / "reference"
+               / "donor_key_sensitivity_2026-08-29.csv")
 
 DATA = Path(__file__).resolve().parent.parent / "data"
 # paper §Headline (all cycles pooled): <200 / >=5000 / retired $ share; top1 / top10 / Gini
@@ -603,6 +610,59 @@ HEADLINE_PROBES = [
 # leaning on the headline probe is deliberate: coverage spans are per-section, so §2's own
 # occurrences need their own probe or they read as unmapped — and a prose restatement drifting
 # from the table above it is precisely the defect the §1/§3 probes were added to catch.
+def donor_companion(d: dict) -> None:
+    """§F's pointer figures, read from the paper that now owns them.
+
+    ADDED 2026-08-26 (item 9a), and it is the BACKLOG this file wrote for itself:
+    "probe them as CROSS-DOCUMENT checks against donor-class-and-the-electorate.md — the
+    pattern verify_whitepaper.py uses for the money paper's figures, which is what caught
+    the stale +0.55 on 2026-08-06."
+
+    §F left this paper on 2026-08-16 and what remains is a POINTER that restates the two WA
+    panel rows to justify the removal — "nothing is lost". A pointer that quotes the figures
+    it is handing off is the drift surface that outlives the handoff: the owning paper is free
+    to re-derive those cells, and nothing here would notice. Scraped from the donor paper's
+    own concentration table rather than re-derived, because re-deriving would fork the
+    specification instead of checking it, and a missing anchor is FATAL rather than skipped.
+    """
+    dn = re.sub(r"\s+", " ",
+                (vp.DOCS / "donor-class-and-the-electorate.md").read_text(encoding="utf-8"))
+    for label, key in (("Washington", "fed"), (r"Washington \(PDC\)", "state")):
+        m = re.search(r"\| " + label + r" \| ([\d,]+) \| \$([\d.]+)M \| \*\*([\d.]+)%\*\* \| "
+                      r"[\d.]+% \| ([\d.]+) \|", dn)
+        if not m:
+            raise SystemExit(
+                f"FATAL: the donor paper's WA {key} concentration row no longer matches, and "
+                f"§F's pointer in this paper quotes it. Re-point this scrape and re-read the "
+                f"pointer — do not fall back to a constant, which is what made the removed "
+                f"§F a drift surface in the first place.")
+        d[f"dn_wa_{key}_n"] = float(m.group(1).replace(",", ""))
+        d[f"dn_wa_{key}_musd"] = float(m.group(2))
+        d[f"dn_wa_{key}_top1"] = float(m.group(3))
+        d[f"dn_wa_{key}_gini"] = float(m.group(4))
+
+
+F_POINTER_PROBES = [
+    # The Follow-on-tests preamble closes on §E's Idaho Senate cell. Probed against the same
+    # key §E's own table uses, so the two cannot part — and note the paper already carries a
+    # separate structural guard on the SUPERLATIVE in this same sentence ("_id_is_max_oos"),
+    # because a claim of "the most" has no token for a regex to catch.
+    ("follow-on preamble — Idaho's Senate out-of-state share, restated from §E",
+     r"money is the most out-of-state of the four \(([\d.]+)%\)", "e_s_ID_oos", 0.05),
+    ("follow-on preamble — Idaho's outflow and inflow, restated from §Headline and §E",
+     r"\$(\d+)M outflow, \$([\d.]+)M inflow", ("pool_small_m", "e_id_total_m"), 0.5),
+    ("follow-on preamble — the four-state federal denominator under the residual",
+     r"\$[\d.]+M of \$([\d.]+)B", "four_state_total_b", 0.005),
+    ("§F pointer — the WA federal panel, from the donor companion",
+     r"federal \*\*([\d,]+)\*\* donors / \*\*\$([\d.]+)M\*\* / top-1% \*\*([\d.]+)%\*\* / "
+     r"Gini \*\*([\d.]+)\*\*",
+     ("dn_wa_fed_n", "dn_wa_fed_musd", "dn_wa_fed_top1", "dn_wa_fed_gini"), 0.005),
+    ("§F pointer — the WA state panel, from the donor companion",
+     r"state \(PDC\) \*\*([\d,]+)\*\* / \*\*\$([\d.]+)M\*\* / \*\*([\d.]+)%\*\* / "
+     r"\*\*([\d.]+)\*\*",
+     ("dn_wa_state_n", "dn_wa_state_musd", "dn_wa_state_top1", "dn_wa_state_gini"), 0.005),
+]
+
 ABSTRACT_PROBES = [
     # The abstract was moved into the paper 2026-08-07 (it had lived only in the metadata file).
     # It restates ten headline cells, so it is gated on arrival rather than later: an abstract
@@ -771,6 +831,95 @@ def participation(d):
     return []
 
 
+def _keysens_rows() -> list[dict]:
+    import csv as _csv
+    with KEYSENS_PIN.open(encoding="utf-8-sig", newline="") as fh:
+        return list(_csv.DictReader(fh))
+
+
+def derive_key_sensitivity(d: dict) -> list[str]:
+    """§1/§2's key-ladder figures, from the 2026-08-29 sensitivity pin.
+
+    Pin-read, so a missing pin FAILS rather than falling back — the paper's bracketing
+    sentences cannot be asserted against nothing. Only scalars go into `d` (the mutation
+    sweep perturbs values key by key); the ordering claims re-read the pin in
+    key_sensitivity_claims() instead of stashing structures here.
+    """
+    if not KEYSENS_PIN.exists():
+        return [f"key-sensitivity pin missing: {KEYSENS_PIN} — regenerate with "
+                "scripts/diag_donor_key_sensitivity.py"]
+    rows = [r for r in _keysens_rows() if r["cycle"] == "ALL"]
+    wa_top1 = [float(r["top1_pct"]) for r in rows if r["state"] == "WA"]
+    d["ks_wa_top1_lo"] = min(wa_top1)
+    d["ks_wa_top1_hi"] = max(wa_top1)
+    rate = {(r["state"], r["key"]): float(r["keys_per_resident_pct"]) for r in rows}
+    d["ks_txid_gap"] = rate[("ID", "zip5")] - rate[("TX", "zip5")]
+    return []
+
+
+def key_sensitivity_claims(d: dict) -> list[str]:
+    """The ladder's ORDERING claims, which carry no numeric token for a probe to capture.
+
+    §1's objection now says the concentration ordering (NY > TX > WA > ID) is identical
+    under all four keys — pooled top-1%, Gini, and the per-cycle top-1% leader — and §2
+    says Washington leads keys-per-resident under every key while the TX/ID tail swaps at
+    the over-split bound. Each is asserted here against the pin, so a regenerated pin that
+    breaks any of them fails the run instead of leaving a stale superlative in print.
+    """
+    if not KEYSENS_PIN.exists():
+        return []          # derive_key_sensitivity already reported the missing pin
+    fails: list[str] = []
+    rows = _keysens_rows()
+    pooled = [r for r in rows if r["cycle"] == "ALL"]
+    keys = sorted({r["key"] for r in pooled})
+    for metric, col in (("top-1%", "top1_pct"), ("Gini", "gini")):
+        orderings = set()
+        for k in keys:
+            vals = {r["state"]: float(r[col]) for r in pooled if r["key"] == k}
+            orderings.add(tuple(sorted(vals, key=vals.get, reverse=True)))
+        if orderings != {("NY", "TX", "WA", "ID")}:
+            fails.append(
+                f"§1 objection: the paper says the {metric} ordering is NY > TX > WA > ID "
+                f"under all four keys; the pin gives {sorted(orderings)} — fix the "
+                "sentence, not this guard.")
+    # per-cycle leader: NY under every key and cycle
+    bad = sorted({(r["key"], r["cycle"]) for r in rows if r["cycle"] != "ALL"
+                  and float(r["top1_pct"]) < max(float(x["top1_pct"]) for x in rows
+                                                 if x["cycle"] == r["cycle"]
+                                                 and x["key"] == r["key"])
+                  and r["state"] == "NY"})
+    if bad:
+        fails.append(
+            f"§1 objection: 'New York leads in every cycle under every key' fails at "
+            f"{bad} — fix the sentence, not this guard.")
+    # WA leads keys-per-resident under every key; the TX/ID tail swaps at zip5emp
+    rate = {(r["state"], r["key"]): float(r["keys_per_resident_pct"]) for r in pooled}
+    for k in keys:
+        col = {st: rate[(st, k)] for st in ("WA", "NY", "TX", "ID")}
+        if max(col, key=col.get) != "WA":
+            fails.append(
+                f"§2: 'Washington leads under every key' fails at key {k!r} — fix the "
+                "sentence, not this guard.")
+    if not (rate[("ID", "zip5")] > rate[("TX", "zip5")]
+            and rate[("TX", "zip5emp")] > rate[("ID", "zip5emp")]):
+        fails.append(
+            "§2: 'the Texas–Idaho tail swaps at the over-split bound' no longer matches "
+            "the pin — fix the sentence, not this guard.")
+    return fails
+
+
+# Probes for the ladder's two printed figures (the orderings are guarded above).
+KEYSENS_PROBES = [
+    ("§1 objection — WA top-1% range across the key ladder",
+     r"top-1% share runs \*\*([\d.]+)%\*\* at the over-split bound to \*\*([\d.]+)%\*\* "
+     r"at the over-merged",
+     ("ks_wa_top1_lo", "ks_wa_top1_hi"), 0.05),
+    ("§2 — TX–ID keys-per-resident gap at the published key",
+     r"Texas–Idaho tail — \*\*([\d.]+)\*\* points apart at the published key",
+     "ks_txid_gap", 0.005),
+]
+
+
 def percycle_ordering_claims(d) -> list[str]:
     """The abstract's two per-cycle ordering claims, checked as claims (2026-08-14, Pass 2).
 
@@ -897,13 +1046,16 @@ def verify_individual_layer():
     _cross_state_ratios(d)
     inflow_e(d)
     inflow_pooled_concentration(d)
+    donor_companion(d)
     pin_fail = participation(d)
-    extra = list(_PIN_FAILURES) + (pin_fail if pin_fail else []) + (
+    ks_fail = derive_key_sensitivity(d)
+    extra = list(_PIN_FAILURES) + (pin_fail if pin_fail else []) + ks_fail + (
              [] if d.pop("_id_is_max_oos", False) else
              ["§E: the paper calls Idaho's Senate out-of-state share 'the highest of the "
               "four', and it is not — a probe cannot catch a superlative, so it is checked "
               "here"])
     extra += percycle_ordering_claims(d)
+    extra += key_sensitivity_claims(d)
     norm = vp.normalise(PAPER.read_text(encoding="utf-8"))
     audit_sections, offsets, spans = {}, {}, {}
     for name, (start, end) in AUDIT_BOUNDS.items():
@@ -911,13 +1063,15 @@ def verify_individual_layer():
     stats: dict = {}
     rc = vp.run("CROSS-STATE - headline table and the federal money layer",
                 norm, HEADLINE_PROBES + CYCLE_PROBES + E_PROBES
-                + PARTICIPATION_PROBES + ABSTRACT_PROBES, d, F_UNCHECKED,
+                + PARTICIPATION_PROBES + ABSTRACT_PROBES + F_POINTER_PROBES
+                + KEYSENS_PROBES, d, F_UNCHECKED,
                 vp.wants_coverage(), spans_out=spans, stats_out=stats)
     fails = vp.audit_coverage(audit_sections, spans, offsets, tuple(AUDIT_BOUNDS),
                               COVERAGE_EXEMPT, COVERAGE_EXEMPT_LITERAL,
                               COVERAGE_EXEMPT_SECTIONS, strict_units=True,
         bold_is_result=True)
     fails += vp.audit_satellite_counts(PAPER.name, stats.get("figures"))
+    fails += claim_guards(d)
     if rc != 0:
         fails.append("see the figure failures above")
     return extra + fails
@@ -936,6 +1090,44 @@ def verify_individual_layer():
 # never measured and was FALSE -- donor counts are exact in all four states, Gini within
 # 0.0004 -- and it was concealing Idaho's top-1% printed as 36.0 against a derived 36.1. Do not
 # re-adopt it in any form.
+def claim_guards(d: dict) -> list[str]:
+    """Assert the ORDERING and SUPERLATIVE claims, which carry no token to capture.
+
+    The paper's §1 heading and abstract both assert "New York is the most top-heavy". Every
+    one of the four pooled top-1% figures is probed, and a probe compares one number to one
+    derivation -- so all four can be individually right while the superlative describing their
+    relationship is wrong. This paper has already shipped exactly that: the §3 heading said
+    the retired-donor economy was "largest in Idaho" when the body meant a SHARE and Texas's
+    absolute figure is roughly twelve times Idaho's (found in the 2026-08-20 pre-read).
+
+    A module-level function of the derived dict so it can be shown FAILING without a full
+    derivation -- freeze rule SS-0 rule 2.
+    """
+    fails = []
+    tops = {s: d.get(f"out_{s}_top1") for s in ("NY", "TX", "WA", "ID")}
+    if all(v is not None for v in tops.values()):
+        leader = max(tops, key=lambda s: tops[s])
+        if leader != "NY":
+            fails.append(
+                f"claim: §1's heading and the abstract both say New York is the most "
+                f"top-heavy, but the derived pooled top-1% shares put {leader} highest: "
+                + ", ".join(f"{s} {tops[s]:.1f}%" for s in
+                            sorted(tops, key=lambda s: -tops[s]))
+                + ". A superlative has no numeric token, so nothing else here can see this.")
+        # The sentence lists them in descending order -- NY, then TX, then WA, then ID -- and
+        # says WA and TX sit "between". If that order changes the sentence reads wrong even
+        # with every figure individually correct.
+        stated = ["NY", "TX", "WA", "ID"]
+        actual = sorted(tops, key=lambda s: -tops[s])
+        if actual != stated:
+            fails.append(
+                f"claim: §1 states the pooled top-1% ordering as NY > TX > WA > ID, and says "
+                f"WA and TX sit between the extremes, but the derived ordering is "
+                f"{' > '.join(actual)}. Reword the sentence -- do not leave a stated ordering "
+                f"the data no longer supports.")
+    return fails
+
+
 AUDIT_BOUNDS = {
     # Gated 2026-08-07, on the abstract's arrival in the paper. It ends at the scope section,
     # which is the next heading -- the byline and AI-assistance block sit ABOVE the abstract and
@@ -975,6 +1167,31 @@ AUDIT_BOUNDS = {
     # otherwise one. The span is kept rather than deleted so the pointer itself stays gated.
     "test_k": ("### K. State-level money", "## Limits of inference"),
     "status": ("## What's done, and what's next", "## Related work"),
+    # EXTENDED TO THE WHOLE DOCUMENT 2026-08-26 (item 9a). The spans above covered 80.8% and
+    # left 99 numeric tokens in no span at all — the largest remaining gap in the series after
+    # the synthesis. `scripts/diag_audit_span_gaps.py` measures it.
+    #
+    # ⚠ WHAT THIS DOES AND DOES NOT DO. It closes the GAPS — every region of the document is
+    # now inside some span. It does NOT close the section-level BACKLOG exemptions below
+    # (finding4, test_a, test_b, …), which are a separate and larger job: those sections are
+    # named, sliced and waived with a written owner, which is a disclosed hole rather than an
+    # invisible one. Conflating the two would let "coverage 100%" describe a paper whose §A
+    # table is still asserted by nothing.
+    #
+    # The abstract's own comment above says the byline block "carr[ies] no results" and so
+    # correctly sits outside every span. That was true of the byline and NOT of everything
+    # else outside: "Scope and method (read first)" states the paper's basis and its row
+    # counts, and "Limits of inference" carries 27 tokens of restated results.
+    "front": ("# Four States, Four Donor Economies", "## Abstract"),
+    "scope": ("## Scope and method", "## The headline"),
+    "findings_intro": ("## Findings", "### 1. New York is the most top-heavy"),
+    "followon_intro": ("## Follow-on tests", "### A. Is the money concentrating over time?"),
+    # §F is a POINTER now — the section moved to donor-class-and-the-electorate.md on
+    # 2026-08-16 — and the pointer restates what left, which is exactly the surface that
+    # drifts once the owning paper moves on. Same reasoning as test_k above.
+    "test_f": ("### F. The individual layer", "### G. The cross-state money-flow matrix"),
+    "limits": ("## Limits of inference", "## What's done, and what's next"),
+    "related_work": ("## Related work", "the donor-composition frame for"),
 }
 
 COVERAGE_EXEMPT = [
@@ -990,6 +1207,68 @@ COVERAGE_EXEMPT = [
 ]
 
 COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
+    # ---- Exposed 2026-08-26 when the span set reached the whole document (item 9a). --------
+    #
+    # THE DONOR-KEY SENSITIVITY MEASUREMENTS. These are one-off methodological measurements
+    # recorded in this file's own module docstring ("Gini worst gap 0.0004", the split-key
+    # top-1% movement), taken to retire an exemption that had been built on an UNMEASURED
+    # claim of "documented sub-0.5pt grouping drift". They are properties of a comparison
+    # between two donor-key constructions, run once and written down; there is no live
+    # derivation to assert them against, and manufacturing one would re-measure a different
+    # thing. The figures they bound — every headline cell — are hard-asserted at printed
+    # precision, which is the check that matters.
+    "6.1": "lower end of the split-key sensitivity on the top-1% share, a one-off measurement "
+           "recorded in this file's module docstring; stated twice (Scope, Limits). The "
+           "top-1% shares it bounds are hard-asserted for all four states",
+    "8.3": "upper end of the same split-key sensitivity, same source and same two sentences",
+    "0.0004": "worst Gini gap between the two donor-key constructions, from the same one-off "
+              "measurement block; the Ginis themselves are asserted at printed precision",
+    "0.5": "the '<0.5% of dollars' ActBlue/WinRed recipient share in Limits — a BOUND stated "
+           "as an inequality, so there is no value to assert. The substantive point (earmarks "
+           "are captured under the candidate committee as 15E, not lost to the conduit) is "
+           "prose and is recorded in CLAUDE.md's FEC notes",
+    # THE SUPERSEDED §B CONSTRUCTION. The follow-on preamble discloses that §B once resolved
+    # recipient state from the committee's REGISTRATION address, and prints both readings side
+    # by side so the divergence is "measured instead of hidden". The left-hand figures are the
+    # retired construction and no current code path produces them — that is what retired
+    # means, and re-deriving them would defeat the disclosure.
+    "86.6": "WA in-state congressional dollars on the SUPERSEDED registration-state "
+            "construction, printed beside the current $87.0M to disclose the divergence. Not "
+            "re-derivable; §B now shares the office-state-resolved master with §G",
+    "87.0": "the same WA cell on the current construction. §B's table is section-exempt with "
+            "its owner named (scripts/cross_state_fec_tests.py) — this is the preamble "
+            "restating one cell of it, and it stands or falls with that section's BACKLOG",
+    "3.66": "ID on both constructions — they agree to the cent, which is the point of "
+            "printing the pair. Same owner as 87.0",
+    "208.7": "NY on the superseded construction; same disclosure",
+    "228.1": "NY on the current construction; same owner as 87.0",
+    "310.7": "TX on the superseded construction; same disclosure",
+    "284.8": "TX on the current construction; same owner as 87.0",
+    "0.13": "the `Unmatched committee` residual in dollars, §B's. Named in that section's "
+            "exemption as a figure worth asserting when §B's BACKLOG is closed",
+    "0.003": "the same residual as a share. Same owner and same BACKLOG",
+    "44,746": "the size of the committee master `scripts/cross_state_fec_tests.py` builds — a "
+              "property of that script's inputs, cited as provenance for the follow-on tests. "
+              "Owned there, with §B and §C",
+    # ID's scale against the big three, quoted to say the small state's totals are small.
+    # Its two absolute figures ARE probed just above (e_id_total_m, and $76M is the outflow
+    # §G owns); the four range endpoints are read off §G's matrix, which is section-exempt.
+    "0.6": "low end of the big three's outflow range, read off §G's flow matrix — that "
+           "section is exempt with its owner named (diag_cross_state_money_matrix.py)",
+    "2.1": "high end of the same outflow range, same owner",
+    "155": "low end of the big three's inflow range, same matrix, same owner",
+    "582": "high end of the same inflow range, same owner",
+    "93.0": "the all-tier match precision §F's removal note quotes as one half of the "
+            "contradiction that removed the section. A RETIRED specification's figure, owned "
+            "and asserted by verify_donor_class.py against the frozen Appendix F verdict "
+            "CSVs; the two panel rows that SUPERSEDE it are probed here against the donor "
+            "paper (see F_POINTER_PROBES)",
+    "359": "part of the GitHub account name in the repository URL "
+           "<https://github.com/skirby359/who-decides>, tokenised out of an identifier",
+    "100": "the RETIRED '100% of recipient dollars matched' claim, quoted inside the note "
+           "that withdraws it. It exists nowhere else and no derivation can produce it — the "
+           "residual it denied is now measured and printed beside it ($0.13M of $4.73B), and "
+           "that denominator IS derived, as four_state_total_b",
     # Gift-size THRESHOLDS naming the cut, not measurements of it. The shares computed at each
     # threshold ARE asserted, four states apiece, by the two headline probes above.
     "200": "the <$200 gift-size threshold labelling a cut; the shares at it are asserted",
@@ -1128,6 +1407,15 @@ def _cross_state_ratios(d):
     # Finding 1 — the size effect, "$76M pool ... against a $2B one".
     d["pool_small_m"] = d["out_ID_total_m"]
     d["pool_large_b"] = d["out_NY_total_b"]
+
+    # The four-state federal denominator, $4.73B. Added 2026-08-26 (item 9a): the follow-on
+    # preamble states the Unmatched residual as "$0.13M of $4.73B", and that denominator is
+    # the sum of the four headline totals — every one of which is already asserted here — so
+    # it is derived rather than exempted. It is also the figure the SYNTHESIS quotes as its
+    # four-state federal layer, which is why it is worth having a key: two documents printing
+    # one denominator is where this series keeps finding drift.
+    d["four_state_total_b"] = sum(
+        d[f"out_{s}_total_m"] for s in HEADLINE_STATES) / 1e3
 
     # Finding 2 — "NY and TX raise ~3x Washington's federal dollars".
     _r = {s: d[f"out_{s}_total_m"] / d["out_WA_total_m"] for s in ("NY", "TX")}

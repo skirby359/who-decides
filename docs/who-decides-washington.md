@@ -2,7 +2,7 @@
 
 ### Who Returns the Ballot? Age Composition in Washington's Odd-Year Electorate, 2021–2025
 
-**Stephen Kirby** · Tikor Consulting · July 2026
+**Stephen Kirby** · Tikor Consulting · August 2026
 
 *AI-assisted drafting and analysis review. The core voter-file results are reproducible
 from public-record data available through lawful request and from the open-source
@@ -1222,7 +1222,7 @@ Those rules do not remove every barrier as information costs, mobility, local at
 address stability, and uneven political recruitment are still factors, but they make it
 hard to chalk the age gap up mainly to the friction of voting.
 
-**Reproduction.** `scripts/verify_who_decides_wa.py` re-derives **878 figures** from
+**Reproduction.** `scripts/verify_who_decides_wa.py` re-derives **881 figures** from
 scratch, including the composition, rate and finer-cohort tables, the coverage and
 bounding tables, the habitual-core overlap, the snapshot cross-validation, the
 representativeness index, the turnout decomposition and Appendix H's banding-robustness

@@ -18,6 +18,7 @@ import csv
 import io
 import shutil
 import os
+from pathlib import Path
 import zipfile
 
 import duckdb
@@ -32,7 +33,11 @@ CYCLES = [2018, 2020, 2022, 2024, 2026]
 # never duplicates states already in the DB.
 TARGET = {s.strip().upper() for s in
           (os.environ.get("FEC_INFLOW_STATES") or "WA,NY,TX").split(",") if s.strip()}
-INFLOW_DB = "data/fec_inflow.duckdb"
+# Repo-anchored (fixed 2026-08-28; was the CWD-relative literal "data/fec_inflow.duckdb",
+# which from any other working directory would CREATE a new empty database there).
+# config.settings now exposes the same path as `settings.fec_inflow_db_path`; this stays
+# a plain literal on the same anchor so the script keeps zero package imports.
+INFLOW_DB = str(Path(__file__).resolve().parents[1] / "data" / "fec_inflow.duckdb")
 RECIP_CSV = f"{TMP}/recipient_committees.csv"
 TX_TYPES = ["15", "15E", "15J", "15T", "15Z"]
 COLS = ["cmte_id", "amndt_ind", "rpt_tp", "transaction_pgi", "image_num",

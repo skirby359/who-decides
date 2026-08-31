@@ -274,10 +274,26 @@ def main():
             ik = [k for k in all_keys if k in ins]
             ri = dop.pearson([ins[k] for k in ik], [resid_by_key[k] for k in ik]) if len(ik) >= 5 else None
             if len(ho) >= 5:
+                # TWO metrics since 2026-08-15 (external referee, item 7). The number this
+                # script used to print as "holdout R^2" was the SQUARE OF THE PEARSON
+                # CORRELATION between predictions and outcomes — which discards sign, so a
+                # wrong-signed r=-0.15 printed as a positive 0.022. It is kept, correctly
+                # named. Predictive R^2 = 1 - SSE/SST is the standard out-of-sample metric
+                # and is negative whenever the predictions do worse than the holdout mean.
+                # KNOWN LEAKAGE, disclosed rather than repaired: the target residual comes
+                # from the forecast model, whose coefficients were tuned on the full
+                # residual matrix — so 2024 outcomes participated in constructing the
+                # variable 2024 is here "held out" on. Allocation itself never enters that
+                # first stage, and 2a is reported as exploratory, not as a causal null.
                 r = dop.pearson([ho_pred[k] for k in ho], [resid_by_key[k] for k in ho])
-                print(f"  {label:34s}: holdout R^2={ (r*r if r is not None else float('nan')):.3f} "
-                      f"(r={r:+.3f}, n={len(ho)}) | in-sample R^2="
-                      f"{ (ri*ri if ri is not None else float('nan')):.3f}")
+                obs = [resid_by_key[k] for k in ho]
+                mean_obs = sum(obs) / len(obs)
+                sse = sum((resid_by_key[k] - ho_pred[k]) ** 2 for k in ho)
+                sst = sum((o - mean_obs) ** 2 for o in obs)
+                pred_r2 = 1.0 - sse / sst if sst else float("nan")
+                print(f"  {label:34s}: sq. holdout corr={ (r*r if r is not None else float('nan')):.3f} "
+                      f"(r={r:+.3f}, n={len(ho)}) | predictive R^2={pred_r2:+.3f} "
+                      f"| in-sample sq. corr={ (ri*ri if ri is not None else float('nan')):.3f}")
             else:
                 print(f"  {label:34s}: holdout n<5 (covered cells too sparse)")
 
