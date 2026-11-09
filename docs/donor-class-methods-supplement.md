@@ -204,14 +204,16 @@ same call order:
   every interval computed after it. This is a real reproducibility hazard and is flagged rather
   than silently relied upon.
 
-**Checksums.** Source-file checksums for the raw inputs are not currently recorded. They should be
-captured at the archival release, because the state voter files are re-issued periodically and a
-future reconstruction has no other way to confirm it holds the same extract.
+**Checksums, at release.** The nine source-file digests in the table above are the current record
+for the raw inputs; the two exceptions are named there (the FEC bulk files, re-downloadable by
+cycle, and Idaho's combined export). They should be **re-captured against the tagged archival
+release**, because the state voter files are re-issued periodically and a future reconstruction
+has no other way to confirm it holds the same extract.
 
 ## 2b. Validation provenance — who judged what
 
-The match-precision result rests on human and AI judgement, so the provenance of that judgement
-is part of the method.
+The match-precision result rests on human judgement — the author's throughout, with an
+independent rater on a subset — so the provenance of that judgement is part of the method.
 
 - **The stratified sample.** 480 matched records, 20 per stratum across 4 match tiers × 2 dollar
   bands × 3 states, drawn by the seeded procedure above.
@@ -219,15 +221,17 @@ is part of the method.
   contributor name with the shared ZIP, and nothing else — no state, no panel, no match tier, no
   dollar decile. The stratum key is held in a separate file and joined only after verdicts are
   recorded, so a rater cannot know which tier they are judging.
-- **First pass — AI-assisted.** The initial 480 verdicts were produced with AI assistance under
-  the author's review, against the blinded extract. Published as
+- **First pass — the author.** All 480 verdicts were rated by the author against the blinded
+  extract; none was AI-assisted. Published as
   `docs/reference/match_validation_verdicts_2026-07-27.csv`, keyed on a synthetic `sample_id`.
 - **Second pass — blind re-rate by the same rater.** 150 of those records were re-rated by the
-  author, blind to the first pass, from the same blinded evidence — so this is test–retest and
-  not inter-rater reliability. Published as
+  author, blind to the first pass, from the same blinded evidence — so this is **test–retest**
+  reliability (the same rater twice), not inter-rater and not ground truth. Published as
   `docs/reference/match_validation_human_verdicts_2026-07-27.csv`. Agreement and the direction of
-  every disagreement are reported in Appendix F. Because both passes saw the same evidence, this
-  is inter-rater reliability, **not** ground truth.
+  every disagreement are reported in Appendix F.
+- **Third pass — an independent rater.** A second person rated the same subset (2026-08-06),
+  which supplies **inter-rater** reliability. It is reported separately from the test–retest
+  figures in Appendix F, never pooled with them, and it is likewise not ground truth.
 - **Confidentiality.** The human rater worked from the blinded extract, which pairs real names. No
   written confidentiality undertaking was obtained — a gap recorded in the ethics assessment's
   open items rather than left implicit.

@@ -1111,7 +1111,7 @@ PROBES = [
     ("inventory — the pooled figure it names as retired",
      r"The pooled ([\d,]+) WA figure", "wa_pooled_n", 0),
     ("inventory — support table, WA vote records and NY roll",
-     r"\*\*measured\*\* \(([\d.]+)M vote records, birthdate\) \| \*\*measured\*\* "
+     r"\*\*measured\*\* \(([\d.]+)M vote records, year of birth\) \| \*\*measured\*\* "
      r"\(([\d.]+)M roll, year of birth\)",
      ("inv_wa_vrdb_hist_m", "inv_ny_roll_m"), 0.05),
     ("inventory — support table, the campaign-effects cell counts",

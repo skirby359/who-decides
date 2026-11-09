@@ -32,8 +32,8 @@ The sign-off is a person reading the paper end to end, recorded in
 
 ## Abstract
 
-The three preceding papers in this series establish who votes, whether their vote decides
-anything, and who funds the candidates. This paper asks the question those invite — does
+The three preceding papers in this series establish who votes, what choices and margins the
+general-election ballot presents, and who funds the candidates. This paper asks the question those invite — does
 the money change the result? — and reports that the available public record cannot answer
 it, while characterizing precisely *why* it cannot: treatment is endogenous, sparse,
 strategically assigned, and observed through several non-equivalent channels. Across 163
@@ -72,7 +72,7 @@ separate selection into spending from an effect of spending. The failure is one 
 identification, not merely of data quantity.
 
 **Keywords:** campaign spending; independent expenditures; electoral effects; endogeneity;
-null results; data availability; state legislative elections; Washington.
+causal identification; observational inference; state legislative elections; Washington.
 
 ---
 
@@ -676,11 +676,14 @@ Two things follow, and they pull in opposite directions.
 The first is a caution against the strong reform claim. "Money buys elections" is not
 supported by this evidence, and the donor paper's findings should not be read as implying
 it. What the donor paper establishes is that a narrow, old, geographically concentrated
-population *funds* campaigns — which matters for whose calls get returned and whose
-concerns reach an agenda, whether or not it moves a single vote. The companion cut in
-`cross-state-fec-money.md` §J sharpens this: in Washington's Solid seats the longshot party
-receives just **4.8%** of House inflow. Money overwhelmingly reaches candidates who were
-going to win anyway. That is a finding about *access*, not persuasion.
+population *funds* campaigns. That funding pattern is what would motivate an
+access-and-agenda hypothesis — that a funder's calls are likelier returned and their concerns
+likelier to reach an agenda, whether or not the money moves a single vote — but the pattern does
+not itself measure access. The companion cut in `cross-state-fec-money.md` §J sharpens the
+funding pattern: in Washington's Solid seats the longshot party receives just **4.8%** of House
+inflow. Money overwhelmingly reaches candidates who were going to win anyway. That is a finding
+about where money goes; whether it converts to access is a separate question this paper does
+not test.
 
 The second is a caution against the strong null. This paper has not shown money does not
 matter. It has shown that Washington's public record cannot demonstrate that it does, on
@@ -1201,6 +1204,6 @@ source ledger.
 
 This is Paper #4 of the electoral-health series:
 [`who-decides-washington.md`](who-decides-washington.md) (who votes),
-[`safe-seat-washington.md`](safe-seat-washington.md) (whether the vote decides anything),
+[`safe-seat-washington.md`](safe-seat-washington.md) (what choices and margins the general-election ballot presents),
 [`donor-class-and-the-electorate.md`](donor-class-and-the-electorate.md) (who funds it),
 and [`cross-state-fec-money.md`](cross-state-fec-money.md) (the four-state money layer).

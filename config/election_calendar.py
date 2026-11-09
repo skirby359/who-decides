@@ -129,6 +129,11 @@ TX_ELECTIONS = [
 # primaries (May, partisan-closed) are omitted until partisan-primary handling
 # is wired for ID (mirrors NY/TX).
 ID_ELECTIONS = [
+    # 2026 general: loaded from results.voteidaho.gov (the same platform as WA's
+    # results.votewa.gov) by scripts/load_voteidaho_results.py into contest_results,
+    # NOT from a data/raw/id/<slug>/ precinct file -- the adapter loader finds none
+    # and skips it, which is correct.
+    ElectionInfo("20261103", "2026 General Election", "general", 2026),
     ElectionInfo("20241105", "2024 General Election (President)", "general", 2024),
     ElectionInfo("20221108", "2022 General Election (Governor)", "general", 2022),
     ElectionInfo("20201103", "2020 General Election (President)", "general", 2020),

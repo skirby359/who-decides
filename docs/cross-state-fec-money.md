@@ -6,8 +6,8 @@
 *AI-assisted drafting and analysis review. All figures are reproducible from
 public-record data and from the open-source scripts cited below, including
 `scripts/verify_cross_state_money.py`. The paper source, code, and data-acquisition recipe
-are public at <https://github.com/skirby359/who-decides>; the underlying voter files are
-not redistributed. Contact: kirby@tikorconsulting.com.*
+are public at <https://github.com/skirby359/who-decides>. All empirical inputs used in this
+paper are public FEC disclosure records; no voter file is used. Contact: kirby@tikorconsulting.com.*
 
 ***DRAFT — pending human/editorial sign-off.** `scripts/verify_cross_state_money.py` scrapes this
 paper and asserts its figures against the data, with the exceptions the script names in its own
@@ -18,7 +18,7 @@ output; that gate is automated and is not the sign-off. The sign-off is a person
 realizes that paper's cross-state money thread, which was previously data-blocked
 (NY/TX had zero contributions loaded). Source: `scripts/cross_state_fec_money.py`.
 **Idaho added 2026-07-19** (FEC outflow + inflow loaded to parity) as the small,
-deep-red pole; **all sections (headline, Findings 1–5, Tests A–I, and the flow
+deep-red pole; **all sections (headline, Findings 1–5, Tests A–J, and the flow
 matrix G) are now four-state** — every table carries WA/NY/TX/ID.*
 
 ---
@@ -72,7 +72,7 @@ politics.**
 **Findings 1–5 and Tests A–D are an OUTFLOW-by-donor-residence measure** — they show where
 each state's residents *send* money (the per-state FEC ingest is donor-state-filtered). The
 complementary **INFLOW** side — out-of-state money flowing *into* each state's races, the
-"non-constituent money" question from the parent paper — is answered in **Tests E–I and the
+"non-constituent money" question from the parent paper — is answered in **Tests E–J and the
 flow matrix G**, built from the recipient-anchored `fec_inflow.duckdb`. Both directions now
 exist; they use different committee universes, so read shares *within* each rather than
 subtracting one from the other.
@@ -133,10 +133,13 @@ Big Tech (WA), Wall Street (NY), Energy/Industrial (TX), MLM/timber (ID).**
   monotonically with partisanship. The two
   big-dollar states (NY, TX) are the most top-heavy; the two small-population states (WA
   relative to its dollars, ID absolutely) are the most retail. **This is four purposively
-  chosen states, not a sample.** It is enough to defeat the intuitive prediction that redder
-  means more retail *as a general rule*, because a single deep-red state at the retail pole
-  does that. It is not enough to establish that partisanship has no relationship to donor
-  concentration across states, and the paper does not claim it. The competing explanation
+  chosen states, not a sample.** These four cases reject a simple monotonic ordering in which redder
+  states are consistently more retail, because the partisan and concentration orderings
+  genuinely conflict: Texas is redder than Washington yet markedly more top-heavy, and the two
+  red states — Idaho and Texas — sit at opposite poles of the retail-to-whale axis. A single
+  deep-red state at the retail pole would be *consistent* with a monotonic ordering; what rejects it
+  is that redness does not order the four. It is not enough to establish that partisanship has
+  no relationship to donor concentration across states, and the paper does not claim it. The competing explanation
   the four cases actually suggest — that concentration tracks the structure of a state's
   economy — is a hypothesis for a fifty-state test, not a result of this one.
 - **Strongest objection.** The Gini of any voluntary-giving distribution is mechanically
@@ -622,10 +625,10 @@ nationally — don't misattribute a recipient state. U.S. House+Senate; all cycl
      candidates in other states; **Idaho ships the most of all — 68%**; even Texas, the most
      parochial, sends **43%**. This is the donor-side engine of nationalization, measured
      directly rather than inferred.
-  2. **Idaho is the only net money-*importer* for its own candidates.** ID candidates raise
+  2. **Idaho's candidates are the most externally funded of the four.** ID candidates raise
      just **31.9%** of their money in-state (vs 55–67% for the big three) and **53.3% from the
-     rest of the US** — the highest external dependence of the four. But ID residents also send
-     **68% of their money out** ($17.1M out vs $11.5M in): a small, safe, deep-red state whose
+     rest of the US** — the highest external dependence of the four. ID residents also send
+     **68% of their money out**: a small, safe, deep-red state whose
      handful of federal races draw national R money while its own donors chase the national
      contest. **In-region cross-funding stays negligible** — the four states barely fund *each
      other* (≤6–7% of any big-state cell; ID's 14.8% in-region inflow is just $1.7M of tiny
@@ -781,7 +784,7 @@ State-agnostic: it simply reflects whatever states are in `fec_inflow.duckdb` (I
   **over-merges** common names, which inflates "repeat" and deflates one-time counts, so true
   churn is, if anything, *higher* than reported. **2026 is a partial cycle** (its elevated
   retention reflects early givers skewing toward committed repeat donors before the late
-  small-dollar surge). Capped candidate giving ≠ the whole money system — the uncapped layer
+  small-dollar surge). Capped candidate giving ≠ the whole money system — the broader party/JFC/non-candidate layer
   (Section A) is where concentration concentrates.
 
 ### J. Which side of a safe seat gets the money? (longshot vs favored)
@@ -837,9 +840,9 @@ layer is not this paper."*
 *Full provenance + a no-AI reproduction recipe (every source, access path, and the exact
 scripts behind each figure): [Data Sources & Reproducibility](data-sources-and-reproducibility.md).*
 
-- **Both directions now exist (Findings 1–5 + Tests A–D are outflow; Tests E–I add inflow).**
+- **Both directions now exist (Findings 1–5 + Tests A–D are outflow; Tests E–J add inflow).**
   The early findings measure where residents *send* money (outflow by donor residence); the
-  recipient-anchored inflow load (Sections E–I) measures money *entering* WA/NY/TX/ID races. The
+  recipient-anchored inflow load (Sections E–J) measures money *entering* WA/NY/TX/ID races. The
   cross-state matrix (G) reports both. They use different committee universes, so read shares
   within each rather than subtracting one from the other.
 - **This paper is federal only; the state layer is a separate note.** State-legislative and
@@ -847,7 +850,8 @@ scripts behind each figure): [Data Sources & Reproducibility](data-sources-and-r
   but the first cut over it **moved out of this article on 2026-08-16** to
   [`cross-state-state-money-note.md`](cross-state-state-money-note.md), which is still in
   development and not yet gated. The two layers use different disclosure regimes and filer
-  universes (WA's is legislative-candidates-only), so a state-layer figure is not comparable
+  universes — the state note has a full Washington filer universe, though its K1–K4 comparisons
+  use the legislative-candidate subset — so a state-layer figure is not comparable
   to an A–J dollar figure and none is cited here. *(This bullet said "K is the state layer"
   until 2026-08-17, after §K had already moved.)*
 - **Conduit-*reliance* metric is unreadable (but the money is captured).** ActBlue/WinRed
@@ -909,7 +913,7 @@ scripts behind each figure): [Data Sources & Reproducibility](data-sources-and-r
 
 ## What's done, and what's next
 
-Tests A–I are run. Status:
+Tests A–J are run. Status:
 0. **Idaho fully integrated — DONE 2026-07-19** (all sections A–I + matrix G): ID FEC outflow +
    inflow loaded to parity; it is the small, deep-red,
    most-retail, most-retired, most-nationalized pole (safe-R Senate money 85.8% out-of-state).
@@ -943,8 +947,8 @@ Tests A–I are run. Status:
    gaps.)*
 4. **Cross-state flow matrix — DONE, now four-state** (Section G): inflow provenance + outflow
    destination + the systematic out-of-region magnet list (Georgia Senate ~$68M from
-   WA/NY/TX/ID residents). ID is the biggest out-of-region exporter (68%) and the only net
-   candidate-money importer.
+   WA/NY/TX/ID residents). ID has the highest out-of-region share of resident candidate giving
+   (68%) and the highest external share of candidate inflow.
 5. **Sector × competitiveness — DONE, and largely a NULL after the 2026-08-16 rebuild**
    (Section H): on cycle-specific bands, finance and tech both sit at the baseline and only
    energy is clearly below it. What survives is the *travel* result — tech money goes farthest,
@@ -972,21 +976,10 @@ Tests A–I are run. Status:
 9. **State-level money analysis — DONE 2026-07-19, and MOVED OUT of this paper 2026-08-16**
    (`scripts/cross_state_state_money.py`): first cut over the state-disclosure layer loaded in
    item 7, now in [`cross-state-state-money-note.md`](cross-state-state-money-note.md).
-   Headlines: house seats cost 26× more in TX than ID; statehouse money is PAC-funded
-   (~31–38% individual) vs Congress's ~65% individual; TX/ID's biggest state-money filers are
-   a governor's committee ($424.5M) and a ballot-measure committee respectively.
-   ⚠ *This item also read "the federal ~2× competitiveness premium holds only in TX/ID (WA
-   flat, NY inverted)" until 2026-08-17. **That conclusion is superseded and should not be
-   cited.** It was an artifact of banding 2022+2024 money with a 2026 forecast — the same
-   defect item 10 corrected in the federal sections. On cycle-specific bands the note reports
-   positive premiums in WA, NY and ID, and treats Texas as unresolved because its unbanded
-   residual is concentrated in uncontested seats. The note is not gated; read it there, not
-   here.* **Follow-on completed same day:** the full WA PDC
-   filer universe (statewide execs, party/caucus cmtes, PACs, ballot cmtes) bulk-loaded via
-   the new `load-pdc-filer-universe` CLI (one Socrata CSV export request — 43K filer-years,
-   ~13s; WA 1,559→16,604 rows / $1.52B), giving WA its K5 panorama row (top filer = SEIU's
-   PAC; committees hold 69% of WA state money) and quantifying the caucus-committee routing
-   layer ($36.2M ≈ half the candidate layer, 2022+2024).
+   Its findings — per-seat cost, individual-vs-PAC composition, the competitiveness premium
+   and the filer panorama — live there and are **not restated here**; this paper cites no
+   state-layer figure. The full WA PDC filer universe was loaded the same day
+   (`load-pdc-filer-universe`) to support that note.
 
 ---
 
@@ -995,12 +988,13 @@ Tests A–I are run. Status:
 The building blocks — donor concentration, out-of-district money, whether money chases
 competitive races — are established individually; the contribution here is the
 recipient-anchored, four-state **federal** comparison built from bulk FEC records on one
-harmonized frame — the state-disclosure layer is analysed separately since §F's removal,
+harmonized frame — the state-disclosure layer is analysed separately since §K's removal,
 and this paper's substantive basis is federal. It sits in these literatures:
 
 - **Mapping the donor universe.** Bonica, "Mapping the Ideological Marketplace" (2014)
   and the DIME database — the individual-contribution infrastructure this paper rebuilds
-  from bulk filings and joins to voter files (Section F).
+  from bulk filings; the voter-file linkage it enables is the companion donor-class paper's,
+  not this one's.
 - **How much money, and why so little.** Ansolabehere, de Figueiredo & Snyder, "Why Is
   There So Little Money in U.S. Politics?" *Journal of Economic Perspectives* (2003) —
   the framing for the money-and-competitiveness cuts (Sections D, E, H): contributions
@@ -1013,10 +1007,12 @@ and this paper's substantive basis is federal. It sits in these literatures:
   Limits, and the Polarization of American Legislatures," *Journal of Politics* (2016);
   Schlozman, Verba & Brady, *The Unheavenly Chorus* (2012); Bonica, McCarty, Poole &
   Rosenthal, "Why Hasn't Democracy Slowed Rising Inequality?" *JEP* (2013) — the
-  concentration and Gini results (Sections F, I).
+  concentration and Gini results (Finding 1 and Section I).
 - **State campaign finance.** La Raja & Schaffner, *Campaign Finance and Political
   Polarization: When Purists Prevail* (2015) — context for the state-disclosure layer
-  and the PAC-vs-individual split across statehouses (Section K).
+  and the PAC-vs-individual split across statehouses (now the state-money note,
+  [`cross-state-state-money-note.md`](cross-state-state-money-note.md)).
 - **Party and the donorate.** Grumbach & Sahn, "Race and Representation in Campaign
   Finance," *American Political Science Review* (2020) — the donor-composition frame for
-  the individual layer (Section F).
+  the individual layer (now the donor-class companion,
+  [`donor-class-and-the-electorate.md`](donor-class-and-the-electorate.md)).

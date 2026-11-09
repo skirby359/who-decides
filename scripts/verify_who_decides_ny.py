@@ -882,7 +882,7 @@ PROBES = [
     ("§party — the full-window voter range, given as context for the scoping",
      r"the voter range runs from \*\*([\d.]+)%\*\*", "unaff_voter_lo", 0.05),
     ("appendix A — the composition gradient in prose",
-     r"under-30 share\s*collapses \((\d+)% → (\d+)% by 2023\) and the 65\+ share swells "
+     r"under-30 share\s*collapses \((\d+)% → (\d+)%\) and the 65\+ share swells "
      r"\((\d+)% → (\d+)%\)",
      ("g24_18-29", "g23_18-29", "g24_65+", "g23_65+"), 0.5),
 
@@ -943,6 +943,17 @@ PROBES = [
      r"\| Nov 2023 \| Off-year \| \*\*([\d.]+)%\*\* \| ([\d.]+)% \| ([\d.]+)% \| "
      r"\*\*([\d.]+)%\*\* \| (\d+) \|",
      ("g23_18-29", "g23_30-44", "g23_45-64", "g23_65+", "g23_median"), 0.05),
+    # ADDED (NY closure round): the earlier three odd-years, so Appendix A shows the full
+    # five-general series Section I already analyses rather than only 2023/2025.
+    ("Appendix A Nov 2021 off-year",
+     r"\| Nov 2021 \| Off-year \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| (\d+) \|",
+     ("g21_18-29", "g21_30-44", "g21_45-64", "g21_65+", "g21_median"), 0.05),
+    ("Appendix A Nov 2019 off-year",
+     r"\| Nov 2019 \| Off-year \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| (\d+) \|",
+     ("g19_18-29", "g19_30-44", "g19_45-64", "g19_65+", "g19_median"), 0.05),
+    ("Appendix A Nov 2017 off-year",
+     r"\| Nov 2017 \| Off-year \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| ([\d.]+)% \| (\d+) \|",
+     ("g17_18-29", "g17_30-44", "g17_45-64", "g17_65+", "g17_median"), 0.05),
 
     # ---- Section II
     ("§I 65+ by party, 2024 presidential",
@@ -1339,6 +1350,9 @@ COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
     "20260629": "the date stamp inside the FOIL extract's filename (ALLNYVOTERS20260629.zip), "
                 "which is an identifier rather than a result. The file it names is checked "
                 "live by the probe 'Methods — the source extract's byte count'",
+    "08.710": "part of the statutory citation RCW 29A.08.710, Washington's year-of-birth release "
+              "provision — cited in the provenance line to explain why New York's full DOB is "
+              "generalised to year of birth in analysis. Not a quantity",
 }
 
 # --- ✅ RESOLVED 2026-08-06 — author answered "paper not yet published, so fix" ----------

@@ -260,17 +260,26 @@ def print_unexplained(rows: list[dict], top: int) -> None:
 # ---------------------------------------------------------------------------
 
 def load_finance_index(conn: duckdb.DuckDBPyConnection) -> dict[tuple, float]:
-    """Map (cycle, last_name, first_initial) -> max total_receipts.
+    """Map (cycle, last_name, first_initial, office, district) -> max total_receipts.
 
     Keyed on :func:`_name_tokens` so FEC ('LAST, FIRST') and PDC ('First Last')
     name formats both resolve to the same key as the precinct-result name.
     Takes the max across rows sharing a key (general filing dominates primary
     committee fragments).
+
+    DISTRICT-SCOPED 2026-08-15 (external referee, item 3). The key used to be
+    (cycle, last, initial) alone, pooled across all four office codes — far
+    weaker entity resolution than the donor papers allow themselves. The
+    collision audit (`diag_finance_linkage_audit.py`) measured the damage on
+    the pinned frame: 4 of 326 lookups touched an out-of-scope namesake and 2
+    changed value — ld15/2018 took a wrong same-key max, and ld30/2020
+    attached a DIFFERENT candidate's $190K to a candidate with no finance row
+    at all. `finance_for` now resolves within the cell's own office/district.
     """
     placeholders = ",".join("?" for _ in _FINANCE_OFFICES)
     rows = conn.execute(
         f"""
-        SELECT election_cycle, candidate_name, total_receipts
+        SELECT election_cycle, candidate_name, office, district, total_receipts
         FROM candidate_finance
         WHERE office IN ({placeholders})
           AND total_receipts IS NOT NULL
@@ -279,18 +288,37 @@ def load_finance_index(conn: duckdb.DuckDBPyConnection) -> dict[tuple, float]:
         list(_FINANCE_OFFICES),
     ).fetchall()
     idx: dict[tuple, float] = {}
-    for cyc, name, receipts in rows:
-        key = (int(cyc),) + _name_tokens(name)
+    for cyc, name, office, district, receipts in rows:
+        key = (int(cyc),) + _name_tokens(name) + (office, str(district))
         rec = float(receipts)
         if key not in idx or rec > idx[key]:
             idx[key] = rec
     return idx
 
 
-def finance_for(idx: dict[tuple, float], year: int, cand_name: str) -> float | None:
+def _district_scope(district_id: str) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    """(offices, district string forms) a cell's candidates can file under.
+
+    FEC House rows carry office 'H' with a ZERO-PADDED district ('03'); state
+    legislative rows carry 'SR'/'SS' with a BARE district ('3') — the same
+    dual-form rule as `candidate_finance_scope_sql`, restated here because
+    this index is built from a name join rather than a SQL WHERE.
+    """
+    num = district_id[2:].lstrip("0") or "0"
+    if district_id.startswith("cd"):
+        return ("H",), (num, num.zfill(2))
+    return ("SR", "SS"), (num, num.zfill(2))
+
+
+def finance_for(idx: dict[tuple, float], year: int, cand_name: str,
+                district_id: str) -> float | None:
     if not cand_name:
         return None
-    return idx.get((int(year),) + _name_tokens(cand_name))
+    base = (int(year),) + _name_tokens(cand_name)
+    offices, dists = _district_scope(district_id)
+    matches = [idx[base + (o, d)] for o in offices for d in dists
+               if base + (o, d) in idx]
+    return max(matches) if matches else None
 
 
 # ---------------------------------------------------------------------------
@@ -387,8 +415,8 @@ def build_frame(conn: duckdb.DuckDBPyConnection) -> list[dict]:
             dem_name, rep_name = top_candidates(conn, actual["race_name"], year)
             adj = fc.get("adjustments", {}) or {}
 
-            d_rec = finance_for(fin_idx, year, dem_name)
-            r_rec = finance_for(fin_idx, year, rep_name)
+            d_rec = finance_for(fin_idx, year, dem_name, did)
+            r_rec = finance_for(fin_idx, year, rep_name, did)
             fin_log2 = (
                 round(math.log2(d_rec / r_rec), 2)
                 if d_rec and r_rec and d_rec > 0 and r_rec > 0
@@ -530,6 +558,101 @@ def print_factor_analysis(rows: list[dict]) -> None:
               "would try to explain.")
 
 
+def _chamber(district_id: str) -> str:
+    """`cd05` -> congressional, `ld09` -> legislative. The two are different money systems."""
+    return "congressional" if district_id.startswith("cd") else "legislative"
+
+
+def _partial_r(xs, ys, zs) -> float | None:
+    """r(x,y . z) -- the x-y correlation with z's linear contribution removed from both.
+
+    Finding 1 reports fundraising (+0.60) and incumbency (+0.43) as separate rows of one
+    table, which invites reading them as separate signals. They are not independent: an
+    incumbent both raises more and overperforms, so part of the fundraising correlation is
+    incumbency wearing a different label. This is the cheapest available separation. It is
+    NOT a causal control -- it removes only what a straight line in `inc_signed` explains.
+    """
+    r_xy, r_xz, r_yz = pearson(xs, ys), pearson(xs, zs), pearson(ys, zs)
+    if None in (r_xy, r_xz, r_yz):
+        return None
+    denom = math.sqrt((1 - r_xz ** 2) * (1 - r_yz ** 2))
+    return None if denom == 0 else (r_xy - r_xz * r_yz) / denom
+
+
+def print_stratification(rows: list[dict]) -> None:
+    """Referee item (6): is the +0.60 one relationship, or an average over several?
+
+    Two questions, and the second is the one that can bite. Does the association hold within
+    chamber and within cycle, or is it a between-group artifact -- congressional races raise
+    and overperform on a different scale from legislative ones, so pooling them can manufacture
+    a correlation that exists in neither. And WHY do 35 of the 163 baseline-scorable cells
+    carry no ratio: if the missing cells differ systematically in the OUTCOME, +0.60 describes
+    a selected sample, and the plausible selection is toward races with two funded candidates
+    -- which is to say, toward competitive ones.
+    """
+    print("\n" + "=" * 100)
+    print("STRATIFICATION OF THE FUNDRAISING CORRELATION  (referee item 6)")
+    print("=" * 100)
+
+    have = [r for r in rows if r["fin_log2_dr"] is not None]
+    lack = [r for r in rows if r["fin_log2_dr"] is None]
+    print(f"\n{len(rows)} baseline-scorable cells: {len(have)} with a both-side finance "
+          f"ratio, {len(lack)} without.")
+
+    print(f"\nWhy the {len(lack)} cells carry no ratio:")
+    causes = {"neither side has a receipts row": [],
+              "only the Democrat has one": [],
+              "only the Republican has one": [],
+              "a side filed but at $0": []}
+    for r in lack:
+        d, rr = r["d_receipts"], r["r_receipts"]
+        if not d and not rr:
+            causes["neither side has a receipts row"].append(r)
+        elif d and not rr:
+            causes["only the Democrat has one"].append(r)
+        elif rr and not d:
+            causes["only the Republican has one"].append(r)
+        else:
+            causes["a side filed but at $0"].append(r)
+    for label, grp in causes.items():
+        if not grp:
+            continue
+        n_c = sum(1 for g in grp if _chamber(g["district"]) == "congressional")
+        print(f"  {label:34s}: n={len(grp):3d}  "
+              f"mean overperf={mean([g['overperformance'] for g in grp]):+6.2f}   "
+              f"({n_c} cong / {len(grp) - n_c} leg)")
+
+    print("\nIs the missingness related to the outcome (the selection question)?")
+    for label, grp in (("with a ratio", have), ("without a ratio", lack)):
+        op = [r["overperformance"] for r in grp]
+        print(f"  {label:16s}: n={len(grp):3d}  mean overperf={mean(op):+6.2f}  "
+              f"std={stdev(op):5.2f}")
+    print("  -> a large gap here means +0.60 is measured on a non-random subset of races.")
+
+    print("\nWithin chamber (the between-group artifact test):")
+    for ch in ("congressional", "legislative"):
+        grp = [r for r in have if _chamber(r["district"]) == ch]
+        c = pearson([r["fin_log2_dr"] for r in grp], [r["overperformance"] for r in grp])
+        print(f"  {ch:14s}: n={len(grp):3d}  r = " + (f"{c:+.3f}" if c is not None else "n/a"))
+
+    print("\nWithin cycle:")
+    for yr in sorted({r["year"] for r in have}):
+        grp = [r for r in have if r["year"] == yr]
+        c = pearson([r["fin_log2_dr"] for r in grp], [r["overperformance"] for r in grp])
+        print(f"  {yr}: n={len(grp):3d}  r = " + (f"{c:+.3f}" if c is not None else "n/a"))
+
+    xs = [r["fin_log2_dr"] for r in have]
+    ys = [r["overperformance"] for r in have]
+    zs = [r["inc_signed"] for r in have]
+    raw, part = pearson(xs, ys), _partial_r(xs, ys, zs)
+    print("\nWith incumbency's linear contribution removed from both sides:")
+    print("  raw r = " + (f"{raw:+.3f}" if raw is not None else "n/a")
+          + "   partial r (. incumbency) = " + (f"{part:+.3f}" if part is not None else "n/a")
+          + f"   n={len(have)}")
+    print("  -> incumbency and fundraising are not independent rows of Finding 1's table;")
+    print("     this is how much of the fundraising correlation survives the overlap.")
+
+
 def print_cd5_zoom(rows: list[dict], top: int) -> None:
     print("\n" + "=" * 100)
     print("CD5 / EASTERN-WA ZOOM  (CD5 + Spokane-region LDs 3,4,6,7,9)")
@@ -596,6 +719,7 @@ def main() -> None:
 
     print_leaderboard(rows, args.top)
     print_factor_analysis(rows)
+    print_stratification(rows)
     print_unexplained(rows, args.top)
     print_cd5_zoom(rows, args.top)
 

@@ -786,14 +786,28 @@ def _f_ecological(con, d: dict) -> None:
     # It used to pair a statewide PRECINCT-COUNT figure (86.7%, and stale: the crosswalk
     # has grown three times since it was measured) with an Okanogan ACTIVE-VOTER figure,
     # in one parenthesis, as though the two were a like-for-like pair.
+    #
+    # DATED BASIS, 2026-11-08 (author decision). The crosswalk GROWS with every ballot-file
+    # bridge, so a live coverage figure drifts under a frozen sentence: 99.28% from August
+    # through mid-October, 99.38% by 2026-11-08 after ten `sos_ballot_bridge` rows from the
+    # 2026 general's files -- past the probe's 0.05 and red in both repos. The paper describes
+    # the crosswalk its analysis ran on, so both halves read the rows that existed at the
+    # closure round. Registered in docs/reference/derivation-bases.csv.
     for tag, scope in (("all", ""), ("okanogan", " AND UPPER(v.county_name) = 'OKANOGAN'")):
         tot, hit = con.execute(f"""
             SELECT COUNT(*), SUM(CASE WHEN x.precinct_id IS NOT NULL THEN 1 ELSE 0 END)
-            FROM vrdb.voters v LEFT JOIN vrdb_precinct_crosswalk x
+            FROM vrdb.voters v LEFT JOIN (
+                SELECT * FROM vrdb_precinct_crosswalk
+                WHERE updated_at < TIMESTAMP '{XWALK_BASIS_DATE}') x
               ON UPPER(TRIM(v.county_name)) = UPPER(TRIM(x.county_name))
              AND UPPER(TRIM(v.precinct_code)) = UPPER(TRIM(x.vrdb_precinct_code))
             WHERE v.status_code = 'A'{scope}""").fetchone()
         d[f"f_xwalk_{tag}"] = 100.0 * hit / tot
+
+
+# Appendix F crosswalk coverage is read on the crosswalk as it stood at the closure round
+# (2026-09-02/03): rows added before this date. See the derivation comment and the registry.
+XWALK_BASIS_DATE = "2026-09-04"
 
 
 def derive() -> dict:
@@ -2437,7 +2451,7 @@ def build_probes(derived: dict):
          r"\*statewide\* item does not, at ([\d.]+)–([\d.]+)%",
          ("f_odd_statewide_lo", "f_odd_statewide_hi"), 0.05),
         ("appendix A — the symmetric comparison at a common 34%",
-         r"at a common (\d+)% the deciding electorate is\s*~([\d.]+)% of registered voters on "
+         r"at a common (\d+)% the estimated contest-participating electorate is\s*~([\d.]+)% of registered voters on "
          r"a presidential ballot and ~([\d.]+)% on a midterm one, against an\s*odd-year "
          r"~([\d.]+)% rather than the ~([\d.]+)%",
          ("f_scen_hi", "f_grid_pres_34", "f_grid_mid_34", "f_grid_odd_34",

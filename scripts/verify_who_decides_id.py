@@ -1619,7 +1619,7 @@ PROBES = [
     ("front matter — the roll in the contraction caveat",
      r"which has shrunk to ([\d.]+)M from", "roll_m", 0.005),
     ("front matter — the nomination process's seat count",
-     r"produces the eventual winner of (\d+) of (\d+) legislative seats",
+     r"eventual winner held the Republican nomination.{0,70}?in (\d+) of (\d+) legislative seats",
      ("venue_r_nomination_n", "venue_total"), 0),
     ("front matter — the contested-primary venue, against the seat total",
      r"more than one candidate in \*\*(\d+) of the (\d+) seats\*\*",
@@ -1648,10 +1648,10 @@ PROBES = [
     ("the question — the registration mix the paper's premise rests on",
      r"by registration \(\*\*(\d+)% Republican, (\d+)% Democratic, (\d+)% unaffiliated\*\*\)",
      ("regshare_REP", "regshare_DEM", "regshare_UNA"), 0.5),
-    ("what it means — the nomination count and its two venues",
-     r"produced the winner of (\d+) of Idaho's (\d+) legislative seats — but the venue was "
-     r"split: (\d+) at a contested Republican primary and (\d+) at candidate filing, while "
-     r"Democrats took the remaining (\d+)",
+    ("what it means — the nomination count and its two configurations",
+     r"Republicans won (\d+) of Idaho's (\d+) legislative seats; among those Republican "
+     r"winners, (\d+) had contested Republican nominations and (\d+) were sole Republican "
+     r"filers.{0,120}?Democrats took the remaining (\d+)",
      ("venue_r_nomination_n", "venue_total", "venue_contested_republican",
       "venue_single_republican", "seats24_d"), 0),
     ("what it means — the primary electorate's age, restated in the conclusion",

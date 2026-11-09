@@ -24,6 +24,40 @@ human-verification gate.**
 Author: Stephen Kirby (Tikor). Companion to the SSRN-posted lead paper *Who Decides
 Washington?* (SSRN Abstract ID 7149263).
 
+## Abstract
+
+Across the salience ladder defined here, lower-ranked participating electorates are older in each of the three states. That much is
+established. What has not been shown on individual records across states is how far the skew
+travels, and whether the partisan tilt it carries is portable across states or appears only in
+some. This paper runs one method identically over three statewide voter files — Washington
+(5.51M registrants), New York (13.54M) and Idaho (1.03M) — chosen to vary the two institutional
+axes that should matter: whether the state records party of record, and whether its
+lowest-salience measured contest is open to every voter. Because "off-year" does not mean the
+same thing in every state, the comparison is between election classes defined by salience rather
+than by calendar, and each state's lowest-salience class is labelled as what it is. Three
+results follow. First, the age skew runs in the same direction in all three cases and is highly
+variable in magnitude: the three presidential electorates are nearly identical (28.2 to 29.0
+percent aged 65 and over), and the senior-to-youth ratio starts near 2:1 everywhere before
+rising to between 4.9 and 5.5 in Washington, 3.0 and 7.0 in New York, and 7.4 and 9.7 in Idaho's
+three closed May Republican primaries. Second, the partisan consequence is not portable: New
+York's Republican off-year electorates are consistently the oldest, with an eight-year
+median-age gap in the 2025 odd-year electorate, while in Idaho senior representation is
+near-identical across the two parties and the bloc that is younger than both is the unaffiliated
+quarter, which can reach the closed Republican primary only by affiliating. Third, on a shared
+representativeness yardstick — an age-dissimilarity index against citizen voting-age population
+at one ACS vintage — every presidential electorate sits close to its eligible population (7.0 to
+8.2 index points), and on cells matched for reconstruction lag Idaho's closed primary is the
+least representative low-salience electorate measured, 9.2 index points further from its
+eligible population than Washington's. Between 86 and 98 percent of each low-salience electorate
+also voted in the 2024 presidential general — an overlap inflated by current-roll survivorship
+for the earlier contests, and read here as a bound — so these electorates are drawn
+overwhelmingly from the presidential electorate, though the overlap measure is affected by
+reconstruction lag.
+
+**Keywords.** election timing; off-cycle elections; turnout composition; voter file; party
+registration; closed primaries; nominating electorate; age and voting; cross-state comparison;
+representativeness
+
 ---
 
 ## The question
@@ -122,8 +156,8 @@ as a shared calendar. Three further comparability controls travel with every fig
 
 ## Finding 1 — The age gradient across lower-salience electorates recurs across all three cases
 
-As salience falls, the electorate ages, in each of the three states and regardless of
-party-registration regime. The presidential and midterm rows below are directly comparable;
+Across the salience ladder defined here, lower-ranked electorates are older in each of the
+three states, regardless of party-registration regime. The presidential and midterm rows below are directly comparable;
 the lowest-salience row is each state's lowest-salience measured class (labeled).
 
 | State | Presidential 65+ / 18–29 | Midterm 65+ / 18–29 | Lowest-salience 65+ / 18–29 (class) |
@@ -258,8 +292,8 @@ than by the two odd years that happened to be tabulated.</sub>
   overlap and the presidential one sits slightly higher, so low salience does not widen the
   partisan age gap at all. 2025 is more than double the widest gap in any other general in the
   file. So "the Republican wing ages hardest as salience falls" does not hold across New
-  York's own odd-years; what 2025 shows is that a *particular contest* mobilised Democrats
-  young, not that low salience does this generally.
+  York's own odd-years; 2025 is an event-specific outlier, and the statewide data do not
+  identify what produced the younger Democratic electorate.
 
   *What DOES hold, 8 times out of 8, is the level ordering* — the Republican electorate is the
   older of the two in every general New York's file records, and the no-party bloc is younger
@@ -280,8 +314,7 @@ than by the two odd years that happened to be tabulated.</sub>
   by affiliating at the poll book. In May 2024, 8,453 currently-unaffiliated voters pulled a
   Democratic ballot and 1,554 pulled a Republican one. An earlier version said the closed
   primary "locks that youth out by design"; the accurate statement is the Idaho paper's — an
-  unaffiliated voter **must first affiliate** to vote in the contest that chooses the
-  winner.
+  unaffiliated voter **must first affiliate** to vote in the closed Republican primary.
 - **Washington — age only, by construction.** No party of record; the WA paper deliberately
   makes no partisan claim, which is why it is the clean high-access baseline for the age
   result rather than a partisan one.
@@ -331,7 +364,7 @@ with distance from the reference and is near zero for a contest at or after it. 
 the only one of the three states with a retained roll snapshot, so it is the only place the size
 can be measured rather than argued: adding back the drop-offs it can still see moves 2021 from
 95.5% to **89.9%**, 2023 from 97.5% to **95.0%**, and 2025 — four months from the roll — by
-**0.1** points. Those are themselves lower bounds. New York and Idaho have no equivalent
+**0.1** points. Those corrections are themselves lower bounds, so the adjusted shares are upper bounds. New York and Idaho have no equivalent
 snapshot, so correcting Washington's cell alone would put one column of a comparison row on a
 basis the other two are not on, which is the error this table exists to avoid; the cells stay
 comparable and the caveat is stated instead. **Read this row as a bound, not as a ranking.**
@@ -380,8 +413,8 @@ way that no general election in either other state approaches.
 
 **The habitual-core figures say the same thing from the other direction.** Between 86% and
 98% of every low-salience electorate also voted in the 2024 presidential general, so these
-are not different populations — they are the presidential electorate's standing core, with
-the peripheral voters stripped away. Idaho's 2024 primary is the *most* core-like (97.8%);
+are not different populations — they are drawn overwhelmingly from the presidential
+electorate. Idaho's 2024 primary is the *most* core-like (97.8%);
 New York's 2017 general is the least (86.4%).
 
 **Read this metric with the lag in mind, because it is not the same construct across the
@@ -479,8 +512,8 @@ paper. As with the dissimilarity ladder, neither is a revision of the other.</su
 
 ## What it means
 
-Across three states spanning the partisan and institutional map, the same structural fact
-holds: the lower the salience, the older and smaller the electorate that turns out.
+Across three deliberately contrasting states, every selected lower-salience electorate is
+older than its own state's presidential electorate.
 
 The inference from that to *timing as the lever* is weaker than it reads, and is stated here
 at the strength it can carry. The presidential electorates being nearly identical is close to
@@ -496,8 +529,9 @@ within-state comparison and immune to the objection.
 
 The partisan consequences are not portable either: they vary with institutional setting, and
 this design cannot say which feature of that setting produces the variation. On the policy implication the WA paper draws — moving
-low-salience local contests on-cycle — this study shows the *composition* problem it addresses
-is present in all three states; it does not show the remedy transfers, and Ornstein (2024)
+low-salience local contests on-cycle — this study shows that the *compositional* skew
+motivating that concern also appears in each state's measured lower-salience electorate; it does
+not show the remedy transfers, and Ornstein (2024)
 found the turnout and diversity gains without a detectable downstream effect on representation
 or policy. The assumption that lower-salience electorates tilt uniformly toward one party does not
 survive at all.
@@ -515,8 +549,8 @@ files are used under RCW 29A.08.720, New York FOIL lawful-use terms, and Idaho C
 Three conventions in that script are load-bearing, and each was measured rather than assumed:
 
 - **All three states are year-of-birth resolution, but not on the same clock — and the
-  difference is worth two points of the 65+ share.** WA and NY publish a birth *year*,
-  normalised to July 1 — every row, verified — so `date_diff('year', …)` against a November
+  difference is worth two points of the 65+ share.** WA publishes a birth *year* and New York a full date of birth that the loader generalises to
+  one, both stored as July 1 — every row, verified — so `date_diff('year', …)` against a November
   election is the calendar-year difference, which implicitly assumes the birthday has already
   happened. Idaho publishes a current integer *age*, which already accounts for whether it
   has, and `age − (2026 − year)` inherits that. The two conventions therefore disagree by a

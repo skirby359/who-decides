@@ -197,6 +197,41 @@ def finance_district_keys(district_number: str) -> tuple[str, ...]:
     return (bare,) if bare == padded else (bare, padded)
 
 
+def results_race_pattern(profile, state_code: str | None = None) -> str:
+    """Regex for reading a district's ACTUAL results — not its forecast history.
+
+    ``profile.race_pattern`` drives the forecast's drag / incumbency history and
+    stays exactly as the locks were made with it. For scoring, Idaho needs more:
+    it files U.S. House as ``REPRESENTATIVE DISTRICT N`` through 2022 and
+    ``U.S. REPRESENTATIVE DISTRICT N`` from 2024 (``congressional district N``
+    matches neither), and renamed its legislative races in 2024
+    (``LEGISLATIVE DISTRICT N ST REP A`` -> ``REPRESENTATIVE DISTRICT N SEAT A``,
+    ``... ST SEN`` -> ``SENATOR DISTRICT N``). Without this, every ID district
+    resolves to no result and the scorecard skips it silently.
+
+    The Idaho alternatives are ANCHORED: ``REPRESENTATIVE DISTRICT 1`` is the
+    pre-2024 U.S. House and ``REPRESENTATIVE DISTRICT 1 SEAT A`` the 2024 state
+    house — the ambiguity the office-name lint exists for. Every other state
+    gets ``profile.race_pattern`` unchanged.
+    """
+    if state_code is None:
+        try:
+            from config.settings import settings
+            state_code = settings.state_config.state_code
+        except Exception:
+            state_code = "WA"
+    base = profile.race_pattern.pattern
+    if state_code != "ID":
+        return base
+    n = str(int(profile.district_number))
+    if profile.district_type == "congressional":
+        return (rf"{base}|^(u\.s\. )?representative\s+district\s+0?{n}$")
+    if profile.district_type == "legislative":
+        return (rf"{base}|^representative\s+district\s+0?{n}\s+seat\s+[ab]$"
+                rf"|^senator\s+district\s+0?{n}$")
+    return base
+
+
 def candidate_finance_scope_sql(
     profile, alias: str = "",
 ) -> tuple[str, list[str]] | None:

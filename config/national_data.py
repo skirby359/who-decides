@@ -172,6 +172,29 @@ NATIONAL_CYCLES = [
     # so nothing downstream moved and no re-lock is implied — the final pre-November
     # re-lock of all three states remains a separate, later act.
     #
+    # RE-TRIANGULATED October 1, 2026 (D+5.5 -> D+8.0), author-approved basis =
+    # trimmed consensus of the aggregator AVERAGES (single trackers excluded):
+    #   - Silver Bulletin:                  D+9.0  default average (Oct 1; was 6.7
+    #                                       Sep 1; LV-adjusted D+9.6, NOT used —
+    #                                       keeps every input on a mixed RV/LV basis)
+    #   - RealClearPolling average:         D+8.3  SECOND-HAND (page still 403;
+    #                                       figure as quoted by Quantus, Sep 30)
+    #   - Decision Desk HQ:                 D+7.9  (48.8/40.9, ~Sep 30)
+    #   - FiftyPlusOne:                     D+7.7  (50.8/43.1, Oct 1; was 6.0 Aug 21)
+    #   - USPollingData:                    D+7.4  (49.3/41.9, Oct 1)
+    #   - PollsMax:                         D+7.1  (49.1/42.0, Sep 28; not in the
+    #                                       prior basis)
+    #   - excluded as single trackers: ActiVote D+5.6 (Sep 22, forced two-party),
+    #     Morning Consult (Sep 28 figure unreadable)
+    # Full mean D+7.9; trimmed (drop 9.0 / 7.1) D+7.8 -> D+8.0 at the half-point
+    # convention. Every readable average rose ~1.5-2.5 pts in September. Silver
+    # Bulletin net approval -22.7 (Oct 1, "all-time low").
+    #
+    # THIS VALUE DOES NOT TOUCH THE PRE-REGISTRATION. The notarized June locks
+    # (docs/Proposal/*_locked_predictions.csv) were made at D+6.0 and are scored
+    # as-is; the D+8.0 run is recorded in `forecast_tracking`, never in
+    # `forecast_predictions` (whose latest-as-of readers feed frozen papers).
+    #
     # RE-TRIANGULATION CADENCE: this value is a projection AND the dominant
     # driver of swing-seat forecasts, but it is dollar-for-dollar sampling noise
     # this far out — a 5.5<->6.0 swing between June 6 and June 8 is well inside
@@ -187,14 +210,14 @@ NATIONAL_CYCLES = [
     NationalCycle(
         year=2026,
         election_type="midterm",
-        generic_ballot_margin=5.5,
+        generic_ballot_margin=8.0,
         pres_approval=44.0,
         president_party="Republican",
         gdp_growth=2.0,
         unemployment=4.3,
         cpi_inflation=2.5,
         consumer_sentiment=65.0,
-        national_house_margin=5.5,
+        national_house_margin=8.0,
         wave_type="blue_wave",
         wa05_dem_two_party_pct=0.0,
         is_projected=True,

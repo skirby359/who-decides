@@ -31,7 +31,7 @@ effect, alternative birth-year
 assumptions, county-level checks, and exclusion of any single off-year. The off-year electorate is
 also older than the registered roll and the citizen voting-age population. Individual
 records show it is largely the presidential electorate's *habitual core* (at most 87–96% of
-off-year voters also cast a 2024 presidential ballot, after correcting an upward
+off-year voters also cast a 2024 presidential ballot, after partially bounding an upward
 survivorship bias in that overlap — and a single presidential comparison, not
 a regularity across years), while the peripheral voters who drop
 off off-cycle skew young. The paper measures ballot return, not votes cast in specific
@@ -213,7 +213,7 @@ cycles, and (per the validation above) survives an explicit worst-case bound.
 | Nov 2023 | Off-year | 7.4% | 19.2% | 33.2% | 40.2% |
 | Nov 2025 | Off-year | 8.0% | 19.9% | 31.7% | 40.3% |
 
-- **The off-year electorate is a senior-plurality electorate, and stably so.** Voters
+- **Among analyzable ballot-returners, 65+ is the largest age band in all three off-years.** Voters
   65+ make up **~37–40%** of it (36.7 / 40.2 / 40.3% across 2021 / 2023 / 2025) versus
   **28.5%** in the presidential year; the 18–29 share falls from **14.2%** to **~7.6%**.
 - **The senior-to-youth ratio widens by about two and a half times off-cycle**, from
@@ -508,8 +508,9 @@ a 2021 ballot and then died or moved away is dropped from both the numerator and
 denominator — and that is precisely the population which could not have voted in 2024.
 Adding back the drop-offs the September-2023 snapshot can still see moves 2021 from 92.2%
 to **87.1%** and 2023 from 97.3% to **94.8%**, while 2025, four months from the roll, moves
-**0.1** points. Those are lower bounds: anyone who left before the snapshot is invisible to
-it too. So the defensible range is **at most 87–96%**, the 2025 figure is the only one close
+**0.1** points. Those corrections are lower bounds: anyone who left before the September-2023
+snapshot is invisible as well, so the adjusted overlap shares are themselves upper bounds, and
+the defensible range is **at most 87–96%**, the 2025 figure is the only one close
 to unbiased, and the inflation tracks distance from 2024 rather than anything about the
 electorates. The direction of the finding is unaffected — a smaller overlap makes the
 off-year electorate *less* purely a subset of the presidential one, not more — but the
@@ -608,8 +609,8 @@ and age-as-proxy.)
 
 The most obvious objection is also the weakest: **this is voluntary participation, not
 disenfranchisement.** Washington votes entirely by mail, postage prepaid, with automatic
-and same-day registration, so no one is shut out of the off-year ballot, and the fix, moving
-local races onto even-year ballots, is an
+and same-day registration, so it imposes no separate off-year eligibility barrier, and the
+proposed scheduling reform, moving local races onto even-year ballots, is an
 ordinary scheduling choice. This is a question of **design**, not rights. Explaining
 *why* the off-year electorate is older does not make it any less old: the gap is there
 however you judge it.
@@ -628,8 +629,9 @@ electorate rather than an off-year general one. The panel itself is now final �
 adjudicated and none pending — so these are certified rates rather than a count still in
 motion. The frame survives the objection, but it survives it by measurement
 rather than by assertion. (It is also what makes Washington a useful test case. In a prepaid,
-same-day-registration state the usual "too hard to vote" explanation for young
-drop-off is weak, so the age gap is hard to pin on friction.)
+same-day-registration state, administrative-friction explanations for young
+drop-off are less compelling as the primary explanation, so the age gap is hard to pin on
+friction alone.)
 
 Three other objections:
 
@@ -663,11 +665,11 @@ biased the comparison toward enlargement. Odd-year **local** contests roll off t
 on a conservative floor, and 30–44% for fire districts (Appendix F). The odd-year
 *statewide* item does not, at 3.9–5.6%, so the asymmetry is specific to the class of
 contest this paper is about rather than general.
-Applied to both sides, the direction survives: at a common 34% the deciding electorate is
+Applied to both sides, the direction survives: at a common 34% the estimated contest-participating electorate is
 ~52% of registered voters on a presidential ballot and ~42% on a midterm one, against an
-odd-year ~25% rather than the ~38% the one-sided version compared against. **The net
-effect is very likely a bigger electorate; the size of the increase is not pinned down
-here**, and depends on whether local races land on a presidential or a midterm-year ballot
+odd-year ~25% rather than the ~38% the one-sided version compared against. **Under symmetric
+roll-off assumptions, estimated contest participation remains higher on the even-year ballot;
+the actual size of the difference is not identified here**, and depends on whether local races land on a presidential or a midterm-year ballot
 and on how local-contest roll-off differs from the statewide-judicial analog both columns
 are built on.
 
@@ -679,8 +681,8 @@ narrower claim is about **representation**, and it stays entirely inside the reg
 electorate the data covers: among registered voters, off-year ballot-returners are much
 older than presidential-year ones (median age ~59–60 vs 52, and about a decade older than
 the median registrant at 48). If a markedly older slice of the registered electorate is
-choosing local officials, then the preferences recorded at the ballot box differ
-systematically by age. The off-year electorate is ~39% 65+, over **1.7 times** the
+choosing local officials, then the age composition of the electorate choosing them differs
+systematically from that of the registered electorate as a whole. The off-year electorate is ~39% 65+, over **1.7 times** the
 **22.6%** of citizen voting-age Washingtonians who are 65+ (ACS 2020–24 CVAP) and nearly
 double the 21.1% of all adult residents, while its 18–29 share (~7.6%) is under
 two-fifths of the ~20% in both benchmarks (§ What the data shows). Whether that is
@@ -762,9 +764,9 @@ The core finding, that low-salience electorates are older and smaller, is well
 established, and this paper does not claim to discover it. The contribution is narrower,
 and twofold. First, it gives a **validated, individual-record** measurement of
 Washington's recent November electorates across the full salience gradient (presidential
-→ midterm → off-year), from ~100% of the state's vote records, in a **universal
-vote-by-mail, same-day-registration** state where the usual "too hard to vote"
-explanation for youth drop-off is weak. Second, and just as important, it tackles a common
+→ midterm → off-year), from statewide individual vote-history records, in a **universal
+vote-by-mail, same-day-registration** state where administrative-friction
+explanations for youth drop-off are less compelling as the primary explanation. Second, and just as important, it tackles a common
 voter-file problem head-on: because past vote records are reconstructed from a *current*
 registration file, voters who have since died, moved, or been dropped can go missing, an
 assumption many voter-file studies leave unstated. By benchmarking against certified

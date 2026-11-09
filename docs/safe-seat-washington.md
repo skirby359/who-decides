@@ -657,7 +657,7 @@ the corrected House number:
 | TX House | 94.0% | 84.0% | **+10.0 pp** |
 | ID House | 92.9% | 94.3% | −1.4 pp |
 
-In the two states with genuine partisan diversity, legislative contests are substantially less
+In Washington and Texas, legislative contests are substantially less
 competitive than presidential lean alone would predict — about ten points less — while in
 deep-one-party Idaho the gap vanishes. (New York cannot be tested: its loaded presidential data
 predates the 2022 Assembly lines.)

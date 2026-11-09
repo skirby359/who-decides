@@ -26,8 +26,8 @@ companion moves this document or fails its gate loudly. That mechanism exists be
 opposite happened — until 2026-08-15 this document carried a pooled donor panel, a retired
 match key and a headline slope that its companions had all superseded.
 
-**The claim.** The four-state evidence documents persistent inequalities in who participates,
-who finances campaigns, and how often general elections are genuinely close. It does **not**
+**The claim.** The four-state evidence documents measurable disparities in participation and
+political voice, and constraints in electoral contestation. It does **not**
 support a scalar diagnosis of democratic failure, and it does **not** identify the causal
 electoral effect of campaign spending.
 
@@ -104,12 +104,14 @@ it appears in the money and contestation rows below and nowhere else.
 **The four states are not four symmetric assessments, and the design should say so first
 rather than let a reader discover it.** Texas participates fully in the money and
 contestation evidence and has no voter file, so no person-level donor analysis exists for it.
-New York and Idaho publish individual party of record; Washington does not. Idaho's roll is a
-current extract with a survivorship problem unlike Washington's.
+New York and Idaho publish individual party of record; Washington does not. Both Washington and
+Idaho reconstruct past electorates from current rolls; Idaho's attrition is materially larger in
+the older cells, while Washington has a retained historical snapshot that permits a direct
+survivorship cross-check.
 
 | domain | Washington | New York | Texas | Idaho |
 |---|:--|:--|:--|:--|
-| Participation — age composition of the electorate | **measured** (27.1M vote records, birthdate) | **measured** (13.5M roll, year of birth) | **unavailable** (no voter file) | **measured**, with a roll-survivorship caveat |
+| Participation — age composition of the electorate | **measured** (27.1M vote records, year of birth) | **measured** (13.5M roll, year of birth) | **unavailable** (no voter file) | **measured**, with a roll-survivorship caveat |
 | Participation — *party-resolved* | **unavailable** (no party of record) | **measured** | **unavailable** | **measured** |
 | Contestation — observed margins and ballot choice | **measured** | **measured** | **measured** | **measured** |
 | Political voice — aggregate money | **measured** (federal + state) | **measured** (federal + state) | **measured** (federal + state) | **measured** (federal + state) |
@@ -177,10 +179,10 @@ programme does. Treating the count of results as a count of corroborating studie
 - **Defensible claim.** The electorate that returns an accepted ballot in WA's odd-year
   general elections — credited participation, which is what the vote history records, not
   contest-level voting — is roughly half the size of the presidential electorate and dramatically
-  older. From **27.1M** VRDB vote records (~100% birthdate coverage): voters 65 and older were
+  older. From **27.1M** VRDB vote records (~100% year-of-birth coverage): voters 65 and older were
   **36.7%, 40.2% and 40.3%** of the 2021, 2023 and 2025 odd-year electorates against
   **28.5%** in 2024, while voters 18–29 fell from **14.2%** in 2024 to about **7.6%**
-  off-cycle. Individually, 18–29 participation falls from **58.4%** (2024) to about **16%**
+  off-cycle. Individually — these are current-roll reconstructed rates, not official turnout — 18–29 participation falls from **58.4%** (2024) to about **16%**
   off-year, while 65+ slips only from **88.3%** to **~61%**.
 
   <sub>*Re-quoted at the owning paper's own precision on 2026-08-16.* This bullet gave the
@@ -193,11 +195,12 @@ programme does. Treating the count of results as a count of corroborating studie
 - **Strongest objection.** This is *voluntary* differential participation, not
   disenfranchisement. WA has all-mail, postage-paid, automatic/same-day
   registration — the gray electorate reflects who *chose* to vote, and the gap is
-  mechanically expected from low salience. The fix is purely institutional (move
-  local races on-cycle to even Novembers), which is itself evidence the system is
-  responsive, not failing.
+  mechanically expected from low salience. One institutional response proposed in the
+  literature is moving local elections on-cycle to even Novembers; the Washington companion
+  measures the composition gap but does not estimate that remedy's effect.
 - **First analysis — DONE** ([`who-decides-washington.md`](who-decides-washington.md)):
-  Join `voting_history` to `voters.birthdate`; classify
+  Join `voting_history` to `voters` on the `birthdate` field — which stores year of birth as a
+  July-1 sentinel, not a full date; classify
   age-as-of-each-election into cohorts; produce a cycle-type × cohort table of both
   (a) within-cohort turnout and (b) cohort *share* of the actual electorate, for
   every general 2021–2025. Report composition shares (denominator-free) alongside
@@ -217,8 +220,8 @@ programme does. Treating the count of results as a count of corroborating studie
 ### Domain 2 — Contestation: whether general elections are close
 
 - **Defensible claim, on OBSERVED margins.** The large majority of seats are not close.
-  On the most recent general for partisan legislative and congressional offices, the
-  not-close share runs **WA 87.8% · NY 88.0% · TX 94.0% · ID 92.9%** of lower-chamber
+  On each state's most recent loaded lower-chamber general — 2024 in WA/TX/ID and 2022 in
+  NY — the not-close share runs **WA 87.8% · NY 88.0% · TX 94.0% · ID 92.9%** of lower-chamber
   seats. This is a structural counting result on certified returns that does **not**
   depend on any blocked/weak signal or on any model.
 
@@ -635,10 +638,10 @@ companions — what remains gated is the *Washington* version.
 
 ## Conclusion
 
-**The four-state evidence documents persistent inequalities in who participates, who
-finances campaigns, and how often general elections are genuinely close. It does not support
-a scalar diagnosis of democratic failure, and it does not identify the causal electoral
-effect of campaign spending.**
+**The four-state evidence documents measurable disparities in participation and political
+voice, and constraints in electoral contestation. It does not support a scalar diagnosis of
+democratic failure, and it does not identify the causal electoral effect of campaign
+spending.**
 
 Concretely, and in the order of the domains above: turnout is steeply age-skewed, and
 sharply more so as salience falls; the donor class is narrow, old and top-heavy, and
@@ -686,8 +689,10 @@ not only human sign-off, and this paragraph said it was until 2026-08-15. Still 
 delegable to a signature: Washington still lacks individual party of record (see *Boundary of
 inference*); the four states do not have equivalent coverage, so the cross-state claims are
 not symmetric (Texas has no voter file and therefore no person-level donor analysis; NY and
-ID publish party registration and WA does not; Idaho's roll carries a survivorship problem
-unlike Washington's); and the model-generated diagnostic scores in Appendix A are stale
+ID publish party registration and WA does not; both Washington and Idaho reconstruct past
+electorates from current rolls, with Idaho's attrition materially larger in the older cells
+while Washington retains a historical snapshot for a direct survivorship cross-check); and the
+model-generated diagnostic scores in Appendix A are stale
 against the data as it now stands. The genuinely human-owned items are independent
 verification of the headline numbers and posting the papers not yet posted — the Washington
 companion is already on SSRN (7149263) and owes a revision, not a first upload

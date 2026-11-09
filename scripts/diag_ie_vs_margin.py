@@ -221,6 +221,72 @@ def bootstrap_slope_ci(xs, ys, iters=5000, seed=12345):
     return lo, hi
 
 
+def cluster_bootstrap_slope_ci(xs, ys, clusters, iters=5000, seed=12345):
+    """Percentile bootstrap resampling CLUSTERS (with replacement), not rows.
+
+    Added 2026-08-15 (external referee, item 5): the case-resampling interval
+    treats race-cycles as iid while the panel repeatedly measures the same
+    districts — the paper's own placebo discussion entertains persistent
+    district traits, and the two positions were in tension. Deterministic
+    (fixed seed), same convention as `bootstrap_slope_ci`. Degenerate resamples
+    (all one cluster, zero x-variance) are skipped and counted.
+    """
+    import random
+    rng = random.Random(seed)
+    groups: dict = {}
+    for x, y, c in zip(xs, ys, clusters):
+        groups.setdefault(c, []).append((x, y))
+    keys = sorted(groups)
+    slopes, degenerate = [], 0
+    for _ in range(iters):
+        samp = [rng.choice(keys) for _ in keys]
+        bx, by = [], []
+        for k in samp:
+            for x, y in groups[k]:
+                bx.append(x)
+                by.append(y)
+        s, _, _ = ols_slope(bx, by)
+        if s == 0.0 and len(set(bx)) <= 1:
+            degenerate += 1
+            continue
+        slopes.append(s)
+    slopes.sort()
+    lo = slopes[int(0.025 * len(slopes))]
+    hi = slopes[int(0.975 * len(slopes))]
+    return lo, hi, len(keys), degenerate
+
+
+def influence_report(xs, ys, labels):
+    """Leave-one-out slopes and Cook's distance for a bivariate OLS.
+
+    Added 2026-08-15 (external referee, item 4): the paper ran leave-one-out on
+    the placebo and legislative specifications while the HEADLINE federal
+    regression went without it — and the reviewer's own reconstruction showed
+    the +0.515 slope rests on one observation. Returns (full slope,
+    [(loo_slope, label) sorted], [(cooks_d, label) top 3]).
+    """
+    n = len(xs)
+    slope, intercept, _ = ols_slope(xs, ys)
+    mx = sum(xs) / n
+    sxx = sum((x - mx) ** 2 for x in xs)
+    resid = [y - (intercept + slope * x) for x, y in zip(xs, ys)]
+    mse = sum(e * e for e in resid) / (n - 2)
+    cooks = []
+    for i in range(n):
+        h = 1 / n + (xs[i] - mx) ** 2 / sxx
+        cooks.append(((resid[i] ** 2 / (2 * mse)) * (h / (1 - h) ** 2), labels[i]))
+    cooks.sort(reverse=True)
+    loo = sorted(
+        (ols_slope(xs[:i] + xs[i + 1:], ys[:i] + ys[i + 1:])[0], labels[i])
+        for i in range(n))
+    return slope, loo, cooks[:3]
+
+
+def sd_of(xs):
+    m = sum(xs) / len(xs)
+    return (sum((x - m) ** 2 for x in xs) / len(xs)) ** 0.5
+
+
 # The pinned federal panel. Written by --cells-csv here, read by --from-cells and
 # by the PUBLIC copy of this script, which cannot import backtest_model.
 #
@@ -383,9 +449,33 @@ def _report(rows, races, cycles, cells_out=None):
         print(f"  Pearson r= {rho:+.3f}")
         print("  NOTE: a positive slope is NOT causal without an instrument — IE is")
         print("  endogenous to expected closeness (Jacobson). Treat as upper-bound-ish.")
+
+        # ---- Influence + clustered sensitivity (external referee 2026-08-15) ----
+        labels = [f"{r['district_id']}/{str(r['cycle'])[-2:]}" for r in scored]
+        _, loo, cooks = influence_report(xs, ys, labels)
+        print(f"\n  INFLUENCE: leave-one-out slope range "
+              f"{loo[0][0]:+.3f} (drop {loo[0][1]}) to {loo[-1][0]:+.3f} "
+              f"(drop {loo[-1][1]})")
+        print(f"  top Cook's distances: "
+              + ", ".join(f"{lab} {cd:.3f}" for cd, lab in cooks))
+        districts = [r["district_id"] for r in scored]
+        clo, chi, n_cl, degen = cluster_bootstrap_slope_ci(xs, ys, districts)
+        print(f"  district-cluster bootstrap ({n_cl} clusters): "
+              f"[{clo:+.3f}, {chi:+.3f}]"
+              + (f" ({degen} degenerate resamples skipped)" if degen else ""))
+        era_cl = [f"{d}-{'pre' if int(str(r['cycle'])) < 2022 else 'post'}"
+                  for d, r in zip(districts, scored)]
+        elo, ehi, n_ecl, edegen = cluster_bootstrap_slope_ci(xs, ys, era_cl)
+        print(f"  era x district clusters ({n_ecl}): [{elo:+.3f}, {ehi:+.3f}]")
+        sdx = sd_of(xs)
+        print(f"  per-SD slope: {slope * sdx:+.3f} pp per 1 SD of net IE "
+              f"(SD = ${sdx:.2f}M)")
         result = {"inference": "reported", "n_scored": n, "cycles": cycles,
                   "slope": slope, "ci": [lo, hi], "pearson_r": rho,
-                  "crosses_zero": crosses_zero}
+                  "crosses_zero": crosses_zero,
+                  "loo_min": loo[0], "loo_max": loo[-1], "cooks_top": cooks[0],
+                  "cluster_ci": [clo, chi], "era_cluster_ci": [elo, ehi],
+                  "sd_x": sdx, "per_sd_slope": slope * sdx}
 
     # ---- Data-availability ceiling (the citable finding) ------------------
     #

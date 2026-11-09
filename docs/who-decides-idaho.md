@@ -13,9 +13,9 @@ underlying voter file is not redistributed. Contact: kirby@tikorconsulting.com.*
 *Deep-red companion to [`who-decides-washington.md`](who-decides-washington.md)
 and [`who-decides-new-york.md`](who-decides-new-york.md). Washington showed the
 off-year electorate is **older**; New York (deep blue) showed *whose* electorate
-ages and who is shut out of the nominating contest. Idaho completes the set from the other
-pole: a state where the **Republican nomination process — candidate filing and then the
-closed May primary — produces the eventual winner of 90 of 105 legislative seats**, a
+ages and who is ineligible for party primaries while unaffiliated. Idaho completes the set from the other
+pole: a state where the **eventual winner held the Republican nomination — via candidate
+filing or the closed May primary — in 90 of 105 legislative seats**, a
 particularly concentrated nominating structure. That is a
 statement about the nomination the winner held, not about a single event the data can point to
 (§I). And it is more than the primary electorate's story: that electorate chose among more than
@@ -72,8 +72,8 @@ filled, and the shorthand answer — the primary — is too coarse to capture th
 **63%** Republican and **12%** Democratic by registration. Using the statewide voter file for
 **1,029,938** registrants, with party of record and the party ballot each voter actually pulled,
 this paper measures, seat by seat, what the ballot offered and who was present to use it.
-**The central result is a three-layer count of Idaho's 2024 legislature: **105** seats, **80**
-offering a choice on the ballot, **8** offering a close one** — where "close" is a
+The central result is a three-layer count of Idaho's 2024 legislature: **105** seats, **80**
+offering a choice on the ballot, **8** offering a close one — where "close" is a
 general-election margin under ten points. Choice is common and competition is rare, and the
 distance between those two layers is the finding.
 
@@ -343,9 +343,9 @@ now the one that is harder to attack.*
 
 ## IV. The two nomination gates — and how gray the primary electorate is
 
-The Republican nomination process produces the winner in the great majority of Idaho's
-legislative seats. The primary electorate does not. Neither statement is the same as saying
-the seat was over before November. Those are three different claims and this section
+The eventual winner held the Republican nomination in 90 of Idaho's legislative seats.
+The primary electorate that awarded those nominations is small and unrepresentative. Neither
+statement is the same as saying the seat was over before November. Those are three different claims and this section
 separates them, because conflating them is the error the section has now made twice in
 opposite directions; the rest of it describes who is present in the closed Republican primary.
 
@@ -611,8 +611,7 @@ bands are now named for what they are: intervals of R-minus-D registration.*
 November 2024 general, Democrats won **15 of Idaho's 105 legislative seats** (90 R / 15 D,
 matching the seated 2025–26 legislature), including seats this table places in its widest
 band. Of the 47 seats whose Republican primary drew a single candidate, **nine were won by
-a Democrat in November** — so for those the choice was settled by the general, not at
-filing. An earlier version of this section wrote that "where the general election cannot
+a Democrat in November**. An earlier version of this section wrote that "where the general election cannot
 change an outcome" the primary is the only decisive contest; that inference does not
 survive its own state's results, and the companion safe-seat paper withdrew a stronger
 version of it on *observed margins*, which are better evidence than registration. It is not
@@ -921,13 +920,14 @@ the party-specific bound. It was computed and one of the two claims did not surv
 Idaho is the deep-red pole of this series. Washington showed the off-year electorate is
 older; New York showed the shrinkage is party-shaped and excludes a young unaffiliated
 bloc; Idaho shows what happens when November choices are common but November competition
-is rare. **In 2024 the Republican nomination process produced the winner of 90 of Idaho's
-105 legislative seats — but the venue was split: 52 at a contested Republican primary and
-38 at candidate filing, while Democrats took the remaining 15 in November, nine of them by
-beating a single-filer Republican.** Republican-ballot primary voters were substantially older
+is rare. **In 2024 Republicans won 90 of Idaho's 105 legislative seats; among those
+Republican winners, 52 had contested Republican nominations and 38 were sole Republican
+filers — those are nomination configurations, not estimates of when a seat became decided.
+Democrats took the remaining 15 in November, nine of them by beating a single-filer
+Republican.** Republican-ballot primary voters were substantially older
 than the presidential electorate and than the registration
-base: median 63, with 46.7% aged 65 or over. And a quarter of the state, young, can take part
-in that primary only by adopting a party label first.
+base: median 63, with 46.7% aged 65 or over. And roughly a quarter of registrants, young, can
+take part in that primary only by adopting a party label first.
 
 *(Two phrases here restated an inference §V withdraws, and are corrected as of 2026-08-11: "in
 districts where the general cannot overturn it" and "the only contest that counts". §V records

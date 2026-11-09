@@ -800,7 +800,8 @@ def structural_guards(raw: str) -> list[str]:
 # vp.normalise(raw) — so every probe could always reach these regions and only the audit was
 # short. Extending the dict is the whole fix here.
 AUDIT_BOUNDS = {
-    "header": ("# Who Returns the Ballot?", "## The question"),
+    "header": ("# Who Returns the Ballot?", "## Abstract"),
+    "abstract": ("## Abstract", "## The question"),
     "question": ("## The question", "## The cases"),
     "cases": ("## The cases", "## Harmonization protocol"),
     "harmonization": ("## Harmonization protocol", "## Finding 1"),
@@ -884,7 +885,17 @@ COVERAGE_EXEMPT_LITERAL: dict[str, str] = {
     "5.0": "the retired Idaho 18-29 cell that accompanied 46.7, same superseded selection",
 }
 
-COVERAGE_EXEMPT_SECTIONS: dict[str, str] = {}
+COVERAGE_EXEMPT_SECTIONS: dict[str, str] = {
+    "abstract":
+        "The paper's Abstract, added 2026-09-02 for submission (referee item 1). An abstract "
+        "restates; no figure originates here, and each is asserted in a result section that IS "
+        "probed: the roll sizes (5.51M / 13.54M / 1.03M) in The cases; the presidential 65+ "
+        "range (28.2-29.0) and the senior-to-youth ratios (4.9-5.5 / 3.0-7.0 / 7.4-9.7) in "
+        "Finding 1; the 2025 median-age gap in Finding 2; the dissimilarity-index values "
+        "(presidential 7.0-8.2, and the 9.2-point lag-matched Idaho-over-Washington gap) and the "
+        "86-98% habitual-core overlap in Finding 3. check_cross_doc_consistency.py's orphan pass "
+        "additionally requires every figure here to appear in the body.",
+}
 
 
 def main() -> int:

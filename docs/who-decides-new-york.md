@@ -29,7 +29,9 @@ reproduce and have been recomputed — see the note under §III.*
 
 *Provenance. The voter-file figures come from `data/ny_vrdb.duckdb` — New York's NYSVOTER
 statewide file (13.54M registrants; individual party enrollment and full DOB **100%
-populated**, plus per-event vote history for the **82.9%** of registrants carrying any
+populated** in the source, generalised to year of birth for analysis — the loader stores 1 July
+of the birth year, matching Washington's year-of-birth resolution under RCW 29A.08.710, so every
+age figure here is calendar-year — plus per-event vote history for the **82.9%** of registrants carrying any
 recorded event — this file's vote history begins in 2016, so a registrant with no recorded
 event may simply not have voted within that window; the share is a turnout-and-window fact,
 not a missing field) — via
@@ -116,18 +118,18 @@ How *many* people vote is the wrong question for understanding how a state is
 governed. The right one is *who* — and in New York the answer changes
 dramatically with the calendar, because local offices have been filled in
 odd-year Novembers and party nominations are made in low-turnout closed
-primaries that a quarter of registrants cannot enter. New York lets us answer "who" with the variable that matters most:
+primaries that a quarter of registrants cannot enter while unaffiliated. New York lets us answer "who" with the variable that matters most:
 **individual party of record.**
 
-The short answer: **the off-year electorate that decides New York is older than the
+The short answer: **the observed off-year general electorate is older than the
 high-salience one, the age skew is
 party-structured, and a quarter of registrants cannot take part in the
 nominating stage while they remain unaffiliated.** That the off-year electorate is older
 replicates a sixty-year-old literature and is established here in **Appendix A**, where it
 belongs. What New York's party of record adds — and what we have not found shown at this
 scale on individual records — is that off-year electorates are consistently oldest on the
-Republican side and youngest in the no-party bloc, and that the bloc excluded from the
-nominating stage is the youngest and least engaged of the state's major enrollment blocs.
+Republican side and youngest in the no-party bloc, and that the bloc outside the
+nominating stage while unaffiliated is the youngest and least engaged of the state's major enrollment blocs.
 
 ---
 
@@ -241,7 +243,7 @@ that lower aggregate turnout does not mechanically produce a more Republican ele
 
 ---
 
-## II. The unaffiliated quarter: young, disengaged, and outside the primary
+## II. The unaffiliated quarter: young, low-participation, and outside the primary
 
 A quarter of New York registrants (25.3% of the active roll; 25.5% of the full roll) enroll in no party.
 This section is **cross-sectional** — it describes the 2026 roll, so the temporal caveat on
@@ -536,12 +538,12 @@ caveat, unchanged: only registrants still on today's roll appear at all.)
 ## What it means
 
 New York lets us put a party label on every filter between the registered
-population and the decision: an older general electorate, an older-still off-year electorate
+population and successive stages of electoral participation: an older general electorate, an older-still off-year electorate
 with a party-structured age profile in which Republican voters are consistently older than
 Democratic ones, a closed primary that a young,
-disengaged quarter of the state cannot enter while unaffiliated, and a district map that is
-one-sided almost everywhere. The reform implication is the one Washington's data pointed to —
-**move local elections on-cycle** — but New York adds the evidence that the off-year distortion
+low-participation quarter of registrants cannot enter while unaffiliated, and a district map that is
+one-sided almost everywhere. The policy implication suggested by the Washington companion and the
+existing timing literature is to **move local elections on-cycle** — but New York adds the evidence that the off-year distortion
 is party-structured, and that the unaffiliated bloc — the youngest of the state's major
 enrollment blocs, and the one most heavily represented among recently dated registration
 records — is least represented in the off-year electorate and, while unaffiliated, ineligible
@@ -581,7 +583,7 @@ reported here, and the data to run it begins accumulating in November 2026.
 
 ## Related work
 
-This paper's mechanisms are established; the contribution is the party-resolved,
+The contribution is not a new causal mechanism; it is the party-resolved,
 individual-record measurement on 13.5M New York registration and vote records, and
 the finding that New York's off-year age skew is **party-structured** — Republican off-year
 electorates are consistently the oldest and the no-party bloc consistently the youngest.
@@ -609,7 +611,7 @@ It sits in these literatures:
   here: our claim is composition and closure (Section III), not ideological extremism.
 - **Independents / the unaffiliated.** Klar & Krupnikov, *Independent Politics* (2016);
   Fiorina, "The (Re)Nationalization of Congressional Elections" and the broader
-  dealignment literature — the frame for the young, disengaged unaffiliated quarter that sits
+  dealignment literature — the frame for the young, low-participation unaffiliated quarter that sits
   outside the closed primary (Section II) and for what Section V can and cannot say about
   no-party enrollment among recently *dated* registration records. *(Until 2026-08-26 this read
   "the new-registrant abandonment of party labels (Section V)" and described a
@@ -672,11 +674,18 @@ Share of the general-election electorate by age band:
 | Nov 2022 | Midterm | 9.8% | 21.1% | 38.5% | 30.6% | 56 |
 | Nov 2025 | Off-year | 11.5% | 21.0% | 33.1% | 34.4% | 56 |
 | Nov 2023 | Off-year | **6.0%** | 15.9% | 36.5% | **41.6%** | 61 |
+| Nov 2021 | Off-year | 6.3% | 17.0% | 40.4% | 36.3% | 59 |
+| Nov 2019 | Off-year | 7.4% | 17.8% | 41.9% | 32.9% | 58 |
+| Nov 2017 | Off-year | 7.8% | 19.1% | 44.6% | 28.4% | 56 |
 
-Both odd-year electorates are older than the 2024 presidential one, though the sequence is not
-monotonic in salience (the midterm and the 2025 odd-year sit between the extremes, and not in
-that order — see below). From the presidential electorate to the 2023 odd-year, the under-30 share
-collapses (14% → 6% by 2023) and the 65+ share swells (28% → 42%); median age
+All five observed odd-year electorates are at least as old as the 2024 presidential one — each
+has a higher 65+ share and a higher median age than the presidential electorate — but the
+magnitude varies substantially, from an oldest cell essentially level with the presidential
+benchmark in 2017 to the markedly older 2023. Showing all five rather than the two most recent is
+deliberate: it removes any appearance of selecting 2023 as the dramatic case. The sequence is not
+monotonic in salience (the midterm and several of the odd-years sit between the extremes, and not
+in salience order — see below). From the presidential electorate to the oldest odd-year (2023),
+the under-30 share collapses (14% → 6%) and the 65+ share swells (28% → 42%); median age
 rises from 53 to 61. **Behavior, not rolls.** A Das-Gupta decomposition of the
 65+ share rise from 2024 to 2025 attributes it several times more to differential
 **turnout** than to the registration age structure (rate effect **+2.5 to +8.7 pts**
